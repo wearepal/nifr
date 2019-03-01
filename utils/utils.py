@@ -22,8 +22,8 @@ class StyleAdapter(logging.LoggerAdapter):
         super(StyleAdapter, self).__init__(logger, extra)
 
     def process(self, msg, kwargs):
-        if kwargs.pop('style', "%") == "{":  # optional
-            msg = BraceString(msg)
+        # if kwargs.pop('style', "%") == "{":  # optional
+        msg = BraceString(msg)
         return msg, kwargs
 
 

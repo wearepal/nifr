@@ -23,6 +23,8 @@ def parse_arguments():
     parser.add_argument('--test_s', metavar="PATH", required=True)
     parser.add_argument('--test_y', metavar="PATH", required=True)
 
+    parser.add_argument('--predictions', metavar="PATH", required=True)
+
     parser.add_argument('--depth', type=int, default=10)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
@@ -111,19 +113,18 @@ def restore_model(model, filename):
     return model
 
 
-def cvt(x):
-    return x.type(torch.float32).to(device, non_blocking=True)
-
-
 def main(args):
     test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
     # logger
     save_dir = Path(args.save)
-    save_dir.mkdir(parents=True, exist_ok=False)
-    logger = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
+    save_dir.mkdir(parents=True, exist_ok=True)
+    logger = utils.get_logger(logpath=save_dir / 'logs' , filepath=Path(__file__).resolve())
     logger.info(args)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    def cvt(x):
+        return x.type(torch.float32).to(device, non_blocking=True)
 
     logger.info('Using {} GPUs.', torch.cuda.device_count())
 
