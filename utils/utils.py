@@ -9,9 +9,22 @@ def batch_flatten(x):
     return x.view(x.size(0), -1)
 
 
-def makedirs(dirname):
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
+class BraceString(str):
+    def __mod__(self, other):
+        return self.format(*other)
+
+    def __str__(self):
+        return self
+
+
+class StyleAdapter(logging.LoggerAdapter):
+    def __init__(self, logger, extra=None):
+        super(StyleAdapter, self).__init__(logger, extra)
+
+    def process(self, msg, kwargs):
+        if kwargs.pop('style', "%") == "{":  # optional
+            msg = BraceString(msg)
+        return msg, kwargs
 
 
 def get_logger(logpath, filepath, package_files=None, displaying=True, saving=True, debug=False):
@@ -40,10 +53,10 @@ def get_logger(logpath, filepath, package_files=None, displaying=True, saving=Tr
         with open(f, "r") as package_f:
             logger.info(package_f.read())
 
-    return logger
+    return StyleAdapter(logger)
 
 
-class AverageMeter(object):
+class AverageMeter:
     """Computes and stores the average and current value"""
 
     def __init__(self):
@@ -62,7 +75,7 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-class RunningAverageMeter(object):
+class RunningAverageMeter:
     """Computes and stores the average and current value"""
 
     def __init__(self, momentum=0.99):
@@ -121,3 +134,14 @@ def logsumexp(value, dim=None, keepdim=False):
             return m + math.log(sum_exp)
         else:
             return m + torch.log(sum_exp)
+
+
+def standard_normal_logprob(z):
+    """Log probability with respect to a normal distribution"""
+    log_z = -0.5 * math.log(2 * math.pi)
+    return log_z - z.pow(2) / 2
+
+
+def count_parameters(model):
+    """Count all parameters (that have a gradient) in the given model"""
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

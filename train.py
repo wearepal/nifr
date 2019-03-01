@@ -1,79 +1,96 @@
+"""Main training file"""
 import argparse
-import os
 import time
+from pathlib import Path
 
 import torch
+from torch.utils.data import DataLoader, TensorDataset
+import pandas as pd
 
-import utils
+from utils import utils
 from optimisation.custom_optimizers import Adam
 import layers
 
-import datasets
-
-from train_misc import standard_normal_logprob, count_parameters
-
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--data', choices=['power', 'gas', 'hepmass', 'miniboone', 'bsds300'], type=str, default='miniboone'
-)
-
-parser.add_argument('--depth', type=int, default=10)
-parser.add_argument('--dims', type=str, default="100-100")
-parser.add_argument('--nonlinearity', type=str, default="tanh")
-parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
-parser.add_argument('--batch_norm', type=eval, default=False, choices=[True, False])
-parser.add_argument('--bn_lag', type=float, default=0)
-
-parser.add_argument('--early_stopping', type=int, default=30)
-parser.add_argument('--batch_size', type=int, default=1000)
-parser.add_argument('--test_batch_size', type=int, default=None)
-parser.add_argument('--lr', type=float, default=1e-4)
-parser.add_argument('--weight_decay', type=float, default=1e-6)
-
-parser.add_argument('--resume', type=str, default=None)
-parser.add_argument('--save', type=str, default='experiments/cnf')
-parser.add_argument('--evaluate', action='store_true')
-parser.add_argument('--val_freq', type=int, default=200)
-parser.add_argument('--log_freq', type=int, default=10)
-args = parser.parse_args()
-
-# logger
-utils.makedirs(args.save)
-logger = utils.get_logger(logpath=os.path.join(args.save, 'logs'), filepath=os.path.abspath(__file__))
-logger.info(args)
-
-test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+NDECS = 0
 
 
-ndecs = 0
+def parse_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train_x', metavar="PATH", required=True)
+    parser.add_argument('--train_s', metavar="PATH", required=True)
+    parser.add_argument('--train_y', metavar="PATH", required=True)
+    parser.add_argument('--test_x', metavar="PATH", required=True)
+    parser.add_argument('--test_s', metavar="PATH", required=True)
+    parser.add_argument('--test_y', metavar="PATH", required=True)
+
+    parser.add_argument('--depth', type=int, default=10)
+    parser.add_argument('--dims', type=str, default="100-100")
+    parser.add_argument('--nonlinearity', type=str, default="tanh")
+    parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--batch_norm', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--bn_lag', type=float, default=0)
+
+    parser.add_argument('--early_stopping', type=int, default=30)
+    parser.add_argument('--batch_size', type=int, default=1000)
+    parser.add_argument('--test_batch_size', type=int, default=None)
+    parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--weight_decay', type=float, default=1e-6)
+
+    parser.add_argument('--resume', type=str, default=None)
+    parser.add_argument('--save', type=str, default='experiments/cnf')
+    parser.add_argument('--evaluate', action='store_true')
+    parser.add_argument('--val_freq', type=int, default=200)
+    parser.add_argument('--log_freq', type=int, default=10)
+    return parser.parse_args()
 
 
-def update_lr(optimizer, n_vals_without_improvement):
-    global ndecs
-    if ndecs == 0 and n_vals_without_improvement > args.early_stopping // 3:
+def update_lr(optimizer, n_vals_without_improvement, args):
+    global NDECS
+    if NDECS == 0 and n_vals_without_improvement > args.early_stopping // 3:
         for param_group in optimizer.param_groups:
             param_group["lr"] = args.lr / 10
-        ndecs = 1
-    elif ndecs == 1 and n_vals_without_improvement > args.early_stopping // 3 * 2:
+        NDECS = 1
+    elif NDECS == 1 and n_vals_without_improvement > args.early_stopping // 3 * 2:
         for param_group in optimizer.param_groups:
             param_group["lr"] = args.lr / 100
-        ndecs = 2
+        NDECS = 2
     else:
         for param_group in optimizer.param_groups:
-            param_group["lr"] = args.lr / 10**ndecs
+            param_group["lr"] = args.lr / 10**NDECS
+
+
+def load_dataframe(path: Path) -> pd.DataFrame:
+    """Load dataframe from a parquet file"""
+    with path.open('rb') as f:
+        df = pd.read_parquet(f)
+    return torch.tensor(df.values, dtype=torch.float32)
 
 
 def load_data(args):
     """Load dataset from the files specified in args and return it as PyTorch datasets"""
+    train_x = load_dataframe(Path(args.train_x))
+    train_s = load_dataframe(Path(args.train_s))
+    train_y = load_dataframe(Path(args.train_y))
+    test_x = load_dataframe(Path(args.test_x))
+    test_s = load_dataframe(Path(args.test_s))
+    test_y = load_dataframe(Path(args.test_y))
+    return {'trn': TensorDataset(train_x, train_s, train_y),
+            'val': TensorDataset(test_x, test_s, test_y)}, train_x.shape[1]
 
 
-def build_model(input_dim):
+def _build_model(input_dim, args):
+    """Build the model with args.depth many layers
+
+    If args.glow is true, then each layer includes 1x1 convolutions.
+    """
     hidden_dims = tuple(map(int, args.dims.split("-")))
     chain = []
     for i in range(args.depth):
-        if args.glow: chain.append(layers.BruteForceLayer(input_dim))
-        chain.append(layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0))
-        if args.batch_norm: chain.append(layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag))
+        if args.glow:
+            chain += [layers.BruteForceLayer(input_dim)]
+        chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
+        if args.batch_norm:
+            chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
     return layers.SequentialFlow(chain)
 
 
@@ -82,7 +99,7 @@ def compute_loss(x, model):
 
     z, delta_logp = model(x, zero)  # run model forward
 
-    logpz = standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+    logpz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     logpx = logpz - delta_logp
     loss = -torch.mean(logpx)
     return loss
@@ -98,24 +115,31 @@ def cvt(x):
     return x.type(torch.float32).to(device, non_blocking=True)
 
 
-def main():
+def main(args):
+    test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+    # logger
+    save_dir = Path(args.save)
+    save_dir.mkdir(parents=True, exist_ok=False)
+    logger = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
+    logger.info(args)
+
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-    logger.info('Using {} GPUs.'.format(torch.cuda.device_count()))
+    logger.info('Using {} GPUs.', torch.cuda.device_count())
 
-    data = load_data(args)
-    trn = torch.utils.data.DataLoader(data.trn, shuffle=True, batch_size=args.batch_size)
-    val = torch.utils.data.DataLoader(data.val, shuffle=False, batch_size=args.test_batch_size)
-    tst = torch.utils.data.DataLoader(data.tst, shuffle=False, batch_size=args.test_batch_size)
+    data, n_dims = load_data(args)
+    trn = DataLoader(data['trn'], shuffle=True, batch_size=args.batch_size)
+    val = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
+    # tst = DataLoader(data.tst, shuffle=False, batch_size=args.test_batch_size)
 
-    model = build_model(data.n_dims).to(device)
+    model = _build_model(n_dims, args).to(device)
 
     if args.resume is not None:
         checkpt = torch.load(args.resume)
         model.load_state_dict(checkpt['state_dict'])
 
     logger.info(model)
-    logger.info("Number of trainable parameters: {}".format(count_parameters(model)))
+    logger.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
     if not args.evaluate:
         optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -132,7 +156,7 @@ def main():
             if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
                 break
 
-            for x in trn:
+            for x, _, _ in trn:
                 if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
                     break
 
@@ -148,38 +172,33 @@ def main():
                 time_meter.update(time.time() - end)
 
                 if itr % args.log_freq == 0:
-                    log_message = (
-                        'Iter {:06d} | Epoch {:.2f} | Time {:.4f}({:.4f}) | Loss {:.6f}({:.6f}) | '.format(
-                            itr,
-                            float(itr) / (data.trn.x.shape[0] / float(args.batch_size)), time_meter.val, time_meter.avg,
-                            loss_meter.val, loss_meter.avg
-                        )
-                    )
-                    logger.info(log_message)
+                    epoch = float(itr) / (len(trn) / float(args.batch_size))
+                    logger.info("Iter {:06d} | Epoch {:.2f} | Time {:.4f}({:.4f}) | "
+                                "Loss {:.6f}({:.6f}) | ", itr, epoch, time_meter.val,
+                                time_meter.avg, loss_meter.val, loss_meter.avg)
                 itr += 1
                 end = time.time()
 
                 # Validation loop.
                 if itr % args.val_freq == 0:
                     model.eval()
-                    start_time = time.time()
+                    # start_time = time.time()
                     with torch.no_grad():
                         val_loss = utils.AverageMeter()
-                        for x in val:
-                            x = cvt(x)
-                            val_loss.update(compute_loss(x, model).item(), x.shape[0])
+                        for x_val, _, _ in val:
+                            x_val = cvt(x_val)
+                            val_loss.update(compute_loss(x_val, model).item(), n=x_val.shape[0])
 
                         if val_loss.avg < best_loss:
                             best_loss = val_loss.avg
-                            utils.makedirs(args.save)
                             torch.save({
                                 'args': args,
                                 'state_dict': model.state_dict(),
-                            }, os.path.join(args.save, 'checkpt.pth'))
+                            }, save_dir / 'checkpt.pth')
                             n_vals_without_improvement = 0
                         else:
                             n_vals_without_improvement += 1
-                        update_lr(optimizer, n_vals_without_improvement)
+                        update_lr(optimizer, n_vals_without_improvement, args)
 
                         log_message = (
                             '[VAL] Iter {:06d} | Val Loss {:.6f} | '
@@ -191,20 +210,20 @@ def main():
                     model.train()
 
         logger.info('Training has finished.')
-        model = restore_model(model, os.path.join(args.save, 'checkpt.pth')).to(device)
+        model = restore_model(model, save_dir / 'checkpt.pth').to(device)
 
     logger.info('Evaluating model on test set.')
     model.eval()
 
     with torch.no_grad():
         test_loss = utils.AverageMeter()
-        for itr, x in enumerate(tst):
+        for itr, (x, _, _) in enumerate(val):
             x = cvt(x)
-            test_loss.update(compute_loss(x, model).item(), x.shape[0])
-            logger.info('Progress: {:.2f}%'.format(itr / (data.tst.x.shape[0] / test_batch_size)))
-        log_message = '[TEST] Iter {:06d} | Test Loss {:.6f} '.format(itr, test_loss.avg)
+            test_loss.update(compute_loss(x, model).item(), n=x.shape[0])
+            logger.info('Progress: {:.2f}%', itr / (len(val) / test_batch_size))
+        log_message = f'[TEST] Iter {itr:06d} | Test Loss {test_loss.avg:.6f} '
         logger.info(log_message)
 
 
 if __name__ == '__main__':
-    main()
+    main(parse_arguments())
