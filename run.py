@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 from ethicml.algorithms.inprocess.threaded.threaded_in_algorithm import BasicTIA
@@ -11,22 +12,15 @@ from ethicml.preprocessing.train_test_split import train_test_split
 class ModelWrapper(BasicTIA):
     def __init__(self):
         super().__init__("fair_invertible", str(Path(__file__).resolve().parent / "train.py"))
+        self.additional_args = sys.argv[1:]
 
     def _script_interface(self, train_paths: PathTuple, test_paths: PathTuple, pred_path):
-        flags_list = []
-
-        # paths to training data
-        for key, value in train_paths._asdict().items():
-            flags_list.append(f"--train_{key}")
-            flags_list.append(str(value))
-
-        # paths to test data
-        for key, value in test_paths._asdict().items():
-            flags_list.append(f"--test_{key}")
-            flags_list.append(str(value))
+        flags_list = self._path_tuple_to_cmd_args([train_paths, test_paths],
+                                                  ['--train_', '--test_'])
 
         # paths to output files
         flags_list += ['--predictions', str(pred_path)]
+        flags_list += self.additional_args
         return flags_list
 
 
