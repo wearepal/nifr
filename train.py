@@ -28,14 +28,15 @@ def parse_arguments():
     parser.add_argument('--train_new', metavar="PATH", required=True)
     parser.add_argument('--test_new', metavar="PATH", required=True)
 
-    parser.add_argument('--depth', type=int, default=1)
+    parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
     parser.add_argument('--batch_norm', type=eval, default=False, choices=[True, False])
     parser.add_argument('--bn_lag', type=float, default=0)
 
-    parser.add_argument('--early_stopping', type=int, default=1)  # 30)
+    parser.add_argument('--early_stopping', type=int, default=30)
+    parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -164,7 +165,7 @@ def main(args):
         n_vals_without_improvement = 0
         end = time.time()
         model.train()
-        while True:
+        for _ in range(args.epochs):
             if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
                 break
 
@@ -175,6 +176,7 @@ def main(args):
                 optimizer.zero_grad()
 
                 x = cvt(x)
+                s = cvt(s)
                 loss = compute_loss(x, s, model)
                 loss_meter.update(loss.item())
 
@@ -199,6 +201,7 @@ def main(args):
                         val_loss = utils.AverageMeter()
                         for x_val, s_val, _ in val:
                             x_val = cvt(x_val)
+                            s_val = cvt(s_val)
                             val_loss.update(compute_loss(x_val, s_val, model).item(), n=x_val.shape[0])
 
                         if val_loss.avg < best_loss:
@@ -226,20 +229,30 @@ def main(args):
 
     logger.info('Evaluating model on test set.')
     model.eval()
+    df_test = encode_dataset(val, model, test_batch_size, logger, cvt)
+    df_test.to_feather(args.test_new)
+    df_train = encode_dataset(val, model, test_batch_size, logger, cvt)
+    df_train.to_feather(args.train_new)
 
+
+def encode_dataset(dataset, model, batch_size, logger, cvt):
     representation = []
     with torch.no_grad():
         test_loss = utils.AverageMeter()
-        for itr, (x, s, _) in enumerate(val):
+        for itr, (x, s, _) in enumerate(dataset):
             x = cvt(x)
+            s = cvt(s)
             loss, z = compute_loss(x, s, model, return_z=True)
             test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
-            logger.info('Progress: {:.2f}%', itr / (len(val) / test_batch_size))
+            logger.info('Progress: {:.2f}%', itr / (len(dataset) / batch_size))
         log_message = f'[TEST] Iter {itr:06d} | Test Loss {test_loss.avg:.6f} '
         logger.info(log_message)
 
-    representation = np.array(representation)
+    representation = torch.cat(representation, dim=0).cpu().detach().numpy()
+    df = pd.DataFrame(representation)
+    df.columns = df.columns.astype(str)
+    return df
 
 
 if __name__ == '__main__':

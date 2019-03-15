@@ -29,7 +29,8 @@ def main():
     model = ModelWrapper()
     data = load_data(Adult())
     train, test = train_test_split(data)
-    call_on_saved_data(model, train, test)
+    train_new, test_new = call_on_saved_data(model, train, test)
+    print(train_new)
 
 
 if __name__ == "__main__":
