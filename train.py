@@ -6,10 +6,12 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 import pandas as pd
+import numpy as np
 
-from utils import utils
+from utils import utils, metrics
 from optimisation.custom_optimizers import Adam
 import layers
+
 
 NDECS = 0
 
@@ -23,16 +25,17 @@ def parse_arguments():
     parser.add_argument('--test_s', metavar="PATH", required=True)
     parser.add_argument('--test_y', metavar="PATH", required=True)
 
-    parser.add_argument('--predictions', metavar="PATH", required=True)
+    parser.add_argument('--train_new', metavar="PATH", required=True)
+    parser.add_argument('--test_new', metavar="PATH", required=True)
 
-    parser.add_argument('--depth', type=int, default=10)
+    parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
     parser.add_argument('--batch_norm', type=eval, default=False, choices=[True, False])
     parser.add_argument('--bn_lag', type=float, default=0)
 
-    parser.add_argument('--early_stopping', type=int, default=30)
+    parser.add_argument('--early_stopping', type=int, default=1)  # 30)
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -96,14 +99,22 @@ def _build_model(input_dim, args):
     return layers.SequentialFlow(chain)
 
 
-def compute_loss(x, model):
+def compute_loss(x, s, model, return_z=False):
     zero = torch.zeros(x.shape[0], 1).to(x)
 
-    z, delta_logp = model(x, zero)  # run model forward
+    z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
+
+    z_s0 = z[s[:, 0] == 0]
+    z_s1 = z[s[:, 0] == 1]
+
+    mmd = metrics.MMDStatistic(z_s0.size(0) - 2, z_s1.size(0) - 2)
+    mmd_loss = mmd(z_s0[:-2], z_s1[:-2], alphas=[1])
 
     logpz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     logpx = logpz - delta_logp
-    loss = -torch.mean(logpx)
+    loss = -torch.mean(logpx) - mmd_loss
+    if return_z:
+        return loss, z
     return loss
 
 
@@ -133,7 +144,7 @@ def main(args):
     val = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
     # tst = DataLoader(data.tst, shuffle=False, batch_size=args.test_batch_size)
 
-    model = _build_model(n_dims, args).to(device)
+    model = _build_model(n_dims + 1, args).to(device)
 
     if args.resume is not None:
         checkpt = torch.load(args.resume)
@@ -157,14 +168,14 @@ def main(args):
             if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
                 break
 
-            for x, _, _ in trn:
+            for x, s, y in trn:
                 if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
                     break
 
                 optimizer.zero_grad()
 
                 x = cvt(x)
-                loss = compute_loss(x, model)
+                loss = compute_loss(x, s, model)
                 loss_meter.update(loss.item())
 
                 loss.backward()
@@ -186,9 +197,9 @@ def main(args):
                     # start_time = time.time()
                     with torch.no_grad():
                         val_loss = utils.AverageMeter()
-                        for x_val, _, _ in val:
+                        for x_val, s_val, _ in val:
                             x_val = cvt(x_val)
-                            val_loss.update(compute_loss(x_val, model).item(), n=x_val.shape[0])
+                            val_loss.update(compute_loss(x_val, s_val, model).item(), n=x_val.shape[0])
 
                         if val_loss.avg < best_loss:
                             best_loss = val_loss.avg
@@ -216,14 +227,19 @@ def main(args):
     logger.info('Evaluating model on test set.')
     model.eval()
 
+    representation = []
     with torch.no_grad():
         test_loss = utils.AverageMeter()
-        for itr, (x, _, _) in enumerate(val):
+        for itr, (x, s, _) in enumerate(val):
             x = cvt(x)
-            test_loss.update(compute_loss(x, model).item(), n=x.shape[0])
+            loss, z = compute_loss(x, s, model, return_z=True)
+            test_loss.update(loss.item(), n=x.shape[0])
+            representation.append(z)
             logger.info('Progress: {:.2f}%', itr / (len(val) / test_batch_size))
         log_message = f'[TEST] Iter {itr:06d} | Test Loss {test_loss.avg:.6f} '
         logger.info(log_message)
+
+    representation = np.array(representation)
 
 
 if __name__ == '__main__':
