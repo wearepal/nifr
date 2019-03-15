@@ -36,7 +36,7 @@ def parse_arguments():
     parser.add_argument('--bn_lag', type=float, default=0)
 
     parser.add_argument('--early_stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=0)
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -110,6 +110,7 @@ def compute_loss(x, s, model, return_z=False):
 
     mmd = metrics.MMDStatistic(z_s0.size(0) - 2, z_s1.size(0) - 2)
     mmd_loss = mmd(z_s0[:-2], z_s1[:-2], alphas=[1])
+
 
     logpz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     logpx = logpz - delta_logp
@@ -231,7 +232,8 @@ def main(args):
     model.eval()
     df_test = encode_dataset(val, model, test_batch_size, logger, cvt)
     df_test.to_feather(args.test_new)
-    df_train = encode_dataset(val, model, test_batch_size, logger, cvt)
+    df_train = encode_dataset(DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size),
+                              model, test_batch_size, logger, cvt)
     df_train.to_feather(args.train_new)
 
 
