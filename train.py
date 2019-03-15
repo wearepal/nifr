@@ -64,7 +64,7 @@ def update_lr(optimizer, n_vals_without_improvement, args):
 def load_dataframe(path: Path) -> pd.DataFrame:
     """Load dataframe from a parquet file"""
     with path.open('rb') as f:
-        df = pd.read_parquet(f)
+        df = pd.read_feather(f)
     return torch.tensor(df.values, dtype=torch.float32)
 
 
