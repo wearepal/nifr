@@ -215,7 +215,7 @@ def main():
                         for x_val, s_val, _ in val:
                             x_val = cvt(x_val)
                             s_val = cvt(s_val)
-                            val_loss.update(compute_loss(x_val, s_val, model).item(), n=x_val.shape[0])
+                            val_loss.update(compute_loss(x_val, s_val, model)[0].item(), n=x_val.shape[0])
 
                         if val_loss.avg < best_loss:
                             best_loss = val_loss.avg
