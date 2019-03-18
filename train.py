@@ -237,7 +237,7 @@ def main(args):
     df_train.to_feather(args.train_new)
 
 
-def encode_dataset(dataset, model, batch_size, logger, cvt):
+def encode_dataset(dataset, model, logger, cvt):
     representation = []
     with torch.no_grad():
         test_loss = utils.AverageMeter()
