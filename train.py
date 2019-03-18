@@ -124,6 +124,8 @@ def _build_model(input_dim):
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
         if ARGS.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
+    if ARGS.base_density == 'dirichlet':
+        chain.append(torch.nn.Softplus())
     return layers.SequentialFlow(chain)
 
 
