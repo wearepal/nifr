@@ -123,7 +123,7 @@ def _build_model(input_dim):
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
         if ARGS.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
-    if ARGS.base_density == 'dirichlet':
+    if ARGS.base_density == 'dirichlet2':
         chain.append(layers.SoftplusTransform())
     return layers.SequentialFlow(chain)
 
@@ -147,8 +147,8 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     mmd_loss = F.binary_cross_entropy(discriminator(zx), s)
     mmd_loss *= ARGS.independence_weight
     if ARGS.base_density == 'dirichlet':
-        dist = torch.distributions.Dirichlet(z)
-        log_pz = dist.log_prob(z.new_ones(z.size(1)) / z.size(1))  # .view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+        dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
+        log_pz = dist.log_prob(F.softmax(z))  # .view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     else:
         dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
 
