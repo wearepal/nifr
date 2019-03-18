@@ -174,7 +174,7 @@ def main():
         n_vals_without_improvement = 0
         end = time.time()
         model.train()
-        for _ in range(ARGS.epochs):
+        for epoch in range(ARGS.epochs):
             if ARGS.early_stopping > 0 and n_vals_without_improvement > ARGS.early_stopping:
                 break
 
@@ -195,7 +195,7 @@ def main():
                 time_meter.update(time.time() - end)
 
                 if itr % ARGS.log_freq == 0:
-                    epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
+                    # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
                     logger.info("Iter {:06d} | Epoch {:.2f} | Time {:.4f}({:.4f}) | "
                                 "Loss {:.6f}({:.6f}) | ", itr, epoch, time_meter.val,
                                 time_meter.avg, loss_meter.val, loss_meter.avg)
@@ -222,7 +222,7 @@ def main():
                             n_vals_without_improvement = 0
                         else:
                             n_vals_without_improvement += 1
-                        update_lr(optimizer, n_vals_without_improvement, ARGS)
+                        update_lr(optimizer, n_vals_without_improvement)
 
                         log_message = (
                             '[VAL] Iter {:06d} | Val Loss {:.6f} | '
