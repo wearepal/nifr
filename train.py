@@ -191,7 +191,7 @@ def main(train_tuple=None, test_tuple=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(device)
-    discriminator = GradReverseDiscriminator([n_dims + 1] + [100, 100] + [1])
+    discriminator = GradReverseDiscriminator([n_dims + 1] + [100, 100] + [1]).to(device)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
