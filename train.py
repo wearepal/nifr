@@ -148,7 +148,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     mmd_loss = F.binary_cross_entropy(discriminator(zx), s)
     mmd_loss *= ARGS.independence_weight
     if ARGS.base_density == 'dirichlet':
-        dist = torch.distributions.Dirichlet(torch.ones_like(z) / z.size(1))
+        dist = torch.distributions.Dirichlet(torch.ones(z.size(1)).cuda() / z.size(1))
     else:
         dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
 
