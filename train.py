@@ -40,7 +40,7 @@ def parse_arguments():
     parser.add_argument('--bn_lag', type=float, default=0)
 
     parser.add_argument('--early_stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=0)
+    parser.add_argument('--epochs', type=int, default=1)
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -55,7 +55,7 @@ def parse_arguments():
 
     parser.add_argument('--zs_dim', type=int, default=2)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1)
-
+    parser.add_argument('--base_density', default='normal', choices=['normal', 'dirichlet'])
 
     return parser.parse_args()
 
@@ -132,20 +132,25 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
 
-    z_s0 = z[s[:, 0] == 0]
-    z_s1 = z[s[:, 0] == 1]
+    # z_s0 = z[s[:, 0] == 0]
+    # z_s1 = z[s[:, 0] == 1]
 
     # test_zs1 = torch.masked_select(z, s.byte()).view(-1, z.shape[1])
     # test_zs0 = torch.masked_select(z, ~s.byte()).view(-1, z.shape[1])
 
-
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
-    mmd_loss = F.binary_cross_entropy(discriminator(z[:, :-ARGS.zs_dim]), s)
-    mmd_loss *= ARGS.independence_weight
-    # disc_loss_function =
+    zx = z[:, :-ARGS.zs_dim]
+    # zs = z[:, -ARGS.zs_dim:]
 
-    log_pz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+    mmd_loss = F.binary_cross_entropy(discriminator(zx), s)
+    mmd_loss *= ARGS.independence_weight
+    if ARGS.base_density == 'dirichlet':
+        dist = torch.distributions.Dirichlet(torch.ones_like(z) / z.size(1))
+    else:
+        dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
+
+    log_pz = dist.log_prob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
     loss = -torch.mean(log_px) + mmd_loss
     if return_z:

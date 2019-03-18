@@ -1,4 +1,6 @@
 import torch
+from torch import distributions
+import torch.nn.functional as F
 import numpy as np
 
 MIN_EPSILON = 1e-5
@@ -78,3 +80,52 @@ def log_bernoulli_deriv(mean):
     probs = torch.clamp(mean, min=MIN_EPSILON, max=MAX_EPSILON)
     log_bern_deriv = torch.log(probs) - torch.log(1. - probs)
     return log_bern_deriv
+
+
+def sample_gumbel(shape, device, eps=1e-20):
+    u = torch.rand(shape).to(device)
+    return torch.log(-torch.log(u + eps) + eps)
+
+
+def sample_gumbel_softmax(logits, temperature):
+    y = logits + sample_gumbel(logits.size(), logits.device)
+    y = F.softmax(y / temperature, dim=-1)
+    return y
+
+
+def one_hot(y):
+    ind = y.argmax(-1)
+    y_hard = torch.zeros_like(y).view(-1, y.size(-1))
+    y_hard.scatter_(1, ind.view(-1, 1), 1)
+    y_hard = y_hard.view_as(y)
+    y_hard = (y_hard - y).detach() + y
+    return y_hard.view(y.size(0), -1)
+
+
+def gumbel_softmax(logits, temperature):
+    """
+    ST-gumple-softmax
+    input: [*, n_class]
+    return: flatten --> [*, n_class] an one-hot vector
+    """
+    y = sample_gumbel_softmax(logits, temperature)
+    ind = y.argmax(-1)
+    y_hard = torch.zeros_like(y).view(-1, y.size(-1))
+    y_hard.scatter_(1, ind.view(-1, 1), 1)
+    y_hard = y_hard.view_as(y)
+    y_hard = (y_hard - y).detach() + y
+    return y_hard.view(logits.size(0), -1)
+
+
+class Categorical(distributions.Categorical):
+    """
+    Extension of the PyTorch's categorical distribution function
+    which adds reparameterization using the Gumbel-Softmax trick
+    """
+    def rsample(self, temperature=0.1, hard_max=False):
+
+        if hard_max:
+            z = one_hot(self.logits)
+        else:
+            z = sample_gumbel_softmax(self.logits, temperature)
+        return z
