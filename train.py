@@ -211,7 +211,7 @@ def main(train_tuple=None, test_tuple=None):
             if n_vals_without_improvement > ARGS.early_stopping > 0:
                 break
 
-            for itr, (x, s, y) in enumerate(trn):
+            for x, s, y in trn:
                 if n_vals_without_improvement > ARGS.early_stopping > 0:
                     break
 
@@ -231,7 +231,9 @@ def main(train_tuple=None, test_tuple=None):
                     # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
                     logger.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
                                 "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
-                                time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(), loss_meter.avg)
+                                time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(),
+                                loss_meter.avg)
+                itr += 1
                 end = time.time()
 
             # Validation loop.
@@ -243,7 +245,8 @@ def main(train_tuple=None, test_tuple=None):
                     for x_val, s_val, _ in val:
                         x_val = cvt(x_val)
                         s_val = cvt(s_val)
-                        val_loss.update(compute_loss(x_val, s_val, model)[0].item(), n=x_val.shape[0])
+                        val_loss.update(compute_loss(x_val, s_val, model)[0].item(),
+                                        n=x_val.size(0))
 
                     if val_loss.avg < best_loss:
                         best_loss = val_loss.avg
@@ -272,8 +275,8 @@ def main(train_tuple=None, test_tuple=None):
     model.eval()
     test_encodings = encode_dataset(val, model, logger, cvt)
     # df_test.to_feather(ARGS.test_new)
-    train_encodings = encode_dataset(DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size),
-                              model, logger, cvt)
+    train_encodings = encode_dataset(
+        DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size), model, logger, cvt)
     # df_train.to_feather(ARGS.train_new)
     return train_encodings, test_encodings
 
