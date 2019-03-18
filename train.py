@@ -141,8 +141,8 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
 
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
-    # mmd_loss *= ARGS.independence_weight
     mmd_loss = F.binary_cross_entropy(discriminator(z[:, :-ARGS.zs_dim]), s)
+    mmd_loss *= ARGS.independence_weight
     # disc_loss_function =
 
     log_pz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
