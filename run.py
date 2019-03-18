@@ -41,11 +41,18 @@ def main():
     train_unfair = DataTuple(x=pd.concat([train.x, train.s], axis='columns'), s=train.s, y=train.y)
     test_unfair = DataTuple(x=pd.concat([test.x, test.s], axis='columns'), s=test.s, y=test.y)
     preds_unfair = lr.run(train_unfair, test_unfair)
+
+    train_fair_predict_s = DataTuple(x=train_new, s=train.s, y=train.s)
+    test_fair_predict_s = DataTuple(x=test_new, s=test.s, y=test.s)
+    preds_s_fair = lr.run(train_fair_predict_s, test_fair_predict_s)
     print("unfair:")
     results = run_metrics(preds_unfair, test_unfair, [Accuracy()], [ProbPos()])
     print(results)
     print("fair:")
     results = run_metrics(preds_fair, test_fair, [Accuracy()], [ProbPos()])
+    print(results)
+    print("predict s from fair representation:")
+    results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
     print(results)
 
 

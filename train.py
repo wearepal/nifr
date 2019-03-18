@@ -14,6 +14,7 @@ import layers
 
 
 NDECS = 0
+ARGS = None
 
 
 def parse_arguments():
@@ -47,22 +48,26 @@ def parse_arguments():
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--val_freq', type=int, default=200)
     parser.add_argument('--log_freq', type=int, default=10)
+
+    parser.add_argument('-zs_dim', type=int, default=2)
+
+
     return parser.parse_args()
 
 
-def update_lr(optimizer, n_vals_without_improvement, args):
+def update_lr(optimizer, n_vals_without_improvement):
     global NDECS
-    if NDECS == 0 and n_vals_without_improvement > args.early_stopping // 3:
+    if NDECS == 0 and n_vals_without_improvement > ARGS.early_stopping // 3:
         for param_group in optimizer.param_groups:
-            param_group["lr"] = args.lr / 10
+            param_group["lr"] = ARGS.lr / 10
         NDECS = 1
-    elif NDECS == 1 and n_vals_without_improvement > args.early_stopping // 3 * 2:
+    elif NDECS == 1 and n_vals_without_improvement > ARGS.early_stopping // 3 * 2:
         for param_group in optimizer.param_groups:
-            param_group["lr"] = args.lr / 100
+            param_group["lr"] = ARGS.lr / 100
         NDECS = 2
     else:
         for param_group in optimizer.param_groups:
-            param_group["lr"] = args.lr / 10**NDECS
+            param_group["lr"] = ARGS.lr / 10**NDECS
 
 
 def load_dataframe(path: Path) -> pd.DataFrame:
@@ -72,31 +77,31 @@ def load_dataframe(path: Path) -> pd.DataFrame:
     return torch.tensor(df.values, dtype=torch.float32)
 
 
-def load_data(args):
-    """Load dataset from the files specified in args and return it as PyTorch datasets"""
-    train_x = load_dataframe(Path(args.train_x))
-    train_s = load_dataframe(Path(args.train_s))
-    train_y = load_dataframe(Path(args.train_y))
-    test_x = load_dataframe(Path(args.test_x))
-    test_s = load_dataframe(Path(args.test_s))
-    test_y = load_dataframe(Path(args.test_y))
+def load_data():
+    """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
+    train_x = load_dataframe(Path(ARGS.train_x))
+    train_s = load_dataframe(Path(ARGS.train_s))
+    train_y = load_dataframe(Path(ARGS.train_y))
+    test_x = load_dataframe(Path(ARGS.test_x))
+    test_s = load_dataframe(Path(ARGS.test_s))
+    test_y = load_dataframe(Path(ARGS.test_y))
     return {'trn': TensorDataset(train_x, train_s, train_y),
             'val': TensorDataset(test_x, test_s, test_y)}, train_x.shape[1]
 
 
-def _build_model(input_dim, args):
-    """Build the model with args.depth many layers
+def _build_model(input_dim):
+    """Build the model with ARGS.depth many layers
 
-    If args.glow is true, then each layer includes 1x1 convolutions.
+    If ARGS.glow is true, then each layer includes 1x1 convolutions.
     """
-    hidden_dims = tuple(map(int, args.dims.split("-")))
+    hidden_dims = tuple(map(int, ARGS.dims.split("-")))
     chain = []
-    for i in range(args.depth):
-        if args.glow:
+    for i in range(ARGS.depth):
+        if ARGS.glow:
             chain += [layers.BruteForceLayer(input_dim)]
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
-        if args.batch_norm:
-            chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
+        if ARGS.batch_norm:
+            chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
     return layers.SequentialFlow(chain)
 
 
@@ -108,8 +113,8 @@ def compute_loss(x, s, model, return_z=False):
     z_s0 = z[s[:, 0] == 0]
     z_s1 = z[s[:, 0] == 1]
 
-    mmd = metrics.MMDStatistic(z_s0.size(0) - 2, z_s1.size(0) - 2)
-    mmd_loss = mmd(z_s0[:-2], z_s1[:-2], alphas=[1])
+    mmd = metrics.MMDStatistic(z_s0.size(0) - ARGS.zs_dim, z_s1.size(0) - ARGS.zs_dim)
+    mmd_loss = mmd(z_s0[:-ARGS.zs_dim], z_s1[:-ARGS.zs_dim], alphas=[1])
 
 
     logpz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
@@ -126,13 +131,16 @@ def restore_model(model, filename):
     return model
 
 
-def main(args):
-    test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+def main():
+    global ARGS
+    ARGS = parse_arguments()
+
+    test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     # logger
-    save_dir = Path(args.save)
+    save_dir = Path(ARGS.save)
     save_dir.mkdir(parents=True, exist_ok=True)
     logger = utils.get_logger(logpath=save_dir / 'logs' , filepath=Path(__file__).resolve())
-    logger.info(args)
+    logger.info(ARGS)
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -141,22 +149,22 @@ def main(args):
 
     logger.info('Using {} GPUs.', torch.cuda.device_count())
 
-    data, n_dims = load_data(args)
-    trn = DataLoader(data['trn'], shuffle=True, batch_size=args.batch_size)
+    data, n_dims = load_data()
+    trn = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
     val = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
-    # tst = DataLoader(data.tst, shuffle=False, batch_size=args.test_batch_size)
+    # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
-    model = _build_model(n_dims + 1, args).to(device)
+    model = _build_model(n_dims + 1).to(device)
 
-    if args.resume is not None:
-        checkpt = torch.load(args.resume)
+    if ARGS.resume is not None:
+        checkpt = torch.load(ARGS.resume)
         model.load_state_dict(checkpt['state_dict'])
 
     logger.info(model)
     logger.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
-    if not args.evaluate:
-        optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    if not ARGS.evaluate:
+        optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
 
         time_meter = utils.RunningAverageMeter(0.98)
         loss_meter = utils.RunningAverageMeter(0.98)
@@ -166,12 +174,12 @@ def main(args):
         n_vals_without_improvement = 0
         end = time.time()
         model.train()
-        for _ in range(args.epochs):
-            if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
+        for _ in range(ARGS.epochs):
+            if ARGS.early_stopping > 0 and n_vals_without_improvement > ARGS.early_stopping:
                 break
 
             for x, s, y in trn:
-                if args.early_stopping > 0 and n_vals_without_improvement > args.early_stopping:
+                if ARGS.early_stopping > 0 and n_vals_without_improvement > ARGS.early_stopping:
                     break
 
                 optimizer.zero_grad()
@@ -186,8 +194,8 @@ def main(args):
 
                 time_meter.update(time.time() - end)
 
-                if itr % args.log_freq == 0:
-                    epoch = float(itr) / (len(trn) / float(args.batch_size))
+                if itr % ARGS.log_freq == 0:
+                    epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
                     logger.info("Iter {:06d} | Epoch {:.2f} | Time {:.4f}({:.4f}) | "
                                 "Loss {:.6f}({:.6f}) | ", itr, epoch, time_meter.val,
                                 time_meter.avg, loss_meter.val, loss_meter.avg)
@@ -195,7 +203,7 @@ def main(args):
                 end = time.time()
 
                 # Validation loop.
-                if itr % args.val_freq == 0:
+                if itr % ARGS.val_freq == 0:
                     model.eval()
                     # start_time = time.time()
                     with torch.no_grad():
@@ -208,18 +216,18 @@ def main(args):
                         if val_loss.avg < best_loss:
                             best_loss = val_loss.avg
                             torch.save({
-                                'args': args,
+                                'ARGS': ARGS,
                                 'state_dict': model.state_dict(),
                             }, save_dir / 'checkpt.pth')
                             n_vals_without_improvement = 0
                         else:
                             n_vals_without_improvement += 1
-                        update_lr(optimizer, n_vals_without_improvement, args)
+                        update_lr(optimizer, n_vals_without_improvement, ARGS)
 
                         log_message = (
                             '[VAL] Iter {:06d} | Val Loss {:.6f} | '
                             'NoImproveEpochs {:02d}/{:02d}'.format(
-                                itr, val_loss.avg, n_vals_without_improvement, args.early_stopping
+                                itr, val_loss.avg, n_vals_without_improvement, ARGS.early_stopping
                             )
                         )
                         logger.info(log_message)
@@ -231,10 +239,10 @@ def main(args):
     logger.info('Evaluating model on test set.')
     model.eval()
     df_test = encode_dataset(val, model, logger, cvt)
-    df_test.to_feather(args.test_new)
+    df_test.to_feather(ARGS.test_new)
     df_train = encode_dataset(DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size),
                               model, logger, cvt)
-    df_train.to_feather(args.train_new)
+    df_train.to_feather(ARGS.train_new)
 
 
 def encode_dataset(dataset, model, logger, cvt):
@@ -252,10 +260,15 @@ def encode_dataset(dataset, model, logger, cvt):
         logger.info(log_message)
 
     representation = torch.cat(representation, dim=0).cpu().detach().numpy()
-    df = pd.DataFrame(representation)
+
+    zx = representation[:, :-ARGS.zs_dim]
+    zs = representation[:, -ARGS.zs_dim:]
+
+    df = pd.DataFrame(zx)
     df.columns = df.columns.astype(str)
+
     return df
 
 
 if __name__ == '__main__':
-    main(parse_arguments())
+    main()
