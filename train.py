@@ -13,7 +13,6 @@ from utils import utils, metrics
 from optimisation.custom_optimizers import Adam
 import layers
 from layers.adversarial import GradReverseDiscriminator
-import tensorboardX
 
 
 NDECS = 0
@@ -125,7 +124,7 @@ def _build_model(input_dim):
         if ARGS.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
     if ARGS.base_density == 'dirichlet':
-        chain.append(torch.nn.Softplus())
+        chain.append(layers.SoftplusTransform())
     return layers.SequentialFlow(chain)
 
 
@@ -148,11 +147,12 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     mmd_loss = F.binary_cross_entropy(discriminator(zx), s)
     mmd_loss *= ARGS.independence_weight
     if ARGS.base_density == 'dirichlet':
-        dist = torch.distributions.Dirichlet(torch.ones(z.size(1)).cuda() / z.size(1))
+        dist = torch.distributions.Dirichlet(z)
+        log_pz = dist.log_prob(z.new_ones(z.size(1)) / z.size(1))  # .view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     else:
         dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
 
-    log_pz = dist.log_prob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+        log_pz = dist.log_prob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
     loss = -torch.mean(log_px) + mmd_loss
     if return_z:

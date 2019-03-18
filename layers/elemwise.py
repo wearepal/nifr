@@ -1,8 +1,10 @@
 import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 _DEFAULT_ALPHA = 1e-6
+_DEFAULT_BETA = 1.
 
 
 class ZeroMeanTransform(nn.Module):
@@ -38,6 +40,28 @@ class LogitTransform(nn.Module):
             return _sigmoid(x, logpx, self.alpha)
         else:
             return _logit(x, logpx, self.alpha)
+
+
+class SoftplusTransform(nn.Module):
+
+    def __init__(self, beta=_DEFAULT_BETA):
+        nn.Module.__init__(self)
+        self.softplus = nn.Softplus(beta)
+
+    def forward(self, x ,logpx=None, reverse=False):
+        if reverse:
+            x -= 1e-8
+            out = torch.log((x.exp() - 1) + 1.e-8)
+            # out = x
+            log_det = ((1 / (1 - torch.exp(-x)) + 1.e-8).log()).sum(1, keepdim=True)
+            # log_det = 0
+            return out, logpx + log_det
+        else:
+            out = self.softplus(x) + 1e-8
+            # out = x
+            log_det = F.logsigmoid(x).sum(1, keepdim=True)
+            # log_det = 0
+            return out, logpx + log_det
 
 
 class SigmoidTransform(nn.Module):
