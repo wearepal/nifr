@@ -2,7 +2,7 @@ import os
 import math
 from numbers import Number
 import logging
-import torchK
+import torch
 
 
 def batch_flatten(x):
