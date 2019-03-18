@@ -230,10 +230,10 @@ def main(args):
 
     logger.info('Evaluating model on test set.')
     model.eval()
-    df_test = encode_dataset(val, model, test_batch_size, logger, cvt)
+    df_test = encode_dataset(val, model, logger, cvt)
     df_test.to_feather(args.test_new)
     df_train = encode_dataset(DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size),
-                              model, test_batch_size, logger, cvt)
+                              model, logger, cvt)
     df_train.to_feather(args.train_new)
 
 
