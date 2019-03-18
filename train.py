@@ -247,7 +247,7 @@ def encode_dataset(dataset, model, batch_size, logger, cvt):
             loss, z = compute_loss(x, s, model, return_z=True)
             test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
-            logger.info('Progress: {:.2f}%', itr / (len(dataset) / batch_size))
+            logger.info('Progress: {:.2f}%', itr / len(dataset) * 100)
         log_message = f'[TEST] Iter {itr:06d} | Test Loss {test_loss.avg:.6f} '
         logger.info(log_message)
 
