@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 import pandas as pd
 import numpy as np
@@ -11,6 +12,7 @@ import numpy as np
 from utils import utils, metrics
 from optimisation.custom_optimizers import Adam
 import layers
+from layers.adversarial import GradReverseDiscriminator
 import tensorboardX
 
 
@@ -42,6 +44,7 @@ def parse_arguments():
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
+    parser.add_argument('--disc_lr', type=float, default=1e-2)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
 
     parser.add_argument('--resume', type=str, default=None)
@@ -124,7 +127,7 @@ def _build_model(input_dim):
     return layers.SequentialFlow(chain)
 
 
-def compute_loss(x, s, model, return_z=False):
+def compute_loss(x, s, model, discriminator, *, return_z=False):
     zero = torch.zeros(x.shape[0], 1).to(x)
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
@@ -135,9 +138,12 @@ def compute_loss(x, s, model, return_z=False):
     # test_zs1 = torch.masked_select(z, s.byte()).view(-1, z.shape[1])
     # test_zs0 = torch.masked_select(z, ~s.byte()).view(-1, z.shape[1])
 
-    mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
-    mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
-    mmd_loss *= ARGS.independence_weight
+
+    # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
+    # mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
+    # mmd_loss *= ARGS.independence_weight
+    mmd_loss = F.binary_cross_entropy(discriminator(z_s0), s)
+    # disc_loss_function =
 
     log_pz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
@@ -154,7 +160,7 @@ def restore_model(model, filename):
 
 
 def main(train_tuple=None, test_tuple=None):
-    global ARGS, WRITER
+    global ARGS, discriminator
 
     # WRITER = tensorboardX.SummaryWriter('./summaries/')
 
@@ -185,6 +191,7 @@ def main(train_tuple=None, test_tuple=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(device)
+    discriminator = GradReverseDiscriminator([n_dims + 1] + [100, 100] + [1])
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -195,6 +202,7 @@ def main(train_tuple=None, test_tuple=None):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
+        disc_optimizer = Adam(discriminator.parameters(), lr=ARGS.disc_lr)
 
         time_meter = utils.RunningAverageMeter(0.98)
         loss_meter = utils.RunningAverageMeter(0.98)
@@ -216,14 +224,16 @@ def main(train_tuple=None, test_tuple=None):
                     break
 
                 optimizer.zero_grad()
+                disc_optimizer.zero_grad()
 
                 x = cvt(x)
                 s = cvt(s)
-                loss, log_p_x, mmd_loss = compute_loss(x, s, model)
+                loss, log_p_x, mmd_loss = compute_loss(x, s, model, discriminator, return_z=False)
                 loss_meter.update(loss.item())
 
                 loss.backward()
                 optimizer.step()
+                disc_optimizer.step()
 
                 time_meter.update(time.time() - end)
 
@@ -245,7 +255,7 @@ def main(train_tuple=None, test_tuple=None):
                     for x_val, s_val, _ in val:
                         x_val = cvt(x_val)
                         s_val = cvt(s_val)
-                        val_loss.update(compute_loss(x_val, s_val, model)[0].item(),
+                        val_loss.update(compute_loss(x_val, s_val, model, discriminator)[0].item(),
                                         n=x_val.size(0))
 
                     if val_loss.avg < best_loss:
@@ -284,16 +294,16 @@ def main(train_tuple=None, test_tuple=None):
 def encode_dataset(dataset, model, logger, cvt):
     representation = []
     with torch.no_grad():
-        test_loss = utils.AverageMeter()
+        # test_loss = utils.AverageMeter()
         for itr, (x, s, _) in enumerate(dataset):
             x = cvt(x)
             s = cvt(s)
-            loss, z = compute_loss(x, s, model, return_z=True)
-            test_loss.update(loss.item(), n=x.shape[0])
+            zero = torch.zeros(x.shape[0], 1).to(x)
+            z, _ = model(torch.cat([x, s], dim=1), zero)
+
+            # test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
             logger.info('Progress: {:.2f}%', itr / len(dataset) * 100)
-        log_message = f'[TEST] Iter {itr:06d} | Test Loss {test_loss.avg:.6f} '
-        logger.info(log_message)
 
     representation = torch.cat(representation, dim=0).cpu().detach().numpy()
 
