@@ -11,6 +11,7 @@ import numpy as np
 from utils import utils, metrics
 from optimisation.custom_optimizers import Adam
 import layers
+import tensorboardX
 
 
 NDECS = 0
@@ -49,7 +50,8 @@ def parse_arguments():
     parser.add_argument('--val_freq', type=int, default=200)
     parser.add_argument('--log_freq', type=int, default=10)
 
-    parser.add_argument('-zs_dim', type=int, default=2)
+    parser.add_argument('--zs_dim', type=int, default=2)
+    parser.add_argument('-iw', '--independence_weight', type=float, default=1)
 
 
     return parser.parse_args()
@@ -116,12 +118,12 @@ def compute_loss(x, s, model, return_z=False):
     mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
 
-    logpz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
-    logpx = logpz - delta_logp
-    loss = -torch.mean(logpx) + mmd_loss
+    log_pz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+    log_px = log_pz - delta_logp
+    loss = -torch.mean(log_px) + ARGS.independence_weight * mmd_loss
     if return_z:
         return loss, z
-    return loss
+    return loss, log_px.mean(), mmd_loss
 
 
 def restore_model(model, filename):
@@ -131,7 +133,10 @@ def restore_model(model, filename):
 
 
 def main():
-    global ARGS
+    global ARGS, WRITER
+
+    # WRITER = tensorboardX.SummaryWriter('./summaries/')
+
     ARGS = parse_arguments()
 
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
@@ -185,7 +190,7 @@ def main():
 
                 x = cvt(x)
                 s = cvt(s)
-                loss = compute_loss(x, s, model)
+                loss, log_p_x, mmd_loss = compute_loss(x, s, model)
                 loss_meter.update(loss.item())
 
                 loss.backward()
@@ -196,8 +201,8 @@ def main():
                 if itr % ARGS.log_freq == 0:
                     # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
                     logger.info("Iter {:06d} | Epoch {:.2f} | Time {:.4f}({:.4f}) | "
-                                "Loss {:.6f}({:.6f}) | ", itr, epoch, time_meter.val,
-                                time_meter.avg, loss_meter.val, loss_meter.avg)
+                                "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr, epoch,
+                                time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(), loss_meter.avg)
                 itr += 1
                 end = time.time()
 
