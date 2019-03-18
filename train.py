@@ -148,7 +148,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     mmd_loss *= ARGS.independence_weight
     if ARGS.base_density == 'dirichlet':
         dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
-        log_pz = dist.log_prob(F.softmax(z))  # .view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+        log_pz = dist.log_prob(F.softmax(z, -1))  # .view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     else:
         dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
 
