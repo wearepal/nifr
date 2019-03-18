@@ -47,7 +47,7 @@ def parse_arguments():
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--save', type=str, default='experiments/cnf')
     parser.add_argument('--evaluate', action='store_true')
-    parser.add_argument('--val_freq', type=int, default=200)
+    parser.add_argument('--val_freq', type=int, default=4)
     parser.add_argument('--log_freq', type=int, default=10)
 
     parser.add_argument('--zs_dim', type=int, default=2)
@@ -208,11 +208,11 @@ def main(train_tuple=None, test_tuple=None):
 
             logger.info('=====> Epoch {}', epoch)
 
-            if ARGS.early_stopping > 0 and n_vals_without_improvement > ARGS.early_stopping:
+            if n_vals_without_improvement > ARGS.early_stopping > 0:
                 break
 
-            for x, s, y in trn:
-                if ARGS.early_stopping > 0 and n_vals_without_improvement > ARGS.early_stopping:
+            for itr, (x, s, y) in enumerate(trn):
+                if n_vals_without_improvement > ARGS.early_stopping > 0:
                     break
 
                 optimizer.zero_grad()
@@ -232,39 +232,38 @@ def main(train_tuple=None, test_tuple=None):
                     logger.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
                                 "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
                                 time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(), loss_meter.avg)
-                itr += 1
                 end = time.time()
 
-                # Validation loop.
-                if itr % ARGS.val_freq == 0:
-                    model.eval()
-                    # start_time = time.time()
-                    with torch.no_grad():
-                        val_loss = utils.AverageMeter()
-                        for x_val, s_val, _ in val:
-                            x_val = cvt(x_val)
-                            s_val = cvt(s_val)
-                            val_loss.update(compute_loss(x_val, s_val, model)[0].item(), n=x_val.shape[0])
+            # Validation loop.
+            if epoch % ARGS.val_freq == 0:
+                model.eval()
+                # start_time = time.time()
+                with torch.no_grad():
+                    val_loss = utils.AverageMeter()
+                    for x_val, s_val, _ in val:
+                        x_val = cvt(x_val)
+                        s_val = cvt(s_val)
+                        val_loss.update(compute_loss(x_val, s_val, model)[0].item(), n=x_val.shape[0])
 
-                        if val_loss.avg < best_loss:
-                            best_loss = val_loss.avg
-                            torch.save({
-                                'ARGS': ARGS,
-                                'state_dict': model.state_dict(),
-                            }, save_dir / 'checkpt.pth')
-                            n_vals_without_improvement = 0
-                        else:
-                            n_vals_without_improvement += 1
-                        update_lr(optimizer, n_vals_without_improvement)
+                    if val_loss.avg < best_loss:
+                        best_loss = val_loss.avg
+                        torch.save({
+                            'ARGS': ARGS,
+                            'state_dict': model.state_dict(),
+                        }, save_dir / 'checkpt.pth')
+                        n_vals_without_improvement = 0
+                    else:
+                        n_vals_without_improvement += 1
+                    update_lr(optimizer, n_vals_without_improvement)
 
-                        log_message = (
-                            '[VAL] Iter {:06d} | Val Loss {:.6f} | '
-                            'NoImproveEpochs {:02d}/{:02d}'.format(
-                                itr, val_loss.avg, n_vals_without_improvement, ARGS.early_stopping
-                            )
+                    log_message = (
+                        '[VAL] Iter {:06d} | Val Loss {:.6f} | '
+                        'No improvement during validation: {:02d}/{:02d}'.format(
+                            itr, val_loss.avg, n_vals_without_improvement, ARGS.early_stopping
                         )
-                        logger.info(log_message)
-                    model.train()
+                    )
+                    logger.info(log_message)
+                model.train()
 
         logger.info('Training has finished.')
         model = restore_model(model, save_dir / 'checkpt.pth').to(device)
