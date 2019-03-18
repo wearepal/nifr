@@ -20,15 +20,15 @@ ARGS = None
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_x', metavar="PATH", required=True)
-    parser.add_argument('--train_s', metavar="PATH", required=True)
-    parser.add_argument('--train_y', metavar="PATH", required=True)
-    parser.add_argument('--test_x', metavar="PATH", required=True)
-    parser.add_argument('--test_s', metavar="PATH", required=True)
-    parser.add_argument('--test_y', metavar="PATH", required=True)
+    parser.add_argument('--train_x', metavar="PATH")
+    parser.add_argument('--train_s', metavar="PATH")
+    parser.add_argument('--train_y', metavar="PATH")
+    parser.add_argument('--test_x', metavar="PATH")
+    parser.add_argument('--test_s', metavar="PATH")
+    parser.add_argument('--test_y', metavar="PATH")
 
-    parser.add_argument('--train_new', metavar="PATH", required=True)
-    parser.add_argument('--test_new', metavar="PATH", required=True)
+    parser.add_argument('--train_new', metavar="PATH")
+    parser.add_argument('--test_new', metavar="PATH")
 
     parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")
@@ -91,6 +91,23 @@ def load_data():
             'val': TensorDataset(test_x, test_s, test_y)}, train_x.shape[1]
 
 
+def convert_data(train_tuple, test_tuple):
+    """
+    Convert tuples of dataframes to pytorch datasets
+    Args:
+        train_tuple: tuple of dataframes with the training data
+        test_tuple: tuple of dataframes with the test data
+
+    Returns:
+        a dictionary with the pytorch datasets
+    """
+    data = {'trn': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                   for df in train_tuple]),
+            'val': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                   for df in test_tuple])}
+    return data
+
+
 def _build_model(input_dim):
     """Build the model with ARGS.depth many layers
 
@@ -132,7 +149,7 @@ def restore_model(model, filename):
     return model
 
 
-def main():
+def main(train_tuple=None, test_tuple=None):
     global ARGS, WRITER
 
     # WRITER = tensorboardX.SummaryWriter('./summaries/')
@@ -153,7 +170,12 @@ def main():
 
     logger.info('Using {} GPUs.', torch.cuda.device_count())
 
-    data, n_dims = load_data()
+    if train_tuple is None:
+        data, n_dims = load_data()
+    else:
+        data = convert_data(train_tuple, test_tuple)
+        n_dims = train_tuple.x.values.shape[1]
+
     trn = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
     val = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
@@ -242,11 +264,12 @@ def main():
 
     logger.info('Evaluating model on test set.')
     model.eval()
-    df_test = encode_dataset(val, model, logger, cvt)
-    df_test.to_feather(ARGS.test_new)
-    df_train = encode_dataset(DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size),
+    test_encodings = encode_dataset(val, model, logger, cvt)
+    # df_test.to_feather(ARGS.test_new)
+    train_encodings = encode_dataset(DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size),
                               model, logger, cvt)
-    df_train.to_feather(ARGS.train_new)
+    # df_train.to_feather(ARGS.train_new)
+    return train_encodings, test_encodings
 
 
 def encode_dataset(dataset, model, logger, cvt):
@@ -265,13 +288,13 @@ def encode_dataset(dataset, model, logger, cvt):
 
     representation = torch.cat(representation, dim=0).cpu().detach().numpy()
 
-    zx = representation[:, :-ARGS.zs_dim]
-    zs = representation[:, -ARGS.zs_dim:]
+    df = pd.DataFrame(representation)
+    columns = df.columns.astype(str)
+    df.columns = columns
+    zx = df[columns[:-ARGS.zs_dim]]
+    zs = df[columns[-ARGS.zs_dim:]]
 
-    df = pd.DataFrame(zx)
-    df.columns = df.columns.astype(str)
-
-    return df
+    return df, zx, zs
 
 
 if __name__ == '__main__':
