@@ -132,15 +132,19 @@ def compute_loss(x, s, model, return_z=False):
     z_s0 = z[s[:, 0] == 0]
     z_s1 = z[s[:, 0] == 1]
 
+    # test_zs1 = torch.masked_select(z, s.byte()).view(-1, z.shape[1])
+    # test_zs0 = torch.masked_select(z, ~s.byte()).view(-1, z.shape[1])
+
     mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
+    mmd_loss *= ARGS.independence_weight
 
     log_pz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
-    loss = -torch.mean(log_px) + ARGS.independence_weight * mmd_loss
+    loss = -torch.mean(log_px) + mmd_loss
     if return_z:
         return loss, z
-    return loss, log_px.mean(), mmd_loss
+    return loss, log_px.mean(), -mmd_loss
 
 
 def restore_model(model, filename):
@@ -201,6 +205,9 @@ def main(train_tuple=None, test_tuple=None):
         end = time.time()
         model.train()
         for epoch in range(ARGS.epochs):
+
+            logger.info('=====> Epoch {}', epoch)
+
             if ARGS.early_stopping > 0 and n_vals_without_improvement > ARGS.early_stopping:
                 break
 
@@ -222,8 +229,8 @@ def main(train_tuple=None, test_tuple=None):
 
                 if itr % ARGS.log_freq == 0:
                     # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
-                    logger.info("Iter {:06d} | Epoch {:.2f} | Time {:.4f}({:.4f}) | "
-                                "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr, epoch,
+                    logger.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
+                                "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
                                 time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(), loss_meter.avg)
                 itr += 1
                 end = time.time()
