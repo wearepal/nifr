@@ -116,10 +116,9 @@ def compute_loss(x, s, model, return_z=False):
     mmd = metrics.MMDStatistic(z_s0.size(0) - ARGS.zs_dim, z_s1.size(0) - ARGS.zs_dim)
     mmd_loss = mmd(z_s0[:-ARGS.zs_dim], z_s1[:-ARGS.zs_dim], alphas=[1])
 
-
     logpz = utils.standard_normal_logprob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
     logpx = logpz - delta_logp
-    loss = -torch.mean(logpx) - mmd_loss
+    loss = -torch.mean(logpx) + mmd_loss
     if return_z:
         return loss, z
     return loss
