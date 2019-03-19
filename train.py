@@ -278,18 +278,19 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
 
         n_vals_without_improvement = 0
 
-        with experiment.train():
-            for epoch in range(ARGS.epochs):
+        for epoch in range(ARGS.epochs):
 
-                LOGGER.info('=====> Epoch {}', epoch)
+            LOGGER.info('=====> Epoch {}', epoch)
 
-                if n_vals_without_improvement > ARGS.early_stopping > 0:
-                    break
+            if n_vals_without_improvement > ARGS.early_stopping > 0:
+                break
 
+            with experiment.train():
                 train(model, discriminator, optimizer, disc_optimizer, train_loader,
                       experiment, epoch)
-                # Validation loop.
-                if epoch % ARGS.val_freq == 0:
+
+            if epoch % ARGS.val_freq == 0:
+                with experiment.test():
                     val_loss = validate(model, discriminator, val_loader)
                     if val_loss < best_loss:
                         best_loss = val_loss
@@ -309,7 +310,6 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
                         )
                     )
                     LOGGER.info(log_message)
-
 
         LOGGER.info('Training has finished.')
         model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
