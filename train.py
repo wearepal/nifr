@@ -18,6 +18,7 @@ from layers.adversarial import GradReverseDiscriminator
 
 NDECS = 0
 ARGS = None
+LOGGER = None
 
 
 def parse_arguments():
@@ -173,8 +174,61 @@ def restore_model(model, filename):
     return model
 
 
+def train(model, discriminator, optimizer, disc_optimizer, dataloader, experiment, epoch):
+    model.train()
+    
+    loss_meter = utils.AverageMeter()
+    time_meter = utils.AverageMeter()
+    end = time.time()
+
+    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
+
+        optimizer.zero_grad()
+        disc_optimizer.zero_grad()
+
+        x = cvt(x)
+        s = cvt(s)
+        loss, log_p_x, mmd_loss = compute_loss(x, s, model, discriminator, return_z=False)
+        loss_meter.update(loss.item())
+
+        loss.backward()
+        optimizer.step()
+        disc_optimizer.step()
+
+        time_meter.update(time.time() - end)
+
+        if itr % ARGS.log_freq == 0:
+            # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
+            LOGGER.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
+                        "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
+                        time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(),
+                        loss_meter.avg)
+            experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
+            experiment.log_metric("Loss mmd", mmd_loss.item(), step=itr)
+        itr += 1
+        end = time.time()
+
+
+def validate(model, discriminator, dataloader):
+    model.eval()
+    # start_time = time.time()
+    with torch.no_grad():
+        val_loss = utils.AverageMeter()
+        for x_val, s_val, _ in dataloader:
+            x_val = cvt(x_val)
+            s_val = cvt(s_val)
+            val_loss.update(compute_loss(x_val, s_val, model, discriminator)[0].item(),
+                            n=x_val.size(0))
+
+    return val_loss.avg
+
+
+def cvt(x):
+    return x.type(torch.float32).to(ARGS.device, non_blocking=True)
+
+
 def main(train_tuple=None, test_tuple=None, experiment=None):
-    global ARGS, discriminator
+    global ARGS, LOGGER
 
     # WRITER = tensorboardX.SummaryWriter('./summaries/')
 
@@ -183,18 +237,14 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
     experiment.log_multiple_params(vars(ARGS))
 
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    # logger
     save_dir = Path(ARGS.save)
     save_dir.mkdir(parents=True, exist_ok=True)
-    logger = utils.get_logger(logpath=save_dir / 'logs' , filepath=Path(__file__).resolve())
-    logger.info(ARGS)
+    LOGGER = utils.get_logger(logpath=save_dir / 'logs' , filepath=Path(__file__).resolve())
+    LOGGER.info(ARGS)
 
-    device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
+    ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
 
-    def cvt(x):
-        return x.type(torch.float32).to(device, non_blocking=True)
-
-    logger.info('Using {} GPUs.', torch.cuda.device_count())
+    LOGGER.info('Using {} GPUs.', torch.cuda.device_count())
 
     if train_tuple is None:
         data, n_dims = load_data()
@@ -202,115 +252,79 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
         data = convert_data(train_tuple, test_tuple)
         n_dims = train_tuple.x.values.shape[1]
 
-    trn = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
-    val = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
+    train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
+    val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
-    model = _build_model(n_dims + 1).to(device)
-    discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100] + [1]).to(device)
+    model = _build_model(n_dims + 1).to(ARGS.device)
+    discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim]
+                                             + [100, 100] + [1]).to(ARGS.device)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
         model.load_state_dict(checkpt['state_dict'])
 
-    logger.info(model)
-    logger.info("Number of trainable parameters: {}", utils.count_parameters(model))
+    LOGGER.info(model)
+    LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
         disc_optimizer = Adam(discriminator.parameters(), lr=ARGS.disc_lr)
 
-        time_meter = utils.RunningAverageMeter(0.98)
-        loss_meter = utils.RunningAverageMeter(0.98)
+        # time_meter = utils.RunningAverageMeter(0.98)
+        # loss_meter = utils.RunningAverageMeter(0.98)
 
         best_loss = float('inf')
-        itr = 0
+
         n_vals_without_improvement = 0
-        end = time.time()
-        model.train()
+
         with experiment.train():
             for epoch in range(ARGS.epochs):
 
-                logger.info('=====> Epoch {}', epoch)
+                LOGGER.info('=====> Epoch {}', epoch)
 
                 if n_vals_without_improvement > ARGS.early_stopping > 0:
                     break
 
-                for x, s, y in trn:
-                    if n_vals_without_improvement > ARGS.early_stopping > 0:
-                        break
-
-                    optimizer.zero_grad()
-                    disc_optimizer.zero_grad()
-
-                    x = cvt(x)
-                    s = cvt(s)
-                    loss, log_p_x, mmd_loss = compute_loss(x, s, model, discriminator, return_z=False)
-                    loss_meter.update(loss.item())
-
-                    loss.backward()
-                    optimizer.step()
-                    disc_optimizer.step()
-
-                    time_meter.update(time.time() - end)
-
-                    if itr % ARGS.log_freq == 0:
-                        # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
-                        logger.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
-                                    "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
-                                    time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(),
-                                    loss_meter.avg)
-                        experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
-                        experiment.log_metric("Loss mmd", mmd_loss.item(), step=itr)
-                    itr += 1
-                    end = time.time()
-
+                train(model, discriminator, optimizer, disc_optimizer, train_loader,
+                      experiment, epoch)
                 # Validation loop.
                 if epoch % ARGS.val_freq == 0:
-                    model.eval()
-                    # start_time = time.time()
-                    with torch.no_grad():
-                        val_loss = utils.AverageMeter()
-                        for x_val, s_val, _ in val:
-                            x_val = cvt(x_val)
-                            s_val = cvt(s_val)
-                            val_loss.update(compute_loss(x_val, s_val, model, discriminator)[0].item(),
-                                            n=x_val.size(0))
+                    val_loss = validate(model, discriminator, val_loader)
+                    if val_loss < best_loss:
+                        best_loss = val_loss
+                        torch.save({
+                            'ARGS': ARGS,
+                            'state_dict': model.state_dict(),
+                        }, save_dir / 'checkpt.pth')
+                        n_vals_without_improvement = 0
+                    else:
+                        n_vals_without_improvement += 1
+                    update_lr(optimizer, n_vals_without_improvement)
 
-                        if val_loss.avg < best_loss:
-                            best_loss = val_loss.avg
-                            torch.save({
-                                'ARGS': ARGS,
-                                'state_dict': model.state_dict(),
-                            }, save_dir / 'checkpt.pth')
-                            n_vals_without_improvement = 0
-                        else:
-                            n_vals_without_improvement += 1
-                        update_lr(optimizer, n_vals_without_improvement)
-
-                        log_message = (
-                            '[VAL] Iter {:06d} | Val Loss {:.6f} | '
-                            'No improvement during validation: {:02d}/{:02d}'.format(
-                                itr, val_loss.avg, n_vals_without_improvement, ARGS.early_stopping
-                            )
+                    log_message = (
+                        '[VAL] Epoch {:06d} | Val Loss {:.6f} | '
+                        'No improvement during validation: {:02d}/{:02d}'.format(
+                            epoch, val_loss, n_vals_without_improvement, ARGS.early_stopping
                         )
-                        logger.info(log_message)
-                    model.train()
+                    )
+                    LOGGER.info(log_message)
 
-        logger.info('Training has finished.')
-        model = restore_model(model, save_dir / 'checkpt.pth').to(device)
 
-    logger.info('Evaluating model on test set.')
+        LOGGER.info('Training has finished.')
+        model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
+
+    LOGGER.info('Evaluating model on test set.')
     model.eval()
-    test_encodings = encode_dataset(val, model, logger, cvt)
+    test_encodings = encode_dataset(val_loader, model, LOGGER, cvt)
     # df_test.to_feather(ARGS.test_new)
     train_encodings = encode_dataset(
-        DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size), model, logger, cvt)
+        DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size), model, LOGGER, cvt)
     # df_train.to_feather(ARGS.train_new)
     return train_encodings, test_encodings
 
 
-def encode_dataset(dataset, model, logger, cvt):
+def encode_dataset(dataset, model, LOGGER, cvt):
     representation = []
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
@@ -322,7 +336,7 @@ def encode_dataset(dataset, model, logger, cvt):
 
             # test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
-            logger.info('Progress: {:.2f}%', itr / len(dataset) * 100)
+            LOGGER.info('Progress: {:.2f}%', itr / len(dataset) * 100)
 
     representation = torch.cat(representation, dim=0).cpu().detach().numpy()
 
