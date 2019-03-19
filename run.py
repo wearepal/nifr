@@ -15,7 +15,6 @@ from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.metrics import Accuracy, ProbPos
 
 from train import main as training_loop
-from weight_adjust import main as weight_adjustment
 
 
 # class ModelWrapper(BasicTPA):
@@ -83,7 +82,7 @@ def main():
     preds_unfair = lr.run(train_unfair, test_unfair)
     results = run_metrics(preds_unfair, test_unfair, [Accuracy()], [ProbPos()])
     experiment.log_metric("Unfair Accuracy", results['Accuracy'])
-    experiment.log_metric("unfair P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
+    experiment.log_metric("Unfair P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
     experiment.log_metric("Unfair P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
     print(results, "\n")
 
@@ -103,9 +102,10 @@ def main():
     experiment.log_metric("Unfair pred s", results['Accuracy'])
     print(results)
 
-    weight_adjustment(DataTuple(x=train_all, s=train.s, y=train.y),
-                      DataTuple(x=test_all, s=test.s, y=test.y),
-                      train_zs.shape[1])
+    # from weight_adjust import main as weight_adjustment
+    # weight_adjustment(DataTuple(x=train_all, s=train.s, y=train.y),
+    #                   DataTuple(x=test_all, s=test.s, y=test.y),
+    #                   train_zs.shape[1])
 
 
 if __name__ == "__main__":
