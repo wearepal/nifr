@@ -1,14 +1,14 @@
-import sys
-
-from pathlib import Path
+"""Run the model and evaluate the fairness"""
+# import sys
+# from pathlib import Path
 
 import pandas as pd
 from comet_ml import Experiment
 
-from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
+# from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.algorithms.inprocess.logistic_regression import LR
-from ethicml.algorithms.utils import PathTuple, DataTuple
-from ethicml.evaluators.evaluate_models import call_on_saved_data, run_metrics
+from ethicml.algorithms.utils import DataTuple  # , PathTuple
+from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
 from ethicml.data import Adult
 from ethicml.data.load import load_data
 from ethicml.preprocessing.train_test_split import train_test_split
@@ -17,20 +17,20 @@ from ethicml.metrics import Accuracy, ProbPos
 from train import main as training_loop
 
 
-class ModelWrapper(BasicTPA):
-    def __init__(self):
-        super().__init__("fair_invertible", str(Path(__file__).resolve().parent / "train.py"))
-        self.additional_args = sys.argv[1:]
+# class ModelWrapper(BasicTPA):
+#     def __init__(self):
+#         super().__init__("fair_invertible", str(Path(__file__).resolve().parent / "train.py"))
+#         self.additional_args = sys.argv[1:]
 
-    def _script_interface(self, train_paths: PathTuple, test_paths: PathTuple, for_train_path,
-                          for_test_path):
-        flags_list = self._path_tuple_to_cmd_args([train_paths, test_paths],
-                                                  ['--train_', '--test_'])
+#     def _script_interface(self, train_paths: PathTuple, test_paths: PathTuple, for_train_path,
+#                           for_test_path):
+#         flags_list = self._path_tuple_to_cmd_args([train_paths, test_paths],
+#                                                   ['--train_', '--test_'])
 
-        # paths to output files
-        flags_list += ['--train_new', str(for_train_path), '--test_new', str(for_test_path)]
-        flags_list += self.additional_args
-        return flags_list
+#         # paths to output files
+#         flags_list += ['--train_new', str(for_train_path), '--test_new', str(for_test_path)]
+#         flags_list += self.additional_args
+#         return flags_list
 
 
 def main():
@@ -41,7 +41,7 @@ def main():
 
     data = load_data(Adult())
     train, test = train_test_split(data)
-    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test, experiment)
+    (_, train_zx, train_zs), (_, test_zx, test_zs) = training_loop(train, test, experiment)
 
     lr = LR()
 
