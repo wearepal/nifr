@@ -56,7 +56,7 @@ def parse_arguments():
     parser.add_argument('--zs_dim', type=int, default=2)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1)
     parser.add_argument('--base_density', default='normal',
-                        choices=['normal', 'dirichlet', 'binormal'])
+                        choices=['normal', 'dirichlet', 'binormal', 'bernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
 
@@ -156,6 +156,12 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
         ones = z.new_ones(1, z.size(1))
         dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
                                     z.new_ones(2))
+    elif ARGS.base_density == 'bernoulli':
+        temperature = z.new_tensor(.5)
+        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+        dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
+                                                                           probs=prob_of_1)
+        z = z.clamp(-100, 100)
     else:
         dist = torch.distributions.Normal(0, 1)
 
