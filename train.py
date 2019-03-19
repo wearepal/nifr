@@ -169,12 +169,23 @@ def restore_model(model, filename):
     return model
 
 
-def main(train_tuple=None, test_tuple=None):
+def main(train_tuple=None, test_tuple=None, experiment=None):
     global ARGS, discriminator
 
     # WRITER = tensorboardX.SummaryWriter('./summaries/')
 
     ARGS = parse_arguments()
+
+    hyper_params = {"depth": ARGS.depth, "dims": ARGS.dims, "nonlinearity": ARGS.nonlinearity,
+                    "glow": ARGS.glow, "batch_norm": ARGS.batch_norm, "bn_lag": ARGS.bn_lag,
+                    "early_stopping": ARGS.early_stopping, "eppchs": ARGS.epochs,
+                    "batch_size": ARGS.batch_size, "lr": ARGS.lr, "disc_lr": ARGS.disc_lr,
+                    "weight_decay": ARGS.weight_decay, "resume": ARGS.resume,
+                    "val_freq": ARGS.val_freq, "log_freq": ARGS.log_freq, "zs_dim": ARGS.zs_dim,
+                    "independence_weight": ARGS.independence_weight,
+                    "base_density": ARGS.base_density
+                    }
+    experiment.log_multiple_params(hyper_params)
 
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     # logger
@@ -222,71 +233,74 @@ def main(train_tuple=None, test_tuple=None):
         n_vals_without_improvement = 0
         end = time.time()
         model.train()
-        for epoch in range(ARGS.epochs):
+        with experiment.train():
+            for epoch in range(ARGS.epochs):
 
-            logger.info('=====> Epoch {}', epoch)
+                logger.info('=====> Epoch {}', epoch)
 
-            if n_vals_without_improvement > ARGS.early_stopping > 0:
-                break
-
-            for x, s, y in trn:
                 if n_vals_without_improvement > ARGS.early_stopping > 0:
                     break
 
-                optimizer.zero_grad()
-                disc_optimizer.zero_grad()
+                for x, s, y in trn:
+                    if n_vals_without_improvement > ARGS.early_stopping > 0:
+                        break
 
-                x = cvt(x)
-                s = cvt(s)
-                loss, log_p_x, mmd_loss = compute_loss(x, s, model, discriminator, return_z=False)
-                loss_meter.update(loss.item())
+                    optimizer.zero_grad()
+                    disc_optimizer.zero_grad()
 
-                loss.backward()
-                optimizer.step()
-                disc_optimizer.step()
+                    x = cvt(x)
+                    s = cvt(s)
+                    loss, log_p_x, mmd_loss = compute_loss(x, s, model, discriminator, return_z=False)
+                    loss_meter.update(loss.item())
 
-                time_meter.update(time.time() - end)
+                    loss.backward()
+                    optimizer.step()
+                    disc_optimizer.step()
 
-                if itr % ARGS.log_freq == 0:
-                    # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
-                    logger.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
-                                "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
-                                time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(),
-                                loss_meter.avg)
-                itr += 1
-                end = time.time()
+                    time_meter.update(time.time() - end)
 
-            # Validation loop.
-            if epoch % ARGS.val_freq == 0:
-                model.eval()
-                # start_time = time.time()
-                with torch.no_grad():
-                    val_loss = utils.AverageMeter()
-                    for x_val, s_val, _ in val:
-                        x_val = cvt(x_val)
-                        s_val = cvt(s_val)
-                        val_loss.update(compute_loss(x_val, s_val, model, discriminator)[0].item(),
-                                        n=x_val.size(0))
+                    if itr % ARGS.log_freq == 0:
+                        # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
+                        logger.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
+                                    "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
+                                    time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(),
+                                    loss_meter.avg)
+                        experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
+                        experiment.log_metric("Loss mmd", mmd_loss.item(), step=itr)
+                    itr += 1
+                    end = time.time()
 
-                    if val_loss.avg < best_loss:
-                        best_loss = val_loss.avg
-                        torch.save({
-                            'ARGS': ARGS,
-                            'state_dict': model.state_dict(),
-                        }, save_dir / 'checkpt.pth')
-                        n_vals_without_improvement = 0
-                    else:
-                        n_vals_without_improvement += 1
-                    update_lr(optimizer, n_vals_without_improvement)
+                # Validation loop.
+                if epoch % ARGS.val_freq == 0:
+                    model.eval()
+                    # start_time = time.time()
+                    with torch.no_grad():
+                        val_loss = utils.AverageMeter()
+                        for x_val, s_val, _ in val:
+                            x_val = cvt(x_val)
+                            s_val = cvt(s_val)
+                            val_loss.update(compute_loss(x_val, s_val, model, discriminator)[0].item(),
+                                            n=x_val.size(0))
 
-                    log_message = (
-                        '[VAL] Iter {:06d} | Val Loss {:.6f} | '
-                        'No improvement during validation: {:02d}/{:02d}'.format(
-                            itr, val_loss.avg, n_vals_without_improvement, ARGS.early_stopping
+                        if val_loss.avg < best_loss:
+                            best_loss = val_loss.avg
+                            torch.save({
+                                'ARGS': ARGS,
+                                'state_dict': model.state_dict(),
+                            }, save_dir / 'checkpt.pth')
+                            n_vals_without_improvement = 0
+                        else:
+                            n_vals_without_improvement += 1
+                        update_lr(optimizer, n_vals_without_improvement)
+
+                        log_message = (
+                            '[VAL] Iter {:06d} | Val Loss {:.6f} | '
+                            'No improvement during validation: {:02d}/{:02d}'.format(
+                                itr, val_loss.avg, n_vals_without_improvement, ARGS.early_stopping
+                            )
                         )
-                    )
-                    logger.info(log_message)
-                model.train()
+                        logger.info(log_message)
+                    model.train()
 
         logger.info('Training has finished.')
         model = restore_model(model, save_dir / 'checkpt.pth').to(device)
