@@ -180,16 +180,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
 
     ARGS = parse_arguments()
 
-    hyper_params = {"depth": ARGS.depth, "dims": ARGS.dims, "nonlinearity": ARGS.nonlinearity,
-                    "glow": ARGS.glow, "batch_norm": ARGS.batch_norm, "bn_lag": ARGS.bn_lag,
-                    "early_stopping": ARGS.early_stopping, "eppchs": ARGS.epochs,
-                    "batch_size": ARGS.batch_size, "lr": ARGS.lr, "disc_lr": ARGS.disc_lr,
-                    "weight_decay": ARGS.weight_decay, "resume": ARGS.resume,
-                    "val_freq": ARGS.val_freq, "log_freq": ARGS.log_freq, "zs_dim": ARGS.zs_dim,
-                    "independence_weight": ARGS.independence_weight,
-                    "base_density": ARGS.base_density
-                    }
-    experiment.log_multiple_params(hyper_params)
+    experiment.log_multiple_params(vars(ARGS))
 
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     # logger
