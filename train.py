@@ -6,6 +6,7 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
+from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
 import numpy as np
 
@@ -54,7 +55,8 @@ def parse_arguments():
 
     parser.add_argument('--zs_dim', type=int, default=2)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1)
-    parser.add_argument('--base_density', default='normal', choices=['normal', 'dirichlet'])
+    parser.add_argument('--base_density', default='normal',
+                        choices=['normal', 'dirichlet', 'binormal'])
 
     return parser.parse_args()
 
@@ -129,7 +131,7 @@ def _build_model(input_dim):
 
 
 def compute_loss(x, s, model, discriminator, *, return_z=False):
-    zero = torch.zeros(x.shape[0], 1).to(x)
+    zero = x.new_zeros(x.size(0), 1)
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
 
@@ -148,11 +150,12 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     mmd_loss *= ARGS.independence_weight
     if ARGS.base_density == 'dirichlet':
         dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
-        log_pz = dist.log_prob(F.softmax(z, -1))  # .view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+    elif ARGS.base_density == 'binormal':
+        dist = MixtureOfDiagNormals(z.new_tensor([[-1.], [1]]), z.new_ones(2, 1), z.new_ones(2))
     else:
         dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
 
-        log_pz = dist.log_prob(z).view(z.shape[0], -1).sum(1, keepdim=True)  # logp(z)
+    log_pz = dist.log_prob(z).view(z.size(0), -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
     loss = -torch.mean(log_px) + mmd_loss
     if return_z:
