@@ -8,9 +8,8 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
-import numpy as np
 
-from utils import utils, metrics
+from utils import utils
 from optimisation.custom_optimizers import Adam
 import layers
 from layers.adversarial import GradReverseDiscriminator
@@ -224,14 +223,16 @@ def validate(model, discriminator, dataloader):
     return val_loss.avg
 
 
-def cvt(x):
-    return x.type(torch.float32).to(ARGS.device, non_blocking=True)
+def cvt(*tensors):
+    """Put tensors on the correct device and set type to float32"""
+    moved = [tensor.type(torch.float32).to(ARGS.device, non_blocking=True) for tensor in tensors]
+    if len(moved) == 1:
+        return moved[0]
+    return tuple(moved)
 
 
 def main(train_tuple=None, test_tuple=None, experiment=None):
     global ARGS, LOGGER
-
-    # WRITER = tensorboardX.SummaryWriter('./summaries/')
 
     ARGS = parse_arguments()
 
@@ -240,7 +241,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     save_dir = Path(ARGS.save)
     save_dir.mkdir(parents=True, exist_ok=True)
-    LOGGER = utils.get_logger(logpath=save_dir / 'logs' , filepath=Path(__file__).resolve())
+    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
 
     ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
@@ -293,7 +294,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
             if epoch % ARGS.val_freq == 0:
                 with experiment.test():
                     val_loss = validate(model, discriminator, val_loader)
-                    experiment.log_metric("Loss", val_loss, step=(epoch+1) * len(train_loader))
+                    experiment.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
 
                     if val_loss < best_loss:
                         best_loss = val_loss
@@ -334,7 +335,7 @@ def encode_dataset(dataset, model, LOGGER, cvt):
         for itr, (x, s, _) in enumerate(dataset):
             x = cvt(x)
             s = cvt(s)
-            zero = torch.zeros(x.shape[0], 1).to(x)
+            zero = x.new_zeros(x.size(0), 1)
             z, _ = model(torch.cat([x, s], dim=1), zero)
 
             # test_loss.update(loss.item(), n=x.shape[0])
