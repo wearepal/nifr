@@ -217,8 +217,9 @@ def validate(model, discriminator, dataloader):
         for x_val, s_val, _ in dataloader:
             x_val = cvt(x_val)
             s_val = cvt(s_val)
-            val_loss.update(compute_loss(x_val, s_val, model, discriminator)[0].item(),
-                            n=x_val.size(0))
+            loss, log_p_x, mmd_loss = compute_loss(x_val, s_val, model, discriminator)
+
+            val_loss.update(loss.item(), n=x_val.size(0))
 
     return val_loss.avg
 
@@ -292,6 +293,8 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
             if epoch % ARGS.val_freq == 0:
                 with experiment.test():
                     val_loss = validate(model, discriminator, val_loader)
+                    experiment.log_metric("Loss", val_loss, step=(epoch+1) * len(train_loader))
+
                     if val_loss < best_loss:
                         best_loss = val_loss
                         torch.save({
