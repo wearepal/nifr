@@ -58,6 +58,8 @@ def parse_arguments():
     parser.add_argument('--base_density', default='normal',
                         choices=['normal', 'dirichlet', 'binormal'])
 
+    parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
+
     return parser.parse_args()
 
 
@@ -194,7 +196,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
     logger = utils.get_logger(logpath=save_dir / 'logs' , filepath=Path(__file__).resolve())
     logger.info(ARGS)
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
 
     def cvt(x):
         return x.type(torch.float32).to(device, non_blocking=True)
