@@ -7,11 +7,11 @@ import torch.nn.functional as F
 
 import pandas as pd
 
-from src.ethicml.ethicml.algorithms.dataloader_funcs import CustomDataset
-from src.ethicml.ethicml.evaluators.per_sensitive_attribute import metric_per_sensitive_attribute, \
+from ethicml.algorithms.dataloader_funcs import CustomDataset
+from ethicml.evaluators.per_sensitive_attribute import metric_per_sensitive_attribute, \
     diff_per_sensitive_attribute, ratio_per_sensitive_attribute
-from src.ethicml.ethicml.metrics import Accuracy, ProbPos
-from src.ethicml.ethicml.utility.heaviside import Heaviside
+from ethicml.metrics import Accuracy, ProbPos
+from ethicml.utility.heaviside import Heaviside
 
 
 class Model(nn.Module):
