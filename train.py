@@ -153,7 +153,9 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     if ARGS.base_density == 'dirichlet':
         dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
     elif ARGS.base_density == 'binormal':
-        dist = MixtureOfDiagNormals(z.new_tensor([[-1.], [1]]), z.new_ones(2, 1), z.new_ones(2))
+        ones = z.new_ones(1, z.size(1))
+        dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
+                                    z.new_ones(2))
     else:
         dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
 
