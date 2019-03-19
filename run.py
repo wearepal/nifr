@@ -43,7 +43,7 @@ def main():
 
     data = load_data(Adult())
     train, test = train_test_split(data)
-    (_, train_zx, train_zs), (_, test_zx, test_zs) = training_loop(train, test, experiment)
+    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test, experiment)
 
     lr = LR()
 
