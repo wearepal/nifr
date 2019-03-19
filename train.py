@@ -157,7 +157,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
         dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
                                     z.new_ones(2))
     else:
-        dist = torch.distributions.Independent(torch.distributions.Normal(0, 1), 0)
+        dist = torch.distributions.Normal(0, 1)
 
     log_pz = dist.log_prob(z).view(z.size(0), -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
