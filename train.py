@@ -56,7 +56,7 @@ def parse_arguments():
     parser.add_argument('--zs_dim', type=int, default=2)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1)
     parser.add_argument('--base_density', default='normal',
-                        choices=['normal', 'dirichlet', 'binormal', 'bernoulli'])
+                        choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
 
@@ -136,6 +136,25 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     zero = x.new_zeros(x.size(0), 1)
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
+    
+    if ARGS.base_density == 'dirichlet':
+        dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
+        log_pz = dist.log_prob(z)
+    elif ARGS.base_density == 'binormal':
+        ones = z.new_ones(1, z.size(1))
+        dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
+                                    z.new_ones(2))
+        log_pz = dist.log_prob(z)
+    elif ARGS.base_density == 'logitbernoulli':
+        temperature = z.new_tensor(.5)
+        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+        dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
+                                                                           probs=prob_of_1)
+        log_pz = dist.log_prob(z.clamp(-100, 100))
+        z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
+    else:
+        dist = torch.distributions.Normal(0, 1)
+        log_pz = dist.log_prob(z).view(z.size(0), -1).sum(1, keepdim=True)  # log(p(z))
 
     # z_s0 = z[s[:, 0] == 0]
     # z_s1 = z[s[:, 0] == 1]
@@ -150,22 +169,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
 
     mmd_loss = F.binary_cross_entropy(discriminator(zx), s)
     mmd_loss *= ARGS.independence_weight
-    if ARGS.base_density == 'dirichlet':
-        dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
-    elif ARGS.base_density == 'binormal':
-        ones = z.new_ones(1, z.size(1))
-        dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
-                                    z.new_ones(2))
-    elif ARGS.base_density == 'bernoulli':
-        temperature = z.new_tensor(.5)
-        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-        dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
-                                                                           probs=prob_of_1)
-        z = z.clamp(-100, 100)
-    else:
-        dist = torch.distributions.Normal(0, 1)
 
-    log_pz = dist.log_prob(z).view(z.size(0), -1).sum(1, keepdim=True)  # logp(z)
     log_px = log_pz - delta_logp
     loss = -torch.mean(log_px) + mmd_loss
     if return_z:
