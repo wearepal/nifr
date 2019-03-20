@@ -56,7 +56,7 @@ def parse_arguments():
     parser.add_argument('--zs_dim', type=int, default=2)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1)
     parser.add_argument('--base_density', default='normal',
-                        choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli'])
+                        choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
 
@@ -129,6 +129,8 @@ def _build_model(input_dim):
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
     if ARGS.base_density == 'dirichlet2':
         chain.append(layers.SoftplusTransform())
+    elif ARGS.base_density == 'bernoulli':
+        chain.append(layers.SigmoidTransform())
     return layers.SequentialFlow(chain)
 
 
@@ -152,6 +154,10 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
                                                                            probs=prob_of_1)
         log_pz = dist.log_prob(z.clamp(-100, 100))
         z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
+    elif ARGS.base_density == 'bernoulli':
+        temperature = z.new_tensor(.5)
+        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+        dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
     else:
         dist = torch.distributions.Normal(0, 1)
         log_pz = dist.log_prob(z).view(z.size(0), -1).sum(1, keepdim=True)  # log(p(z))
