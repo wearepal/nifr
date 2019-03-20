@@ -273,8 +273,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
 
     model = _build_model(n_dims + 1).to(ARGS.device)
     if ARGS.jit:
-        sample_x = next(iter(train_loader))[0]
-        sample_s = next(iter(train_loader))[1]
+        sample_x, sample_s, _ = next(iter(train_loader))
         zeros = sample_x.new_zeros(sample_x.size(0), 1)
         model = torch.jit.trace(model, (torch.cat([sample_x, sample_s], dim=1), zeros))
     discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100] + [1])
