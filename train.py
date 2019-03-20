@@ -58,6 +58,9 @@ def parse_arguments():
     parser.add_argument('--base_density', default='normal',
                         choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli'])
 
+    parser.add_argument('--jit', type=eval, default=False, choices=[True, False],
+                        help='Should JIT compilation to static graph be used?')
+
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
 
     return parser.parse_args()
@@ -269,6 +272,11 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(ARGS.device)
+    if ARGS.jit:
+        sample_x = next(iter(train_loader))[0]
+        sample_s = next(iter(train_loader))[1]
+        zeros = sample_x.new_zeros(sample_x.size(0), 1)
+        model = torch.jit.trace(model, (torch.cat([sample_x, sample_s], dim=1), zeros))
     discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100] + [1])
     discriminator = discriminator.to(ARGS.device)
 
@@ -326,7 +334,8 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
                     LOGGER.info(log_message)
 
         LOGGER.info('Training has finished.')
-        model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
+        model_template = _build_model(n_dims + 1).to(ARGS.device)
+        model = restore_model(model_template, save_dir / 'checkpt.pth').to(ARGS.device)
 
     LOGGER.info('Evaluating model on test set.')
     model.eval()
