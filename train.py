@@ -136,7 +136,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     zero = x.new_zeros(x.size(0), 1)
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
-    
+
     if ARGS.base_density == 'dirichlet':
         dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
         log_pz = dist.log_prob(z)
