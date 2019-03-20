@@ -347,6 +347,8 @@ def encode_dataset(dataset, model, LOGGER, cvt):
             s = cvt(s)
             zero = x.new_zeros(x.size(0), 1)
             z, _ = model(torch.cat([x, s], dim=1), zero)
+            if ARGS.base_density == 'logitbernoulli':
+                z = z.sigmoid()
 
             # test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
