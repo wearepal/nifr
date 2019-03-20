@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-_DEFAULT_ALPHA = 1e-6
+_DEFAULT_ALPHA = 0  # 1e-6
 _DEFAULT_BETA = 1.
 
 
@@ -87,6 +87,7 @@ def _logit(x, logpx=None, alpha=_DEFAULT_ALPHA):
 
 
 def _sigmoid(y, logpy=None, alpha=_DEFAULT_ALPHA):
+    y = y.clamp(-9, 9)
     x = (torch.sigmoid(y) - alpha) / (1 - 2 * alpha)
     if logpy is None:
         return x
