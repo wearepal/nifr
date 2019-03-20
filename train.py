@@ -140,8 +140,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
 
     if ARGS.base_density == 'dirichlet':
-        dist = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1))
-        log_pz = dist.log_prob(z)
+        log_pz = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1)).log_prob(z)
     elif ARGS.base_density == 'binormal':
         ones = z.new_ones(1, z.size(1))
         dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
@@ -152,16 +151,17 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
         prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
         dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
                                                                            probs=prob_of_1)
-        log_pz = dist.log_prob(z.clamp(-100, 100))
+        log_pz = dist.log_prob(z.clamp(-100, 100)).sum(1)  # not sure why the .sum(1) is needed
         z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
     elif ARGS.base_density == 'bernoulli':
         temperature = z.new_tensor(.5)
         prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
         dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
+        log_pz = dist.log_prob(z).sum(1)  # not sure why the .sum(1) is needed
     else:
-        dist = torch.distributions.Normal(0, 1)
-        log_pz = dist.log_prob(z).view(z.size(0), -1).sum(1, keepdim=True)  # log(p(z))
+        log_pz = torch.distributions.Normal(0, 1).log_prob(z).view(z.size(0), -1).sum(1)
 
+    log_pz = log_pz.view(z.size(0), 1)  # log(p(z))
     # z_s0 = z[s[:, 0] == 0]
     # z_s1 = z[s[:, 0] == 1]
 
