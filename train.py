@@ -269,8 +269,8 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(ARGS.device)
-    discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim]
-                                             + [100, 100] + [1]).to(ARGS.device)
+    discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100] + [1])
+    discriminator = discriminator.to(ARGS.device)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -330,15 +330,15 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
 
     LOGGER.info('Evaluating model on test set.')
     model.eval()
-    test_encodings = encode_dataset(val_loader, model, LOGGER, cvt)
+    test_encodings = encode_dataset(val_loader, model, cvt)
     # df_test.to_feather(ARGS.test_new)
     train_encodings = encode_dataset(
-        DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size), model, LOGGER, cvt)
+        DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size), model, cvt)
     # df_train.to_feather(ARGS.train_new)
     return train_encodings, test_encodings
 
 
-def encode_dataset(dataset, model, LOGGER, cvt):
+def encode_dataset(dataset, model, cvt):
     representation = []
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
