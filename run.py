@@ -39,10 +39,14 @@ def main():
     experiment = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h",
                             project_name="finn", workspace="olliethomas")
     experiment.disable_mp()
+    with open("train.py", "r") as f:
+        experiment.set_code(f.read())
 
-    data = load_data(Adult())
-    train, test = train_test_split(data)
-    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test, experiment)
+    dataset = Adult()
+    experiment.log_dataset_info(name=dataset.name)
+    train, test = train_test_split(load_data(dataset))
+    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test,
+                                                                                  experiment)
 
     lr = LR()
 

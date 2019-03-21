@@ -233,7 +233,7 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
         experiment.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         end = time.time()
 
-    LOGGER.info("Epoch {:04d} | Time {:.4f}({:.4f}) | "
+    LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | "
                 "Loss log_p_x: {:.6f} indie_loss: {:.6f} ({:.6f}) | ", epoch,
                 time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
                 loss_meter.avg)
@@ -247,7 +247,7 @@ def validate(model, discriminator, dataloader):
         for x_val, s_val, _ in dataloader:
             x_val = cvt(x_val)
             s_val = cvt(s_val)
-            loss, log_p_x, indie_loss = compute_loss(x_val, s_val, model, discriminator)
+            loss, _, _ = compute_loss(x_val, s_val, model, discriminator)
 
             val_loss.update(loss.item(), n=x_val.size(0))
 
@@ -267,7 +267,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
 
     ARGS = parse_arguments()
 
-    experiment.log_multiple_params(vars(ARGS))
+    experiment.log_parameters(vars(ARGS))
 
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     save_dir = Path(ARGS.save)
@@ -277,7 +277,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
 
     ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
 
-    LOGGER.info('Using {} GPUs.', torch.cuda.device_count())
+    LOGGER.info('{} GPUs available.', torch.cuda.device_count())
 
     if train_tuple is None:
         data, n_dims = load_data()
@@ -297,7 +297,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
         checkpt = torch.load(ARGS.resume)
         model.load_state_dict(checkpt['state_dict'])
 
-    LOGGER.info(model)
+    experiment.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
     if not ARGS.evaluate:
@@ -336,7 +336,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
                     update_lr(optimizer, n_vals_without_improvement)
 
                     log_message = (
-                        '[VAL] Epoch {:06d} | Val Loss {:.6f} | '
+                        '[VAL] Epoch {:04d} | Val Loss {:.6f} | '
                         'No improvement during validation: {:02d}/{:02d}'.format(
                             epoch, val_loss, n_vals_without_improvement, ARGS.early_stopping
                         )
