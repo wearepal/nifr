@@ -67,15 +67,21 @@ class SoftplusTransform(nn.Module):
 class SigmoidTransform(nn.Module):
     """Reverse of LogitTransform."""
 
-    def __init__(self, alpha=_DEFAULT_ALPHA):
+    def __init__(self, start_dim=0, end_dim=None, alpha=_DEFAULT_ALPHA):
         nn.Module.__init__(self)
         self.alpha = alpha
+        self.start_dim = start_dim
+        self.end_dim = end_dim
 
     def forward(self, x, logpx=None, reverse=False):
         if reverse:
-            return _logit(x, logpx, self.alpha)
+            x[:, self.start_dim:self.end_dim] = _logit(
+                x[:, self.start_dim:self.end_dim], logpx, self.alpha)
+            return x
         else:
-            return _sigmoid(x, logpx, self.alpha)
+            x[:, self.start_dim:self.end_dim] = _sigmoid(
+                x[:, self.start_dim:self.end_dim], logpx, self.alpha)
+            return x
 
 
 def _logit(x, logpx=None, alpha=_DEFAULT_ALPHA):

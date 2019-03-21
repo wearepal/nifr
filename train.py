@@ -137,8 +137,11 @@ def _build_model(input_dim):
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
         if ARGS.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
-    if ARGS.base_density == 'bernoulli':
-        chain.append(layers.SigmoidTransform())
+
+    if ARGS.base_density == 'bernoulli' or ARGS.base_density_zs == 'bernoulli':
+        start_dim = 0 if ARGS.base_density == 'bernoulli' else -ARGS.zs_dim
+        end_dim = None if ARGS.base_density_zs == 'bernoulli' else -ARGS.zs_dim
+        chain.append(layers.SigmoidTransform(start_dim=start_dim, end_dim=end_dim))
     return layers.SequentialFlow(chain)
 
 
