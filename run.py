@@ -16,9 +16,8 @@ from ethicml.metrics import Accuracy, ProbPos
 
 from ethicml.evaluators.per_sensitive_attribute import ratio_per_sensitive_attribute
 
-from src.ethicml.ethicml.evaluators.per_sensitive_attribute import metric_per_sensitive_attribute, \
-    diff_per_sensitive_attribute
-from src.ethicml.ethicml.metrics import CV
+from ethicml.evaluators.per_sensitive_attribute import (metric_per_sensitive_attribute,
+                                                        diff_per_sensitive_attribute)
 from train import current_experiment, main as training_loop
 
 
