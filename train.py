@@ -205,14 +205,14 @@ def restore_model(model, filename):
 
 def train(model, discriminator, optimizer, disc_optimizer, dataloader, experiment, epoch):
     model.train()
-    
+
     loss_meter = utils.AverageMeter()
     log_p_x_meter = utils.AverageMeter()
     indie_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
     end = time.time()
 
-    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
+    for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
 
         optimizer.zero_grad()
         disc_optimizer.zero_grad()
@@ -243,15 +243,14 @@ def validate(model, discriminator, dataloader):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
-        val_loss = utils.AverageMeter()
+        loss_meter = utils.AverageMeter()
         for x_val, s_val, _ in dataloader:
             x_val = cvt(x_val)
             s_val = cvt(s_val)
             loss, _, _ = compute_loss(x_val, s_val, model, discriminator)
 
-            val_loss.update(loss.item(), n=x_val.size(0))
-
-    return val_loss.avg
+            loss_meter.update(loss.item(), n=x_val.size(0))
+    return loss_meter.avg
 
 
 def cvt(*tensors):
@@ -264,6 +263,7 @@ def cvt(*tensors):
 
 def main(train_tuple=None, test_tuple=None, experiment=None):
     global ARGS, LOGGER
+    # ==== initialize globals ====
 
     ARGS = parse_arguments()
 
@@ -275,10 +275,11 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
 
+    # ==== check GPU ====
     ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
-
     LOGGER.info('{} GPUs available.', torch.cuda.device_count())
 
+    # ==== construct dataset ====
     if train_tuple is None:
         data, n_dims = load_data()
     else:
