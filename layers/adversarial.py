@@ -7,16 +7,17 @@ class GradReverse(Function):
     """Gradient reversal layer"""
 
     @staticmethod
-    def forward(ctx, x):
+    def forward(ctx, x, lambd):
+        ctx.lambd = lambd
         return x.view_as(x)
 
     @staticmethod
     def backward(ctx, grad_output):
-        return grad_output.neg()
+        return grad_output.neg().mul(ctx.lambd), None
 
 
 def _grad_reverse(features):
-    return GradReverse.apply(features)
+    return GradReverse.apply(features, 1.0)
 
 
 class GradReverseDiscriminator(nn.Module):
