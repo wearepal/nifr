@@ -169,18 +169,18 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     # test_zs0 = torch.masked_select(z, ~s.byte()).view(-1, z.shape[1])
 
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
-    # mmd_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
+    # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
     zx = z[:, :-ARGS.zs_dim]
     # zs = z[:, -ARGS.zs_dim:]
 
-    mmd_loss = F.binary_cross_entropy(discriminator(zx), s)
-    mmd_loss *= ARGS.independence_weight
+    indie_loss = F.binary_cross_entropy(discriminator(zx), s)
+    indie_loss *= ARGS.independence_weight
 
     log_px = log_pz - delta_logp
-    loss = -torch.mean(log_px) + mmd_loss
+    loss = -torch.mean(log_px) + indie_loss
     if return_z:
         return loss, z
-    return loss, log_px.mean(), -mmd_loss
+    return loss, log_px.mean(), -indie_loss
 
 
 def restore_model(model, filename):
@@ -203,7 +203,7 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
 
         x = cvt(x)
         s = cvt(s)
-        loss, log_p_x, mmd_loss = compute_loss(x, s, model, discriminator, return_z=False)
+        loss, log_p_x, indie_loss = compute_loss(x, s, model, discriminator, return_z=False)
         loss_meter.update(loss.item())
 
         loss.backward()
@@ -215,11 +215,11 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
         if itr % ARGS.log_freq == 0:
             # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
             LOGGER.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
-                        "Loss log_p_x: {:.6f} mmd_loss: {:.6f} ({:.6f}) | ", itr,
-                        time_meter.val, time_meter.avg, log_p_x.item(), mmd_loss.item(),
+                        "Loss log_p_x: {:.6f} indie_loss: {:.6f} ({:.6f}) | ", itr,
+                        time_meter.val, time_meter.avg, log_p_x.item(), indie_loss.item(),
                         loss_meter.avg)
             experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
-            experiment.log_metric("Loss mmd", mmd_loss.item(), step=itr)
+            experiment.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         itr += 1
         end = time.time()
 
@@ -232,7 +232,7 @@ def validate(model, discriminator, dataloader):
         for x_val, s_val, _ in dataloader:
             x_val = cvt(x_val)
             s_val = cvt(s_val)
-            loss, log_p_x, mmd_loss = compute_loss(x_val, s_val, model, discriminator)
+            loss, log_p_x, indie_loss = compute_loss(x_val, s_val, model, discriminator)
 
             val_loss.update(loss.item(), n=x_val.size(0))
 
