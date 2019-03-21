@@ -63,6 +63,8 @@ def parse_arguments():
                         choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
+    parser.add_argument('--use_comet', type=eval, default=True, choices=[True, False],
+                        help='whether to use the comet.ml logging')
 
     return parser.parse_args()
 
@@ -269,8 +271,8 @@ def main(train_tuple=None, test_tuple=None):
 
     ARGS = parse_arguments()
 
-    SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h",
-                         project_name="finn", workspace="olliethomas")
+    SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
+                         workspace="olliethomas", disabled=not ARGS.use_comet)
     SUMMARY.disable_mp()
     SUMMARY.log_parameters(vars(ARGS))
 
