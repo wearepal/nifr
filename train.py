@@ -161,14 +161,14 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
 
-    indie_loss = F.binary_cross_entropy(discriminator(zx), s)
-    indie_loss *= ARGS.independence_weight
+    indie_loss = F.binary_cross_entropy(discriminator(zx, lambd=ARGS.independence_weight), s)
+    # indie_loss *= ARGS.independence_weight
 
     log_px = log_pz - delta_logp
     loss = -torch.mean(log_px) + indie_loss
     if return_z:
         return loss, z
-    return loss, log_px.mean(), -indie_loss
+    return loss, log_px.mean(), -indie_loss * ARGS.independence_weight
 
 
 def compute_log_pz(z, base_density):

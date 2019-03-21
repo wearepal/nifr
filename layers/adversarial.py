@@ -16,8 +16,8 @@ class GradReverse(Function):
         return grad_output.neg().mul(ctx.lambd), None
 
 
-def _grad_reverse(features):
-    return GradReverse.apply(features, 1.0)
+def _grad_reverse(features, lambd):
+    return GradReverse.apply(features, lambd)
 
 
 class GradReverseDiscriminator(nn.Module):
@@ -26,6 +26,6 @@ class GradReverseDiscriminator(nn.Module):
         super(GradReverseDiscriminator, self).__init__()
         self.mlp = Mlp(mlp_sizes, activation, activation_out)
 
-    def forward(self, x):
-        x = _grad_reverse(x)
+    def forward(self, x, lambd=1.0):
+        x = _grad_reverse(x, lambd)
         return self.mlp(x)
