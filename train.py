@@ -6,6 +6,7 @@ from pathlib import Path
 from comet_ml import Experiment
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, TensorDataset
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
@@ -34,7 +35,7 @@ def parse_arguments():
     parser.add_argument('--train_new', metavar="PATH")
     parser.add_argument('--test_new', metavar="PATH")
 
-    parser.add_argument('--depth', type=int, default=4)
+    parser.add_argument('--depth', type=int, default=10)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
@@ -42,7 +43,7 @@ def parse_arguments():
     parser.add_argument('--bn_lag', type=float, default=0)
 
     parser.add_argument('--early_stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=1)
+    parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -55,12 +56,12 @@ def parse_arguments():
     parser.add_argument('--val_freq', type=int, default=4)
     parser.add_argument('--log_freq', type=int, default=10)
 
-    parser.add_argument('--zs_dim', type=int, default=2)
-    parser.add_argument('-iw', '--independence_weight', type=float, default=1)
+    parser.add_argument('--zs_dim', type=int, default=20)
+    parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
     parser.add_argument('--base_density', default='normal',
-                        choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli', 'bernoulli'])
+                        choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
     parser.add_argument('--base_density_zs', default='',
-                        choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli', 'bernoulli'])
+                        choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use_comet', type=eval, default=True, choices=[True, False],
@@ -69,19 +70,19 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def update_lr(optimizer, n_vals_without_improvement):
-    global NDECS
-    if NDECS == 0 and n_vals_without_improvement > ARGS.early_stopping // 3:
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = ARGS.lr / 10
-        NDECS = 1
-    elif NDECS == 1 and n_vals_without_improvement > ARGS.early_stopping // 3 * 2:
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = ARGS.lr / 100
-        NDECS = 2
-    else:
-        for param_group in optimizer.param_groups:
-            param_group["lr"] = ARGS.lr / 10**NDECS
+# def update_lr(optimizer, n_vals_without_improvement):
+#     global NDECS
+#     if NDECS == 0 and n_vals_without_improvement > ARGS.early_stopping // 3:
+#         for param_group in optimizer.param_groups:
+#             param_group["lr"] = ARGS.lr / 10
+#         NDECS = 1
+#     elif NDECS == 1 and n_vals_without_improvement > ARGS.early_stopping // 3 * 2:
+#         for param_group in optimizer.param_groups:
+#             param_group["lr"] = ARGS.lr / 100
+#         NDECS = 2
+#     else:
+#         for param_group in optimizer.param_groups:
+#             param_group["lr"] = ARGS.lr / 10**NDECS
 
 
 def load_dataframe(path: Path) -> pd.DataFrame:
@@ -133,9 +134,7 @@ def _build_model(input_dim):
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
         if ARGS.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
-    if ARGS.base_density == 'dirichlet2':
-        chain.append(layers.SoftplusTransform())
-    elif ARGS.base_density == 'bernoulli':
+    if ARGS.base_density == 'bernoulli':
         chain.append(layers.SigmoidTransform())
     return layers.SequentialFlow(chain)
 
@@ -177,9 +176,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
 
 def compute_log_pz(z, base_density):
     """Log of the base probability: log(p(z))"""
-    if base_density == 'dirichlet':
-        log_pz = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1)).log_prob(z)
-    elif base_density == 'binormal':
+    if base_density == 'binormal':
         ones = z.new_ones(1, z.size(1))
         dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
                                     z.new_ones(2))
@@ -311,6 +308,7 @@ def main(train_tuple=None, test_tuple=None):
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
         disc_optimizer = Adam(discriminator.parameters(), lr=ARGS.disc_lr)
+        scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=10, min_lr=1.e-7, cooldown=1)
 
         # time_meter = utils.RunningAverageMeter(0.98)
         # loss_meter = utils.RunningAverageMeter(0.98)
@@ -340,14 +338,13 @@ def main(train_tuple=None, test_tuple=None):
                         n_vals_without_improvement = 0
                     else:
                         n_vals_without_improvement += 1
-                    update_lr(optimizer, n_vals_without_improvement)
+
+                    scheduler.step(val_loss)
 
                     log_message = (
                         '[VAL] Epoch {:04d} | Val Loss {:.6f} | '
-                        'No improvement during validation: {:02d}/{:02d}'.format(
-                            epoch, val_loss, n_vals_without_improvement, ARGS.early_stopping
-                        )
-                    )
+                        'No improvement during validation: {:02d}'.format(
+                            epoch, val_loss, n_vals_without_improvement))
                     LOGGER.info(log_message)
 
         LOGGER.info('Training has finished.')
