@@ -207,6 +207,8 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
     model.train()
     
     loss_meter = utils.AverageMeter()
+    log_p_x_meter = utils.AverageMeter()
+    indie_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
     end = time.time()
 
@@ -215,10 +217,11 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
         optimizer.zero_grad()
         disc_optimizer.zero_grad()
 
-        x = cvt(x)
-        s = cvt(s)
+        x, s = cvt(x, s)
         loss, log_p_x, indie_loss = compute_loss(x, s, model, discriminator, return_z=False)
         loss_meter.update(loss.item())
+        log_p_x_meter.update(log_p_x.item())
+        indie_loss_meter.update(indie_loss.item())
 
         loss.backward()
         optimizer.step()
@@ -226,16 +229,14 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
 
         time_meter.update(time.time() - end)
 
-        if itr % ARGS.log_freq == 0:
-            # epoch = float(itr) / (len(trn) / float(ARGS.batch_size))
-            LOGGER.info("Iter {:06d} | Time {:.4f}({:.4f}) | "
-                        "Loss log_p_x: {:.6f} indie_loss: {:.6f} ({:.6f}) | ", itr,
-                        time_meter.val, time_meter.avg, log_p_x.item(), indie_loss.item(),
-                        loss_meter.avg)
-            experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
-            experiment.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
-        itr += 1
+        experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
+        experiment.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         end = time.time()
+
+    LOGGER.info("Epoch {:04d} | Time {:.4f}({:.4f}) | "
+                "Loss log_p_x: {:.6f} indie_loss: {:.6f} ({:.6f}) | ", epoch,
+                time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
+                loss_meter.avg)
 
 
 def validate(model, discriminator, dataloader):
@@ -311,9 +312,6 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
         n_vals_without_improvement = 0
 
         for epoch in range(ARGS.epochs):
-
-            LOGGER.info('=====> Epoch {}', epoch)
-
             if n_vals_without_improvement > ARGS.early_stopping > 0:
                 break
 
