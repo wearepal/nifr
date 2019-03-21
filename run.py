@@ -3,7 +3,7 @@
 # from pathlib import Path
 
 import pandas as pd
-from comet_ml import Experiment
+import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.algorithms.inprocess.logistic_regression import LR
@@ -14,7 +14,7 @@ from ethicml.data.load import load_data
 from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.metrics import Accuracy, ProbPos
 
-from train import main as training_loop
+from train import current_experiment, main as training_loop
 
 
 # class ModelWrapper(BasicTPA):
@@ -36,17 +36,11 @@ from train import main as training_loop
 def main():
     # model = ModelWrapper()
 
-    experiment = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h",
-                            project_name="finn", workspace="olliethomas")
-    experiment.disable_mp()
-    with open("train.py", "r") as f:
-        experiment.set_code(f.read())
-
     dataset = Adult()
-    experiment.log_dataset_info(name=dataset.name)
     train, test = train_test_split(load_data(dataset))
-    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test,
-                                                                                  experiment)
+    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test)
+    experiment = current_experiment()  # works only after training_loop has been called
+    experiment.log_dataset_info(name=dataset.name)
 
     lr = LR()
 

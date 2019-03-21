@@ -3,6 +3,7 @@ import argparse
 import time
 from pathlib import Path
 
+from comet_ml import Experiment
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
@@ -18,6 +19,7 @@ from layers.adversarial import GradReverseDiscriminator
 NDECS = 0
 ARGS = None
 LOGGER = None
+SUMMARY = None
 
 
 def parse_arguments():
@@ -203,7 +205,7 @@ def restore_model(model, filename):
     return model
 
 
-def train(model, discriminator, optimizer, disc_optimizer, dataloader, experiment, epoch):
+def train(model, discriminator, optimizer, disc_optimizer, dataloader, epoch):
     model.train()
 
     loss_meter = utils.AverageMeter()
@@ -229,8 +231,8 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, experimen
 
         time_meter.update(time.time() - end)
 
-        experiment.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
-        experiment.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
+        SUMMARY.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
+        SUMMARY.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         end = time.time()
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | "
@@ -261,13 +263,16 @@ def cvt(*tensors):
     return tuple(moved)
 
 
-def main(train_tuple=None, test_tuple=None, experiment=None):
-    global ARGS, LOGGER
+def main(train_tuple=None, test_tuple=None):
     # ==== initialize globals ====
+    global ARGS, LOGGER, SUMMARY
 
     ARGS = parse_arguments()
 
-    experiment.log_parameters(vars(ARGS))
+    SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h",
+                         project_name="finn", workspace="olliethomas")
+    SUMMARY.disable_mp()
+    SUMMARY.log_parameters(vars(ARGS))
 
     test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     save_dir = Path(ARGS.save)
@@ -298,7 +303,7 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
         checkpt = torch.load(ARGS.resume)
         model.load_state_dict(checkpt['state_dict'])
 
-    experiment.set_model_graph(str(model))
+    SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
     if not ARGS.evaluate:
@@ -316,14 +321,13 @@ def main(train_tuple=None, test_tuple=None, experiment=None):
             if n_vals_without_improvement > ARGS.early_stopping > 0:
                 break
 
-            with experiment.train():
-                train(model, discriminator, optimizer, disc_optimizer, train_loader,
-                      experiment, epoch)
+            with SUMMARY.train():
+                train(model, discriminator, optimizer, disc_optimizer, train_loader, epoch)
 
             if epoch % ARGS.val_freq == 0:
-                with experiment.test():
+                with SUMMARY.test():
                     val_loss = validate(model, discriminator, val_loader)
-                    experiment.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
+                    SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
 
                     if val_loss < best_loss:
                         best_loss = val_loss
@@ -382,6 +386,11 @@ def encode_dataset(dataset, model, cvt):
     zs = df[columns[-ARGS.zs_dim:]]
 
     return df, zx, zs
+
+
+def current_experiment():
+    global SUMMARY
+    return SUMMARY
 
 
 if __name__ == '__main__':
