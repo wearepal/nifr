@@ -66,6 +66,9 @@ def parse_arguments():
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use_comet', type=eval, default=True, choices=[True, False],
                         help='whether to use the comet.ml logging')
+    parser.add_argument('--patience', type=int, default=10, help='Number of iterations without '
+                                                                 'improvement in val loss before'
+                                                                 'reducing learning rate.')
 
     return parser.parse_args()
 
@@ -308,7 +311,8 @@ def main(train_tuple=None, test_tuple=None):
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
         disc_optimizer = Adam(discriminator.parameters(), lr=ARGS.disc_lr)
-        scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=10, min_lr=1.e-7, cooldown=1)
+        scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
+                                      min_lr=1.e-7, cooldown=1)
 
         # time_meter = utils.RunningAverageMeter(0.98)
         # loss_meter = utils.RunningAverageMeter(0.98)
