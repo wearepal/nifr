@@ -14,6 +14,11 @@ from ethicml.data.load import load_data
 from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.metrics import Accuracy, ProbPos
 
+from ethicml.evaluators.per_sensitive_attribute import ratio_per_sensitive_attribute
+
+from src.ethicml.ethicml.evaluators.per_sensitive_attribute import metric_per_sensitive_attribute, \
+    diff_per_sensitive_attribute
+from src.ethicml.ethicml.metrics import CV
 from train import current_experiment, main as training_loop
 
 
@@ -52,6 +57,11 @@ def main():
     experiment.log_metric("Original Accuracy", results['Accuracy'])
     experiment.log_metric("Original P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
     experiment.log_metric("Original P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
+    res_dict = metric_per_sensitive_attribute(preds_x_and_s, test_x_and_s, ProbPos())
+    diff = diff_per_sensitive_attribute(res_dict)
+    ratio = ratio_per_sensitive_attribute(res_dict)
+    experiment.log_metric("Original Ratio s0/s1", list(ratio.values())[0])
+    experiment.log_metric("Original Diff s0/s1", list(diff.values())[0])
     print(results, "\n")
 
     print("All z:")
@@ -62,6 +72,11 @@ def main():
     experiment.log_metric("Z Accuracy", results['Accuracy'])
     experiment.log_metric("Z P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
     experiment.log_metric("Z P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
+    res_dict = metric_per_sensitive_attribute(preds_z, test_z, ProbPos())
+    diff = diff_per_sensitive_attribute(res_dict)
+    ratio = ratio_per_sensitive_attribute(res_dict)
+    experiment.log_metric("Z Ratio s0/s1", list(ratio.values())[0])
+    experiment.log_metric("Z Diff s0/s1", list(diff.values())[0])
     print(results, "\n")
 
     print("fair:")
@@ -72,6 +87,11 @@ def main():
     experiment.log_metric("Fair Accuracy", results['Accuracy'])
     experiment.log_metric("Fair P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
     experiment.log_metric("Fair P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
+    res_dict = metric_per_sensitive_attribute(preds_fair, test_fair, ProbPos())
+    diff = diff_per_sensitive_attribute(res_dict)
+    ratio = ratio_per_sensitive_attribute(res_dict)
+    experiment.log_metric("Fair Ratio s0/s1", list(ratio.values())[0])
+    experiment.log_metric("Fair Diff s0/s1", list(diff.values())[0])
     print(results, "\n")
 
     print("unfair:")
@@ -82,6 +102,11 @@ def main():
     experiment.log_metric("Unfair Accuracy", results['Accuracy'])
     experiment.log_metric("Unfair P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
     experiment.log_metric("Unfair P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
+    res_dict = metric_per_sensitive_attribute(preds_unfair, test_unfair, ProbPos())
+    diff = diff_per_sensitive_attribute(res_dict)
+    ratio = ratio_per_sensitive_attribute(res_dict)
+    experiment.log_metric("Unfair Ratio s0/s1", list(ratio.values())[0])
+    experiment.log_metric("Unfair Diff s0/s1", list(diff.values())[0])
     print(results, "\n")
 
     print("predict s from fair representation:")
