@@ -74,14 +74,14 @@ class SigmoidTransform(nn.Module):
         self.end_dim = end_dim
 
     def forward(self, x, logpx=None, reverse=False):
+        x_copy = x.clone()
         if reverse:
-            x[:, self.start_dim:self.end_dim] = _logit(
+            x_copy[:, self.start_dim:self.end_dim], logpx = _logit(
                 x[:, self.start_dim:self.end_dim], logpx, self.alpha)
-            return x
         else:
-            x[:, self.start_dim:self.end_dim] = _sigmoid(
+            x_copy[:, self.start_dim:self.end_dim], logpx = _sigmoid(
                 x[:, self.start_dim:self.end_dim], logpx, self.alpha)
-            return x
+        return x_copy, logpx
 
 
 def _logit(x, logpx=None, alpha=_DEFAULT_ALPHA):
