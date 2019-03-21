@@ -57,6 +57,8 @@ def parse_arguments():
     parser.add_argument('-iw', '--independence_weight', type=float, default=1)
     parser.add_argument('--base_density', default='normal',
                         choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli', 'bernoulli'])
+    parser.add_argument('--base_density_zs', default='',
+                        choices=['normal', 'dirichlet', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
 
@@ -139,29 +141,17 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
 
-    if ARGS.base_density == 'dirichlet':
-        log_pz = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1)).log_prob(z)
-    elif ARGS.base_density == 'binormal':
-        ones = z.new_ones(1, z.size(1))
-        dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
-                                    z.new_ones(2))
-        log_pz = dist.log_prob(z)
-    elif ARGS.base_density == 'logitbernoulli':
-        temperature = z.new_tensor(.5)
-        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-        dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
-                                                                           probs=prob_of_1)
-        log_pz = dist.log_prob(z.clamp(-100, 100)).sum(1)  # not sure why the .sum(1) is needed
-        z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
-    elif ARGS.base_density == 'bernoulli':
-        temperature = z.new_tensor(.5)
-        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-        dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
-        log_pz = dist.log_prob(z).sum(1)  # not sure why the .sum(1) is needed
+    if not ARGS.base_density_zs:
+        log_pz, z = compute_log_pz(z, ARGS.base_density)
+        zx = z[:, :-ARGS.zs_dim]
     else:
-        log_pz = torch.distributions.Normal(0, 1).log_prob(z).view(z.size(0), -1).sum(1)
+        # split first and then pass separately through the compute_log_pz function
+        zx = z[:, :-ARGS.zs_dim]
+        zs = z[:, -ARGS.zs_dim:]
+        log_pzx, zx = compute_log_pz(zx, ARGS.base_density)
+        log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
+        log_pz = log_pzx + log_pzs
 
-    log_pz = log_pz.view(z.size(0), 1)  # log(p(z))
     # z_s0 = z[s[:, 0] == 0]
     # z_s1 = z[s[:, 0] == 1]
 
@@ -170,8 +160,6 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
 
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
-    zx = z[:, :-ARGS.zs_dim]
-    # zs = z[:, -ARGS.zs_dim:]
 
     indie_loss = F.binary_cross_entropy(discriminator(zx), s)
     indie_loss *= ARGS.independence_weight
@@ -181,6 +169,32 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     if return_z:
         return loss, z
     return loss, log_px.mean(), -indie_loss
+
+
+def compute_log_pz(z, base_density):
+    """Log of the base probability: log(p(z))"""
+    if base_density == 'dirichlet':
+        log_pz = torch.distributions.Dirichlet(z.new_ones(z.size(1)) / z.size(1)).log_prob(z)
+    elif base_density == 'binormal':
+        ones = z.new_ones(1, z.size(1))
+        dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
+                                    z.new_ones(2))
+        log_pz = dist.log_prob(z)
+    elif base_density == 'logitbernoulli':
+        temperature = z.new_tensor(.5)
+        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+        dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
+                                                                           probs=prob_of_1)
+        log_pz = dist.log_prob(z.clamp(-100, 100)).sum(1)  # not sure why the .sum(1) is needed
+        z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
+    elif base_density == 'bernoulli':
+        temperature = z.new_tensor(.5)
+        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+        dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
+        log_pz = dist.log_prob(z).sum(1)  # not sure why the .sum(1) is needed
+    else:
+        log_pz = torch.distributions.Normal(0, 1).log_prob(z).view(z.size(0), -1).sum(1)
+    return log_pz.view(z.size(0), 1), z
 
 
 def restore_model(model, filename):
