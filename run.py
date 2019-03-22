@@ -14,10 +14,8 @@ from ethicml.data.load import load_data
 from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.metrics import Accuracy, ProbPos
 
-from ethicml.evaluators.per_sensitive_attribute import ratio_per_sensitive_attribute
-
-from ethicml.evaluators.per_sensitive_attribute import (metric_per_sensitive_attribute,
-                                                        diff_per_sensitive_attribute)
+from ethicml.evaluators.per_sensitive_attribute import (
+    metric_per_sensitive_attribute, diff_per_sensitive_attribute, ratio_per_sensitive_attribute)
 from train import current_experiment, main as training_loop
 
 
@@ -46,67 +44,43 @@ def main():
     experiment = current_experiment()  # works only after training_loop has been called
     experiment.log_dataset_info(name=dataset.name)
 
+    def _compute_metrics(predictions, actual, name):
+        """Compute accuracy and fairness metrics and log them"""
+        metrics = run_metrics(predictions, actual, [Accuracy()], [ProbPos()])
+        experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
+        experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
+        experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1'])
+        experiment.log_metric(f"{name} Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1'])
+        experiment.log_metric(f"{name} Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1'])
+        for key, value in metrics.items():
+            print(f"    {key}: {value:.4f}")
+        print()  # empty line
+
     lr = LR()
 
     print("Original x & s:")
     train_x_and_s = DataTuple(x=pd.concat([train.x, train.s], axis='columns'), s=train.s, y=train.y)
     test_x_and_s = DataTuple(x=pd.concat([test.x, test.s], axis='columns'), s=test.s, y=test.y)
     preds_x_and_s = lr.run(train_x_and_s, test_x_and_s)
-    results = run_metrics(preds_x_and_s, test_x_and_s, [Accuracy()], [ProbPos()])
-    experiment.log_metric("Original Accuracy", results['Accuracy'])
-    experiment.log_metric("Original P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
-    experiment.log_metric("Original P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
-    res_dict = metric_per_sensitive_attribute(preds_x_and_s, test_x_and_s, ProbPos())
-    diff = diff_per_sensitive_attribute(res_dict)
-    ratio = ratio_per_sensitive_attribute(res_dict)
-    experiment.log_metric("Original Ratio s0/s1", list(ratio.values())[0])
-    experiment.log_metric("Original Diff s0/s1", list(diff.values())[0])
-    print(results, "\n")
+    _compute_metrics(preds_x_and_s, test_x_and_s, "Original")
 
     print("All z:")
     train_z = DataTuple(x=train_all, s=train.s, y=train.y)
     test_z = DataTuple(x=test_all, s=test.s, y=test.y)
     preds_z = lr.run(train_z, test_z)
-    results = run_metrics(preds_z, test_z, [Accuracy()], [ProbPos()])
-    experiment.log_metric("Z Accuracy", results['Accuracy'])
-    experiment.log_metric("Z P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
-    experiment.log_metric("Z P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
-    res_dict = metric_per_sensitive_attribute(preds_z, test_z, ProbPos())
-    diff = diff_per_sensitive_attribute(res_dict)
-    ratio = ratio_per_sensitive_attribute(res_dict)
-    experiment.log_metric("Z Ratio s0/s1", list(ratio.values())[0])
-    experiment.log_metric("Z Diff s0/s1", list(diff.values())[0])
-    print(results, "\n")
+    _compute_metrics(preds_z, test_z, "Z")
 
     print("fair:")
     train_fair = DataTuple(x=train_zx, s=train.s, y=train.y)
     test_fair = DataTuple(x=test_zx, s=test.s, y=test.y)
     preds_fair = lr.run(train_fair, test_fair)
-    results = run_metrics(preds_fair, test_fair, [Accuracy()], [ProbPos()])
-    experiment.log_metric("Fair Accuracy", results['Accuracy'])
-    experiment.log_metric("Fair P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
-    experiment.log_metric("Fair P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
-    res_dict = metric_per_sensitive_attribute(preds_fair, test_fair, ProbPos())
-    diff = diff_per_sensitive_attribute(res_dict)
-    ratio = ratio_per_sensitive_attribute(res_dict)
-    experiment.log_metric("Fair Ratio s0/s1", list(ratio.values())[0])
-    experiment.log_metric("Fair Diff s0/s1", list(diff.values())[0])
-    print(results, "\n")
+    _compute_metrics(preds_fair, test_fair, "Fair")
 
     print("unfair:")
     train_unfair = DataTuple(x=train_zs, s=train.s, y=train.y)
     test_unfair = DataTuple(x=test_zs, s=test.s, y=test.y)
     preds_unfair = lr.run(train_unfair, test_unfair)
-    results = run_metrics(preds_unfair, test_unfair, [Accuracy()], [ProbPos()])
-    experiment.log_metric("Unfair Accuracy", results['Accuracy'])
-    experiment.log_metric("Unfair P(Y=1|s=0)", results['sex_Male_0_prob_pos'])
-    experiment.log_metric("Unfair P(Y=1|s=1)", results['sex_Male_1_prob_pos'])
-    res_dict = metric_per_sensitive_attribute(preds_unfair, test_unfair, ProbPos())
-    diff = diff_per_sensitive_attribute(res_dict)
-    ratio = ratio_per_sensitive_attribute(res_dict)
-    experiment.log_metric("Unfair Ratio s0/s1", list(ratio.values())[0])
-    experiment.log_metric("Unfair Diff s0/s1", list(diff.values())[0])
-    print(results, "\n")
+    _compute_metrics(preds_unfair, test_unfair, "Unfair")
 
     print("predict s from fair representation:")
     train_fair_predict_s = DataTuple(x=train_zx, s=train.s, y=train.s)
