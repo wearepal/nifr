@@ -5,6 +5,7 @@ from pathlib import Path
 
 from comet_ml import Experiment
 import torch
+from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, TensorDataset
@@ -58,6 +59,7 @@ def parse_arguments():
 
     parser.add_argument('--zs_dim', type=int, default=20)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
+    parser.add_argument('--pred_s_weight', type=float, default=0.)
     parser.add_argument('--base_density', default='normal',
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
     parser.add_argument('--base_density_zs', default='',
@@ -148,7 +150,7 @@ def _build_model(input_dim):
     return layers.SequentialFlow(chain)
 
 
-def compute_loss(x, s, model, discriminator, *, return_z=False):
+def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     zero = x.new_zeros(x.size(0), 1)
 
     z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
@@ -156,6 +158,7 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     if not ARGS.base_density_zs:
         log_pz, z = compute_log_pz(z, ARGS.base_density)
         zx = z[:, :-ARGS.zs_dim]
+        zs = z[:, -ARGS.zs_dim:]
     else:
         # split first and then pass separately through the compute_log_pz function
         zx = z[:, :-ARGS.zs_dim]
@@ -173,14 +176,15 @@ def compute_loss(x, s, model, discriminator, *, return_z=False):
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
 
-    indie_loss = F.binary_cross_entropy(discriminator(zx, lambd=ARGS.independence_weight), s)
+    indie_loss = F.binary_cross_entropy(disc_zx(zx, lambd=ARGS.independence_weight), s)
+    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
     # indie_loss *= ARGS.independence_weight
 
-    log_px = log_pz - delta_logp
-    loss = -torch.mean(log_px) + indie_loss
+    log_px = (log_pz - delta_logp).mean()
+    loss = -log_px + indie_loss + pred_s_loss
     if return_z:
         return loss, z
-    return loss, log_px.mean(), -indie_loss * ARGS.independence_weight
+    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
 
 
 def compute_log_pz(z, base_density):
@@ -213,12 +217,13 @@ def restore_model(model, filename):
     return model
 
 
-def train(model, discriminator, optimizer, disc_optimizer, dataloader, epoch):
+def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch):
     model.train()
 
     loss_meter = utils.AverageMeter()
     log_p_x_meter = utils.AverageMeter()
     indie_loss_meter = utils.AverageMeter()
+    pred_s_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
     end = time.time()
 
@@ -228,10 +233,12 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, epoch):
         disc_optimizer.zero_grad()
 
         x, s = cvt(x, s)
-        loss, log_p_x, indie_loss = compute_loss(x, s, model, discriminator, return_z=False)
+        loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, model, disc_zx, disc_zs,
+                                                              return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         indie_loss_meter.update(indie_loss.item())
+        pred_s_loss_meter.update(pred_s_loss.item())
 
         loss.backward()
         optimizer.step()
@@ -243,13 +250,13 @@ def train(model, discriminator, optimizer, disc_optimizer, dataloader, epoch):
         SUMMARY.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         end = time.time()
 
-    LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | "
-                "Loss log_p_x: {:.6f} indie_loss: {:.6f} ({:.6f}) | ", epoch,
+    LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} "
+                "indie_loss: {:.6f} pred_s_loss: {:.6f} ({:.6f}) |", epoch,
                 time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
-                loss_meter.avg)
+                pred_s_loss_meter.avg, loss_meter.avg)
 
 
-def validate(model, discriminator, dataloader):
+def validate(model, disc_zx, disc_zs, dataloader):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
@@ -257,7 +264,7 @@ def validate(model, discriminator, dataloader):
         for x_val, s_val, _ in dataloader:
             x_val = cvt(x_val)
             s_val = cvt(s_val)
-            loss, _, _ = compute_loss(x_val, s_val, model, discriminator)
+            loss, _, _, _ = compute_loss(x_val, s_val, model, disc_zx, disc_zs)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     return loss_meter.avg
@@ -304,8 +311,9 @@ def main(train_tuple=None, test_tuple=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(ARGS.device)
-    discriminator = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100] + [1])
-    discriminator = discriminator.to(ARGS.device)
+    disc_zx = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1]).to(ARGS.device)
+    disc_zs = layers.Mlp([ARGS.zs_dim, 20, 20, 1], activation=nn.ReLU, output_activation=None)
+    disc_zs.to(ARGS.device)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -316,7 +324,8 @@ def main(train_tuple=None, test_tuple=None):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_optimizer = Adam(discriminator.parameters(), lr=ARGS.disc_lr)
+        disc_optimizer = Adam(list(disc_zx.parameters()) + list(disc_zs.parameters()),
+                              lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
 
@@ -332,11 +341,11 @@ def main(train_tuple=None, test_tuple=None):
                 break
 
             with SUMMARY.train():
-                train(model, discriminator, optimizer, disc_optimizer, train_loader, epoch)
+                train(model, disc_zx, disc_zs, optimizer, disc_optimizer, train_loader, epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
-                    val_loss = validate(model, discriminator, val_loader)
+                    val_loss = validate(model, disc_zx, disc_zs, val_loader)
                     SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
 
                     if val_loss < best_loss:
