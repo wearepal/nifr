@@ -140,7 +140,10 @@ def _build_model(input_dim):
 
     if ARGS.base_density == 'bernoulli' or ARGS.base_density_zs == 'bernoulli':
         start_dim = 0 if ARGS.base_density == 'bernoulli' else -ARGS.zs_dim
-        end_dim = None if ARGS.base_density_zs == 'bernoulli' else -ARGS.zs_dim
+        if ARGS.base_density_zs == 'bernoulli' or not ARGS.base_density_zs:
+            end_dim = None
+        else:
+            end_dim = -ARGS.zs_dim
         chain.append(layers.SigmoidTransform(start_dim=start_dim, end_dim=end_dim))
     return layers.SequentialFlow(chain)
 
