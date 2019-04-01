@@ -251,6 +251,7 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
 
         SUMMARY.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
         SUMMARY.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
+        SUMMARY.log_metric("Loss predict s loss", pred_s_loss.item(), step=itr)
         end = time.time()
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} "
