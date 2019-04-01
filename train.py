@@ -49,6 +49,7 @@ def parse_arguments():
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--disc_lr', type=float, default=1e-2)
     parser.add_argument('--weight_decay', type=float, default=1e-6)
+    parser.add_argument('--seed', type=int, default=42)
 
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--save', type=str, default='experiments/cnf')
@@ -175,12 +176,12 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
 
-    indie_loss = F.binary_cross_entropy(disc_zx(
+    indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
         layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
 
     padding_size = zx.size(1) - zs.size(1)
     zs_padded = torch.cat([zs, zs.new_zeros(x.size(0), padding_size)], dim=1)
-    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy(disc_zx(zs_padded), s)
+    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zx(zs_padded), s)
     # indie_loss *= ARGS.independence_weight
 
     log_px = (log_pz - delta_logp).mean()
@@ -288,6 +289,9 @@ def main(train_tuple=None, test_tuple=None):
 
     ARGS = parse_arguments()
 
+    torch.manual_seed(ARGS.seed)
+    torch.cuda.manual_seed(ARGS.seed)
+
     SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
                          workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)
     SUMMARY.disable_mp()
@@ -316,9 +320,9 @@ def main(train_tuple=None, test_tuple=None):
 
     model = _build_model(n_dims + 1).to(ARGS.device)
     disc_zx = layers.Mlp([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1], activation=nn.ReLU,
-                         output_activation=nn.Sigmoid).to(ARGS.device)
-    disc_zs = layers.Mlp([ARGS.zs_dim, 20, 20, 1], activation=nn.ReLU, output_activation=None)
-    disc_zs.to(ARGS.device)
+                         output_activation=None).to(ARGS.device)
+    # disc_zs = layers.Mlp([ARGS.zs_dim, 20, 20, 1], activation=nn.ReLU, output_activation=None)
+    # disc_zs.to(ARGS.device)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -329,11 +333,12 @@ def main(train_tuple=None, test_tuple=None):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_optimizer = Adam(list(disc_zx.parameters()) + list(disc_zs.parameters()),
-                              lr=ARGS.disc_lr)
+        # disc_optimizer = Adam(list(disc_zx.parameters()) + list(disc_zs.parameters()),
+        #                       lr=ARGS.disc_lr)
+        disc_optimizer = Adam(disc_zx.parameters(), lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
-
+        disc_zs = None
         # time_meter = utils.RunningAverageMeter(0.98)
         # loss_meter = utils.RunningAverageMeter(0.98)
 
