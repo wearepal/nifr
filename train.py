@@ -15,7 +15,6 @@ import pandas as pd
 from utils import utils
 from optimisation.custom_optimizers import Adam
 import layers
-from layers.adversarial import GradReverseDiscriminator
 
 
 NDECS = 0
@@ -59,7 +58,7 @@ def parse_arguments():
 
     parser.add_argument('--zs_dim', type=int, default=20)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
-    parser.add_argument('--pred_s_weight', type=float, default=0.)
+    parser.add_argument('--pred_s_weight', type=float, default=1.)
     parser.add_argument('--base_density', default='normal',
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
     parser.add_argument('--base_density_zs', default='',
@@ -176,8 +175,12 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
 
-    indie_loss = F.binary_cross_entropy(disc_zx(zx, lambd=ARGS.independence_weight), s)
-    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
+    indie_loss = F.binary_cross_entropy(disc_zx(
+        layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
+
+    padding_size = zx.size(1) - zs.size(1)
+    zs_padded = torch.cat([zs, zs.new_zeros(x.size(0), padding_size)], dim=1)
+    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy(disc_zx(zs_padded), s)
     # indie_loss *= ARGS.independence_weight
 
     log_px = (log_pz - delta_logp).mean()
@@ -311,7 +314,8 @@ def main(train_tuple=None, test_tuple=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(ARGS.device)
-    disc_zx = GradReverseDiscriminator([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1]).to(ARGS.device)
+    disc_zx = layers.Mlp([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1], activation=nn.ReLU,
+                         output_activation=nn.Sigmoid).to(ARGS.device)
     disc_zs = layers.Mlp([ARGS.zs_dim, 20, 20, 1], activation=nn.ReLU, output_activation=None)
     disc_zs.to(ARGS.device)
 
