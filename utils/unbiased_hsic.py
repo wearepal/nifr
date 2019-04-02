@@ -2,14 +2,14 @@ import torch
 
 
 def _center_kern(K, m):
-    e = torch.ones(m, 1)
+    e = K.new_ones(m, 1)
     K = K - e @ e.t() @ K / m
     K = K - K @ e @ e.t() / m
     return K
 
 
 def _compute_h_vec(Ks, Ls, m):
-    e = torch.ones(m, 1)
+    e = Ks.new_ones(m, 1)
 
     t1 = (m - 2)**2 * (Ks * Ls) @ e
     t2 = (m - 2) * ((torch.sum(Ks * Ls) * e) - (Ks @ (Ls @ e)) - (Ls @ (Ks @ e)))
