@@ -59,6 +59,7 @@ def parse_arguments():
 
     parser.add_argument('--zs_dim', type=int, default=20)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
+    parser.add_argument('-iw2t', '--independence_weight_2_towers', type=float, default=1.e3)
     parser.add_argument('--pred_s_weight', type=float, default=1.)
     parser.add_argument('--base_density', default='normal',
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
@@ -179,6 +180,9 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
     #     layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
     indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
+
+    if ARGS.independence_weight_2_towers > 0:
+        indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
 
     pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
 

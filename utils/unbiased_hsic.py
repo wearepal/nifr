@@ -23,7 +23,7 @@ def _compute_h_vec(Ks, Ls, m):
     return h_xy
 
 
-def HSIC_unbiased(K, L, m):
+def _HSIC_unbiased(K, L, m):
     e = K.new_ones(m, 1)
 
     Ks = _center_kern(K, m)
@@ -39,40 +39,7 @@ def HSIC_unbiased(K, L, m):
     return (t1 + t2 - t3) / (m * (m - 3))
 
 
-def pdist(sample_1, sample_2, norm=2, eps=1e-5):
-    r"""Compute the matrix of all squared pairwise distances.
-    Arguments
-    ---------
-    sample_1 : torch.Tensor or Variable
-        The first sample, should be of shape ``(n_1, d)``.
-    sample_2 : torch.Tensor or Variable
-        The second sample, should be of shape ``(n_2, d)``.
-    norm : float
-        The l_p norm to be used.
-    Returns
-    -------
-    torch.Tensor or Variable
-        Matrix of shape (n_1, n_2). The [i, j]-th entry is equal to
-        ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
-    n_1, n_2 = sample_1.size(0), sample_2.size(0)
-    norm = float(norm)
-    if norm == 2.:
-        norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True)
-        norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True)
-        norms = (norms_1.expand(n_1, n_2) +
-                 norms_2.transpose(0, 1).expand(n_1, n_2))
-        distances_squared = norms - 2 * sample_1.mm(sample_2.t())
-        return torch.sqrt(eps + torch.abs(distances_squared))
-    else:
-        dim = sample_1.size(1)
-        expanded_1 = sample_1.unsqueeze(1).expand(n_1, n_2, dim)
-        expanded_2 = sample_2.unsqueeze(0).expand(n_1, n_2, dim)
-        differences = torch.abs(expanded_1 - expanded_2) ** norm
-        inner = torch.sum(differences, dim=2, keepdim=False)
-        return (eps + inner) ** (1. / norm)
-
-
-def rbf_kernel(x_gram, y_gram, sigma_1=1, sigma_2=0.5):
+def _rbf_kernel(x_gram, y_gram, sigma_1=1, sigma_2=0.5):
     x_sqnorms = x_gram.diag()
     y_sqnorms = y_gram.diag()
 
@@ -90,7 +57,7 @@ def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1., sigma_2=0.5, use_rbf=False
     y_gram = y @ y.t()
 
     if use_rbf:
-        kernel_x, kernel_y = rbf_kernel(x_gram, y_gram, sigma_1, sigma_2)
+        kernel_x, kernel_y = _rbf_kernel(x_gram, y_gram, sigma_1, sigma_2)
     else:
         kernel_x, kernel_y = x_gram, y_gram
 
@@ -108,7 +75,7 @@ def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1., sigma_2=0.5, use_rbf=False
 
     R_xy = constant * (h_xy.t() @ h_xy)
 
-    HSIC_xy = HSIC_unbiased(K, L, m)
+    HSIC_xy = _HSIC_unbiased(K, L, m)
 
     variance = (16 / m) * (R_xy - (HSIC_xy**2))
 
