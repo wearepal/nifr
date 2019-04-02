@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
 
-from utils import utils
+from utils import utils, metrics, unbiased_hsic
 from optimisation.custom_optimizers import Adam
 import layers
 
@@ -176,13 +176,15 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
     # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
 
-    indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
-        layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
+    # indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
+    #     layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
+    indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
     pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
 
     log_px = (log_pz - delta_logp).mean()
     loss = -log_px + indie_loss + pred_s_loss
+
     if return_z:
         return loss, z
     return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
@@ -231,7 +233,7 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
 
         optimizer.zero_grad()
-        disc_optimizer.zero_grad()
+        # disc_optimizer.zero_grad()
 
         x, s = cvt(x, s)
         loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, model, disc_zx, disc_zs,
@@ -243,7 +245,7 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
 
         loss.backward()
         optimizer.step()
-        disc_optimizer.step()
+        # disc_optimizer.step()
 
         time_meter.update(time.time() - end)
 
