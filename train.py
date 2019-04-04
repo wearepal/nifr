@@ -57,6 +57,9 @@ def parse_arguments():
     parser.add_argument('--val_freq', type=int, default=4)
     parser.add_argument('--log_freq', type=int, default=10)
 
+    parser.add_argument('--ind-method', type=str, choices=['hsic', 'disc'], default='disc')
+    parser.add_argument('--ind-method2t', type=str, choices=['hsic', 'none'], default='none')
+
     parser.add_argument('--zs_dim', type=int, default=20)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
     parser.add_argument('-iw2t', '--independence_weight_2_towers', type=float, default=1.e3)
@@ -74,21 +77,6 @@ def parse_arguments():
                                                                  'reducing learning rate.')
 
     return parser.parse_args()
-
-
-# def update_lr(optimizer, n_vals_without_improvement):
-#     global NDECS
-#     if NDECS == 0 and n_vals_without_improvement > ARGS.early_stopping // 3:
-#         for param_group in optimizer.param_groups:
-#             param_group["lr"] = ARGS.lr / 10
-#         NDECS = 1
-#     elif NDECS == 1 and n_vals_without_improvement > ARGS.early_stopping // 3 * 2:
-#         for param_group in optimizer.param_groups:
-#             param_group["lr"] = ARGS.lr / 100
-#         NDECS = 2
-#     else:
-#         for param_group in optimizer.param_groups:
-#             param_group["lr"] = ARGS.lr / 10**NDECS
 
 
 def load_dataframe(path: Path) -> pd.DataFrame:
@@ -168,20 +156,16 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
         log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
         log_pz = log_pzx + log_pzs
 
-    # z_s0 = z[s[:, 0] == 0]
-    # z_s1 = z[s[:, 0] == 1]
+    # Enforce independence between the fair representation, zx,
+    #  and the sensitive attribute, s
+    if ARGS.ind_method == 'disc':
+        indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
+            layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
+    else:
+        indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
-    # test_zs1 = torch.masked_select(z, s.byte()).view(-1, z.shape[1])
-    # test_zs0 = torch.masked_select(z, ~s.byte()).view(-1, z.shape[1])
-
-    # mmd = metrics.MMDStatistic(z_s0.size(0), z_s1.size(0))
-    # indie_loss = mmd(z_s0[:, :-ARGS.zs_dim], z_s1[:, :-ARGS.zs_dim], alphas=[1])
-
-    # indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
-    #     layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
-    indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
-
-    if ARGS.independence_weight_2_towers > 0:
+    # Enforce independence between the fair, zx, and unfair, zs, partitions
+    if ARGS.ind_method2t == 'hsic':
         indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
 
     pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
@@ -237,7 +221,9 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
 
         optimizer.zero_grad()
-        # disc_optimizer.zero_grad()
+
+        if ARGS.ind_method == 'disc':
+            disc_optimizer.zero_grad()
 
         x, s = cvt(x, s)
         loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, model, disc_zx, disc_zs,
@@ -249,7 +235,9 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
 
         loss.backward()
         optimizer.step()
-        # disc_optimizer.step()
+
+        if ARGS.ind_method == 'disc':
+            disc_optimizer.step()
 
         time_meter.update(time.time() - end)
 
@@ -322,9 +310,14 @@ def main(train_tuple=None, test_tuple=None):
     # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
 
     model = _build_model(n_dims + 1).to(ARGS.device)
-    disc_zx = layers.Mlp([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1], activation=nn.ReLU,
-                         output_activation=None)
-    disc_zx.to(ARGS.device)
+
+    if ARGS.ind_method == 'disc':
+        disc_zx = layers.Mlp([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1], activation=nn.ReLU,
+                             output_activation=None)
+        disc_zx.to(ARGS.device)
+    else:
+        disc_zx = None
+
     disc_zs = layers.Mlp([ARGS.zs_dim, 20, 20, 1], activation=nn.ReLU, output_activation=None)
     disc_zs.to(ARGS.device)
 
