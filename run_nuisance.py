@@ -89,7 +89,7 @@ def main():
     test_fair_predict_s = DataTuple(x=test_zx, s=test.s, y=test.s)
     preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
     results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
-    experiment.log_metric("Fair pred s", results['Accuracy'])
+    experiment.log_metric("Nuisance predict s", results['Accuracy'])
     print(results)
 
     print("predict class from class representation:")
@@ -97,7 +97,7 @@ def main():
     test_unfair_predict_s = DataTuple(x=test_zs, s=test.s, y=test.s)
     preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])
-    experiment.log_metric("Class pred class", results['Accuracy'])
+    experiment.log_metric("Class pred s", results['Accuracy'])
     print(results)
 
     # from weight_adjust import main as weight_adjustment
