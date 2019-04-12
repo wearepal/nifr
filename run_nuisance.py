@@ -72,19 +72,19 @@ def main():
     preds_z = model.run(train_z, test_z)
     _compute_metrics(preds_z, test_z, "Z")
 
-    print("fair:")
+    print("nuisance:")
     train_fair = DataTuple(x=train_zx, s=train.s, y=train.y)
     test_fair = DataTuple(x=test_zx, s=test.s, y=test.y)
     preds_fair = model.run(train_fair, test_fair)
-    _compute_metrics(preds_fair, test_fair, "Fair")
+    _compute_metrics(preds_fair, test_fair, "Nuisance")
 
-    print("unfair:")
+    print("class:")
     train_unfair = DataTuple(x=train_zs, s=train.s, y=train.y)
     test_unfair = DataTuple(x=test_zs, s=test.s, y=test.y)
     preds_unfair = model.run(train_unfair, test_unfair)
-    _compute_metrics(preds_unfair, test_unfair, "Unfair")
+    _compute_metrics(preds_unfair, test_unfair, "Class")
 
-    print("predict s from fair representation:")
+    print("predict class from nuisance representation:")
     train_fair_predict_s = DataTuple(x=train_zx, s=train.s, y=train.s)
     test_fair_predict_s = DataTuple(x=test_zx, s=test.s, y=test.s)
     preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
@@ -92,12 +92,12 @@ def main():
     experiment.log_metric("Fair pred s", results['Accuracy'])
     print(results)
 
-    print("predict s from unfair representation:")
+    print("predict class from class representation:")
     train_unfair_predict_s = DataTuple(x=train_zs, s=train.s, y=train.s)
     test_unfair_predict_s = DataTuple(x=test_zs, s=test.s, y=test.s)
     preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])
-    experiment.log_metric("Unfair pred s", results['Accuracy'])
+    experiment.log_metric("Class pred class", results['Accuracy'])
     print(results)
 
     # from weight_adjust import main as weight_adjustment
