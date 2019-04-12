@@ -218,8 +218,8 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     time_meter = utils.AverageMeter()
     end = time.time()
 
-    for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
-
+    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
+        s = y
         optimizer.zero_grad()
 
         if ARGS.ind_method == 'disc':
