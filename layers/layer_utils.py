@@ -4,6 +4,15 @@ import torch.nn as nn
 from pyro.distributions.util import broadcast_shape
 
 
+class Flatten(nn.Module):
+
+    def __init__(self):
+        super(Flatten, self).__init__()
+
+    def forward(self, x):
+        return x.size(0, -1)
+
+
 class Exp(nn.Module):
     """
     a custom module for exponentiation of tensors

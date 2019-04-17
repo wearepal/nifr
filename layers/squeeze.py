@@ -29,6 +29,18 @@ class SqueezeLayer(nn.Module):
             return unsqueeze_y, logpy
 
 
+class UnsqueezeLayer(SqueezeLayer):
+
+    def __init__(self, upscale_factor):
+        super(UnsqueezeLayer, self).__init__(upscale_factor)
+
+    def forward(self, x, logpx=None, reverse=False):
+        if reverse:
+            return self._downsample(x, logpx)
+        else:
+            return self._upsample(x, logpx)
+
+
 def unsqueeze(input, upscale_factor=2):
     '''
     [:, C*r^2, H, W] -> [:, C, H*r, W*r]

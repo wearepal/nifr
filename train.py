@@ -8,6 +8,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torchvision import transforms
 from torch.utils.data import DataLoader, TensorDataset
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
@@ -15,6 +16,7 @@ import pandas as pd
 from utils import utils, metrics, unbiased_hsic
 from optimisation.custom_optimizers import Adam
 import layers
+import models
 
 
 NDECS = 0
@@ -25,6 +27,8 @@ SUMMARY = None
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='mnist')
+
     parser.add_argument('--train_x', metavar="PATH")
     parser.add_argument('--train_s', metavar="PATH")
     parser.add_argument('--train_y', metavar="PATH")
@@ -115,30 +119,6 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def _build_model(input_dim):
-    """Build the model with ARGS.depth many layers
-
-    If ARGS.glow is true, then each layer includes 1x1 convolutions.
-    """
-    hidden_dims = tuple(map(int, ARGS.dims.split("-")))
-    chain = []
-    for i in range(ARGS.depth):
-        if ARGS.glow:
-            chain += [layers.BruteForceLayer(input_dim)]
-        chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
-        if ARGS.batch_norm:
-            chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=ARGS.bn_lag)]
-
-    if ARGS.base_density == 'bernoulli' or ARGS.base_density_zs == 'bernoulli':
-        start_dim = 0 if ARGS.base_density == 'bernoulli' else -ARGS.zs_dim
-        if ARGS.base_density_zs == 'bernoulli' or not ARGS.base_density_zs:
-            end_dim = None
-        else:
-            end_dim = -ARGS.zs_dim
-        chain.append(layers.SigmoidTransform(start_dim=start_dim, end_dim=end_dim))
-    return layers.SequentialFlow(chain)
-
-
 def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     zero = x.new_zeros(x.size(0), 1)
 
@@ -177,6 +157,44 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
         return loss, z
     return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
 
+
+def also_compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
+    zero = x.new_zeros(x.size(0), 1)
+
+    z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
+
+    if not ARGS.base_density_zs:
+        log_pz, z = compute_log_pz(z, ARGS.base_density)
+        zx = z[:, :-ARGS.zs_dim]
+        zs = z[:, -ARGS.zs_dim:]
+    else:
+        # split first and then pass separately through the compute_log_pz function
+        zx = z[:, :-ARGS.zs_dim]
+        zs = z[:, -ARGS.zs_dim:]
+        log_pzx, zx = compute_log_pz(zx, ARGS.base_density)
+        log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
+        log_pz = log_pzx + log_pzs
+
+    # Enforce independence between the fair representation, zx,
+    #  and the sensitive attribute, s
+    if ARGS.ind_method == 'disc':
+        indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
+            layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
+    else:
+        indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
+
+    # Enforce independence between the fair, zx, and unfair, zs, partitions
+    if ARGS.ind_method2t == 'hsic':
+        indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
+
+    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
+
+    log_px = (log_pz - delta_logp).mean()
+    loss = -log_px + indie_loss + pred_s_loss
+
+    if return_z:
+        return loss, z
+    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
 
 def compute_log_pz(z, base_density):
     """Log of the base probability: log(p(z))"""
@@ -299,17 +317,27 @@ def main(train_tuple=None, test_tuple=None):
     LOGGER.info('{} GPUs available.', torch.cuda.device_count())
 
     # ==== construct dataset ====
-    if train_tuple is None:
-        data, n_dims = load_data()
+    if ARGS.dataset == 'MNIST':
+        from data.colorized_mnist import ColorizedMNIST
+        train_data = ColorizedMNIST('./data', download=True, train=True, scale=0,
+                                    transform=transforms.ToTensor(),
+                                    cspace='rgb', background=True, black=True)
+        test_data = ColorizedMNIST('./data', download=True, train=False, scale=0,
+                                   transform=transforms.ToTensor(),
+                                   cspace='rgb', background=True, black=True)
+        train_loader = DataLoader(train_data, shuffle=True, batch_size=ARGS.batch_size)
+        val_loader = DataLoader(test_data, shuffle=False, batch_size=test_batch_size)
+        model = models.glow(ARGS, 10).to(ARGS.device)
+
     else:
-        data = convert_data(train_tuple, test_tuple)
-        n_dims = train_tuple.x.values.shape[1]
-
-    train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
-    val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
-    # tst = DataLoader(data.tst, shuffle=False, batch_size=ARGS.test_batch_size)
-
-    model = _build_model(n_dims + 1).to(ARGS.device)
+        if train_tuple is None:
+            data, n_dims = load_data()
+        else:
+            data = convert_data(train_tuple, test_tuple)
+            n_dims = train_tuple.x.values.shape[1]
+        train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
+        val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
+        model = models.tabular_model(ARGS, n_dims + 1).to(ARGS.device)
 
     if ARGS.ind_method == 'disc':
         disc_zx = layers.Mlp([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1], activation=nn.ReLU,

@@ -1,7 +1,68 @@
+from abc import abstractmethod
+
 import torch
 import torch.nn as nn
 
-__all__ = ['CouplingLayer', 'MaskedCouplingLayer']
+from utils.utils import flatten_sum
+
+
+class InvertibleLayer(nn.Module):
+    """Base class of an invertible layer"""
+    def forward(self, x, logpx=None, reverse=False):
+        if reverse:
+            self._reverse(x, logpx)
+        else:
+            self._forward(x, logpx)
+
+    @abstractmethod
+    def _forward(self, x, logpx):
+        """Forward pass"""
+
+    @abstractmethod
+    def _reverse(self, x, logpx):
+        """Reverse pass"""
+
+
+class ConvBlock(nn.Sequential):
+    def __init__(self, in_channels, hidden_channels=512, out_channels=None, n_layers=3):
+        super(ConvBlock, self).__init__()
+
+        for i in range(n_layers):
+            current_channels = in_channels if i == 0 else hidden_channels
+            num_channels = out_channels if i == (n_layers - 1) else hidden_channels
+            self.add_module(f'conv_{i}', nn.Conv2d(current_channels, num_channels,kernel_size=3,
+                                                   stride=1, padding=1))
+            self.add_module(f'bn{i}', nn.BatchNorm2d(num_channels))
+            self.add_module(f'actfun_{i}', nn.ReLU(inplace=True))
+
+
+class AffineCouplingLayer(InvertibleLayer):
+    def __init__(self, in_channels, hidden_channels):
+        super(AffineCouplingLayer, self).__init__()
+        # assert num_features % 2 == 0
+        self.NN = ConvBlock(in_channels // 2, hidden_channels=hidden_channels,
+                            out_channels=in_channels)
+
+    def _forward(self, x, logpx):
+        z1, z2 = torch.chunk(x, 2, dim=1)
+        h = self.NN(z1)
+        shift = h[:, 0::2]
+        scale = (h[:, 1::2] + 2.).sigmoid()
+        z2 += shift
+        z2 *= scale
+        logpx += flatten_sum(scale.log())
+
+        return torch.cat([z1, z2], dim=1), logpx
+
+    def _reverse(self, x, logpx):
+        z1, z2 = torch.chunk(x, 2, dim=1)
+        h = self.NN(z1)
+        shift = h[:, 0::2]
+        scale = (h[:, 1::2] + 2.).sigmoid()
+        z2 /= scale
+        z2 -= shift
+        logpx -= flatten_sum(scale.log())
+        return torch.cat([z1, z2], dim=1), logpx
 
 
 class CouplingLayer(nn.Module):

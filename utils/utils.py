@@ -5,6 +5,10 @@ import logging
 import torch
 
 
+def flatten_sum(tensor):
+    return tensor.sum(dim=tuple(range(1, tensor.dim())))
+
+
 def batch_flatten(x):
     return x.view(x.size(0), -1)
 
