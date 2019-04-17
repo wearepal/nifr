@@ -13,7 +13,7 @@ from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_da
 from ethicml.data import Adult
 from ethicml.data.load import load_data
 from ethicml.preprocessing.train_test_split import train_test_split
-from ethicml.metrics import Accuracy, ProbPos
+from ethicml.metrics import Accuracy, ProbPos, Theil
 
 from train import current_experiment, main as training_loop
 
@@ -45,11 +45,13 @@ def main():
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
-        metrics = run_metrics(predictions, actual, [Accuracy()], [ProbPos()])
+        metrics = run_metrics(predictions, actual, [Accuracy(), Theil()], [ProbPos(), Theil()])
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
-        experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
+        experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
         experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
         experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1'])
+        experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1'])
+        experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0'])
         experiment.log_metric(f"{name} Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1'])
         experiment.log_metric(f"{name} Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1'])
         for key, value in metrics.items():
@@ -60,11 +62,17 @@ def main():
     # model = SVM()
     experiment.log_other("evaluation model", model.name)
 
+    print("Original x:")
+    train_x = DataTuple(x=train.x, s=train.s, y=train.y)
+    test_x = DataTuple(x=test.x, s=test.s, y=test.y)
+    preds_x = model.run(train_x, test_x)
+    _compute_metrics(preds_x, test_x, "Original")
+
     print("Original x & s:")
-    train_x_and_s = DataTuple(x=pd.concat([train.x, train.s], axis='columns'), s=train.s, y=train.y)
-    test_x_and_s = DataTuple(x=pd.concat([test.x, test.s], axis='columns'), s=test.s, y=test.y)
+    train_x_and_s = DataTuple(x=pd.concat([train.x, train.s], axis='columns').rename(columns={train.s.columns[0]: f"{train.s.columns[0]}_in_x"}), s=train.s, y=train.y)
+    test_x_and_s = DataTuple(x=pd.concat([test.x, test.s], axis='columns').rename(columns={train.s.columns[0]: f"{train.s.columns[0]}_in_x"}), s=test.s, y=test.y)
     preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
-    _compute_metrics(preds_x_and_s, test_x_and_s, "Original")
+    _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
     print("All z:")
     train_z = DataTuple(x=train_all, s=train.s, y=train.y)
