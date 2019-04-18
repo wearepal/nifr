@@ -27,7 +27,7 @@ SUMMARY = None
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='cmnist')
+    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='adult')
 
     parser.add_argument('--train_x', metavar="PATH")
     parser.add_argument('--train_s', metavar="PATH")
@@ -146,6 +146,7 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # Enforce independence between the fair representation, zx,
     #  and the sensitive attribute, s
     if ARGS.ind_method == 'disc':
+        print(zx.shape, s.shape)
         indie_loss = loss_fn(disc_zx(
             layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
     else:
@@ -206,7 +207,8 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     end = time.time()
 
     for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
-        print(itr)
+        print(x.shape, s.shape)
+
         optimizer.zero_grad()
 
         if ARGS.ind_method == 'disc':
@@ -310,7 +312,7 @@ def main(train_tuple=None, test_tuple=None):
             n_dims = train_tuple.x.values.shape[1] + 1
         train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
         val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
-        s_dim = 3
+        s_dim = 1
         model = models.tabular_model(ARGS, n_dims).to(ARGS.device)
 
     output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
