@@ -311,7 +311,7 @@ def main(train_tuple=None, test_tuple=None):
         train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
         val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
         s_dim = 3
-        model = models.tabular_model(ARGS, n_dims + 1).to(ARGS.device)
+        model = models.tabular_model(ARGS, n_dims).to(ARGS.device)
 
     output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
     if ARGS.ind_method == 'disc':
