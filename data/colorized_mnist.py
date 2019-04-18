@@ -123,7 +123,7 @@ class ColorizedMNIST(datasets.MNIST):
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
         data, s = self.colorizer(data, target.view(1))
-        return data.squeeze(0), target, s.squeeze()
+        return data.squeeze(0), s.squeeze(), target
 
 
 def test():
@@ -160,8 +160,9 @@ def test():
         dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
     for data, labels, color in dataloader:
-        save_image(data[:64], './colorized.png', nrow=8)
-        break
+        data = data * 2
+        # save_image(data[:64], './colorized.png', nrow=8)
+        # break
 
 
 if __name__ == '__main__':
