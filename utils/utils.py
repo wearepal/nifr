@@ -6,7 +6,7 @@ import torch
 
 
 def flatten_sum(tensor):
-    return tensor.sum(dim=tuple(range(1, tensor.dim())))
+    return tensor.sum(dim=tuple(range(1, tensor.dim()+1)))
 
 
 def batch_flatten(x):

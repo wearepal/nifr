@@ -10,9 +10,9 @@ class InvertibleLayer(nn.Module):
     """Base class of an invertible layer"""
     def forward(self, x, logpx=None, reverse=False):
         if reverse:
-            self._reverse(x, logpx)
+            return self._reverse(x, logpx)
         else:
-            self._forward(x, logpx)
+            return self._forward(x, logpx)
 
     @abstractmethod
     def _forward(self, x, logpx):
@@ -39,8 +39,7 @@ class ConvBlock(nn.Sequential):
 class AffineCouplingLayer(InvertibleLayer):
     def __init__(self, in_channels, hidden_channels):
         super(AffineCouplingLayer, self).__init__()
-        # assert num_features % 2 == 0
-        self.NN = ConvBlock(in_channels // 2, hidden_channels=hidden_channels,
+        self.NN = ConvBlock(in_channels // 2, hidden_channels=hidden_channels[0],
                             out_channels=in_channels)
 
     def _forward(self, x, logpx):
@@ -50,9 +49,10 @@ class AffineCouplingLayer(InvertibleLayer):
         scale = (h[:, 1::2] + 2.).sigmoid()
         z2 += shift
         z2 *= scale
-        logpx += flatten_sum(scale.log())
 
-        return torch.cat([z1, z2], dim=1), logpx
+        delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
+
+        return torch.cat([z1, z2], dim=1), logpx - delta_logp
 
     def _reverse(self, x, logpx):
         z1, z2 = torch.chunk(x, 2, dim=1)
@@ -61,8 +61,10 @@ class AffineCouplingLayer(InvertibleLayer):
         scale = (h[:, 1::2] + 2.).sigmoid()
         z2 /= scale
         z2 -= shift
-        logpx -= flatten_sum(scale.log())
-        return torch.cat([z1, z2], dim=1), logpx
+
+        delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
+
+        return torch.cat([z1, z2], dim=1), logpx + delta_logp
 
 
 class CouplingLayer(nn.Module):

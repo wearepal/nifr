@@ -27,7 +27,7 @@ SUMMARY = None
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='mnist')
+    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='cmnist')
 
     parser.add_argument('--train_x', metavar="PATH")
     parser.add_argument('--train_s', metavar="PATH")
@@ -74,7 +74,7 @@ def parse_arguments():
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
-    parser.add_argument('--use_comet', type=eval, default=True, choices=[True, False],
+    parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
                         help='whether to use the comet.ml logging')
     parser.add_argument('--patience', type=int, default=10, help='Number of iterations without '
                                                                  'improvement in val loss before'
@@ -120,9 +120,16 @@ def convert_data(train_tuple, test_tuple):
 
 
 def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
+
     zero = x.new_zeros(x.size(0), 1)
 
-    z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
+    if ARGS.dataset == 'cmnist':
+        loss_fn = F.l1_loss
+    else:
+        loss_fn = F.binary_cross_entropy_with_logits
+        x = torch.cat((x, s), dim=1)
+
+    z, delta_logp = model(x, zero)  # run model forward
 
     if not ARGS.base_density_zs:
         log_pz, z = compute_log_pz(z, ARGS.base_density)
@@ -139,7 +146,7 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # Enforce independence between the fair representation, zx,
     #  and the sensitive attribute, s
     if ARGS.ind_method == 'disc':
-        indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
+        indie_loss = loss_fn(disc_zx(
             layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
     else:
         indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
@@ -148,7 +155,7 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     if ARGS.ind_method2t == 'hsic':
         indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
 
-    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
+    pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s)
 
     log_px = (log_pz - delta_logp).mean()
     loss = -log_px + indie_loss + pred_s_loss
@@ -157,44 +164,6 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
         return loss, z
     return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
 
-
-def also_compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
-    zero = x.new_zeros(x.size(0), 1)
-
-    z, delta_logp = model(torch.cat([x, s], dim=1), zero)  # run model forward
-
-    if not ARGS.base_density_zs:
-        log_pz, z = compute_log_pz(z, ARGS.base_density)
-        zx = z[:, :-ARGS.zs_dim]
-        zs = z[:, -ARGS.zs_dim:]
-    else:
-        # split first and then pass separately through the compute_log_pz function
-        zx = z[:, :-ARGS.zs_dim]
-        zs = z[:, -ARGS.zs_dim:]
-        log_pzx, zx = compute_log_pz(zx, ARGS.base_density)
-        log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
-        log_pz = log_pzx + log_pzs
-
-    # Enforce independence between the fair representation, zx,
-    #  and the sensitive attribute, s
-    if ARGS.ind_method == 'disc':
-        indie_loss = F.binary_cross_entropy_with_logits(disc_zx(
-            layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
-    else:
-        indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
-
-    # Enforce independence between the fair, zx, and unfair, zs, partitions
-    if ARGS.ind_method2t == 'hsic':
-        indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
-
-    pred_s_loss = ARGS.pred_s_weight * F.binary_cross_entropy_with_logits(disc_zs(zs), s)
-
-    log_px = (log_pz - delta_logp).mean()
-    loss = -log_px + indie_loss + pred_s_loss
-
-    if return_z:
-        return loss, z
-    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
 
 def compute_log_pz(z, base_density):
     """Log of the base probability: log(p(z))"""
@@ -243,7 +212,9 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
         if ARGS.ind_method == 'disc':
             disc_optimizer.zero_grad()
 
-        x, s = cvt(x, s)
+        if ARGS.dataset == 'adult':
+            x, s = cvt(x, s)
+
         loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, model, disc_zx, disc_zs,
                                                               return_z=False)
         loss_meter.update(loss.item())
@@ -317,7 +288,7 @@ def main(train_tuple=None, test_tuple=None):
     LOGGER.info('{} GPUs available.', torch.cuda.device_count())
 
     # ==== construct dataset ====
-    if ARGS.dataset == 'MNIST':
+    if ARGS.dataset == 'cmnist':
         from data.colorized_mnist import ColorizedMNIST
         train_data = ColorizedMNIST('./data', download=True, train=True, scale=0,
                                     transform=transforms.ToTensor(),
@@ -327,26 +298,31 @@ def main(train_tuple=None, test_tuple=None):
                                    cspace='rgb', background=True, black=True)
         train_loader = DataLoader(train_data, shuffle=True, batch_size=ARGS.batch_size)
         val_loader = DataLoader(test_data, shuffle=False, batch_size=test_batch_size)
-        model = models.glow(ARGS, 10).to(ARGS.device)
+        n_dims = 3 * 28 * 28
+        s_dim = 3
+        model = models.glow(ARGS, 3).to(ARGS.device)
 
     else:
         if train_tuple is None:
             data, n_dims = load_data()
         else:
             data = convert_data(train_tuple, test_tuple)
-            n_dims = train_tuple.x.values.shape[1]
+            n_dims = train_tuple.x.values.shape[1] + 1
         train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
         val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
+        s_dim = 3
         model = models.tabular_model(ARGS, n_dims + 1).to(ARGS.device)
 
+    output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
     if ARGS.ind_method == 'disc':
-        disc_zx = layers.Mlp([n_dims + 1 - ARGS.zs_dim] + [100, 100, 1], activation=nn.ReLU,
-                             output_activation=None)
+        disc_zx = layers.Mlp([n_dims - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
+                             output_activation=output_activation)
         disc_zx.to(ARGS.device)
     else:
         disc_zx = None
 
-    disc_zs = layers.Mlp([ARGS.zs_dim, 20, 20, 1], activation=nn.ReLU, output_activation=None)
+    disc_zs = layers.Mlp([ARGS.zs_dim, 40, 40, s_dim], activation=nn.ReLU,
+                         output_activation=output_activation)
     disc_zs.to(ARGS.device)
 
     if ARGS.resume is not None:

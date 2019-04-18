@@ -105,7 +105,7 @@ class MnistColorizer:
                     # white background, colorful digits
                     colorized_data = 1 - img * (1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
 
-        return colorized_data
+        return colorized_data, torch.Tensor(colors_per_sample)
 
     def __call__(self, img, target):
         return self._transform(img, target, self.train, self.background, self.black)
@@ -122,8 +122,8 @@ class ColorizedMNIST(datasets.MNIST):
 
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
-        data = self.colorizer(data, target.view(1)).squeeze(0)
-        return data, target
+        data, s = self.colorizer(data, target.view(1))
+        return data.squeeze(0), target, s.squeeze()
 
 
 def test():
@@ -159,8 +159,7 @@ def test():
 
         dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
-    for data, labels in dataloader:
-        print(data.shape)
+    for data, labels, color in dataloader:
         save_image(data[:64], './colorized.png', nrow=8)
         break
 
