@@ -39,7 +39,7 @@ def parse_arguments():
     parser.add_argument('--train_new', metavar="PATH")
     parser.add_argument('--test_new', metavar="PATH")
 
-    parser.add_argument('--depth', type=int, default=10)
+    parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
@@ -205,15 +205,15 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     time_meter = utils.AverageMeter()
     end = time.time()
 
-    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
-        s = y
+    for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
+        print(itr)
         optimizer.zero_grad()
 
         if ARGS.ind_method == 'disc':
             disc_optimizer.zero_grad()
 
-        if ARGS.dataset == 'adult':
-            x, s = cvt(x, s)
+        # if ARGS.dataset == 'adult':
+        x, s = cvt(x, s)
 
         loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, model, disc_zx, disc_zs,
                                                               return_z=False)
@@ -290,10 +290,10 @@ def main(train_tuple=None, test_tuple=None):
     # ==== construct dataset ====
     if ARGS.dataset == 'cmnist':
         from data.colorized_mnist import ColorizedMNIST
-        train_data = ColorizedMNIST('./data', download=True, train=True, scale=0,
+        train_data = ColorizedMNIST('./data', download=True, train=True, scale=0.002,
                                     transform=transforms.ToTensor(),
                                     cspace='rgb', background=True, black=True)
-        test_data = ColorizedMNIST('./data', download=True, train=False, scale=0,
+        test_data = ColorizedMNIST('./data', download=True, train=False, scale=0.002,
                                    transform=transforms.ToTensor(),
                                    cspace='rgb', background=True, black=True)
         train_loader = DataLoader(train_data, shuffle=True, batch_size=ARGS.batch_size)
