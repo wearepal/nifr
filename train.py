@@ -8,12 +8,12 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchvision import transforms
 from torch.utils.data import DataLoader, TensorDataset
+from torchvision import transforms
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
 
-from utils import utils, metrics, unbiased_hsic
+from utils import utils, unbiased_hsic
 from optimisation.custom_optimizers import Adam
 import layers
 import models
@@ -48,7 +48,7 @@ def parse_arguments():
 
     parser.add_argument('--early_stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=1000)
+    parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
     parser.add_argument('--disc_lr', type=float, default=1e-2)

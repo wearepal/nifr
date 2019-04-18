@@ -93,17 +93,21 @@ class MnistColorizer:
             if background:
                 if black:
                     # colorful background, black digits
-                    colorized_data = (1 - img) * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = (1 - img) * torch.Tensor(
+                        colors_per_sample).unsqueeze(-1).unsqueeze(-1)
                 else:
                     # colorful background, white digits
-                    colorized_data = torch.clamp(img + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1)
+                    colorized_data = torch.clamp(
+                        img + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1)
             else:
                 if black:
                     # black background, colorful digits
-                    colorized_data = img * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = img * torch.Tensor(
+                        colors_per_sample).unsqueeze(-1).unsqueeze(-1)
                 else:
                     # white background, colorful digits
-                    colorized_data = 1 - img * (1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
+                    colorized_data = 1 - img * (
+                        1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
 
         return colorized_data, torch.Tensor(colors_per_sample)
 
@@ -113,7 +117,8 @@ class MnistColorizer:
 
 class ColorizedMNIST(datasets.MNIST):
 
-    def __init__(self, root, train, transform, scale, background=True, black=True, cspace='rgb', download=True):
+    def __init__(self, root, train, transform, scale, background=True, black=True, cspace='rgb',
+                 download=True):
         super(ColorizedMNIST, self).__init__(root, train=train,
                                              download=download,
                                              transform=transform)
@@ -122,7 +127,7 @@ class ColorizedMNIST(datasets.MNIST):
 
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
-        data, color = self.colorizer(data, target.view(1))
+        data, color = self.colorizer(data, torch.tensor(target).view(1))
         return data.squeeze(0), color.squeeze(), target
 
 
