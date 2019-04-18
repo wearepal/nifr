@@ -380,8 +380,10 @@ def main(train_tuple=None, test_tuple=None):
     model.eval()
     test_encodings = encode_dataset(val_loader, model, cvt)
     # df_test.to_feather(ARGS.test_new)
+    if ARGS.dataset == 'adult':
+        train_data = data['trn']
     train_encodings = encode_dataset(
-        DataLoader(data['trn'], shuffle=False, batch_size=test_batch_size), model, cvt)
+        DataLoader(train_data, shuffle=False, batch_size=test_batch_size), model, cvt)
     # df_train.to_feather(ARGS.train_new)
     return train_encodings, test_encodings
 
@@ -394,7 +396,9 @@ def encode_dataset(dataset, model, cvt):
             x = cvt(x)
             s = cvt(s)
             zero = x.new_zeros(x.size(0), 1)
-            z, _ = model(torch.cat([x, s], dim=1), zero)
+            if ARGS.dataset == 'adult':
+                x = torch.cat((x, s), dim=1)
+            z, _ = model(x, zero)
             if ARGS.base_density == 'logitbernoulli':
                 z = z.sigmoid()
 
