@@ -146,7 +146,6 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # Enforce independence between the fair representation, zx,
     #  and the sensitive attribute, s
     if ARGS.ind_method == 'disc':
-        print(zx.shape, s.shape)
         indie_loss = loss_fn(disc_zx(
             layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
     else:
@@ -207,7 +206,6 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     end = time.time()
 
     for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
-        print(x.shape, s.shape)
 
         optimizer.zero_grad()
 
