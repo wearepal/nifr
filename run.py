@@ -90,15 +90,6 @@ def main():
     test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
     preds_x = model.run(train_x, test_x)
 
-    ''' '''
-    actual_y = test_tuple.y.values
-    pred_y = preds_x.values
-    labels: np.array = np.unique(actual_y)
-    pred_labels: np.array = np.unique(pred_y)
-    ''' '''
-    print(f"true labels: {labels}")
-    print(f"pred labels: {pred_labels}")
-
     _compute_metrics(preds_x, test_x, "Original")
 
     print("Original x & s:")
