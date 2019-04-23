@@ -256,7 +256,7 @@ def main(args, train_data, test_data):
             with SUMMARY.train():
                 train(model, disc_zx, disc_zs, optimizer, disc_optimizer, train_loader, epoch)
 
-            if epoch % ARGS.val_freq == 43:
+            if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
                     val_loss = validate(model, disc_zx, disc_zs, val_loader)
                     SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
