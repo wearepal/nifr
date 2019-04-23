@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import torch
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -20,7 +21,7 @@ def parse_arguments():
     parser.add_argument('--train_new', metavar="PATH")
     parser.add_argument('--test_new', metavar="PATH")
 
-    parser.add_argument('--depth', type=int, default=2)
+    parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
@@ -28,7 +29,7 @@ def parse_arguments():
     parser.add_argument('--bn_lag', type=float, default=0)
 
     parser.add_argument('--early_stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=2)
+    parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
@@ -70,6 +71,24 @@ def get_data_dim(data_loader):
     x_dim_flat = np.prod(x.shape[1:]).item()
     s_dim = s.size(1)
     return x_dim, x_dim_flat, s_dim
+
+
+def metameric_sampling(model, xzx, xzs, zs_dim):
+    xzx_dim, xzs_dim = xzx.dim(), xzs.dim()
+
+    if xzx_dim == 1 or xzx_dim == 3:
+        xzx = xzx.unsqueeze(0)
+
+    if xzs_dim == 1 or xzs_dim == 3:
+        xzs = xzs.unsqueeze(0)
+
+    zx = model(xzx)[:, zs_dim]
+    zs = model(xzs)[:, zs_dim:]
+
+    zm = torch.cat((zx, zs), dim=1)
+    xm = model(zm, reverse=True)
+
+    return xm
 
 
 def fetch_model(args, x_dim):
