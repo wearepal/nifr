@@ -1,4 +1,5 @@
 import argparse
+import random
 
 import torch
 from torchvision import datasets, transforms
@@ -9,12 +10,15 @@ from skimage import color
 class MnistColorizer:
 
     def __init__(self, train, scale, binarize=False, color_space='rgb',
-                 background=True, black=True):
+                 background=True, black=True, seed=42):
         self.train = train
         self.scale = scale
         self.binarize = binarize
         self.background = background
         self.black = black
+
+        np.random.seed(seed)
+        random.seed(seed)
 
         self.color_space = color_space
         if color_space == 'rgb':
@@ -133,7 +137,6 @@ class ColorizedMNIST(datasets.MNIST):
 
 def test():
     from torch.utils.data import DataLoader
-    from torchvision.utils import save_image
 
     def parse_arguments():
         parser = argparse.ArgumentParser()

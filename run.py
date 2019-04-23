@@ -3,6 +3,7 @@
 # from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
@@ -10,12 +11,10 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
-from ethicml.data import Adult
-from ethicml.data.load import load_data
-from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.metrics import Accuracy, ProbPos, Theil
 
 from train import current_experiment, main as training_loop
+from utils.dataloading import load_dataset
 
 
 # class ModelWrapper(BasicTPA):
@@ -32,20 +31,28 @@ from train import current_experiment, main as training_loop
 #         flags_list += ['--train_new', str(for_train_path), '--test_new', str(for_test_path)]
 #         flags_list += self.additional_args
 #         return flags_list
+from utils.training_utils import parse_arguments
 
 
 def main():
     # model = ModelWrapper()
 
-    dataset = Adult()
-    train, test = train_test_split(load_data(dataset))
-    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test)
+    args = parse_arguments()
+
+    # dataset = Adult()
+    # train, test = train_test_split(load_data(dataset))
+    #
+    train_data, test_data, train_tuple, test_tuple = load_dataset(args)
+    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) \
+        = training_loop(args, train_data, test_data)
     experiment = current_experiment()  # works only after training_loop has been called
-    experiment.log_dataset_info(name=dataset.name)
+    experiment.log_dataset_info(name=args.dataset)
+
+    # flatten the images so that they're amenable to logistic regression
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
-        metrics = run_metrics(predictions, actual, [Accuracy(), Theil()], [ProbPos(), Theil()])
+        metrics = run_metrics(predictions, actual, [Accuracy(), Theil()], [Theil()]) #ProbPos(),
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
         experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
         experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
@@ -58,51 +65,82 @@ def main():
             print(f"    {key}: {value:.4f}")
         print()  # empty line
 
+    if args.dataset == 'cmnist':
+        mnist_shape = (-1, 3, 28, 28)
+        train_x_with_s = train_tuple.x
+        test_x_with_s = test_tuple.x
+
+        train_x_without_s = pd.DataFrame(np.reshape(np.mean(np.reshape(train_tuple.x, mnist_shape), axis=1),
+                                                    (train_tuple.x.shape[0], -1)))
+        test_x_without_s = pd.DataFrame(np.reshape(np.mean(np.reshape(test_tuple.x, mnist_shape), axis=1),
+                                                   (test_tuple.x.shape[0], -1)))
+    else:
+        train_x_with_s = pd.concat([train_tuple.x, train_tuple.s], axis='columns')
+        test_x_with_s = pd.concat([test_tuple.x, test_tuple.s], axis='columns')
+        train_x_without_s = train_tuple.x
+        test_x_without_s = test_tuple.x
+
     model = LR()
     # model = SVM()
     experiment.log_other("evaluation model", model.name)
 
     print("Original x:")
-    train_x = DataTuple(x=train.x, s=train.s, y=train.y)
-    test_x = DataTuple(x=test.x, s=test.s, y=test.y)
+
+    train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
+    test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
     preds_x = model.run(train_x, test_x)
+
+    ''' '''
+    actual_y = test_tuple.y.values
+    pred_y = preds_x.values
+    labels: np.array = np.unique(actual_y)
+    pred_labels: np.array = np.unique(pred_y)
+    ''' '''
+    print(f"true labels: {labels}")
+    print(f"pred labels: {pred_labels}")
+
     _compute_metrics(preds_x, test_x, "Original")
 
     print("Original x & s:")
-    train_x_and_s = DataTuple(x=pd.concat([train.x, train.s], axis='columns').rename(columns={train.s.columns[0]: f"{train.s.columns[0]}_in_x"}), s=train.s, y=train.y)
-    test_x_and_s = DataTuple(x=pd.concat([test.x, test.s], axis='columns').rename(columns={train.s.columns[0]: f"{train.s.columns[0]}_in_x"}), s=test.s, y=test.y)
+    train_x_and_s = DataTuple(train_x_with_s,
+                              s=train_tuple.s,
+                              y=train_tuple.y)
+    test_x_and_s = DataTuple(x=test_x_with_s,
+                             s=test_tuple.s,
+                             y=test_tuple.y)
+
     preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
     _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
     print("All z:")
-    train_z = DataTuple(x=train_all, s=train.s, y=train.y)
-    test_z = DataTuple(x=test_all, s=test.s, y=test.y)
+    train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
+    test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
     preds_z = model.run(train_z, test_z)
     _compute_metrics(preds_z, test_z, "Z")
 
     print("fair:")
-    train_fair = DataTuple(x=train_zx, s=train.s, y=train.y)
-    test_fair = DataTuple(x=test_zx, s=test.s, y=test.y)
+    train_fair = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.y)
+    test_fair = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.y)
     preds_fair = model.run(train_fair, test_fair)
     _compute_metrics(preds_fair, test_fair, "Fair")
 
     print("unfair:")
-    train_unfair = DataTuple(x=train_zs, s=train.s, y=train.y)
-    test_unfair = DataTuple(x=test_zs, s=test.s, y=test.y)
+    train_unfair = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.y)
+    test_unfair = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.y)
     preds_unfair = model.run(train_unfair, test_unfair)
     _compute_metrics(preds_unfair, test_unfair, "Unfair")
 
     print("predict s from fair representation:")
-    train_fair_predict_s = DataTuple(x=train_zx, s=train.s, y=train.s)
-    test_fair_predict_s = DataTuple(x=test_zx, s=test.s, y=test.s)
+    train_fair_predict_s = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.s)
+    test_fair_predict_s = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.s)
     preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
     results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
     experiment.log_metric("Fair pred s", results['Accuracy'])
     print(results)
 
     print("predict s from unfair representation:")
-    train_unfair_predict_s = DataTuple(x=train_zs, s=train.s, y=train.s)
-    test_unfair_predict_s = DataTuple(x=test_zs, s=test.s, y=test.s)
+    train_unfair_predict_s = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.s)
+    test_unfair_predict_s = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.s)
     preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])
     experiment.log_metric("Unfair pred s", results['Accuracy'])
