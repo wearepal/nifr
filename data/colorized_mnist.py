@@ -131,7 +131,11 @@ class ColorizedMNIST(datasets.MNIST):
 
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
-        data, color = self.colorizer(data, torch.tensor(target).view(1))
+
+        if type(target) != torch.Tensor:
+            target = torch.tensor(target)
+
+        data, color = self.colorizer(data, target.view(1))
         return data.squeeze(0), color.squeeze(), target
 
 
