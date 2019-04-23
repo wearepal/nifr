@@ -8,98 +8,21 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torch.utils.data import DataLoader, TensorDataset
 from torchvision import transforms
+from torch.utils.data import DataLoader, TensorDataset
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
+import numpy as np
 
-from utils import utils, unbiased_hsic
+from utils import utils, metrics, unbiased_hsic, dataloading
 from optimisation.custom_optimizers import Adam
 import layers
-import models
-
+from utils.training_utils import fetch_model, get_data_dim
 
 NDECS = 0
 ARGS = None
 LOGGER = None
 SUMMARY = None
-
-
-def parse_arguments():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='adult')
-
-    parser.add_argument('--train_x', metavar="PATH")
-    parser.add_argument('--train_s', metavar="PATH")
-    parser.add_argument('--train_y', metavar="PATH")
-    parser.add_argument('--test_x', metavar="PATH")
-    parser.add_argument('--test_s', metavar="PATH")
-    parser.add_argument('--test_y', metavar="PATH")
-
-    parser.add_argument('--train_new', metavar="PATH")
-    parser.add_argument('--test_new', metavar="PATH")
-
-    parser.add_argument('--depth', type=int, default=1)
-    parser.add_argument('--dims', type=str, default="100-100")
-    parser.add_argument('--nonlinearity', type=str, default="tanh")
-    parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--batch_norm', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--bn_lag', type=float, default=0)
-
-    parser.add_argument('--early_stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=100)
-    parser.add_argument('--test_batch_size', type=int, default=None)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc_lr', type=float, default=1e-2)
-    parser.add_argument('--weight_decay', type=float, default=1e-6)
-    parser.add_argument('--seed', type=int, default=42)
-
-    parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--save', type=str, default='experiments/cnf')
-    parser.add_argument('--evaluate', action='store_true')
-    parser.add_argument('--val_freq', type=int, default=4)
-    parser.add_argument('--log_freq', type=int, default=10)
-
-    parser.add_argument('--ind-method', type=str, choices=['hsic', 'disc'], default='disc')
-    parser.add_argument('--ind-method2t', type=str, choices=['hsic', 'none'], default='none')
-
-    parser.add_argument('--zs_dim', type=int, default=20)
-    parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
-    parser.add_argument('-iw2t', '--independence_weight_2_towers', type=float, default=1.e3)
-    parser.add_argument('--pred_s_weight', type=float, default=1.)
-    parser.add_argument('--base_density', default='normal',
-                        choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
-    parser.add_argument('--base_density_zs', default='',
-                        choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
-
-    parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
-    parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
-                        help='whether to use the comet.ml logging')
-    parser.add_argument('--patience', type=int, default=10, help='Number of iterations without '
-                                                                 'improvement in val loss before'
-                                                                 'reducing learning rate.')
-
-    return parser.parse_args()
-
-
-def load_dataframe(path: Path) -> pd.DataFrame:
-    """Load dataframe from a parquet file"""
-    with path.open('rb') as f:
-        df = pd.read_feather(f)
-    return torch.tensor(df.values, dtype=torch.float32)
-
-
-def load_data():
-    """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
-    train_x = load_dataframe(Path(ARGS.train_x))
-    train_s = load_dataframe(Path(ARGS.train_s))
-    train_y = load_dataframe(Path(ARGS.train_y))
-    test_x = load_dataframe(Path(ARGS.test_x))
-    test_s = load_dataframe(Path(ARGS.test_s))
-    test_y = load_dataframe(Path(ARGS.test_y))
-    return {'trn': TensorDataset(train_x, train_s, train_y),
-            'val': TensorDataset(test_x, test_s, test_y)}, train_x.shape[1]
 
 
 def convert_data(train_tuple, test_tuple):
@@ -206,7 +129,6 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     end = time.time()
 
     for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
-
         optimizer.zero_grad()
 
         if ARGS.ind_method == 'disc':
@@ -263,11 +185,10 @@ def cvt(*tensors):
     return tuple(moved)
 
 
-def main(train_tuple=None, test_tuple=None):
+def main(args, train_data, test_data):
     # ==== initialize globals ====
     global ARGS, LOGGER, SUMMARY
-
-    ARGS = parse_arguments()
+    ARGS = args
 
     torch.manual_seed(ARGS.seed)
     torch.cuda.manual_seed(ARGS.seed)
@@ -277,7 +198,6 @@ def main(train_tuple=None, test_tuple=None):
     SUMMARY.disable_mp()
     SUMMARY.log_parameters(vars(ARGS))
 
-    test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     save_dir = Path(ARGS.save)
     save_dir.mkdir(parents=True, exist_ok=True)
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
@@ -288,34 +208,20 @@ def main(train_tuple=None, test_tuple=None):
     LOGGER.info('{} GPUs available.', torch.cuda.device_count())
 
     # ==== construct dataset ====
-    if ARGS.dataset == 'cmnist':
-        from data.colorized_mnist import ColorizedMNIST
-        train_data = ColorizedMNIST('./data', download=True, train=True, scale=0.002,
-                                    transform=transforms.ToTensor(),
-                                    cspace='rgb', background=True, black=True)
-        test_data = ColorizedMNIST('./data', download=True, train=False, scale=0.002,
-                                   transform=transforms.ToTensor(),
-                                   cspace='rgb', background=True, black=True)
-        train_loader = DataLoader(train_data, shuffle=True, batch_size=ARGS.batch_size)
-        val_loader = DataLoader(test_data, shuffle=False, batch_size=test_batch_size)
-        n_dims = 3 * 28 * 28
-        s_dim = 3
-        model = models.glow(ARGS, 3).to(ARGS.device)
+    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    val_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
 
-    else:
-        if train_tuple is None:
-            data, n_dims = load_data()
-        else:
-            data = convert_data(train_tuple, test_tuple)
-            n_dims = train_tuple.x.values.shape[1] + 1
-        train_loader = DataLoader(data['trn'], shuffle=True, batch_size=ARGS.batch_size)
-        val_loader = DataLoader(data['val'], shuffle=False, batch_size=test_batch_size)
-        s_dim = 1
-        model = models.tabular_model(ARGS, n_dims).to(ARGS.device)
+    x_dim, x_dim_flat, s_dim = get_data_dim(train_loader)
+
+    if args.dataset == 'adult':
+        x_dim += s_dim
+
+    model = fetch_model(args, x_dim)
 
     output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
     if ARGS.ind_method == 'disc':
-        disc_zx = layers.Mlp([n_dims - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
+        disc_zx = layers.Mlp([x_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
         disc_zx.to(ARGS.device)
     else:
@@ -350,7 +256,7 @@ def main(train_tuple=None, test_tuple=None):
             with SUMMARY.train():
                 train(model, disc_zx, disc_zs, optimizer, disc_optimizer, train_loader, epoch)
 
-            if epoch % ARGS.val_freq == 0:
+            if epoch % ARGS.val_freq == 43:
                 with SUMMARY.test():
                     val_loss = validate(model, disc_zx, disc_zs, val_loader)
                     SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
@@ -380,10 +286,8 @@ def main(train_tuple=None, test_tuple=None):
     model.eval()
     test_encodings = encode_dataset(val_loader, model, cvt)
     # df_test.to_feather(ARGS.test_new)
-    if ARGS.dataset == 'adult':
-        train_data = data['trn']
     train_encodings = encode_dataset(
-        DataLoader(train_data, shuffle=False, batch_size=test_batch_size), model, cvt)
+        DataLoader(train_data, shuffle=False, batch_size=args.test_batch_size), model, cvt)
     # df_train.to_feather(ARGS.train_new)
     return train_encodings, test_encodings
 
@@ -395,9 +299,10 @@ def encode_dataset(dataset, model, cvt):
         for itr, (x, s, _) in enumerate(dataset):
             x = cvt(x)
             s = cvt(s)
-            zero = x.new_zeros(x.size(0), 1)
+
             if ARGS.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
+            zero = x.new_zeros(x.size(0), 1)
             z, _ = model(x, zero)
             if ARGS.base_density == 'logitbernoulli':
                 z = z.sigmoid()
@@ -407,6 +312,9 @@ def encode_dataset(dataset, model, cvt):
             LOGGER.info('Progress: {:.2f}%', itr / len(dataset) * 100)
 
     representation = torch.cat(representation, dim=0).cpu().detach().numpy()
+
+    if ARGS.dataset == 'cmnist':
+        representation = np.reshape(representation, (representation.shape[0], -1))
 
     df = pd.DataFrame(representation)
     columns = df.columns.astype(str)
@@ -423,4 +331,5 @@ def current_experiment():
 
 
 if __name__ == '__main__':
-    main()
+    from utils.training_utils import parse_arguments
+    main(parse_arguments(), None, None)
