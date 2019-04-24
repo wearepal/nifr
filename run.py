@@ -54,13 +54,13 @@ def main():
         """Compute accuracy and fairness metrics and log them"""
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])  #ProbPos(),
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
-        experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
-        experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
-        experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1'])
-        experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1'])
-        experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0'])
-        experiment.log_metric(f"{name} Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1'])
-        experiment.log_metric(f"{name} Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1'])
+        # experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
+        # experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
+        # experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1'])
+        # experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1'])
+        # experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0'])
+        # experiment.log_metric(f"{name} Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1'])
+        # experiment.log_metric(f"{name} Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1'])
         for key, value in metrics.items():
             print(f"    {key}: {value:.4f}")
         print()  # empty line
