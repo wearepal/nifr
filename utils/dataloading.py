@@ -51,10 +51,10 @@ def load_adult_data(args):
 
 def load_cmnist_data(args):
     train_data = ColorizedMNIST('./data', download=True, train=True, scale=args.scale,
-                                transform=transforms.ToTensor(),
+                                transform=[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))],
                                 cspace=args.cspace, background=args.background, black=args.black)
     test_data = ColorizedMNIST('./data', download=True, train=False, scale=args.scale,
-                               transform=transforms.ToTensor(),
+                               transform=[transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))],
                                cspace=args.cspace, background=args.background, black=args.black)
 
     train_tuple = get_mnist_data_tuple(args, train_data)
