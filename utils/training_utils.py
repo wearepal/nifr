@@ -66,11 +66,11 @@ def parse_arguments():
 
 
 def get_data_dim(data_loader):
-    x, s, _ = next(iter(data_loader))
+    x, _, _ = next(iter(data_loader))
     x_dim = x.size(1)
     x_dim_flat = np.prod(x.shape[1:]).item()
-    s_dim = s.size(1)
-    return x_dim, x_dim_flat, s_dim
+
+    return x_dim, x_dim_flat
 
 
 def metameric_sampling(model, xzx, xzs, zs_dim):

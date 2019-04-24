@@ -47,7 +47,7 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     zero = x.new_zeros(x.size(0), 1)
 
     if ARGS.dataset == 'cmnist':
-        loss_fn = F.l1_loss
+        loss_fn = F.nll_loss
     else:
         loss_fn = F.binary_cross_entropy_with_logits
         x = torch.cat((x, s), dim=1)
@@ -69,8 +69,9 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     # Enforce independence between the fair representation, zx,
     #  and the sensitive attribute, s
     if ARGS.ind_method == 'disc':
-        indie_loss = loss_fn(disc_zx(
-            layers.grad_reverse(zx, lambda_=ARGS.independence_weight)), s)
+        probs = disc_zx(
+            layers.grad_reverse(zx, lambda_=ARGS.independence_weight))
+        indie_loss = loss_fn(probs, s)
     else:
         indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
@@ -128,7 +129,7 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
     time_meter = utils.AverageMeter()
     end = time.time()
 
-    for itr, (x, s, _) in enumerate(dataloader, start=epoch * len(dataloader)):
+    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
 
         if ARGS.ind_method == 'disc':
@@ -179,7 +180,7 @@ def validate(model, disc_zx, disc_zs, dataloader):
 
 def cvt(*tensors):
     """Put tensors on the correct device and set type to float32"""
-    moved = [tensor.type(torch.float32).to(ARGS.device, non_blocking=True) for tensor in tensors]
+    moved = [tensor.to(ARGS.device, non_blocking=True) for tensor in tensors]
     if len(moved) == 1:
         return moved[0]
     return tuple(moved)
@@ -212,14 +213,17 @@ def main(args, train_data, test_data):
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
 
-    x_dim, x_dim_flat, s_dim = get_data_dim(train_loader)
+    x_dim, x_dim_flat = get_data_dim(train_loader)
 
     if args.dataset == 'adult':
+        s_dim = 1
         x_dim += s_dim
+    else:
+        s_dim = 10
 
     model = fetch_model(args, x_dim)
 
-    output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
+    output_activation = None if ARGS.dataset == 'adult' else nn.LogSoftmax
     if ARGS.ind_method == 'disc':
         disc_zx = layers.Mlp([x_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
