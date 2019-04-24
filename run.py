@@ -52,7 +52,7 @@ def main():
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
-        metrics = run_metrics(predictions, actual, [Accuracy(), Theil()], [Theil()]) #ProbPos(),
+        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])  #ProbPos(),
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
         experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
         experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
