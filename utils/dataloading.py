@@ -1,16 +1,14 @@
 import pandas as pd
 import numpy as np
 import torch
-from pathlib import Path
 
 from torch.utils.data import TensorDataset, DataLoader
-from torchvision.transforms import transforms
 
-from data.colorized_mnist import ColorizedMNIST
 from ethicml.data.load import load_data
 from ethicml.algorithms.utils import DataTuple
 from sklearn.preprocessing import StandardScaler
-from pathlib import Path
+
+from data.cmnist import CMNIST
 
 
 def load_adult_data(args):
@@ -49,20 +47,6 @@ def load_adult_data(args):
     return train_data, test_data, train_tuple, test_tuple,
 
 
-def load_cmnist_data(args):
-    train_data = ColorizedMNIST('./data', download=True, train=True, scale=args.scale,
-                                transform=transforms.ToTensor(),
-                                cspace=args.cspace, background=args.background, black=args.black)
-    test_data = ColorizedMNIST('./data', download=True, train=False, scale=args.scale,
-                               transform=transforms.ToTensor(),
-                               cspace=args.cspace, background=args.background, black=args.black)
-
-    train_tuple = get_mnist_data_tuple(args, train_data)
-    test_tuple = get_mnist_data_tuple(args, test_data)
-
-    return train_data, test_data, train_tuple, test_tuple
-
-
 def get_mnist_data_tuple(args, data):
 
     data_loader = DataLoader(data, batch_size=args.batch_size)
@@ -82,9 +66,19 @@ def get_mnist_data_tuple(args, data):
     return DataTuple(x_all, s_all, y_all)
 
 
+def load_cmnist_from_file(args):
+    train_data = CMNIST(train=True)
+    test_data = CMNIST(train=False)
+
+    train_tuple = get_mnist_data_tuple(args, train_data)
+    test_tuple = get_mnist_data_tuple(args, test_data)
+
+    return train_data, test_data, train_tuple, test_tuple
+
+
 def load_dataset(args):
     if args.dataset == 'cmnist':
-        train_data, test_data, train_tuple, test_tuple = load_cmnist_data(args)
+        train_data, test_data, train_tuple, test_tuple = load_cmnist_from_file(args)
     else:
         train_data, test_data, train_tuple, test_tuple = load_adult_data(args)
 
