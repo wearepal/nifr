@@ -66,8 +66,7 @@ def main():
         print()  # empty line
 
     if args.dataset == 'cmnist':
-        mnist_shape = (-1, 3, 28, 28)
-        train_tuple.x = np.reshape(train_tuple.x.shape[0], -1)
+        # mnist_shape = (-1, 3, 28, 28)
 
         train_x_without_s = pd.DataFrame(np.reshape(np.mean(train_tuple.x, axis=1),
                                                     (train_tuple.x.shape[0], -1)))
