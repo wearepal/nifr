@@ -67,13 +67,15 @@ def main():
 
     if args.dataset == 'cmnist':
         mnist_shape = (-1, 3, 28, 28)
-        train_x_with_s = train_tuple.x
-        test_x_with_s = test_tuple.x
+        train_tuple.x = np.reshape(train_tuple.x.shape[0], -1)
 
-        train_x_without_s = pd.DataFrame(np.reshape(np.mean(np.reshape(train_tuple.x, mnist_shape), axis=1),
+        train_x_without_s = pd.DataFrame(np.reshape(np.mean(train_tuple.x, axis=1),
                                                     (train_tuple.x.shape[0], -1)))
-        test_x_without_s = pd.DataFrame(np.reshape(np.mean(np.reshape(test_tuple.x, mnist_shape), axis=1),
+        test_x_without_s = pd.DataFrame(np.reshape(np.mean(test_tuple.x, axis=1),
                                                    (test_tuple.x.shape[0], -1)))
+
+        train_x_with_s = np.reshape(train_tuple.x.shape[0], -1)
+        test_x_with_s = np.reshape(test_tuple.x.shape[0], -1)
     else:
         train_x_with_s = pd.concat([train_tuple.x, train_tuple.s], axis='columns')
         test_x_with_s = pd.concat([test_tuple.x, test_tuple.s], axis='columns')
