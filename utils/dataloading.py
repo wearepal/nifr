@@ -65,8 +65,8 @@ def get_mnist_data_tuple(args, data):
     if os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values") and os.path.exists(data_path / "y_values"):
         LOGGER.info("data tuples found on file")
         x_all = np.load(data_path / "x_values.npy")
-        s_all = pd.read_csv(data_path / "s_values")
-        y_all = pd.read_csv(data_path / "y_values")
+        s_all = pd.read_csv(data_path / "s_values", index_col=0)
+        y_all = pd.read_csv(data_path / "y_values", index_col=0)
     else:
         LOGGER.info("data tuples haven't been created - this may take a while")
         data_loader = DataLoader(data, batch_size=args.batch_size)
