@@ -13,6 +13,7 @@ from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
 from ethicml.metrics import Accuracy, ProbPos, Theil
 
+from data.preprocess_cmnist import make_cmnist_dataset
 from train import current_experiment, main as training_loop
 from utils.dataloading import load_dataset
 
@@ -38,6 +39,8 @@ def main():
     # model = ModelWrapper()
 
     args = parse_arguments()
+
+    make_cmnist_dataset(args)
 
     # dataset = Adult()
     # train, test = train_test_split(load_data(dataset))

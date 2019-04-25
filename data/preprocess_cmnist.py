@@ -4,10 +4,13 @@ from pathlib import Path
 
 import torch
 from torchvision.transforms import transforms
+from tqdm import tqdm
 
 from data.colorized_mnist import ColorizedMNIST
 
 import matplotlib.pyplot as plt
+
+from utils import utils
 
 
 def load_cmnist_data(args):
@@ -21,39 +24,69 @@ def load_cmnist_data(args):
     return train_data, test_data
 
 
-def make_cmnist_dataset(args, root='../data'):
+def dataset_args_to_str(args):
+    if args.black and args.background:
+        digit_col = 'black'
+        bg_col = 'col'
+    elif args.black and not args.background:
+        digit_col = 'col'
+        bg_col = 'black'
+    elif not args.black and args.background:
+        digit_col = 'white'
+        bg_col = 'col'
+    elif not args.black and not args.background:
+        digit_col = 'col'
+        bg_col = 'white'
+
+    else:
+        raise NotImplementedError("How is it possible to select a digit and "
+                                  "bg color combo that got you here?")
+
+    return digit_col, bg_col
+
+
+def get_path_from_args(args):
+    digit_col, bg_col = dataset_args_to_str(args)
+    return Path(".") / args.root / f"cmnist-sc_{args.scale}-dig_{digit_col}-bg_{bg_col}"
+
+
+def make_cmnist_dataset(args):
     # Get the mnist dataset
     # Colorize the dataset
+
+    save_dir = Path(args.save)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
     train_data, test_data = load_cmnist_data(args)
 
     # Save the dataset with class labels and sensnitive labels
-    path = Path(root) / "cmnist"
+    digit_col, bg_col = dataset_args_to_str(args)
+    path = get_path_from_args(args)
+    LOGGER.info(f"checking if path {path} exists")
 
-    if not os.path.exists(path/"train"):
-        os.makedirs(path/"train")
+    if not os.path.exists(path / "train"):
+        LOGGER.info(f"creating training set with params:\n"
+                    f"\t- scale: {args.scale}\n"
+                    f"\t- digit colour: {digit_col}\n"
+                    f"\t- background col: {bg_col}")
+        os.makedirs(path / "train")
+        for i, set in enumerate(tqdm(train_data)):
+            with open(os.path.join(path / "train", str(i)), 'wb') as f:
+                torch.save(set, f)
+    else:
+        LOGGER.info("trainig set already exists")
+
     if not os.path.exists(path / "test"):
-        os.makedirs(path/"test")
+        LOGGER.info(f"creating test set with params:\n"
+                    f"\t- scale: {args.scale}\n"
+                    f"\t- digit colour: {digit_col}\n"
+                    f"\t- background col: {bg_col}")
+        os.makedirs(path / "test")
+        for i, set in enumerate(tqdm(test_data)):
+            with open(os.path.join(path / "test", str(i)), 'wb') as f:
+                torch.save(set, f)
+    else:
+        LOGGER.info("test set already exists")
 
-    for i, set in enumerate(train_data):
-        with open(os.path.join(path/"train", str(i)), 'wb') as f:
-            torch.save(set, f)
-
-    for i, set in enumerate(test_data):
-        with open(os.path.join(path/"test", str(i)), 'wb') as f:
-            torch.save(set, f)
-
-
-def parse_args_preprocess():
-    parser = argparse.ArgumentParser()
-    # Colored MNIST settings
-    parser.add_argument('--scale', type=float, default=0.02)
-    parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
-    parser.add_argument('-bg', '--background', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--black', type=eval, default=False, choices=[True, False])
-    return parser.parse_args()
-
-
-if __name__ == "__main__":
-    args = parse_args_preprocess()
-    make_cmnist_dataset(args)
+    LOGGER.info("finished preparing dataset")

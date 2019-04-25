@@ -6,6 +6,13 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='cmnist')
 
+    # Colored MNIST settings
+    parser.add_argument('--scale', type=float, default=0.02)
+    parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
+    parser.add_argument('-bg', '--background', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--black', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--root', type=str, default="data")
+
     parser.add_argument('--train_x', metavar="PATH")
     parser.add_argument('--train_s', metavar="PATH")
     parser.add_argument('--train_y', metavar="PATH")

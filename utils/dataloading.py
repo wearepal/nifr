@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import torch
@@ -7,8 +10,11 @@ from torch.utils.data import TensorDataset, DataLoader
 from ethicml.data.load import load_data
 from ethicml.algorithms.utils import DataTuple
 from sklearn.preprocessing import StandardScaler
+from tqdm import tqdm
 
 from data.cmnist import CMNIST
+from data.preprocess_cmnist import get_path_from_args
+from utils import utils
 
 
 def load_adult_data(args):
@@ -48,27 +54,44 @@ def load_adult_data(args):
 
 
 def get_mnist_data_tuple(args, data):
+    save_dir = Path(args.save)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
-    data_loader = DataLoader(data, batch_size=args.batch_size)
-    x_all, s_all, y_all = [], [], []
+    LOGGER.info("Making data tuple")
 
-    for x, s, y in data_loader:
-        x_all.extend(x.numpy())
-        s_all.extend(s.numpy())
-        y_all.extend(y.numpy())
+    data_path = get_path_from_args(args)
 
-    x_all = np.array(x_all)
-    # s_all = pd.DataFrame(np.array(s_all), columns=['sens_r', 'sens_g', 'sens_b'])
-    s_all = pd.DataFrame(np.array(s_all), columns=['sens'])
+    if os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values") and os.path.exists(data_path / "y_values"):
+        LOGGER.info("data tuples found on file")
+        x_all = np.load(data_path / "x_values.npy")
+        s_all = pd.read_csv(data_path / "s_values")
+        y_all = pd.read_csv(data_path / "y_values")
+    else:
+        LOGGER.info("data tuples haven't been created - this may take a while")
+        data_loader = DataLoader(data, batch_size=args.batch_size)
+        x_all, s_all, y_all = [], [], []
 
-    y_all = pd.DataFrame(np.array(y_all), columns=['label'])
+        for x, s, y in tqdm(data_loader):
+            x_all.extend(x.numpy())
+            s_all.extend(s.numpy())
+            y_all.extend(y.numpy())
+
+        x_all = np.array(x_all)
+        np.save(data_path / 'x_values', x_all)
+        # s_all = pd.DataFrame(np.array(s_all), columns=['sens_r', 'sens_g', 'sens_b'])
+        s_all = pd.DataFrame(np.array(s_all), columns=['sens'])
+        s_all.to_csv(data_path / "s_values")
+
+        y_all = pd.DataFrame(np.array(y_all), columns=['label'])
+        y_all.to_csv(data_path / "y_values")
 
     return DataTuple(x_all, s_all, y_all)
 
 
 def load_cmnist_from_file(args):
-    train_data = CMNIST(train=True)
-    test_data = CMNIST(train=False)
+    train_data = CMNIST(args, train=True)
+    test_data = CMNIST(args, train=False)
 
     train_tuple = get_mnist_data_tuple(args, train_data)
     test_tuple = get_mnist_data_tuple(args, test_data)
@@ -83,7 +106,6 @@ def load_dataset(args):
         train_data, test_data, train_tuple, test_tuple = load_adult_data(args)
 
     return train_data, test_data, train_tuple, test_tuple
-
 
 # def save_date(args, root='../data'):
 #     from torchvision.transforms import ToPILImage
