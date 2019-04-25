@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler
 from tqdm import tqdm
 
 from data.cmnist import CMNIST
-from data.preprocess_cmnist import get_path_from_args
+from data.preprocess_cmnist import get_path_from_args, make_cmnist_dataset
 from utils import utils
 
 
@@ -103,6 +103,7 @@ def load_cmnist_from_file(args):
 
 def load_dataset(args):
     if args.dataset == 'cmnist':
+        make_cmnist_dataset(args)
         train_data, test_data, train_tuple, test_tuple = load_cmnist_from_file(args)
     else:
         train_data, test_data, train_tuple, test_tuple = load_adult_data(args)

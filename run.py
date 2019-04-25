@@ -40,8 +40,6 @@ def main():
 
     args = parse_arguments()
 
-    make_cmnist_dataset(args)
-
     # dataset = Adult()
     # train, test = train_test_split(load_data(dataset))
     #

@@ -63,6 +63,8 @@ def test(args, model, device, test_loader):
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='MNIST Baseline')
+    parser.add_argument('--root', type=str, metavar='D', default='data')
+    parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--dataset', type=str, metavar='D',
                         choices=['cmnist', 'mnist'], default='cmnist')
     parser.add_argument('--greyscale', action='store_true', default=False)

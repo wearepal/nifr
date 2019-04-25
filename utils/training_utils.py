@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import torch
 
+
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='cmnist')
@@ -40,7 +41,7 @@ def parse_arguments():
     parser.add_argument('--seed', type=int, default=42)
 
     parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--save', type=str, default='experiments/cnf')
+    parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--val_freq', type=int, default=4)
     parser.add_argument('--log_freq', type=int, default=10)
