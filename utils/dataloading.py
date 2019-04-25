@@ -53,14 +53,16 @@ def load_adult_data(args):
     return train_data, test_data, train_tuple, test_tuple,
 
 
-def get_mnist_data_tuple(args, data):
+def get_mnist_data_tuple(args, data, train=True):
+    dataset = "train" if train else "test"
+
     save_dir = Path(args.save)
     save_dir.mkdir(parents=True, exist_ok=True)
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
     LOGGER.info("Making data tuple")
 
-    data_path = get_path_from_args(args)
+    data_path = get_path_from_args(args) / dataset
 
     if os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values") and os.path.exists(data_path / "y_values"):
         LOGGER.info("data tuples found on file")
@@ -93,8 +95,8 @@ def load_cmnist_from_file(args):
     train_data = CMNIST(args, train=True)
     test_data = CMNIST(args, train=False)
 
-    train_tuple = get_mnist_data_tuple(args, train_data)
-    test_tuple = get_mnist_data_tuple(args, test_data)
+    train_tuple = get_mnist_data_tuple(args, train_data, train=True)
+    test_tuple = get_mnist_data_tuple(args, test_data, train=False)
 
     return train_data, test_data, train_tuple, test_tuple
 
