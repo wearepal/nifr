@@ -95,16 +95,14 @@ def load_cmnist_from_file(args):
     train_data = CMNIST(args, train=True)
     test_data = CMNIST(args, train=False, normalize_transform=train_data.normalize_transform)
 
-    train_tuple = get_mnist_data_tuple(args, train_data, train=True)
-    test_tuple = get_mnist_data_tuple(args, test_data, train=False)
-
-    return train_data, test_data, train_tuple, test_tuple
+    return train_data, test_data
 
 
 def load_dataset(args):
     if args.dataset == 'cmnist':
         make_cmnist_dataset(args)
-        train_data, test_data, train_tuple, test_tuple = load_cmnist_from_file(args)
+        train_data, test_data = load_cmnist_from_file(args)
+        train_tuple, test_tuple = None, None
     else:
         train_data, test_data, train_tuple, test_tuple = load_adult_data(args)
 

@@ -16,6 +16,7 @@ from ethicml.metrics import Accuracy, ProbPos, Theil
 from data.preprocess_cmnist import make_cmnist_dataset
 from train import current_experiment, main as training_loop
 from utils.dataloading import load_dataset
+from torch.utils.data.dataset import random_split
 
 
 # class ModelWrapper(BasicTPA):
@@ -44,6 +45,9 @@ def main():
     # train, test = train_test_split(load_data(dataset))
     #
     train_data, test_data, train_tuple, test_tuple = load_dataset(args)
+    train_data, _ = random_split(train_data, lengths=(int(args.data_pcnt * len(train_data)), ))
+    test_data, _ = random_split(test_data, lengths=(int(args.data_pcnt * len(test_data)), ))
+
     (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) \
         = training_loop(args, train_data, test_data)
     experiment = current_experiment()  # works only after training_loop has been called

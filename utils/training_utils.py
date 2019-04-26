@@ -13,6 +13,7 @@ from utils import utils
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='cmnist')
+    parser.add_argument('--data_pcnt', type=float, metavar='P', default=1.0)
 
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)
