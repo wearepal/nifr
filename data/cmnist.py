@@ -44,17 +44,17 @@ class CMNIST(Dataset):
 
         save_dir = Path(args.save)
         save_dir.mkdir(parents=True, exist_ok=True)
-        LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
+        logger = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
         if CMNIST.mean is None and os.path.exists(self.path / "mean_and_std"):
             with open(self.path / 'mean_and_std', 'rb') as fp:
                 itemlist = pickle.load(fp)
             CMNIST.mean = itemlist[0]
             CMNIST.std = itemlist[1]
-            LOGGER.info("loaded mean and std from file")
+            logger.info("loaded mean and std from file")
 
         if train and CMNIST.mean is None:
-            LOGGER.info("computing mean and std over training set for normalization")
+            logger.info("computing mean and std over training set for normalization")
 
             aggregator = (0, torch.zeros(3), torch.zeros(3))
 
