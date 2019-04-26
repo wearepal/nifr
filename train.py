@@ -311,6 +311,9 @@ def encode_dataset(dataset, model, cvt):
             if ARGS.base_density == 'logitbernoulli':
                 z = z.sigmoid()
 
+            if dataset == 'cmnist':
+                z[:, -ARGS.zs_dim:] =
+                z = model(x, zero, reverse=True)
             # test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
             LOGGER.info('Progress: {:.2f}%', itr / len(dataset) * 100)

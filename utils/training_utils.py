@@ -68,6 +68,7 @@ def parse_arguments():
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=100)
     parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
+    parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
@@ -90,7 +91,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
     # ==== construct dataset ====
     args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
 
-    lengths = np.array((1 - args.val_ratio, args.val_ratio)) * len(train_data)
+    lengths = np.array((1 - args.clf_val_ratio, args.clf_val_ratio)) * len(train_data)
     train_data, val_data = random_split(train_data, lengths=lengths)
 
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
