@@ -46,9 +46,9 @@ def main():
     #
     train_data, test_data, train_tuple, test_tuple = load_dataset(args)
     train_len = int(args.data_pcnt * len(train_data))
-    train_data, _ = random_split(train_data, lengths=(train_len, len(train_data - train_len)))
+    train_data, _ = random_split(train_data, lengths=(train_len, len(train_data) - train_len))
     test_len = int(args.data_pcnt * len(test_data))
-    test_data, _ = random_split(test_data, lengths=(test_len, len(test_data - test_len)))
+    test_data, _ = random_split(test_data, lengths=(test_len, len(test_data) - test_len))
 
     (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) \
         = training_loop(args, train_data, test_data)
