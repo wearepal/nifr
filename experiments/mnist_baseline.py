@@ -6,6 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
+from data.colorized_mnist import ColorizedMNIST
+
 
 class Net(nn.Module):
     def __init__(self, in_channels):
@@ -30,6 +32,10 @@ def train(args, model, device, train_loader, optimizer, epoch):
     model.train()
     for batch_idx, (data, color, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
+
+        if args.greyscale:
+            data = data.mean(dim=1, keepdim=True)
+
         optimizer.zero_grad()
         output = model(data)
         loss = F.nll_loss(output, target)
@@ -48,6 +54,10 @@ def test(args, model, device, test_loader):
     with torch.no_grad():
         for data, color, target in test_loader:
             data, target = data.to(device), target.to(device)
+
+            if args.greyscale:
+                data = data.mean(dim=1, keepdim=True)
+
             output = model(data)
 
             test_loss += F.nll_loss(output, target, reduction='sum').item()  # sum up batch loss
@@ -64,7 +74,7 @@ def test(args, model, device, test_loader):
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='MNIST Baseline')
-    parser.add_argument('--root', type=str, metavar='D', default='data')
+    parser.add_argument('--root', type=str, metavar='D', default='../data')
     parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--dataset', type=str, metavar='D',
                         choices=['cmnist', 'mnist'], default='cmnist')
@@ -110,8 +120,21 @@ def main():
                                        transforms.Normalize((0.1307,), (0.3081,))])),
         data_dim = 1
     else:
-        train_data, test_data, _, _ = load_dataset(args)
-        data_dim = 3
+        train_data = ColorizedMNIST('./data', train=True,
+                                    download=True, transform=transforms.ToTensor(),
+                                    scale=args.scale,
+                                    cspace=args.cspace,
+                                    background=args.background,
+                                    black=args.black)
+        test_data = ColorizedMNIST('./data', train=False,
+                                   download=True, transform=transforms.ToTensor(),
+                                   scale=args.scale,
+                                   cspace=args.cspace,
+                                   background=args.background,
+                                   black=args.black)
+
+        # train_data, test_data, _, _ = load_dataset(args)
+        data_dim = 1 if args.greyscale else 3
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
 

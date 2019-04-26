@@ -10,9 +10,11 @@ from torch.utils.data import TensorDataset, DataLoader
 from ethicml.data.load import load_data
 from ethicml.algorithms.utils import DataTuple
 from sklearn.preprocessing import StandardScaler
+from torchvision import transforms
 from tqdm import tqdm
 
 from data.cmnist import CMNIST
+from data.colorized_mnist import ColorizedMNIST
 from data.preprocess_cmnist import get_path_from_args, make_cmnist_dataset
 from utils import utils
 
@@ -100,8 +102,20 @@ def load_cmnist_from_file(args):
 
 def load_dataset(args):
     if args.dataset == 'cmnist':
-        make_cmnist_dataset(args)
-        train_data, test_data = load_cmnist_from_file(args)
+        # make_cmnist_dataset(args)
+        train_data = ColorizedMNIST(args.root, train=True,
+                                    download=True, transform=transforms.ToTensor(),
+                                    scale=args.scale,
+                                    cspace=args.cspace,
+                                    background=args.background,
+                                    black=args.black)
+        test_data = ColorizedMNIST(args.root, train=False,
+                                   download=True, transform=transforms.ToTensor(),
+                                   scale=args.scale,
+                                   cspace=args.cspace,
+                                   background=args.background,
+                                   black=args.black)
+        # train_data, test_data = load_cmnist_from_file(args)
         train_tuple, test_tuple = None, None
     else:
         train_data, test_data, train_tuple, test_tuple = load_adult_data(args)
