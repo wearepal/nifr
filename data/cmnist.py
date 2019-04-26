@@ -11,16 +11,23 @@ from data.preprocess_cmnist import dataset_args_to_str, get_path_from_args
 from utils import utils
 
 
-def online_avg(last_avg, last_N, new_val):
-    return ((last_avg*last_N)+new_val)/(last_N+1)
+def update(existing_aggregate, new_value):
+    """Upgrade the aggregator to compute the mean and variance online"""
+    count, mean, m2 = existing_aggregate
+    count += 1
+    delta = new_value - mean
+    mean += delta / count
+    m2 += delta * (new_value - mean)
+    return (count, mean, m2)
 
 
-def online_std(last_avg, last_N, last_std, new_val):
-    if last_N == 0:
-        return 0
-    new_avg = online_avg(last_avg, last_N, new_val)
-    new_std = last_std + (new_val - last_avg)*(new_val - new_avg)
-    return new_std
+def finalize(existing_aggregate):
+    """Retrieve the mean and variance from an aggregate"""
+    (count, mean, m2) = existing_aggregate
+    variance = m2 / count
+    if count < 2:
+        raise ValueError("Cannot compute variance for 0 or 1 elements")
+    return mean, variance
 
 
 class CMNIST(Dataset):
@@ -49,14 +56,14 @@ class CMNIST(Dataset):
         if train and CMNIST.mean is None:
             LOGGER.info("computing mean and std over training set for normalization")
 
-            mean_x = torch.zeros(3)
-            std_x = torch.zeros(3)
+            aggregator = (0, torch.zeros(3), torch.zeros(3))
 
             for i in tqdm(range(60000)):
-                x, s, y = torch.load(self.path / "train" / str(i))
-                mean_x = online_avg(mean_x, i, x.view(x.size(0), -1).mean(dim=1))
-                std_x = online_std(mean_x, i, std_x, x.view(x.size(0), -1).mean(dim=1))
+                x, _, _ = torch.load(self.path / "train" / str(i))
+                aggregator = update(aggregator, x.view(x.size(0), -1).mean(dim=1))
 
+            mean_x, variance_x = finalize(aggregator)
+            std_x = variance_x.sqrt()
             CMNIST.mean = mean_x
             CMNIST.std = std_x
 
