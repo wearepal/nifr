@@ -1,6 +1,14 @@
 import argparse
 import numpy as np
+import pandas as pd
 import torch
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+from torch.utils.data.dataset import random_split
+
+from models.classifier import MnistConvClassifier
+from utils import utils
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -40,7 +48,7 @@ def parse_arguments():
     parser.add_argument('--seed', type=int, default=42)
 
     parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--save', type=str, default='experiments/cnf')
+    parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--evaluate', action='store_true')
     parser.add_argument('--val_freq', type=int, default=4)
     parser.add_argument('--log_freq', type=int, default=10)
@@ -57,6 +65,11 @@ def parse_arguments():
     parser.add_argument('--base_density_zs', default='',
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
 
+    # classifier parameters (for computing fairness metrics)
+    parser.add_argument('--clf-epochs', type=int, metavar='N', default=100)
+    parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
+    parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
+
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
                         help='whether to use the comet.ml logging')
@@ -65,6 +78,110 @@ def parse_arguments():
                                                                  'reducing learning rate.')
 
     return parser.parse_args()
+
+
+def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
+
+    # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
+    #
+    # # ==== check GPU ====
+    # args.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
+    # LOGGER.info('{} GPUs available.', torch.cuda.device_count())
+
+    # ==== construct dataset ====
+    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+
+    train_len = int((1 - args.clf_val_ratio) * len(train_data))
+    val_length = int(len(train_data) - train_len)
+
+    lengths = [train_len, val_length]
+    train_data, val_data = random_split(train_data, lengths=lengths)
+
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    test_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
+    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+
+    in_dim = 3 if use_s else 1
+    model = MnistConvClassifier(in_dim)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
+
+    n_vals_without_improvement = 0
+
+    best_loss = float('inf')
+
+    for i in range(args.clf_epochs):
+
+        if n_vals_without_improvement > args.clf_early_stopping > 0:
+            break
+
+        model.train()
+        for x, s, y in train_loader:
+
+            target = s if pred_s else y
+
+            if not use_s:
+                x = x.mean(dim=1, keepdim=True)
+
+            optimizer.zero_grad()
+            preds = model(x)
+
+            loss = F.nll_loss(preds, target, reduction='sum')
+
+            loss.backward()
+
+        model.eval()
+
+        val_loss = 0
+        for x, s, y in val_loader:
+
+            target = s if pred_s else y
+
+            if not use_s:
+                x = x.mean(dim=1, keepdim=True)
+
+            preds = model(x)
+            val_loss += F.nll_loss(preds, target, reduction='sum').item()
+
+        val_loss /= len(val_loader)
+
+        if val_loss < best_loss:
+            best_loss = val_loss
+            n_vals_without_improvement = 0
+        else:
+            n_vals_without_improvement += 1
+
+        for x, s, y in train_loader:
+
+            target = s if pred_s else y
+
+            if not use_s:
+                x = x.mean(dim=1, keepdim=True)
+
+            optimizer.zero_grad()
+            preds = model(x)
+
+            loss = F.nll_loss(preds, target, reduction='sum')
+
+            loss.backward()
+
+    model.eval()
+
+    # generate predictions
+    all_preds = []
+    all_targets = []
+    for x, s, y in test_loader:
+
+        target = s if pred_s else y
+
+        if not use_s:
+            x = x.mean(dim=1, keepdim=True)
+
+        preds = model(x).argmax(dim=1)
+        all_preds.extend(preds.detach().cpu().numpy())
+        all_targets.extend(target.detach().cpu().numpy())
+
+    return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
 
 
 def get_data_dim(data_loader):

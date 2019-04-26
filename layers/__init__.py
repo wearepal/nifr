@@ -5,6 +5,6 @@ from .elemwise import LogitTransform, SigmoidTransform, SoftplusTransform
 from .coupling import CouplingLayer, MaskedCouplingLayer, AffineCouplingLayer
 from .glow import BruteForceLayer, Invertible1x1Conv
 from .norm_flows import PlanarFlow
-from .layer_utils import Flatten
+from .layer_utils import InvFlatten, Flatten
 from .mlp import Mlp
 from .adversarial import grad_reverse
