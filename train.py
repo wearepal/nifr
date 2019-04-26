@@ -288,10 +288,10 @@ def main(args, train_data, test_data):
         model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
 
     model.eval()
-    LOGGER.info('Encoding training set.')
+    LOGGER.info('Encoding training set...')
     train_encodings = encode_dataset(
         DataLoader(train_data, shuffle=False, batch_size=args.test_batch_size), model, cvt)
-    LOGGER.info('Encoding test set.')
+    LOGGER.info('Encoding test set...')
     test_encodings = encode_dataset(val_loader, model, cvt)
 
     return train_encodings, test_encodings
