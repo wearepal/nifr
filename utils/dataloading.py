@@ -93,7 +93,7 @@ def get_mnist_data_tuple(args, data, train=True):
 
 def load_cmnist_from_file(args):
     train_data = CMNIST(args, train=True)
-    test_data = CMNIST(args, train=False)
+    test_data = CMNIST(args, train=False, normalize_transform=train_data.normalize_transform)
 
     train_tuple = get_mnist_data_tuple(args, train_data, train=True)
     test_tuple = get_mnist_data_tuple(args, test_data, train=False)
