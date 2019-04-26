@@ -3,14 +3,30 @@ import torch.nn as nn
 
 from pyro.distributions.util import broadcast_shape
 
+from layers.coupling import InvertibleLayer
+
 
 class Flatten(nn.Module):
 
     def __init__(self):
         super(Flatten, self).__init__()
 
-    def forward(self, x, logpx, reverse=False):
+    def forward(self, x):
+        return x.view(x.size(0), -1)
+
+
+class InvFlatten(InvertibleLayer):
+
+    def __init__(self):
+        super(InvFlatten, self).__init__()
+        self.orig_shape = None
+
+    def _forward(self, x, logpx, reverse=False):
+        self.orig_shape = x.shape
         return x.view(x.size(0), -1), logpx
+
+    def _reverse(self, x, logpx):
+        return x.view(self.orig_shape), logpx
 
 
 class Exp(nn.Module):

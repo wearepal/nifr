@@ -68,11 +68,15 @@ class CMNIST(Dataset):
 
     def __getitem__(self, idx):
         dataset = "train" if self.train else "test"
-        x, s, y = torch.load(self.path / dataset / str(idx))
+        if isinstance(idx, int):
+            x, s, y = torch.load(self.path / dataset / str(idx))
+        elif isinstance(idx, torch.Tensor):
+            x, s, y = torch.load(self.path / dataset / str(idx.item()))
+        else: raise NotImplementedError("index must be an int or a tensor")
 
         if self.normalize:
             x = self.normalize_transform(x)
         return x, s, y
 
     def __len__(self):
-        return 60000 if self.train else 10000
+        return 60 if self.train else 10

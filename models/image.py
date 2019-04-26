@@ -12,7 +12,7 @@ def glow(args, input_dim):
             chain += [layers.Invertible1x1Conv(input_dim)]
         chain += [layers.AffineCouplingLayer(input_dim, hidden_dims)]
 
-    chain += [layers.Flatten()]
+    chain += [layers.InvFlatten()]
     # chain += [layers.UnsqueezeLayer(upscale_factor=2)]
 
     if args.base_density == 'bernoulli' or args.base_density_zs == 'bernoulli':

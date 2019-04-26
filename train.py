@@ -296,11 +296,15 @@ def main(args, train_data, test_data):
     return train_encodings, test_encodings
 
 
-def encode_dataset(dataset, model, cvt):
+def encode_dataset(dataloader, model, cvt):
     representation = []
+    zx_s = []
+    zs_s = []
+    s_s = []
+    y_s = []
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
-        for itr, (x, s, _) in enumerate(dataset):
+        for itr, (x, s, y) in enumerate(dataloader):
             x = cvt(x)
             s = cvt(s)
 
@@ -308,28 +312,49 @@ def encode_dataset(dataset, model, cvt):
                 x = torch.cat((x, s), dim=1)
             zero = x.new_zeros(x.size(0), 1)
             z, _ = model(x, zero)
-            if ARGS.base_density == 'logitbernoulli':
-                z = z.sigmoid()
+            # if ARGS.base_density == 'logitbernoulli':
+            #     z = z.sigmoid()
 
-            if dataset == 'cmnist':
-                z[:, -ARGS.zs_dim:].zero_()
-                z = model(x, zero, reverse=True)
+            if ARGS.dataset == 'cmnist':
+                z, _ = model(z, zero, reverse=True)
+
+                zx = z.clone()
+                zx[:- ARGS.zs_dim].zero_()
+                zx, _ = model(zx, zero, reverse=True)
+
+                zs = z.clone()
+                zs[- ARGS.zs_dim:].zero_()
+                zs, _ = model(zs, zero, reverse=True)
             # test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
-            LOGGER.info('Progress: {:.2f}%', itr / len(dataset) * 100)
-
-    representation = torch.cat(representation, dim=0).cpu().detach().numpy()
+            zx_s.append(zx)
+            zs_s.append(zs)
+            s_s.append(s)
+            y_s.append(y)
+            LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
 
     if ARGS.dataset == 'cmnist':
-        representation = np.reshape(representation, (representation.shape[0], -1))
+        representation = torch.cat(representation, dim=0)
+        zx_s = torch.cat(zx_s, dim=0)
+        zs_s = torch.cat(zs_s, dim=0)
+        s_s = torch.cat(s_s, dim=0)
+        y_s = torch.cat(y_s, dim=0)
 
-    df = pd.DataFrame(representation)
-    columns = df.columns.astype(str)
-    df.columns = columns
-    zx = df[columns[:-ARGS.zs_dim]]
-    zs = df[columns[-ARGS.zs_dim:]]
+        z_all = torch.utils.data.TensorDataset(representation, s_s, y_s)
+        zx = torch.utils.data.TensorDataset(zx_s, s_s, y_s)
+        zs = torch.utils.data.TensorDataset(zs_s, s_s, y_s)
 
-    return df, zx, zs
+    elif ARGS.dataset == 'adult':
+        representation = torch.cat(representation, dim=0).cpu().detach().numpy()
+        z_all = pd.DataFrame(representation)
+        columns = z_all.columns.astype(str)
+        z_all.columns = columns
+        zx = z_all[columns[:-ARGS.zs_dim]]
+        zs = z_all[columns[-ARGS.zs_dim:]]
+    else:
+        raise NotImplementedError("only programmed for adult and cmnist")
+
+    return z_all, zx, zs
 
 
 def current_experiment():

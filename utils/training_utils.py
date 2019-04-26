@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as F
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 
@@ -91,14 +91,17 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
     # ==== construct dataset ====
     args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
 
-    lengths = int(np.array((1 - args.clf_val_ratio, args.clf_val_ratio)) * len(train_data))
+    train_len = int((1 - args.clf_val_ratio) * len(train_data))
+    val_length = int(len(train_data) - train_len)
+
+    lengths = [train_len, val_length]
     train_data, val_data = random_split(train_data, lengths=lengths)
 
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     test_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
     val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
-    in_dim = 3 if args.dataset == 'cmnist' else 1
+    in_dim = 3 if use_s else 1
     model = MnistConvClassifier(in_dim)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
@@ -123,7 +126,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
             optimizer.zero_grad()
             preds = model(x)
 
-            loss = F.NLLLoss(preds, target)
+            loss = F.nll_loss(preds, target, reduction='sum')
 
             loss.backward()
 
@@ -138,7 +141,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
-            val_loss += F.NLLLoss(preds, target).item()
+            val_loss += F.nll_loss(preds, target, reduction='sum').item()
 
         val_loss /= len(val_loader)
 
@@ -158,7 +161,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
             optimizer.zero_grad()
             preds = model(x)
 
-            loss = F.NLLLoss(preds, target)
+            loss = F.nll_loss(preds, target, reduction='sum')
 
             loss.backward()
 
@@ -174,11 +177,11 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
         if not use_s:
             x = x.mean(dim=1, keepdim=True)
 
-        preds = model(x)
+        preds = model(x).argmax(dim=1)
         all_preds.extend(preds.detach().cpu().numpy())
         all_targets.extend(target.detach().cpu().numpy())
 
-    return pd.DataFrame(all_preds), pd.DataFrame(all_targets)
+    return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
 
 
 def get_data_dim(data_loader):

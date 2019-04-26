@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from layers import Flatten
+from layers.layer_utils import Flatten
 
 
 class MnistConvClassifier(nn.Module):
