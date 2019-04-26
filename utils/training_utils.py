@@ -133,6 +133,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
             loss = F.nll_loss(preds, target, reduction='sum')
 
             loss.backward()
+            optimizer.step()
 
         with torch.no_grad():
             model.eval()

@@ -73,7 +73,7 @@ def test(args, model, device, test_loader):
 
 def main():
     # Training settings
-    parser = argparse.ArgumentParser(description='MNIST Baseline')
+    parser = argparse.ArgumentParser(description='CMNIST Baseline')
     parser.add_argument('--root', type=str, metavar='D', default='../data')
     parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--dataset', type=str, metavar='D',
@@ -86,7 +86,7 @@ def main():
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
-                        help='learning rate (default: 0.01)')
+                        help='learning rate (default: 0.001)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
     parser.add_argument('--seed', type=int, default=42, metavar='S',
