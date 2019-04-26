@@ -312,7 +312,7 @@ def encode_dataset(dataset, model, cvt):
                 z = z.sigmoid()
 
             if dataset == 'cmnist':
-                z[:, -ARGS.zs_dim:] =
+                z[:, -ARGS.zs_dim:].zero_()
                 z = model(x, zero, reverse=True)
             # test_loss.update(loss.item(), n=x.shape[0])
             representation.append(z)
