@@ -184,6 +184,9 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
             target = s if pred_s else y
 
+            x = x.to(args.device)
+            target = target.to(args.device)
+
             if not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
