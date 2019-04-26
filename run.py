@@ -82,7 +82,7 @@ def main():
     #
     #     train_x_with_s = np.reshape(train_tuple.x, (train_tuple.x.shape[0], -1))
     #     test_x_with_s = np.reshape(test_tuple.x, (test_tuple.x.shape[0], -1))
-    if args.data == 'adult':
+    if args.dataset == 'adult':
         train_x_with_s = pd.concat([train_tuple.x, train_tuple.s], axis='columns')
         test_x_with_s = pd.concat([test_tuple.x, test_tuple.s], axis='columns')
         train_x_without_s = train_tuple.x
