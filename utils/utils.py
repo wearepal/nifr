@@ -5,8 +5,11 @@ import logging
 import torch
 
 
+LOGGER = None
+
+
 def flatten_sum(tensor):
-    return tensor.sum(dim=tuple(range(1, tensor.dim()+1)))
+    return tensor.sum(dim=tuple(range(1, tensor.dim() + 1)))
 
 
 def batch_flatten(x):
@@ -32,6 +35,9 @@ class StyleAdapter(logging.LoggerAdapter):
 
 
 def get_logger(logpath, filepath, package_files=None, displaying=True, saving=True, debug=False):
+    global LOGGER
+    if LOGGER is not None:
+        return LOGGER
     package_files = package_files or []
 
     logger = logging.getLogger()
@@ -57,7 +63,8 @@ def get_logger(logpath, filepath, package_files=None, displaying=True, saving=Tr
     #     with open(f, "r") as package_f:
     #         logger.info(package_f.read())
 
-    return StyleAdapter(logger)
+    LOGGER = StyleAdapter(logger)
+    return LOGGER
 
 
 class AverageMeter:
@@ -119,25 +126,6 @@ def save_checkpoint(state, save, epoch):
 
 def isnan(tensor):
     return (tensor != tensor)
-
-
-def logsumexp(value, dim=None, keepdim=False):
-    """Numerically stable implementation of the operation
-    value.exp().sum(dim, keepdim).log()
-    """
-    if dim is not None:
-        m, _ = torch.max(value, dim=dim, keepdim=True)
-        value0 = value - m
-        if keepdim is False:
-            m = m.squeeze(dim)
-        return m + torch.log(torch.sum(torch.exp(value0), dim=dim, keepdim=keepdim))
-    else:
-        m = torch.max(value)
-        sum_exp = torch.sum(torch.exp(value - m))
-        if isinstance(sum_exp, Number):
-            return m + math.log(sum_exp)
-        else:
-            return m + torch.log(sum_exp)
 
 
 def standard_normal_logprob(z):
