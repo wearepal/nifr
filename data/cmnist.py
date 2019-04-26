@@ -1,4 +1,3 @@
-import os
 import pickle
 from pathlib import Path
 
@@ -31,11 +30,7 @@ def finalize(existing_aggregate):
 
 
 class CMNIST(Dataset):
-
-    mean = None
-    std = None
-
-    def __init__(self, args, train=True, normalize=True):
+    def __init__(self, args, train=True, normalize=True, normalize_transform=None):
         super().__init__()
         self.train = train
         self.normalize = normalize
@@ -46,32 +41,33 @@ class CMNIST(Dataset):
         save_dir.mkdir(parents=True, exist_ok=True)
         logger = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
-        if CMNIST.mean is None and os.path.exists(self.path / "mean_and_std"):
+        if normalize_transform is not None:
+            self.normalize_transform = normalize_transform
+            return
+
+        if (self.path / "mean_and_std").exists():
             with open(self.path / 'mean_and_std', 'rb') as fp:
                 itemlist = pickle.load(fp)
-            CMNIST.mean = itemlist[0]
-            CMNIST.std = itemlist[1]
+            mean_x, std_x = itemlist[0], itemlist[1]
             logger.info("loaded mean and std from file")
-
-        if train and CMNIST.mean is None:
+        elif train:
             logger.info("computing mean and std over training set for normalization")
 
             aggregator = (0, torch.zeros(3), torch.zeros(3))
-
             for i in tqdm(range(60000)):
                 x, _, _ = torch.load(self.path / "train" / str(i))
                 aggregator = update(aggregator, x.view(x.size(0), -1).mean(dim=1))
 
             mean_x, variance_x = finalize(aggregator)
             std_x = variance_x.sqrt()
-            CMNIST.mean = mean_x
-            CMNIST.std = std_x
 
             itemlist = [mean_x, std_x]
             with open(self.path / "mean_and_std", 'wb') as fp:
                 pickle.dump(itemlist, fp)
+        else:
+            raise ValueError("need to specify the mean and standard deviation")
 
-        self.normalize_transform = torchvision.transforms.Normalize(CMNIST.mean, CMNIST.std)
+        self.normalize_transform = torchvision.transforms.Normalize(mean_x, std_x)
 
     def __getitem__(self, idx):
         dataset = "train" if self.train else "test"
