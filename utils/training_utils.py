@@ -65,7 +65,9 @@ def parse_arguments():
     parser.add_argument('--base_density_zs', default='',
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
 
-    parser.add_argument('--clf-epochs', metavar="D", type=int, default=100)
+    # classifier parameters (for computing fairness metrics)
+    parser.add_argument('--clf-epochs', type=int, metavar='N', default=100)
+    parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
@@ -106,7 +108,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
     for i in range(args.clf_epochs):
 
-        if n_vals_without_improvement > args.early_stopping > 0:
+        if n_vals_without_improvement > args.clf_early_stopping > 0:
             break
 
         model.train()
