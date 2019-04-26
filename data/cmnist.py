@@ -82,4 +82,4 @@ class CMNIST(Dataset):
         return x, s, y
 
     def __len__(self):
-        return 60 if self.train else 10
+        return 60000 if self.train else 10000
