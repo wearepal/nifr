@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from pyro.distributions import MixtureOfDiagNormals
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
 from utils import utils, metrics, unbiased_hsic, dataloading
 from optimisation.custom_optimizers import Adam
@@ -286,13 +287,13 @@ def main(args, train_data, test_data):
         LOGGER.info('Training has finished.')
         model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
 
-    LOGGER.info('Evaluating model on test set.')
     model.eval()
-    test_encodings = encode_dataset(val_loader, model, cvt)
-    # df_test.to_feather(ARGS.test_new)
+    LOGGER.info('Encoding training set.')
     train_encodings = encode_dataset(
         DataLoader(train_data, shuffle=False, batch_size=args.test_batch_size), model, cvt)
-    # df_train.to_feather(ARGS.train_new)
+    LOGGER.info('Encoding test set.')
+    test_encodings = encode_dataset(val_loader, model, cvt)
+
     return train_encodings, test_encodings
 
 
@@ -304,7 +305,7 @@ def encode_dataset(dataloader, model, cvt):
     y_s = []
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
-        for itr, (x, s, y) in enumerate(dataloader):
+        for itr, (x, s, y) in enumerate(tqdm(dataloader)):
             x = cvt(x)
             s = cvt(s)
 
@@ -325,13 +326,13 @@ def encode_dataset(dataloader, model, cvt):
                 zs = z.clone()
                 zs[- ARGS.zs_dim:].zero_()
                 zs, _ = model(zs, zero, reverse=True)
-            # test_loss.update(loss.item(), n=x.shape[0])
+                zx_s.append(zx)
+                zs_s.append(zs)
+
             representation.append(z)
-            zx_s.append(zx)
-            zs_s.append(zs)
             s_s.append(s)
             y_s.append(y)
-            LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
+            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
 
     if ARGS.dataset == 'cmnist':
         representation = torch.cat(representation, dim=0)
