@@ -32,7 +32,7 @@ from utils.dataloading import load_dataset
 #         flags_list += ['--train_new', str(for_train_path), '--test_new', str(for_test_path)]
 #         flags_list += self.additional_args
 #         return flags_list
-from utils.training_utils import parse_arguments
+from utils.training_utils import parse_arguments, run_conv_classifier
 
 
 def main():
@@ -86,55 +86,90 @@ def main():
     # model = SVM()
     experiment.log_other("evaluation model", model.name)
 
+    # ===========================================================================
     print("Original x:")
 
-    train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
-    test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
-    preds_x = model.run(train_x, test_x)
+    if args.dataset == 'cmnist':
+        preds_x, test_x = run_conv_classifier(args, train_data, test_data, pred_s=False, use_s=False)
+    else:
+        train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
+        test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
+        preds_x = model.run(train_x, test_x)
 
     _compute_metrics(preds_x, test_x, "Original")
 
+    # ===========================================================================
     print("Original x & s:")
-    train_x_and_s = DataTuple(train_x_with_s,
-                              s=train_tuple.s,
-                              y=train_tuple.y)
-    test_x_and_s = DataTuple(x=test_x_with_s,
-                             s=test_tuple.s,
-                             y=test_tuple.y)
 
-    preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
+    if args.dataset == 'cmnist':
+        preds_x_and_s, test_x_and_s = run_conv_classifier(args, train_data, test_data, pred_s=False, use_s=True)
+    else:
+        train_x_and_s = DataTuple(train_x_with_s,
+                                  s=train_tuple.s,
+                                  y=train_tuple.y)
+        test_x_and_s = DataTuple(x=test_x_with_s,
+                                 s=test_tuple.s,
+                                 y=test_tuple.y)
+        preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
+
     _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
+    # ===========================================================================
     print("All z:")
-    train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
-    test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
-    preds_z = model.run(train_z, test_z)
+
+    if args.dataset == 'cmnist':
+        preds_z, test_z = run_conv_classifier(args, train_all, test_all, pred_s=False, use_s=False)
+    else:
+        train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
+        test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
+        preds_z = model.run(train_z, test_z)
     _compute_metrics(preds_z, test_z, "Z")
 
+    # ===========================================================================
     print("fair:")
-    train_fair = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.y)
-    test_fair = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.y)
-    preds_fair = model.run(train_fair, test_fair)
+
+    if args.dataset == 'cmnist':
+        preds_fair, test_fair = run_conv_classifier(args, train_zx, test_zx, pred_s=False, use_s=False)
+    else:
+        train_fair = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.y)
+        test_fair = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.y)
+        preds_fair = model.run(train_fair, test_fair)
     _compute_metrics(preds_fair, test_fair, "Fair")
 
+    # ===========================================================================
     print("unfair:")
-    train_unfair = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.y)
-    test_unfair = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.y)
-    preds_unfair = model.run(train_unfair, test_unfair)
+    if args.dataset == 'cmnist':
+        preds_unfair, test_unfair = run_conv_classifier(args, train_zs, test_zs, pred_s=False, use_s=False)
+    else:
+        train_unfair = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.y)
+        test_unfair = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.y)
+        preds_unfair = model.run(train_unfair, test_unfair)
     _compute_metrics(preds_unfair, test_unfair, "Unfair")
 
+    # ===========================================================================
     print("predict s from fair representation:")
-    train_fair_predict_s = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.s)
-    test_fair_predict_s = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.s)
-    preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+
+    if args.dataset == 'cmnist':
+        preds_s_fair, test_fair_predict_s = run_conv_classifier(args, train_zx, test_zx, pred_s=True, use_s=False)
+    else:
+        train_fair_predict_s = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.s)
+        test_fair_predict_s = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.s)
+        preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+
     results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
     experiment.log_metric("Fair pred s", results['Accuracy'])
     print(results)
 
+    # ===========================================================================
     print("predict s from unfair representation:")
-    train_unfair_predict_s = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.s)
-    test_unfair_predict_s = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.s)
-    preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
+
+    if args.dataset == 'cmnist':
+        preds_s_unfair, test_unfair_predict_s = run_conv_classifier(args, train_zs, test_zs, pred_s=True, use_s=False)
+    else:
+        train_unfair_predict_s = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.s)
+        test_unfair_predict_s = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.s)
+        preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
+
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])
     experiment.log_metric("Unfair pred s", results['Accuracy'])
     print(results)
