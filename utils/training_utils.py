@@ -102,7 +102,7 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
     val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
     in_dim = 3 if use_s else 1
-    model = MnistConvClassifier(in_dim)
+    model = MnistConvClassifier(in_dim).to(args.device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
 
@@ -120,6 +120,9 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
             target = s if pred_s else y
 
+            x = x.to(args.device)
+            target = target.to(args.device)
+
             if not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
@@ -130,31 +133,37 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
             loss.backward()
 
-        model.eval()
+        with torch.no_grad():
+            model.eval()
+            val_loss = 0
+            for x, s, y in val_loader:
 
-        val_loss = 0
-        for x, s, y in val_loader:
+                target = s if pred_s else y
 
-            target = s if pred_s else y
+                x = x.to(args.device)
+                target = target.to(args.device)
 
-            if not use_s:
-                x = x.mean(dim=1, keepdim=True)
+                if not use_s:
+                    x = x.mean(dim=1, keepdim=True)
 
-            preds = model(x)
-            val_loss += F.nll_loss(preds, target, reduction='sum').item()
+                preds = model(x)
+                val_loss += F.nll_loss(preds, target, reduction='sum').item()
 
-        val_loss /= len(val_loader)
+            val_loss /= len(val_loader)
 
-        if val_loss < best_loss:
-            best_loss = val_loss
-            n_vals_without_improvement = 0
-        else:
-            n_vals_without_improvement += 1
+            if val_loss < best_loss:
+                best_loss = val_loss
+                n_vals_without_improvement = 0
+            else:
+                n_vals_without_improvement += 1
 
         for x, s, y in train_loader:
 
             target = s if pred_s else y
 
+            x = x.to(args.device)
+            target = target.to(args.device)
+
             if not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
@@ -165,21 +174,22 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
             loss.backward()
 
-    model.eval()
+    with torch.no_grad():
+        model.eval()
 
-    # generate predictions
-    all_preds = []
-    all_targets = []
-    for x, s, y in test_loader:
+        # generate predictions
+        all_preds = []
+        all_targets = []
+        for x, s, y in test_loader:
 
-        target = s if pred_s else y
+            target = s if pred_s else y
 
-        if not use_s:
-            x = x.mean(dim=1, keepdim=True)
+            if not use_s:
+                x = x.mean(dim=1, keepdim=True)
 
-        preds = model(x).argmax(dim=1)
-        all_preds.extend(preds.detach().cpu().numpy())
-        all_targets.extend(target.detach().cpu().numpy())
+            preds = model(x).argmax(dim=1)
+            all_preds.extend(preds.detach().cpu().numpy())
+            all_targets.extend(target.detach().cpu().numpy())
 
     return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
 
