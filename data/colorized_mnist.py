@@ -86,7 +86,9 @@ class MnistColorizer:
         else:
             target = np.random.randint(0, 10, target.shape)
 
-        colors_per_sample = [self._sample_color(self.palette[label]) for label in target]
+        mean_values = [self.palette[label] for label in target]
+        colors_per_sample = [self._sample_color(mean) for mean in mean_values]
+        # colors_per_sample = [self._sample_color(self.palette[label]) for label in target]
 
         if self.binarize:
             img = (img > 0).float()
@@ -114,7 +116,8 @@ class MnistColorizer:
                     colorized_data = 1 - img * (
                         1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
 
-        return colorized_data, torch.LongTensor(target)
+        return colorized_data, torch.Tensor(colors_per_sample)
+        # return colorized_data, torch.LongTensor(target)
 
     def __call__(self, img, target):
         return self._transform(img, target, self.train, self.background, self.black)

@@ -120,20 +120,20 @@ def main():
                                        transforms.Normalize((0.1307,), (0.3081,))])),
         data_dim = 1
     else:
-        train_data = ColorizedMNIST('./data', train=True,
-                                    download=True, transform=transforms.ToTensor(),
-                                    scale=args.scale,
-                                    cspace=args.cspace,
-                                    background=args.background,
-                                    black=args.black)
-        test_data = ColorizedMNIST('./data', train=False,
-                                   download=True, transform=transforms.ToTensor(),
-                                   scale=args.scale,
-                                   cspace=args.cspace,
-                                   background=args.background,
-                                   black=args.black)
+        # train_data = ColorizedMNIST('./data', train=True,
+        #                             download=True, transform=transforms.ToTensor(),
+        #                             scale=args.scale,
+        #                             cspace=args.cspace,
+        #                             background=args.background,
+        #                             black=args.black)
+        # test_data = ColorizedMNIST('./data', train=False,
+        #                            download=True, transform=transforms.ToTensor(),
+        #                            scale=args.scale,
+        #                            cspace=args.cspace,
+        #                            background=args.background,
+        #                            black=args.black)
 
-        # train_data, test_data, _, _ = load_dataset(args)
+        train_data, test_data, _, _ = load_dataset(args)
         data_dim = 1 if args.greyscale else 3
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
