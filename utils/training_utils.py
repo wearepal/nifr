@@ -57,7 +57,7 @@ def parse_arguments():
     parser.add_argument('--ind-method', type=str, choices=['hsic', 'disc'], default='disc')
     parser.add_argument('--ind-method2t', type=str, choices=['hsic', 'none'], default='none')
 
-    parser.add_argument('--zs_dim', type=int, default=20)
+    parser.add_argument('--zs_frac', type=int, default=0.2)
     parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
     parser.add_argument('-iw2t', '--independence_weight_2_towers', type=float, default=1.e3)
     parser.add_argument('--pred_s_weight', type=float, default=1.)

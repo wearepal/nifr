@@ -48,7 +48,7 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     zero = x.new_zeros(x.size(0), 1)
 
     if ARGS.dataset == 'cmnist':
-        loss_fn = F.nll_loss
+        loss_fn = F.l1_loss
     else:
         loss_fn = F.binary_cross_entropy_with_logits
         x = torch.cat((x, s), dim=1)
@@ -215,16 +215,24 @@ def main(args, train_data, test_data):
     val_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
 
     x_dim, x_dim_flat = get_data_dim(train_loader)
+    ARGS.zs_dim = int(ARGS.zs_frac * x_dim_flat)
 
     if args.dataset == 'adult':
         s_dim = 1
         x_dim += s_dim
     else:
-        s_dim = 10
+        s_dim = 3
 
     model = fetch_model(args, x_dim)
 
-    output_activation = None if ARGS.dataset == 'adult' else nn.LogSoftmax
+    if ARGS.dataset == 'adult':
+        output_activation = None
+        hidden_sizes = [100, 100]
+    else:
+        output_activation = nn.Sigmoid
+        hidden_sizes = []
+    output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
+    hidden_sizes = [100, 100]
     if ARGS.ind_method == 'disc':
         disc_zx = layers.Mlp([x_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
