@@ -23,15 +23,15 @@ class MnistColorizer:
         self.color_space = color_space
         if color_space == 'rgb':
             colors = [(0, 255, 255),
-                      (0, 0, 255),
+                      (0, 0, 255),  # blue
                       (255, 0, 255),
                       (0, 128, 0),
-                      (0, 255, 0),
+                      (0, 255, 0),  # green
                       (128, 0, 0),
                       (0, 0, 128),
                       (128, 0, 128),
-                      (255, 0, 0),
-                      (255, 255, 0)]
+                      (255, 0, 0),  # red
+                      (255, 255, 0)]  # yellow
 
             self.palette = [np.divide(color, 255) for color in colors]
             self.scale *= np.eye(3)
@@ -82,13 +82,16 @@ class MnistColorizer:
 
     def _transform(self, img, target, train, background=True, black=True):
         if train:
-           target = target.numpy()
+            target = target.numpy()
         else:
             target = np.random.randint(0, 10, target.shape)
 
-        mean_values = [self.palette[label] for label in target]
-        colors_per_sample = [self._sample_color(mean) for mean in mean_values]
-        # colors_per_sample = [self._sample_color(self.palette[label]) for label in target]
+        mean_values = []
+        colors_per_sample = []
+        for label in target:
+            mean_value = self.palette[label]
+            mean_values.append(mean_value)
+            colors_per_sample.append(self._sample_color(mean_value))
 
         if self.binarize:
             img = (img > 0).float()
@@ -116,7 +119,7 @@ class MnistColorizer:
                     colorized_data = 1 - img * (
                         1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
 
-        return colorized_data, torch.Tensor(colors_per_sample)
+        return colorized_data, torch.Tensor(mean_values)
         # return colorized_data, torch.LongTensor(target)
 
     def __call__(self, img, target):
@@ -136,7 +139,7 @@ class ColorizedMNIST(datasets.MNIST):
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
 
-        if type(target) != torch.Tensor:
+        if not isinstance(target, torch.Tensor):
             target = torch.tensor(target)
 
         data, color = self.colorizer(data, target.view(1))
@@ -149,7 +152,8 @@ def test():
     def parse_arguments():
         parser = argparse.ArgumentParser()
         parser.add_argument('-b', '--batch-size', type=int, default=64)
-        parser.add_argument('--dataset', type=str, choices=['mnist', 'fashion-mnist'], default='mnist')
+        parser.add_argument('--dataset', type=str, choices=['mnist', 'fashion-mnist'],
+                            default='mnist')
         parser.add_argument('--scale', type=float, default=0.02)
         parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
         parser.add_argument('-bg', '--background', type=eval, default=True, choices=[True, False])
@@ -183,4 +187,3 @@ def test():
 
 if __name__ == '__main__':
     test()
-

@@ -184,7 +184,12 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
         all_targets = []
         for x, s, y in test_loader:
 
-            target = s if pred_s else y
+            if pred_s:
+                # TODO: do this in EthicML instead
+                target = test_data.palette.index(s)
+                # target = s
+            else:
+                target = y
 
             x = x.to(args.device)
             target = target.to(args.device)
