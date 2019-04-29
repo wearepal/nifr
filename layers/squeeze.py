@@ -32,6 +32,32 @@ class SubsliceLayer(InvertibleLayer):
             return subslice(x)
 
 
+class UnsubsliceLayer(InvertibleLayer):
+
+    def __init__(self):
+        super(UnsubsliceLayer, self).__init__()
+
+    def _forward(self, x, logpx):
+        subslice_x = subslice(x)
+        if logpx is None:
+            return subslice_x
+        else:
+            return subslice_x, logpx
+
+    def _reverse(self, x, logpx):
+        unsubslice_x = unsubslice(x)
+        if logpx is None:
+            return unsubslice_x
+        else:
+            return unsubslice, logpx
+
+    def forward(self, x, logpx=None, reverse=False):
+        if reverse:
+            return subslice(x)
+        else:
+            return unsubslice(x)
+
+
 class SqueezeLayer(nn.Module):
     def __init__(self, downscale_factor):
         super(SqueezeLayer, self).__init__()
