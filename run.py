@@ -46,11 +46,11 @@ def main():
     # dataset = Adult()
     # train, test = train_test_split(load_data(dataset))
     #
-    train_data, test_data, train_tuple, test_tuple = load_dataset(args)
-    train_len = int(args.data_pcnt * len(train_data))
-    train_data, _ = random_split(train_data, lengths=(train_len, len(train_data) - train_len))
-    test_len = int(args.data_pcnt * len(test_data))
-    test_data, _ = random_split(test_data, lengths=(test_len, len(test_data) - test_len))
+    whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
+    train_len = int(args.data_pcnt * len(whole_train_data))
+    train_data, _ = random_split(whole_train_data, lengths=(train_len, len(whole_train_data) - train_len))
+    test_len = int(args.data_pcnt * len(whole_test_data))
+    test_data, _ = random_split(whole_test_data, lengths=(test_len, len(whole_test_data) - test_len))
 
     (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) \
         = training_loop(args, train_data, test_data)
@@ -71,7 +71,7 @@ def main():
         # experiment.log_metric(f"{name} Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1'])
         # experiment.log_metric(f"{name} Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1'])
         for key, value in metrics.items():
-            print(f"    {key}: {value:.4f}")
+            print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
 
     # if args.dataset == 'cmnist':
@@ -104,16 +104,18 @@ def main():
             save_image(data[:64], './colorized_orginal_x_no_s.png', nrow=8)
             break
 
-        print("Training performance")
-        preds_x, test_x = run_conv_classifier(args, train_data, train_data, pred_s=False, use_s=False)
+        print("\tTraining performance")
+        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        preds_x, test_x = clf(train_data)
         _compute_metrics(preds_x, test_x, "Original - Train")
 
-        preds_x, test_x = run_conv_classifier(args, train_data, test_data, pred_s=False, use_s=False)
+        preds_x, test_x = clf(test_data)
     else:
         train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
         test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
         preds_x = model.run(train_x, test_x)
 
+    print("\tTest performance")
     _compute_metrics(preds_x, test_x, "Original")
 
     # ===========================================================================
@@ -125,11 +127,12 @@ def main():
             save_image(data[:64], './colorized_orginal_x_with_s.png', nrow=8)
             break
 
-        print("Training performance")
-        preds_x_and_s, test_x_and_s = run_conv_classifier(args, train_data, train_data, pred_s=False, use_s=True)
+        print("\tTraining performance")
+        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False, use_s=True)
+        preds_x_and_s, test_x_and_s = clf(train_data)
         _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
-        preds_x_and_s, test_x_and_s = run_conv_classifier(args, train_data, test_data, pred_s=False, use_s=True)
+        preds_x_and_s, test_x_and_s = clf(test_data)
     else:
         train_x_and_s = DataTuple(train_x_with_s,
                                   s=train_tuple.s,
@@ -139,6 +142,7 @@ def main():
                                  y=test_tuple.y)
         preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
 
+    print("\tTest performance")
     _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
     # ===========================================================================
@@ -150,15 +154,18 @@ def main():
             save_image(data[:64], './colorized_reconstriction_all.png', nrow=8)
             break
 
-        print("Training performance")
-        preds_z, test_z = run_conv_classifier(args, train_all, train_all, pred_s=False, use_s=False)
+        print("\tTraining performance")
+        clf = run_conv_classifier(args, train_all, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        preds_z, test_z = clf(train_all)
         _compute_metrics(preds_z, test_z, "Z")
 
-        preds_z, test_z = run_conv_classifier(args, train_all, test_all, pred_s=False, use_s=False)
+        preds_z, test_z = clf(test_all)
     else:
         train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
         test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
         preds_z = model.run(train_z, test_z)
+
+    print("\tTest performance")
     _compute_metrics(preds_z, test_z, "Z")
 
     # ===========================================================================
@@ -170,15 +177,18 @@ def main():
             save_image(data[:64], './colorized_reconstriction_zx.png', nrow=8)
             break
 
-        print("Training performance")
-        preds_fair, test_fair = run_conv_classifier(args, train_zx, train_zx, pred_s=False, use_s=False)
+        print("\tTraining performance")
+        clf = run_conv_classifier(args, train_zx, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        preds_fair, test_fair = clf(train_zx)
         _compute_metrics(preds_fair, test_fair, "Fair")
 
-        preds_fair, test_fair = run_conv_classifier(args, train_zx, test_zx, pred_s=False, use_s=False)
+        preds_fair, test_fair = clf(test_zx)
     else:
         train_fair = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.y)
         test_fair = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.y)
         preds_fair = model.run(train_fair, test_fair)
+
+    print("\tTest performance")
     _compute_metrics(preds_fair, test_fair, "Fair")
 
     # ===========================================================================
@@ -189,22 +199,26 @@ def main():
             save_image(data[:64], './colorized_reconstriction_zs.png', nrow=8)
             break
 
-        print("Training performance")
-        preds_unfair, test_unfair = run_conv_classifier(args, train_zs, train_zs, pred_s=False, use_s=False)
+        print("\tTraining performance")
+        clf = run_conv_classifier(args, train_zs, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        preds_unfair, test_unfair = clf(train_zs)
         _compute_metrics(preds_unfair, test_unfair, "Unfair")
 
-        preds_unfair, test_unfair = run_conv_classifier(args, train_zs, test_zs, pred_s=False, use_s=False)
+        preds_unfair, test_unfair = clf(test_zs)
     else:
         train_unfair = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.y)
         test_unfair = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.y)
         preds_unfair = model.run(train_unfair, test_unfair)
+
+    print("\tTest performance")
     _compute_metrics(preds_unfair, test_unfair, "Unfair")
 
     # ===========================================================================
     print("predict s from fair representation:")
 
     if args.dataset == 'cmnist':
-        preds_s_fair, test_fair_predict_s = run_conv_classifier(args, train_zx, test_zx, pred_s=True, use_s=False)
+        clf = run_conv_classifier(args, train_zx, palette=whole_train_data.palette, pred_s=True, use_s=False)
+        preds_s_fair, test_fair_predict_s = clf(test_zx)
     else:
         train_fair_predict_s = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.s)
         test_fair_predict_s = DataTuple(x=test_zx, s=test_tuple.s, y=test_tuple.s)
@@ -218,7 +232,8 @@ def main():
     print("predict s from unfair representation:")
 
     if args.dataset == 'cmnist':
-        preds_s_unfair, test_unfair_predict_s = run_conv_classifier(args, train_zs, test_zs, pred_s=True, use_s=False)
+        clf = run_conv_classifier(args, train_zs, palette=whole_train_data.palette, pred_s=True, use_s=False)
+        preds_s_unfair, test_unfair_predict_s = clf(test_zs)
     else:
         train_unfair_predict_s = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.s)
         test_unfair_predict_s = DataTuple(x=test_zs, s=test_tuple.s, y=test_tuple.s)

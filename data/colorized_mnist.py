@@ -135,6 +135,7 @@ class ColorizedMNIST(datasets.MNIST):
                                              transform=transform)
         self.colorizer = MnistColorizer(train=train, scale=scale, background=background,
                                         black=black, color_space=cspace)
+        self.palette = self.colorizer.palette
 
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
