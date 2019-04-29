@@ -12,6 +12,8 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
 from ethicml.metrics import Accuracy, ProbPos, Theil
+from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 
 from data.preprocess_cmnist import make_cmnist_dataset
 from train import current_experiment, main as training_loop
@@ -96,6 +98,16 @@ def main():
     print("Original x:")
 
     if args.dataset == 'cmnist':
+        train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+        for data, color, labels in train_loader:
+            data = data.mean(dim=1, keepdim=True)
+            save_image(data[:64], './colorized_orginal_x_no_s.png', nrow=8)
+            break
+
+        print("Training performance")
+        preds_x, test_x = run_conv_classifier(args, train_data, train_data, pred_s=False, use_s=False)
+        _compute_metrics(preds_x, test_x, "Original - Train")
+
         preds_x, test_x = run_conv_classifier(args, train_data, test_data, pred_s=False, use_s=False)
     else:
         train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
@@ -108,6 +120,15 @@ def main():
     print("Original x & s:")
 
     if args.dataset == 'cmnist':
+        train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+        for data, color, labels in train_loader:
+            save_image(data[:64], './colorized_orginal_x_with_s.png', nrow=8)
+            break
+
+        print("Training performance")
+        preds_x_and_s, test_x_and_s = run_conv_classifier(args, train_data, train_data, pred_s=False, use_s=True)
+        _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
+
         preds_x_and_s, test_x_and_s = run_conv_classifier(args, train_data, test_data, pred_s=False, use_s=True)
     else:
         train_x_and_s = DataTuple(train_x_with_s,
@@ -124,6 +145,15 @@ def main():
     print("All z:")
 
     if args.dataset == 'cmnist':
+        train_loader = DataLoader(train_all, shuffle=True, batch_size=args.batch_size)
+        for data, color, labels in train_loader:
+            save_image(data[:64], './colorized_reconstriction_all.png', nrow=8)
+            break
+
+        print("Training performance")
+        preds_z, test_z = run_conv_classifier(args, train_all, train_all, pred_s=False, use_s=False)
+        _compute_metrics(preds_z, test_z, "Z")
+
         preds_z, test_z = run_conv_classifier(args, train_all, test_all, pred_s=False, use_s=False)
     else:
         train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
@@ -135,6 +165,15 @@ def main():
     print("fair:")
 
     if args.dataset == 'cmnist':
+        train_loader = DataLoader(train_zx, shuffle=True, batch_size=args.batch_size)
+        for data, color, labels in train_loader:
+            save_image(data[:64], './colorized_reconstriction_zx.png', nrow=8)
+            break
+
+        print("Training performance")
+        preds_fair, test_fair = run_conv_classifier(args, train_zx, train_zx, pred_s=False, use_s=False)
+        _compute_metrics(preds_fair, test_fair, "Fair")
+
         preds_fair, test_fair = run_conv_classifier(args, train_zx, test_zx, pred_s=False, use_s=False)
     else:
         train_fair = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.y)
@@ -145,6 +184,15 @@ def main():
     # ===========================================================================
     print("unfair:")
     if args.dataset == 'cmnist':
+        train_loader = DataLoader(train_zs, shuffle=True, batch_size=args.batch_size)
+        for data, color, labels in train_loader:
+            save_image(data[:64], './colorized_reconstriction_zs.png', nrow=8)
+            break
+
+        print("Training performance")
+        preds_unfair, test_unfair = run_conv_classifier(args, train_zs, train_zs, pred_s=False, use_s=False)
+        _compute_metrics(preds_unfair, test_unfair, "Unfair")
+
         preds_unfair, test_unfair = run_conv_classifier(args, train_zs, test_zs, pred_s=False, use_s=False)
     else:
         train_unfair = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.y)
