@@ -1,5 +1,5 @@
 from .container import SequentialFlow
-from .squeeze import SqueezeLayer, UnsqueezeLayer, SubsliceLayer, UnsubsliceLayer
+from .squeeze import SqueezeLayer, UnsqueezeLayer
 from .normalization import MovingBatchNorm1d, MovingBatchNorm2d, MovingBatchNormNd, Parameter
 from .elemwise import LogitTransform, SigmoidTransform, SoftplusTransform
 from .coupling import CouplingLayer, MaskedCouplingLayer, AffineCouplingLayer

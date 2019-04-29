@@ -19,6 +19,7 @@ from utils import utils, metrics, unbiased_hsic, dataloading
 from optimisation.custom_optimizers import Adam
 import layers
 from utils.training_utils import fetch_model, get_data_dim
+import models
 
 NDECS = 0
 ARGS = None
@@ -92,25 +93,24 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
 
 def compute_log_pz(z, base_density):
     """Log of the base probability: log(p(z))"""
-    if base_density == 'binormal':
-        ones = z.new_ones(1, z.size(1))
-        dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
-                                    z.new_ones(2))
-        log_pz = dist.log_prob(z)
-    elif base_density == 'logitbernoulli':
-        temperature = z.new_tensor(.5)
-        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-        dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
-                                                                           probs=prob_of_1)
-        log_pz = dist.log_prob(z.clamp(-100, 100)).sum(1)  # not sure why the .sum(1) is needed
-        z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
-    elif base_density == 'bernoulli':
-        temperature = z.new_tensor(.5)
-        prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-        dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
-        log_pz = dist.log_prob(z).sum(1)  # not sure why the .sum(1) is needed
-    else:
-        log_pz = torch.distributions.Normal(0, 1).log_prob(z).view(z.size(0), -1).sum(1)
+    # if base_density == 'binormal':
+    #     ones = z.new_ones(1, z.size(1))
+    #     dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
+    #                                 z.new_ones(2))
+    #     log_pz = dist.log_prob(z)
+    # elif base_density == 'logitbernoulli':
+    #     temperature = z.new_tensor(.5)
+    #     prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+    #     dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
+    #                                                                        probs=prob_of_1)
+    #     log_pz = dist.log_prob(z.clamp(-100, 100)).sum(1)  # not sure why the .sum(1) is needed
+    #     z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
+    # elif base_density == 'bernoulli':
+    #     temperature = z.new_tensor(.5)
+    #     prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
+    #     dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
+    #     log_pz = dist.log_prob(z).sum(1)  # not sure why the .sum(1) is needed
+    log_pz = torch.distributions.Normal(0, 1).log_prob(z).flatten(1).sum(1)
     return log_pz.view(z.size(0), 1), z
 
 
@@ -214,35 +214,40 @@ def main(args, train_data, test_data):
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
 
-    x_dim, x_dim_flat = get_data_dim(train_loader)
-    ARGS.zs_dim = int(ARGS.zs_frac * x_dim_flat)
+    x_dim, z_dim_flat = get_data_dim(train_loader)
 
     if args.dataset == 'adult':
+        ARGS.zs_dim = int(ARGS.zs_frac * z_dim_flat)
         s_dim = 1
         x_dim += s_dim
+        output_activation = None
+        hidden_sizes = [40, 40]
+        disc_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
+                             output_activation=output_activation)
     else:
+        z_channels = x_dim * 16
+        ARGS.zs_dim = int(ARGS.zs_frac * z_channels)
         s_dim = 3
+        output_activation = nn.Sigmoid()
+        hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
+        disc_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
+                                      hidden_sizes=hidden_sizes)
+    disc_zs.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
 
-    if ARGS.dataset == 'adult':
-        output_activation = None
-        hidden_sizes = [100, 100]
-    else:
-        output_activation = nn.Sigmoid
-        hidden_sizes = []
-    output_activation = None if ARGS.dataset == 'adult' else nn.Sigmoid
-    hidden_sizes = [100, 100]
     if ARGS.ind_method == 'disc':
-        disc_zx = layers.Mlp([x_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
-                             output_activation=output_activation)
+        if ARGS.dataset == 'adult':
+            disc_zx = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
+                                 output_activation=output_activation)
+        else:
+            zx_dim = z_channels - ARGS.zs_dim
+            hidden_sizes = [zx_dim * 8, zx_dim * 8]
+            disc_zx = models.MnistConvNet(zx_dim, s_dim, output_activation=output_activation,
+                                          hidden_sizes=hidden_sizes)
         disc_zx.to(ARGS.device)
     else:
         disc_zx = None
-
-    disc_zs = layers.Mlp([ARGS.zs_dim, 40, 40, s_dim], activation=nn.ReLU,
-                         output_activation=output_activation)
-    disc_zs.to(ARGS.device)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -307,8 +312,8 @@ def main(args, train_data, test_data):
 
 def encode_dataset(dataloader, model, cvt):
     representation = []
-    zx_s = []
-    zs_s = []
+    xx_s = []
+    xs_s = []
     s_s = []
     y_s = []
     with torch.no_grad():
@@ -325,17 +330,15 @@ def encode_dataset(dataloader, model, cvt):
             #     z = z.sigmoid()
 
             if ARGS.dataset == 'cmnist':
-                z, _ = model(z, zero, reverse=True)
-
                 zx = z.clone()
-                zx[:- ARGS.zs_dim].zero_()
-                zx, _ = model(zx, zero, reverse=True)
+                zx[:, :-ARGS.zs_dim].zero_()
+                xx, _ = model(zx, zero, reverse=True)
 
                 zs = z.clone()
-                zs[- ARGS.zs_dim:].zero_()
-                zs, _ = model(zs, zero, reverse=True)
-                zx_s.append(zx)
-                zs_s.append(zs)
+                zs[:, -ARGS.zs_dim:].zero_()
+                xs, _ = model(zs, zero, reverse=True)
+                xx_s.append(xx)
+                xs_s.append(xs)
 
             representation.append(z)
             s_s.append(s)
@@ -344,15 +347,15 @@ def encode_dataset(dataloader, model, cvt):
 
     if ARGS.dataset == 'cmnist':
         representation = torch.cat(representation, dim=0)
-        zx_s = torch.cat(zx_s, dim=0)
-        zs_s = torch.cat(zs_s, dim=0)
+        xx_s = torch.cat(xx_s, dim=0)
+        xs_s = torch.cat(xs_s, dim=0)
         s_s = torch.cat(s_s, dim=0)
         y_s = torch.cat(y_s, dim=0)
 
         z_all = torch.utils.data.TensorDataset(representation, s_s, y_s)
-        zx = torch.utils.data.TensorDataset(zx_s, s_s, y_s)
-        zs = torch.utils.data.TensorDataset(zs_s, s_s, y_s)
-
+        xx = torch.utils.data.TensorDataset(xx_s, s_s, y_s)
+        xs = torch.utils.data.TensorDataset(xs_s, s_s, y_s)
+        return z_all, xx, xs
     elif ARGS.dataset == 'adult':
         representation = torch.cat(representation, dim=0).cpu().detach().numpy()
         z_all = pd.DataFrame(representation)
@@ -360,10 +363,7 @@ def encode_dataset(dataloader, model, cvt):
         z_all.columns = columns
         zx = z_all[columns[:-ARGS.zs_dim]]
         zs = z_all[columns[-ARGS.zs_dim:]]
-    else:
-        raise NotImplementedError("only programmed for adult and cmnist")
-
-    return z_all, zx, zs
+        return z_all, zx, zs
 
 
 def current_experiment():

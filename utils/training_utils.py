@@ -2,18 +2,19 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 
-from models.classifier import MnistConvClassifier
+from models import MnistConvClassifier
 from utils import utils
 from functools import partial
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', metavar="D", choices=['adult', 'cmnist'], default='cmnist')
+    parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
     parser.add_argument('--data_pcnt', type=float, metavar='P', default=1.0)
 
     # Colored MNIST settings
@@ -36,8 +37,8 @@ def parse_arguments():
     parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
-    parser.add_argument('--glow', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--batch_norm', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--batch_norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn_lag', type=float, default=0)
 
     parser.add_argument('--early_stopping', type=int, default=30)
@@ -68,16 +69,16 @@ def parse_arguments():
                         choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     # classifier parameters (for computing fairness metrics)
-    parser.add_argument('--clf-epochs', type=int, metavar='N', default=100)
+    parser.add_argument('--clf-epochs', type=int, metavar='N', default=20)
     parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
                         help='whether to use the comet.ml logging')
-    parser.add_argument('--patience', type=int, default=10, help='Number of iterations without '
-                                                                 'improvement in val loss before'
-                                                                 'reducing learning rate.')
+    parser.add_argument('--patience', type=int, default=10,
+                        help='Number of iterations without improvement in val loss before'
+                             'reducing learning rate.')
 
     return parser.parse_args()
 

@@ -21,32 +21,12 @@ from train import current_experiment, main as training_loop
 from utils.dataloading import load_dataset
 from torch.utils.data.dataset import random_split
 
-
-# class ModelWrapper(BasicTPA):
-#     def __init__(self):
-#         super().__init__("fair_invertible", str(Path(__file__).resolve().parent / "train.py"))
-#         self.additional_args = sys.argv[1:]
-
-#     def _script_interface(self, train_paths: PathTuple, test_paths: PathTuple, for_train_path,
-#                           for_test_path):
-#         flags_list = self._path_tuple_to_cmd_args([train_paths, test_paths],
-#                                                   ['--train_', '--test_'])
-
-#         # paths to output files
-#         flags_list += ['--train_new', str(for_train_path), '--test_new', str(for_test_path)]
-#         flags_list += self.additional_args
-#         return flags_list
 from utils.training_utils import parse_arguments, run_conv_classifier
 
 
 def main():
-    # model = ModelWrapper()
-
     args = parse_arguments()
 
-    # dataset = Adult()
-    # train, test = train_test_split(load_data(dataset))
-    #
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
     train_len = int(args.data_pcnt * len(whole_train_data))
     train_data, _ = random_split(whole_train_data, lengths=(train_len, len(whole_train_data) - train_len))
@@ -151,29 +131,29 @@ def main():
     _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
     # ===========================================================================
-    print("All z:")
+    # print("All z:")
 
-    if args.dataset == 'cmnist':
-        train_loader = DataLoader(train_all, shuffle=True, batch_size=args.batch_size)
-        for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_reconstruction_all.png', nrow=8)
-            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
-            experiment.log_image(shw, "colorized_reconstruction_all")
-            break
+    # if args.dataset == 'cmnist':
+    #     train_loader = DataLoader(train_all, shuffle=True, batch_size=args.batch_size)
+    #     # for data, color, labels in train_loader:
+    #     #     save_image(data[:64], './colorized_reconstruction_all.png', nrow=8)
+    #     #     shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
+    #     #     experiment.log_image(shw, "colorized_reconstruction_all")
+    #     #     break
 
-        print("\tTraining performance")
-        clf = run_conv_classifier(args, train_all, palette=whole_train_data.palette, pred_s=False, use_s=False)
-        preds_z, test_z = clf(train_all)
-        _compute_metrics(preds_z, test_z, "Z")
+    #     print("\tTraining performance")
+    #     clf = run_conv_classifier(args, train_all, palette=whole_train_data.palette, pred_s=False, use_s=False)
+    #     preds_z, test_z = clf(train_all)
+    #     _compute_metrics(preds_z, test_z, "Z")
 
-        preds_z, test_z = clf(test_all)
-    else:
-        train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
-        test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
-        preds_z = model.run(train_z, test_z)
+    #     preds_z, test_z = clf(test_all)
+    # else:
+    #     train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
+    #     test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
+    #     preds_z = model.run(train_z, test_z)
 
-    print("\tTest performance")
-    _compute_metrics(preds_z, test_z, "Z")
+    # print("\tTest performance")
+    # _compute_metrics(preds_z, test_z, "Z")
 
     # ===========================================================================
     print("fair:")
