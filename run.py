@@ -7,6 +7,7 @@ import numpy as np
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
+import torchvision
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 from ethicml.algorithms.utils import DataTuple  # , PathTuple
@@ -102,6 +103,8 @@ def main():
         for data, color, labels in train_loader:
             data = data.mean(dim=1, keepdim=True)
             save_image(data[:64], './colorized_orginal_x_no_s.png', nrow=8)
+            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
+            experiment.log_image(shw, "colorized_orginal_x_no_s")
             break
 
         print("\tTraining performance")
@@ -125,6 +128,8 @@ def main():
         train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
         for data, color, labels in train_loader:
             save_image(data[:64], './colorized_orginal_x_with_s.png', nrow=8)
+            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1,2,0)
+            experiment.log_image(shw, "colorized_orginal_x_with_s")
             break
 
         print("\tTraining performance")
@@ -151,7 +156,9 @@ def main():
     if args.dataset == 'cmnist':
         train_loader = DataLoader(train_all, shuffle=True, batch_size=args.batch_size)
         for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_reconstriction_all.png', nrow=8)
+            save_image(data[:64], './colorized_reconstruction_all.png', nrow=8)
+            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
+            experiment.log_image(shw, "colorized_reconstruction_all")
             break
 
         print("\tTraining performance")
@@ -174,7 +181,9 @@ def main():
     if args.dataset == 'cmnist':
         train_loader = DataLoader(train_zx, shuffle=True, batch_size=args.batch_size)
         for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_reconstriction_zx.png', nrow=8)
+            save_image(data[:64], './colorized_reconstruction_zx.png', nrow=8)
+            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
+            experiment.log_image(shw, "colorized_reconstruction_zx")
             break
 
         print("\tTraining performance")
@@ -196,7 +205,9 @@ def main():
     if args.dataset == 'cmnist':
         train_loader = DataLoader(train_zs, shuffle=True, batch_size=args.batch_size)
         for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_reconstriction_zs.png', nrow=8)
+            save_image(data[:64], './colorized_reconstruction_zs.png', nrow=8)
+            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
+            experiment.log_image(shw, "colorized_reconstruction_zs")
             break
 
         print("\tTraining performance")
