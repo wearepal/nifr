@@ -12,6 +12,29 @@ def flatten_sum(tensor):
     return tensor.sum(dim=tuple(range(1, tensor.dim() + 1)))
 
 
+def subslice(x):
+    return torch.cat([x[..., 0::2, 0::2],
+                      x[..., 0::2, 1::2],
+                      x[..., 1::2, 0::2],
+                      x[..., 1::2, 1::2]])
+
+
+def unsubslice(x):
+
+    c, w, h = x.shape[-3:]
+    c //= 4
+    ret_shape = (x.size(0), c, w * 2, h * 2)
+    ret = x.new_empty(ret_shape)
+    x = x.view(-1, 4, c, w, h)
+
+    ret[..., 0::2, 0::2] = x[:, 0]
+    ret[..., 0::2, 1::2] = x[:, 1]
+    ret[..., 1::2, 0::2] = x[:, 2]
+    ret[..., 1::2, 1::2] = x[:, 3]
+
+    return ret
+
+
 def batch_flatten(x):
     return x.view(x.size(0), -1)
 
