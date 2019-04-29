@@ -8,6 +8,7 @@ from torch.utils.data.dataset import random_split
 
 from models.classifier import MnistConvClassifier
 from utils import utils
+from functools import partial
 
 
 def parse_arguments():
@@ -81,7 +82,13 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
+def find(value, value_list):
+    value = torch.Tensor(value)
+    result_list = [[i for i, val in enumerate(torch.Tensor(value_list)) if (s_i == val).all()] for s_i in value]
+    return torch.tensor(result_list).flatten()
+
+
+def run_conv_classifier(args, data, palette, pred_s, use_s):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -92,14 +99,13 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
     # ==== construct dataset ====
     args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
 
-    train_len = int((1 - args.clf_val_ratio) * len(train_data))
-    val_length = int(len(train_data) - train_len)
+    train_len = int((1 - args.clf_val_ratio) * len(data))
+    val_length = int(len(data) - train_len)
 
     lengths = [train_len, val_length]
-    train_data, val_data = random_split(train_data, lengths=lengths)
+    train_data, val_data = random_split(data, lengths=lengths)
 
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    test_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
     val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
     in_dim = 3 if use_s else 1
@@ -119,8 +125,12 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
         model.train()
         for x, s, y in train_loader:
 
-            target = s if pred_s else y
-
+            if pred_s:
+                # TODO: do this in EthicML instead
+                target = find(s, palette)
+                # target = s
+            else:
+                target = y
             x = x.to(args.device)
             target = target.to(args.device)
 
@@ -140,7 +150,12 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
             val_loss = 0
             for x, s, y in val_loader:
 
-                target = s if pred_s else y
+                if pred_s:
+                    # TODO: do this in EthicML instead
+                    target = find(s, palette)
+                    # target = s
+                else:
+                    target = y
 
                 x = x.to(args.device)
                 target = target.to(args.device)
@@ -161,7 +176,12 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
         for x, s, y in train_loader:
 
-            target = s if pred_s else y
+            if pred_s:
+                # TODO: do this in EthicML instead
+                target = find(s, palette)
+                # target = s
+            else:
+                target = y
 
             x = x.to(args.device)
             target = target.to(args.device)
@@ -176,6 +196,14 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
             loss.backward()
 
+    return partial(evaluate, model=model, palette=palette, batch_size=args.test_batch_size,
+                   device=args.device, pred_s=pred_s, use_s=use_s)
+
+
+def evaluate(test_data, model, palette, batch_size, device, pred_s=False, use_s=True):
+
+    test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
+
     with torch.no_grad():
         model.eval()
 
@@ -186,13 +214,13 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
 
             if pred_s:
                 # TODO: do this in EthicML instead
-                target = test_data.palette.index(s)
+                target = find(s, palette)
                 # target = s
             else:
                 target = y
 
-            x = x.to(args.device)
-            target = target.to(args.device)
+            x = x.to(device)
+            target = target.to(device)
 
             if not use_s:
                 x = x.mean(dim=1, keepdim=True)
@@ -200,7 +228,6 @@ def run_conv_classifier(args, train_data, test_data, pred_s, use_s):
             preds = model(x).argmax(dim=1)
             all_preds.extend(preds.detach().cpu().numpy())
             all_targets.extend(target.detach().cpu().numpy())
-
     return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
 
 
