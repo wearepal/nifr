@@ -348,7 +348,7 @@ def encode_dataset(dataloader, model, cvt):
 
             if ARGS.dataset == 'cmnist':
                 zx = z.clone()
-                zx[:, ARGS.zx_dim:].zero_()
+                zx[:, :-ARGS.zy_dim].zero_()
                 xx, _ = model(zx, zero, reverse=True)
 
                 zs = z.clone()
