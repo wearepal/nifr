@@ -15,12 +15,4 @@ def glow(args, input_dim):
     chain += [layers.SqueezeLayer(2)]
     # chain += [layers.InvFlatten()]
     # chain += [layers.UnsqueezeLayer(upscale_factor=2)]
-
-    if args.base_density == 'bernoulli' or args.base_density_zs == 'bernoulli':
-        start_dim = 0 if args.base_density == 'bernoulli' else -args.zs_dim
-        if args.base_density_zs == 'bernoulli' or not args.base_density_zs:
-            end_dim = None
-        else:
-            end_dim = -args.zs_dim
-        chain.append(layers.SigmoidTransform(start_dim=start_dim, end_dim=end_dim))
     return layers.SequentialFlow(chain)
