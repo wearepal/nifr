@@ -60,12 +60,12 @@ def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
     if not ARGS.base_density_zs:
         log_pz, z = compute_log_pz(z, ARGS.base_density)
         zx = z[:, :ARGS.zx_dim]
-        zs = z[:,  ARGS.zx_dim: (ARGS.zx_dim + ARGS.zs_dim)]
+        zs = z[:,  ARGS.zx_dim:-ARGS.zy_dim]
         zy = z[:, -ARGS.zy_dim:]
     else:
         # split first and then pass separately through the compute_log_pz function
         zx = z[:, :ARGS.zx_dim]
-        zs = z[:,  ARGS.zx_dim: (ARGS.zx_dim + ARGS.zs_dim)]
+        zs = z[:,  ARGS.zx_dim:-ARGS.zy_dim]
         zy = z[:, -ARGS.zy_dim:]
         log_pzx, zx = compute_log_pz(zx, ARGS.base_density)
         log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
