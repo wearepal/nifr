@@ -76,16 +76,16 @@ def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
     if ARGS.ind_method == 'disc':
         probs = disc_zx(
             layers.grad_reverse(zx, lambda_=ARGS.independence_weight))
-        indie_loss = loss_fn(probs, s)
+        indie_loss = loss_fn(probs, s, reduction='mean')
     else:
         indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
-    pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='sum')
+    pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='mean')
     # Enforce independence between the fair, zx, and unfair, zs, partitions
     if ARGS.ind_method2t == 'hsic':
         indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
 
-    pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s)
+    pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s, reduction='mean')
 
     log_px = (log_pz - delta_logp).mean()
     loss = -log_px + indie_loss + pred_s_loss + pred_y_loss
