@@ -167,9 +167,9 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
         end = time.time()
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} "
-                "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss ({:.6f}) |", epoch,
+                "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss {:.6f} ({:.6f}|", epoch,
                 time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
-                pred_s_loss_meter.avg, pred_y_loss_meter.avg , loss_meter.avg)
+                pred_s_loss_meter.avg, pred_y_loss_meter.avg, loss_meter.avg)
 
 
 def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
