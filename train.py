@@ -92,7 +92,7 @@ def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
 
     if return_z:
         return loss, z
-    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
+    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss, pred_y_loss
 
 
 def compute_log_pz(z, base_density):
@@ -131,6 +131,7 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
     log_p_x_meter = utils.AverageMeter()
     indie_loss_meter = utils.AverageMeter()
     pred_s_loss_meter = utils.AverageMeter()
+    pred_y_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
     end = time.time()
 
@@ -143,12 +144,13 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy,
-                                                              return_z=False)
+        loss, log_p_x, indie_loss, pred_s_loss, pred_y_loss = compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy,
+                                                                           return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         indie_loss_meter.update(indie_loss.item())
         pred_s_loss_meter.update(pred_s_loss.item())
+        pred_y_loss_meter.update(pred_y_loss.item())
 
         loss.backward()
         optimizer.step()
@@ -161,12 +163,13 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
         SUMMARY.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
         SUMMARY.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         SUMMARY.log_metric("Loss predict_s_loss", pred_s_loss.item(), step=itr)
+        SUMMARY.log_metric("Loss predict_y_loss", pred_y_loss.item(), step=itr)
         end = time.time()
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} "
-                "indie_loss: {:.6f} pred_s_loss: {:.6f} ({:.6f}) |", epoch,
+                "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss ({:.6f}) |", epoch,
                 time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
-                pred_s_loss_meter.avg, loss_meter.avg)
+                pred_s_loss_meter.avg, pred_y_loss_meter.avg , loss_meter.avg)
 
 
 def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
