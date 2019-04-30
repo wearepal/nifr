@@ -15,4 +15,8 @@ def glow(args, input_dim):
     chain += [layers.SqueezeLayer(2)]
     # chain += [layers.InvFlatten()]
     # chain += [layers.UnsqueezeLayer(upscale_factor=2)]
+
+    # the layers have to be mixed again:
+    chain += [layers.Invertible1x1Conv(input_dim * 2 * 2)]
+
     return layers.SequentialFlow(chain)
