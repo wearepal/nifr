@@ -3,24 +3,22 @@
 # from pathlib import Path
 
 import pandas as pd
-import numpy as np
-import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
+import comet_ml  # this import is needed because comet_ml has to be imported before sklearn/torch
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 import torchvision
+from torchvision.utils import save_image
+from torch.utils.data.dataset import random_split
+from torch.utils.data import DataLoader
+
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
-from ethicml.metrics import Accuracy, ProbPos, Theil
-from torch.utils.data import DataLoader
-from torchvision.utils import save_image
+from ethicml.metrics import Accuracy  # , ProbPos, Theil
 
-from data.preprocess_cmnist import make_cmnist_dataset
 from train import current_experiment, main as training_loop
 from utils.dataloading import load_dataset
-from torch.utils.data.dataset import random_split
-
 from utils.training_utils import parse_arguments, run_conv_classifier
 
 
@@ -29,12 +27,14 @@ def main():
 
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
     train_len = int(args.data_pcnt * len(whole_train_data))
-    train_data, _ = random_split(whole_train_data, lengths=(train_len, len(whole_train_data) - train_len))
+    train_data, _ = random_split(whole_train_data,
+                                 lengths=(train_len, len(whole_train_data) - train_len))
     test_len = int(args.data_pcnt * len(whole_test_data))
-    test_data, _ = random_split(whole_test_data, lengths=(test_len, len(whole_test_data) - test_len))
+    test_data, _ = random_split(whole_test_data,
+                                lengths=(test_len, len(whole_test_data) - test_len))
 
-    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) \
-        = training_loop(args, train_data, test_data)
+    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(
+        args, train_data, test_data)
     experiment = current_experiment()  # works only after training_loop has been called
     experiment.log_dataset_info(name=args.dataset)
 
@@ -42,7 +42,7 @@ def main():
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
-        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])  #ProbPos(),
+        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
         # experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
         # experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
@@ -54,6 +54,18 @@ def main():
         for key, value in metrics.items():
             print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
+
+    def _log_images(train_data, test_data, name, nsamples=64, nrows=8, monochrome=False):
+        """Make a grid of the given images, save them in a file and log them with Comet"""
+        nonlocal experiment
+        for data, prefix in [(train_data, "train_"), (test_data, "test_")]:
+            dataloader = DataLoader(data, shuffle=False, batch_size=nsamples)
+            images, _, _ = next(iter(dataloader))
+            if monochrome:
+                images = images.mean(dim=1, keepdim=True)
+            save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
+            shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
+            experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), prefix + name)
 
     # if args.dataset == 'cmnist':
     #     # mnist_shape = (-1, 3, 28, 28)
@@ -79,16 +91,11 @@ def main():
     print("Original x:")
 
     if args.dataset == 'cmnist':
-        train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-        for data, color, labels in train_loader:
-            data = data.mean(dim=1, keepdim=True)
-            save_image(data[:64], './colorized_orginal_x_no_s.png', nrow=8)
-            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
-            experiment.log_image(shw, "colorized_orginal_x_no_s")
-            break
+        _log_images(train_data, test_data, "colorized_orginal_x_no_s", monochrome=True)
 
         print("\tTraining performance")
-        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
+                                  use_s=False)
         preds_x, test_x = clf(train_data)
         _compute_metrics(preds_x, test_x, "Original - Train")
 
@@ -105,15 +112,11 @@ def main():
     print("Original x & s:")
 
     if args.dataset == 'cmnist':
-        train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-        for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_orginal_x_with_s.png', nrow=8)
-            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1,2,0)
-            experiment.log_image(shw, "colorized_orginal_x_with_s")
-            break
+        _log_images(train_data, test_data, "colorized_orginal_x_with_s")
 
         print("\tTraining performance")
-        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False, use_s=True)
+        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
+                                  use_s=True)
         preds_x_and_s, test_x_and_s = clf(train_data)
         _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
@@ -142,7 +145,8 @@ def main():
     #     #     break
 
     #     print("\tTraining performance")
-    #     clf = run_conv_classifier(args, train_all, palette=whole_train_data.palette, pred_s=False, use_s=False)
+    #     clf = run_conv_classifier(args, train_all, palette=whole_train_data.palette, pred_s=False,
+    #                               use_s=False)
     #     preds_z, test_z = clf(train_all)
     #     _compute_metrics(preds_z, test_z, "Z")
 
@@ -159,15 +163,11 @@ def main():
     print("fair:")
 
     if args.dataset == 'cmnist':
-        train_loader = DataLoader(train_zx, shuffle=True, batch_size=args.batch_size)
-        for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_reconstruction_zx.png', nrow=8)
-            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
-            experiment.log_image(shw, "colorized_reconstruction_zx")
-            break
+        _log_images(train_zx, test_zx, "colorized_reconstruction_zx")
 
         print("\tTraining performance")
-        clf = run_conv_classifier(args, train_zx, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        clf = run_conv_classifier(args, train_zx, palette=whole_train_data.palette, pred_s=False,
+                                  use_s=False)
         preds_fair, test_fair = clf(train_zx)
         _compute_metrics(preds_fair, test_fair, "Fair")
 
@@ -183,15 +183,11 @@ def main():
     # ===========================================================================
     print("unfair:")
     if args.dataset == 'cmnist':
-        train_loader = DataLoader(train_zs, shuffle=True, batch_size=args.batch_size)
-        for data, color, labels in train_loader:
-            save_image(data[:64], './colorized_reconstruction_zs.png', nrow=8)
-            shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
-            experiment.log_image(shw, "colorized_reconstruction_zs")
-            break
+        _log_images(train_zs, test_zs, "colorized_reconstruction_zs")
 
         print("\tTraining performance")
-        clf = run_conv_classifier(args, train_zs, palette=whole_train_data.palette, pred_s=False, use_s=False)
+        clf = run_conv_classifier(args, train_zs, palette=whole_train_data.palette, pred_s=False,
+                                  use_s=False)
         preds_unfair, test_unfair = clf(train_zs)
         _compute_metrics(preds_unfair, test_unfair, "Unfair")
 
@@ -208,7 +204,8 @@ def main():
     print("predict s from fair representation:")
 
     if args.dataset == 'cmnist':
-        clf = run_conv_classifier(args, train_zx, palette=whole_train_data.palette, pred_s=True, use_s=False)
+        clf = run_conv_classifier(args, train_zx, palette=whole_train_data.palette, pred_s=True,
+                                  use_s=False)
         preds_s_fair, test_fair_predict_s = clf(test_zx)
     else:
         train_fair_predict_s = DataTuple(x=train_zx, s=train_tuple.s, y=train_tuple.s)
@@ -223,7 +220,8 @@ def main():
     print("predict s from unfair representation:")
 
     if args.dataset == 'cmnist':
-        clf = run_conv_classifier(args, train_zs, palette=whole_train_data.palette, pred_s=True, use_s=False)
+        clf = run_conv_classifier(args, train_zs, palette=whole_train_data.palette, pred_s=True,
+                                  use_s=False)
         preds_s_unfair, test_unfair_predict_s = clf(test_zs)
     else:
         train_unfair_predict_s = DataTuple(x=train_zs, s=train_tuple.s, y=train_tuple.s)

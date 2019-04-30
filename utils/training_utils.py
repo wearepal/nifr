@@ -84,8 +84,7 @@ def parse_arguments():
 
 
 def find(value, value_list):
-    value = torch.Tensor(value)
-    result_list = [[i for i, val in enumerate(torch.Tensor(value_list)) if (s_i == val).all()] for s_i in value]
+    result_list = [[i for i, val in enumerate(value.new_tensor(value_list)) if (s_i == val).all()] for s_i in value]
     return torch.tensor(result_list).flatten()
 
 
