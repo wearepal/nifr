@@ -247,6 +247,7 @@ def main(args, train_data, test_data):
         disc_zy = models.MnistConvNet(ARGS.zy_dim, y_dim, output_activation=nn.LogSoftmax(dim=1),
                                       hidden_sizes=hidden_sizes)
     disc_zs.to(ARGS.device)
+    disc_zy.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
 
