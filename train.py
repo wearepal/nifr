@@ -179,7 +179,7 @@ def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in dataloader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zx, disc_zs, disc_zy)
+            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zx, disc_zs, disc_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     return loss_meter.avg
