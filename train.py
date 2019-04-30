@@ -174,9 +174,9 @@ def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
     # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
-        for x_val, s_val, _ in dataloader:
-            x_val, s_val = cvt(x_val, s_val)
-            loss, _, _, _ = compute_loss(x_val, s_val, model, disc_zx, disc_zs, disc_zy)
+        for x_val, s_val, y_val in dataloader:
+            x_val, s_val, y_val = cvt(x_val, s_val, y_val)
+            loss, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zx, disc_zs, disc_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     return loss_meter.avg
