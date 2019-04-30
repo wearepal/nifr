@@ -141,7 +141,7 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
             disc_optimizer.zero_grad()
 
         # if ARGS.dataset == 'adult':
-        x, s = cvt(x, s)
+        x, s, y = cvt(x, s, y)
 
         loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy,
                                                               return_z=False)
@@ -175,8 +175,7 @@ def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, _ in dataloader:
-            x_val = cvt(x_val)
-            s_val = cvt(s_val)
+            x_val, s_val = cvt(x_val, s_val)
             loss, _, _, _ = compute_loss(x_val, s_val, model, disc_zx, disc_zs, disc_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
