@@ -1,48 +1,6 @@
 import torch.nn as nn
 
 from layers.coupling import InvertibleLayer
-from utils.utils import unsubslice, subslice
-
-
-class SubsliceLayer(InvertibleLayer):
-
-    def __init__(self):
-        super(SubsliceLayer, self).__init__()
-
-    def _forward(self, x, logpx):
-        subslice_x = subslice(x)
-        if logpx is None:
-            return subslice_x
-        else:
-            return subslice_x, logpx
-
-    def _reverse(self, x, logpx):
-        unsubslice_x = unsubslice(x)
-        if logpx is None:
-            return unsubslice_x
-        else:
-            return unsubslice, logpx
-
-
-class UnsubsliceLayer(InvertibleLayer):
-
-    def __init__(self):
-        super(UnsubsliceLayer, self).__init__()
-
-    def _forward(self, x, logpx):
-        subslice_x = unsubslice(x)
-        if logpx is None:
-            return subslice_x
-        else:
-            return subslice_x, logpx
-
-    def _reverse(self, x, logpx):
-        unsubslice_x = subslice(x)
-        if logpx is None:
-            return unsubslice_x
-        else:
-            return unsubslice, logpx
-
 
 
 class SqueezeLayer(nn.Module):

@@ -4,11 +4,11 @@ import torch.nn.functional as F
 import numpy as np
 
 
-# Invertible 1x1 convolution
 class Invertible1x1Conv(nn.Conv2d):
+    """Invertible 1x1 convolution"""
     def __init__(self, num_channels):
         self.num_channels = num_channels
-        nn.Conv2d.__init__(self, num_channels, num_channels, 1, bias=False)
+        super().__init__(num_channels, num_channels, 1, bias=False)
 
     def reset_parameters(self):
         # initialization done with rotation matrix
@@ -21,20 +21,19 @@ class Invertible1x1Conv(nn.Conv2d):
 
         if not reverse:
             return self._forward(x, logpx)
-
         else:
             return self._reverse(x, logpx)
 
     def _forward(self, x, logpx):
-        dlogdet = torch.logdet(self.weight.squeeze()).abs() * x.size(-2) * x.size(-1)
+        dlogdet = self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)
         logpx -= dlogdet
-        output = F.conv2d(x, self.weight, self.bias, self.stride, self.padding,
-                          self.dilation, self.groups)
+        output = F.conv2d(x, self.weight, self.bias, self.stride, self.padding, self.dilation,
+                          self.groups)
 
         return output, logpx
 
     def _reverse(self, x, logpx):
-        dlogdet = torch.logdet(self.weight.squeeze()).abs() * x.size(-2) * x.size(-1)
+        dlogdet = self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)
         logpx += dlogdet
         weight_inv = torch.inverse(self.weight.squeeze()).unsqueeze(-1).unsqueeze(-1)
         output = F.conv2d(x, weight_inv, self.bias, self.stride, self.padding,
