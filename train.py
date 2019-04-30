@@ -80,7 +80,7 @@ def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
     else:
         indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
-    pred_y_loss = F.nll_loss(disc_zy(zy), y, reduction='sum')
+    pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='sum')
     # Enforce independence between the fair, zx, and unfair, zs, partitions
     if ARGS.ind_method2t == 'hsic':
         indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
