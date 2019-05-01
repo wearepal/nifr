@@ -6,6 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
+import torchvision
 
 from models import MnistConvClassifier
 from functools import partial
@@ -266,3 +267,14 @@ def fetch_model(args, x_dim):
         raise NotImplementedError("Only works for cmnist and adult - How have you even got"
                                   "hererere?????")
     return model
+
+
+def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=False, train=True):
+    """Make a grid of the given images, save them in a file and log them with Comet"""
+    prefix = "train_" if train else "test_"
+    images = image_batch[:nsamples]
+    if monochrome:
+        images = images.mean(dim=1, keepdim=True)
+    # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
+    shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
+    experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), prefix + name)
