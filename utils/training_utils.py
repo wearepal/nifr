@@ -2,6 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
+
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
@@ -13,7 +14,7 @@ from functools import partial
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
-    parser.add_argument('--data_pcnt', type=float, metavar='P', default=0.01)
+    parser.add_argument('--data_pcnt', type=float, metavar='P', default=1.0)
 
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)
@@ -32,15 +33,15 @@ def parse_arguments():
     parser.add_argument('--train_new', metavar="PATH")
     parser.add_argument('--test_new', metavar="PATH")
 
-    parser.add_argument('--depth', type=int, default=1)
-    parser.add_argument('--dims', type=str, default="1-1")
+    parser.add_argument('--depth', type=int, default=4)
+    parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch_norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn_lag', type=float, default=0)
 
     parser.add_argument('--early_stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=2)
+    parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--test_batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
