@@ -88,50 +88,52 @@ def main():
     experiment.log_other("evaluation model", model.name)
 
     # ===========================================================================
-    print("Original x:")
+    this_is_dumb = False
+    if this_is_dumb:
+        print("Original x:")
 
-    if args.dataset == 'cmnist':
-        _log_images(train_data, test_data, "colorized_orginal_x_no_s", monochrome=True)
+        if args.dataset == 'cmnist':
+            _log_images(train_data, test_data, "colorized_orginal_x_no_s", monochrome=True)
 
-        print("\tTraining performance")
-        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
-                                  use_s=False)
-        preds_x, test_x = clf(train_data)
-        _compute_metrics(preds_x, test_x, "Original - Train")
+            print("\tTraining performance")
+            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
+                                      use_s=False)
+            preds_x, test_x = clf(train_data)
+            _compute_metrics(preds_x, test_x, "Original - Train")
 
-        preds_x, test_x = clf(test_data)
-    else:
-        train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
-        test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
-        preds_x = model.run(train_x, test_x)
+            preds_x, test_x = clf(test_data)
+        else:
+            train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
+            test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
+            preds_x = model.run(train_x, test_x)
 
-    print("\tTest performance")
-    _compute_metrics(preds_x, test_x, "Original")
+        print("\tTest performance")
+        _compute_metrics(preds_x, test_x, "Original")
 
-    # ===========================================================================
-    print("Original x & s:")
+        # ===========================================================================
+        print("Original x & s:")
 
-    if args.dataset == 'cmnist':
-        _log_images(train_data, test_data, "colorized_orginal_x_with_s")
+        if args.dataset == 'cmnist':
+            _log_images(train_data, test_data, "colorized_orginal_x_with_s")
 
-        print("\tTraining performance")
-        clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
-                                  use_s=True)
-        preds_x_and_s, test_x_and_s = clf(train_data)
+            print("\tTraining performance")
+            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
+                                      use_s=True)
+            preds_x_and_s, test_x_and_s = clf(train_data)
+            _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
+
+            preds_x_and_s, test_x_and_s = clf(test_data)
+        else:
+            train_x_and_s = DataTuple(train_x_with_s,
+                                      s=train_tuple.s,
+                                      y=train_tuple.y)
+            test_x_and_s = DataTuple(x=test_x_with_s,
+                                     s=test_tuple.s,
+                                     y=test_tuple.y)
+            preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
+
+        print("\tTest performance")
         _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
-
-        preds_x_and_s, test_x_and_s = clf(test_data)
-    else:
-        train_x_and_s = DataTuple(train_x_with_s,
-                                  s=train_tuple.s,
-                                  y=train_tuple.y)
-        test_x_and_s = DataTuple(x=test_x_with_s,
-                                 s=test_tuple.s,
-                                 y=test_tuple.y)
-        preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
-
-    print("\tTest performance")
-    _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
     # ===========================================================================
     # print("All z:")

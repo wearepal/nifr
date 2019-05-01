@@ -1,5 +1,6 @@
 """Main training file"""
 import argparse
+from itertools import chain
 import time
 from pathlib import Path
 
@@ -44,7 +45,7 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
+def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
 
     zero = x.new_zeros(x.size(0), 1)
 
@@ -58,12 +59,14 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
 
     if not ARGS.base_density_zs:
         log_pz, z = compute_log_pz(z, ARGS.base_density)
-        zx = z[:, :-ARGS.zs_dim]
-        zs = z[:, -ARGS.zs_dim:]
+        zx = z[:, :ARGS.zx_dim]
+        zs = z[:,  ARGS.zx_dim:-ARGS.zy_dim]
+        zy = z[:, -ARGS.zy_dim:]
     else:
         # split first and then pass separately through the compute_log_pz function
-        zx = z[:, :-ARGS.zs_dim]
-        zs = z[:, -ARGS.zs_dim:]
+        zx = z[:, :ARGS.zx_dim]
+        zs = z[:,  ARGS.zx_dim:-ARGS.zy_dim]
+        zy = z[:, -ARGS.zy_dim:]
         log_pzx, zx = compute_log_pz(zx, ARGS.base_density)
         log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
         log_pz = log_pzx + log_pzs
@@ -73,22 +76,23 @@ def compute_loss(x, s, model, disc_zx, disc_zs, *, return_z=False):
     if ARGS.ind_method == 'disc':
         probs = disc_zx(
             layers.grad_reverse(zx, lambda_=ARGS.independence_weight))
-        indie_loss = loss_fn(probs, s)
+        indie_loss = loss_fn(probs, s, reduction='mean')
     else:
         indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
+    pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='mean')
     # Enforce independence between the fair, zx, and unfair, zs, partitions
     if ARGS.ind_method2t == 'hsic':
         indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
 
-    pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s)
+    pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s, reduction='mean')
 
     log_px = (log_pz - delta_logp).mean()
-    loss = -log_px + indie_loss + pred_s_loss
+    loss = -log_px + indie_loss + pred_s_loss + pred_y_loss
 
     if return_z:
         return loss, z
-    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss
+    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss, pred_y_loss
 
 
 def compute_log_pz(z, base_density):
@@ -120,13 +124,14 @@ def restore_model(model, filename):
     return model
 
 
-def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch):
+def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloader, epoch):
     model.train()
 
     loss_meter = utils.AverageMeter()
     log_p_x_meter = utils.AverageMeter()
     indie_loss_meter = utils.AverageMeter()
     pred_s_loss_meter = utils.AverageMeter()
+    pred_y_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
     end = time.time()
 
@@ -137,14 +142,15 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
             disc_optimizer.zero_grad()
 
         # if ARGS.dataset == 'adult':
-        x, s = cvt(x, s)
+        x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, indie_loss, pred_s_loss = compute_loss(x, s, model, disc_zx, disc_zs,
-                                                              return_z=False)
+        loss, log_p_x, indie_loss, pred_s_loss, pred_y_loss = compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy,
+                                                                           return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         indie_loss_meter.update(indie_loss.item())
         pred_s_loss_meter.update(pred_s_loss.item())
+        pred_y_loss_meter.update(pred_y_loss.item())
 
         loss.backward()
         optimizer.step()
@@ -157,23 +163,23 @@ def train(model, disc_zx, disc_zs, optimizer, disc_optimizer, dataloader, epoch)
         SUMMARY.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
         SUMMARY.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
         SUMMARY.log_metric("Loss predict_s_loss", pred_s_loss.item(), step=itr)
+        SUMMARY.log_metric("Loss predict_y_loss", pred_y_loss.item(), step=itr)
         end = time.time()
 
-    LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} "
-                "indie_loss: {:.6f} pred_s_loss: {:.6f} ({:.6f}) |", epoch,
+    LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} |"
+                "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss {:.6f} ({:.6f})", epoch,
                 time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
-                pred_s_loss_meter.avg, loss_meter.avg)
+                pred_s_loss_meter.avg, pred_y_loss_meter.avg, loss_meter.avg)
 
 
-def validate(model, disc_zx, disc_zs, dataloader):
+def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
-        for x_val, s_val, _ in dataloader:
-            x_val = cvt(x_val)
-            s_val = cvt(s_val)
-            loss, _, _, _ = compute_loss(x_val, s_val, model, disc_zx, disc_zs)
+        for x_val, s_val, y_val in dataloader:
+            x_val, s_val, y_val = cvt(x_val, s_val, y_val)
+            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zx, disc_zs, disc_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     return loss_meter.avg
@@ -217,22 +223,33 @@ def main(args, train_data, test_data):
     x_dim, z_dim_flat = get_data_dim(train_loader)
 
     if args.dataset == 'adult':
-        ARGS.zs_dim = int(ARGS.zs_frac * z_dim_flat)
+        ARGS.zs_dim = round(ARGS.zs_frac * z_dim_flat)
+        ARGS.zy_dim = round(ARGS.zy_frac * z_dim_flat)
         s_dim = 1
         x_dim += s_dim
+        y_dim = 1
         output_activation = None
         hidden_sizes = [40, 40]
         disc_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
+        hidden_sizes = [40, 40]
+        disc_zy = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [y_dim], activation=nn.ReLU,
+                             output_activation=nn.Sigmoid)
     else:
         z_channels = x_dim * 16
-        ARGS.zs_dim = int(ARGS.zs_frac * z_channels)
+        ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
+        ARGS.zy_dim = round(ARGS.zy_frac * z_channels)
         s_dim = 3
+        y_dim = 10
         output_activation = nn.Sigmoid()
         hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
         disc_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
                                       hidden_sizes=hidden_sizes)
+        hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
+        disc_zy = models.MnistConvNet(ARGS.zy_dim, y_dim, output_activation=nn.LogSoftmax(dim=1),
+                                      hidden_sizes=hidden_sizes)
     disc_zs.to(ARGS.device)
+    disc_zy.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
 
@@ -241,9 +258,9 @@ def main(args, train_data, test_data):
             disc_zx = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
                                  output_activation=output_activation)
         else:
-            zx_dim = z_channels - ARGS.zs_dim
-            hidden_sizes = [zx_dim * 8, zx_dim * 8]
-            disc_zx = models.MnistConvNet(zx_dim, s_dim, output_activation=output_activation,
+            ARGS.zx_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
+            hidden_sizes = [ARGS.zx_dim * 8, ARGS.zx_dim * 8]
+            disc_zx = models.MnistConvNet(ARGS.zx_dim, s_dim, output_activation=output_activation,
                                           hidden_sizes=hidden_sizes)
         disc_zx.to(ARGS.device)
     else:
@@ -258,7 +275,7 @@ def main(args, train_data, test_data):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_optimizer = Adam(list(disc_zx.parameters()) + list(disc_zs.parameters()),
+        disc_optimizer = Adam(chain(disc_zx.parameters(), disc_zs.parameters(), disc_zy.parameters()),
                               lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
@@ -272,11 +289,11 @@ def main(args, train_data, test_data):
                 break
 
             with SUMMARY.train():
-                train(model, disc_zx, disc_zs, optimizer, disc_optimizer, train_loader, epoch)
+                train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, train_loader, epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
-                    val_loss = validate(model, disc_zx, disc_zs, val_loader)
+                    val_loss = validate(model, disc_zx, disc_zs, disc_zy, val_loader)
                     SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
 
                     if val_loss < best_loss:
@@ -331,11 +348,12 @@ def encode_dataset(dataloader, model, cvt):
 
             if ARGS.dataset == 'cmnist':
                 zx = z.clone()
-                zx[:, :-ARGS.zs_dim].zero_()
+                zx[:, :-ARGS.zy_dim].zero_()
                 xx, _ = model(zx, zero, reverse=True)
 
                 zs = z.clone()
-                zs[:, -ARGS.zs_dim:].zero_()
+                zs[:, :ARGS.zx_dim].zero_()
+                zs[:, -ARGS.zy_dim:].zero_()
                 xs, _ = model(zs, zero, reverse=True)
                 xx_s.append(xx)
                 xs_s.append(xs)
