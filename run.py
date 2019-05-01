@@ -6,10 +6,7 @@ import pandas as pd
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn/torch
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
-import torchvision
-from torchvision.utils import save_image
 from torch.utils.data.dataset import random_split
-from torch.utils.data import DataLoader
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
@@ -56,18 +53,6 @@ def main():
             print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
 
-    def _log_images(train_data, test_data, name, nsamples=64, nrows=8, monochrome=False):
-        """Make a grid of the given images, save them in a file and log them with Comet"""
-        nonlocal experiment
-        for data, prefix in [(train_data, "train_"), (test_data, "test_")]:
-            dataloader = DataLoader(data, shuffle=False, batch_size=nsamples)
-            images, _, _ = next(iter(dataloader))
-            if monochrome:
-                images = images.mean(dim=1, keepdim=True)
-            save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
-            shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
-            experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), prefix + name)
-
     # if args.dataset == 'cmnist':
     #     # mnist_shape = (-1, 3, 28, 28)
     #
@@ -94,8 +79,6 @@ def main():
         print("Original x:")
 
         if args.dataset == 'cmnist':
-            _log_images(train_data, test_data, "colorized_orginal_x_no_s", monochrome=True)
-
             print("\tTraining performance")
             clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
                                       use_s=False)
@@ -115,8 +98,6 @@ def main():
         print("Original x & s:")
 
         if args.dataset == 'cmnist':
-            _log_images(train_data, test_data, "colorized_orginal_x_with_s")
-
             print("\tTraining performance")
             clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
                                       use_s=True)
@@ -166,9 +147,6 @@ def main():
     print("fair:")
 
     if args.dataset == 'cmnist':
-        _log_images(train_repr['recon_y'], test_repr['recon_y'], "colorized_reconstruction_zx")
-        _log_images(train_repr['recon_y'], test_repr['recon_y'], "colorized_reconstruction_zx")
-
         print("\tTraining performance")
         clf = run_conv_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=False,
                                   use_s=False)
@@ -187,8 +165,6 @@ def main():
     # ===========================================================================
     print("unfair:")
     if args.dataset == 'cmnist':
-        _log_images(train_repr['recon_s'], test_repr['recon_s'], "colorized_reconstruction_zs")
-
         print("\tTraining performance")
         clf = run_conv_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=False,
                                   use_s=False)

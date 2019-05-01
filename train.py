@@ -19,7 +19,7 @@ from tqdm import tqdm
 from utils import utils, metrics, unbiased_hsic, dataloading
 from optimisation.custom_optimizers import Adam
 import layers
-from utils.training_utils import fetch_model, get_data_dim
+from utils.training_utils import fetch_model, get_data_dim, log_images
 import models
 
 NDECS = 0
@@ -134,11 +134,23 @@ def train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
 
         time_meter.update(time.time() - end)
 
-        SUMMARY.log_metric("Loss log_p_x", log_p_x.item(), step=itr)
-        SUMMARY.log_metric("Loss indie_loss", indie_loss.item(), step=itr)
-        SUMMARY.log_metric("Loss predict_s_loss", pred_s_loss.item(), step=itr)
-        SUMMARY.log_metric("Loss predict_y_loss", pred_y_loss.item(), step=itr)
+        SUMMARY.set_step(itr)
+        SUMMARY.log_metric('Loss log_p_x', log_p_x.item())
+        SUMMARY.log_metric('Loss indie_loss', indie_loss.item())
+        SUMMARY.log_metric('Loss predict_s_loss', pred_s_loss.item())
+        SUMMARY.log_metric('Loss predict_y_loss', pred_y_loss.item())
         end = time.time()
+
+    log_images(SUMMARY, x, 'original_x')
+    zero = x.new_zeros(x.size(0), 1)
+    z, _ = model(x, zero)
+    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
+    log_images(SUMMARY, recon_all, 'reconstruction_all')
+    log_images(SUMMARY, recon_y, 'reconstruction_y')
+    log_images(SUMMARY, recon_s, 'reconstruction_s')
+    log_images(SUMMARY, recon_n, 'reconstruction_n')
+    log_images(SUMMARY, recon_ys, 'reconstruction_ys')
+    log_images(SUMMARY, recon_yn, 'reconstruction_yn')
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} |"
                 "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss {:.6f} ({:.6f})", epoch,
@@ -156,6 +168,17 @@ def validate(model, disc_zn, disc_zs, disc_zy, dataloader):
             loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zn, disc_zs, disc_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
+    SUMMARY.log_metric("Loss", loss_meter.avg)
+    log_images(SUMMARY, x_val, 'original_x', train=False)
+    zero = x_val.new_zeros(x_val.size(0), 1)
+    z, _ = model(x_val, zero)
+    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
+    log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
+    log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
+    log_images(SUMMARY, recon_s, 'reconstruction_s', train=False)
+    log_images(SUMMARY, recon_n, 'reconstruction_n', train=False)
+    log_images(SUMMARY, recon_ys, 'reconstruction_ys', train=False)
+    log_images(SUMMARY, recon_yn, 'reconstruction_yn', train=False)
     return loss_meter.avg
 
 
@@ -186,7 +209,8 @@ def main(args, train_data, test_data):
     LOGGER.info(ARGS)
 
     # ==== check GPU ====
-    ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
+    ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if (
+        torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu")
     LOGGER.info('{} GPUs available.', torch.cuda.device_count())
 
     # ==== construct dataset ====
@@ -249,8 +273,9 @@ def main(args, train_data, test_data):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_optimizer = Adam(chain(disc_zn.parameters(), disc_zs.parameters(), disc_zy.parameters()),
-                              lr=ARGS.disc_lr)
+        disc_optimizer = Adam(
+            chain(disc_zn.parameters(), disc_zs.parameters(), disc_zy.parameters()),
+            lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
 
@@ -263,12 +288,13 @@ def main(args, train_data, test_data):
                 break
 
             with SUMMARY.train():
-                train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, train_loader, epoch)
+                train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, train_loader,
+                      epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
+                    # SUMMARY.set_step((epoch + 1) * len(train_loader))
                     val_loss = validate(model, disc_zn, disc_zs, disc_zy, val_loader)
-                    SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
 
                     if val_loss < best_loss:
                         best_loss = val_loss
@@ -302,6 +328,7 @@ def main(args, train_data, test_data):
 
 
 def reconstruct(z, model, zero_zy=False, zero_zs=False, zero_zn=False):
+    """Reconstruct the input from the representation in various different ways"""
     z_ = z.clone()
     if zero_zy:
         z_[:, -ARGS.zy_dim:].zero_()
@@ -312,6 +339,18 @@ def reconstruct(z, model, zero_zy=False, zero_zs=False, zero_zn=False):
     recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
 
     return recon
+
+
+def reconstruct_all(z, model):
+    recon_all = reconstruct(z, model)
+
+    recon_y = reconstruct(z, model, zero_zs=True, zero_zn=True)
+    recon_s = reconstruct(z, model, zero_zy=True, zero_zn=True)
+    recon_n = reconstruct(z, model, zero_zy=True, zero_zs=True)
+
+    recon_ys = reconstruct(z, model, zero_zn=True)
+    recon_yn = reconstruct(z, model, zero_zs=True)
+    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
 
 
 def encode_dataset(dataloader, model, cvt):
@@ -327,9 +366,8 @@ def encode_dataset(dataloader, model, cvt):
 
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
-        for itr, (x, s, y) in enumerate(tqdm(dataloader)):
-            x = cvt(x)
-            s = cvt(s)
+        for x, s, y in tqdm(dataloader):
+            x, s = cvt(x, s)
 
             if ARGS.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
@@ -337,16 +375,7 @@ def encode_dataset(dataloader, model, cvt):
             z, _ = model(x, zero)
 
             if ARGS.dataset == 'cmnist':
-
-                recon_all = reconstruct(z, model)
-
-                recon_y = reconstruct(z, model, zero_zs=True, zero_zn=True)
-                recon_s = reconstruct(z, model, zero_zy=True, zero_zn=True)
-                recon_n = reconstruct(z, model, zero_zy=True, zero_zs=True)
-
-                recon_ys = reconstruct(z, model, zero_zn=True)
-                recon_yn = reconstruct(z, model, zero_zs=True)
-
+                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
                 representations['recon_all'].append(recon_all)
                 representations['recon_y'].append(recon_y)
                 representations['recon_s'].append(recon_s)
