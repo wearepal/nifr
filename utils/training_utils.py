@@ -62,10 +62,9 @@ def parse_arguments():
     parser.add_argument('--zs_frac', type=int, default=0.33)
     parser.add_argument('--zy_frac', type=int, default=0.33)
 
-    parser.add_argument('-iw', '--independence_weight', type=float, default=1.e3)
-    parser.add_argument('-iw2t', '--independence_weight_2_towers', type=float, default=1.e3)
     parser.add_argument('--pred_y_weight', type=float, default=1.)
-    parser.add_argument('--pred_s_weight', type=float, default=1.)
+    parser.add_argument('-pszyw', '--pred_s_from_zy_weight', type=float, default=1.)
+    parser.add_argument('-pszsw', '--pred_s_from_zs_weight', type=float, default=1.)
 
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=20)
@@ -277,4 +276,4 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
         images = images.mean(dim=1, keepdim=True)
     # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
     shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
-    experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), prefix + name)
+    experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
