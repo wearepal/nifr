@@ -45,7 +45,7 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
+def compute_loss(x, s, y, model, disc_zn, disc_zs, disc_zy, *, return_z=False):
 
     zero = x.new_zeros(x.size(0), 1)
 
@@ -57,35 +57,26 @@ def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
 
     z, delta_logp = model(x, zero)  # run model forward
 
-    if not ARGS.base_density_zs:
-        log_pz, z = compute_log_pz(z, ARGS.base_density)
-        zx = z[:, :ARGS.zx_dim]
-        zs = z[:,  ARGS.zx_dim:-ARGS.zy_dim]
-        zy = z[:, -ARGS.zy_dim:]
-    else:
-        # split first and then pass separately through the compute_log_pz function
-        zx = z[:, :ARGS.zx_dim]
-        zs = z[:,  ARGS.zx_dim:-ARGS.zy_dim]
-        zy = z[:, -ARGS.zy_dim:]
-        log_pzx, zx = compute_log_pz(zx, ARGS.base_density)
-        log_pzs, zs = compute_log_pz(zs, ARGS.base_density_zs)
-        log_pz = log_pzx + log_pzs
-
-    # Enforce independence between the fair representation, zx,
+    log_pz = compute_log_pz(z)
+    zn = z[:, :ARGS.zn_dim]
+    zs = z[:,  ARGS.zn_dim: (z.size(1) - ARGS.zy_dim)]
+    zy = z[:, (z.size(1) - ARGS.zy_dim):]
+    # Enforce independence between the fair representation, zy,
     #  and the sensitive attribute, s
-    if ARGS.ind_method == 'disc':
-        probs = disc_zx(
-            layers.grad_reverse(zx, lambda_=ARGS.independence_weight))
+    indie_loss = 0
+    pred_y_loss = 0
+    pred_s_loss = 0
+
+    if zn.size(1) > 0:
+        probs = disc_zn(layers.grad_reverse(zn, lambda_=ARGS.independence_weight))
         indie_loss = loss_fn(probs, s, reduction='mean')
-    else:
-        indie_loss = ARGS.independence_weight * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, s)
 
-    pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='mean')
-    # Enforce independence between the fair, zx, and unfair, zs, partitions
-    if ARGS.ind_method2t == 'hsic':
-        indie_loss += ARGS.independence_weight_2_towers * unbiased_hsic.variance_adjusted_unbiased_HSIC(zx, zs)
+    if zy.size(1) > 0:
+        pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='mean')
+    # Enforce independence between the fair, zy, and unfair, zs, partitions
 
-    pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s, reduction='mean')
+    if zs.size(1) > 0:
+        pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s, reduction='mean')
 
     log_px = (log_pz - delta_logp).mean()
     loss = -log_px + indie_loss + pred_s_loss + pred_y_loss
@@ -95,27 +86,10 @@ def compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy, *, return_z=False):
     return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss, pred_y_loss
 
 
-def compute_log_pz(z, base_density):
+def compute_log_pz(z):
     """Log of the base probability: log(p(z))"""
-    # if base_density == 'binormal':
-    #     ones = z.new_ones(1, z.size(1))
-    #     dist = MixtureOfDiagNormals(torch.cat([-ones, ones], 0), torch.cat([ones, ones], 0),
-    #                                 z.new_ones(2))
-    #     log_pz = dist.log_prob(z)
-    # elif base_density == 'logitbernoulli':
-    #     temperature = z.new_tensor(.5)
-    #     prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-    #     dist = torch.distributions.relaxed_bernoulli.LogitRelaxedBernoulli(temperature,
-    #                                                                        probs=prob_of_1)
-    #     log_pz = dist.log_prob(z.clamp(-100, 100)).sum(1)  # not sure why the .sum(1) is needed
-    #     z = z.sigmoid()  # z is logits, so apply sigmoid before feeding to discriminator
-    # elif base_density == 'bernoulli':
-    #     temperature = z.new_tensor(.5)
-    #     prob_of_1 = 0.5 * z.new_ones(1, z.size(1))
-    #     dist = torch.distributions.RelaxedBernoulli(temperature, probs=prob_of_1)
-    #     log_pz = dist.log_prob(z).sum(1)  # not sure why the .sum(1) is needed
     log_pz = torch.distributions.Normal(0, 1).log_prob(z).flatten(1).sum(1)
-    return log_pz.view(z.size(0), 1), z
+    return log_pz.view(z.size(0), 1)
 
 
 def restore_model(model, filename):
@@ -124,7 +98,7 @@ def restore_model(model, filename):
     return model
 
 
-def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloader, epoch):
+def train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, dataloader, epoch):
     model.train()
 
     loss_meter = utils.AverageMeter()
@@ -144,7 +118,7 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, indie_loss, pred_s_loss, pred_y_loss = compute_loss(x, s, y, model, disc_zx, disc_zs, disc_zy,
+        loss, log_p_x, indie_loss, pred_s_loss, pred_y_loss = compute_loss(x, s, y, model, disc_zn, disc_zs, disc_zy,
                                                                            return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
@@ -172,14 +146,14 @@ def train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
                 pred_s_loss_meter.avg, pred_y_loss_meter.avg, loss_meter.avg)
 
 
-def validate(model, disc_zx, disc_zs, disc_zy, dataloader):
+def validate(model, disc_zn, disc_zs, disc_zy, dataloader):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in dataloader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zx, disc_zs, disc_zy)
+            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zn, disc_zs, disc_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     return loss_meter.avg
@@ -255,16 +229,16 @@ def main(args, train_data, test_data):
 
     if ARGS.ind_method == 'disc':
         if ARGS.dataset == 'adult':
-            disc_zx = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
+            disc_zn = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
                                  output_activation=output_activation)
         else:
-            ARGS.zx_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
-            hidden_sizes = [ARGS.zx_dim * 8, ARGS.zx_dim * 8]
-            disc_zx = models.MnistConvNet(ARGS.zx_dim, s_dim, output_activation=output_activation,
+            ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
+            hidden_sizes = [ARGS.zn_dim * 8, ARGS.zn_dim * 8]
+            disc_zn = models.MnistConvNet(ARGS.zn_dim, s_dim, output_activation=output_activation,
                                           hidden_sizes=hidden_sizes)
-        disc_zx.to(ARGS.device)
+        disc_zn.to(ARGS.device)
     else:
-        disc_zx = None
+        disc_zn = None
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -275,7 +249,7 @@ def main(args, train_data, test_data):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_optimizer = Adam(chain(disc_zx.parameters(), disc_zs.parameters(), disc_zy.parameters()),
+        disc_optimizer = Adam(chain(disc_zn.parameters(), disc_zs.parameters(), disc_zy.parameters()),
                               lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
@@ -289,11 +263,11 @@ def main(args, train_data, test_data):
                 break
 
             with SUMMARY.train():
-                train(model, disc_zx, disc_zs, disc_zy, optimizer, disc_optimizer, train_loader, epoch)
+                train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, train_loader, epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
-                    val_loss = validate(model, disc_zx, disc_zs, disc_zy, val_loader)
+                    val_loss = validate(model, disc_zn, disc_zs, disc_zy, val_loader)
                     SUMMARY.log_metric("Loss", val_loss, step=(epoch + 1) * len(train_loader))
 
                     if val_loss < best_loss:
@@ -327,12 +301,30 @@ def main(args, train_data, test_data):
     return train_encodings, test_encodings
 
 
+def reconstruct(z, model, zero_zy=False, zero_zs=False, zero_zn=False):
+    z_ = z.clone()
+    if zero_zy:
+        z_[:, -ARGS.zy_dim:].zero_()
+    if zero_zs:
+        z_[:, ARGS.zs_dim: z_.size(1) - ARGS.zy_dim:].zero_()
+    if zero_zn:
+        z_[:, :ARGS.zn_dim].zero_()
+    recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
+
+    return recon
+
+
 def encode_dataset(dataloader, model, cvt):
-    representation = []
-    xx_s = []
-    xs_s = []
-    s_s = []
-    y_s = []
+
+    all_s = []
+    all_y = []
+
+    representations = ['all_z']
+    if ARGS.dataset == 'cmnist':
+        representations.extend(['recon_all', 'recon_y', 'recon_s',
+                                'recon_n', 'recon_yn', 'recon_ys'])
+    representations = {key: [] for key in representations}
+
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
         for itr, (x, s, y) in enumerate(tqdm(dataloader)):
@@ -343,45 +335,53 @@ def encode_dataset(dataloader, model, cvt):
                 x = torch.cat((x, s), dim=1)
             zero = x.new_zeros(x.size(0), 1)
             z, _ = model(x, zero)
-            # if ARGS.base_density == 'logitbernoulli':
-            #     z = z.sigmoid()
 
             if ARGS.dataset == 'cmnist':
-                zx = z.clone()
-                zx[:, :-ARGS.zy_dim].zero_()
-                xx, _ = model(zx, zero, reverse=True)
 
-                zs = z.clone()
-                zs[:, :ARGS.zx_dim].zero_()
-                zs[:, -ARGS.zy_dim:].zero_()
-                xs, _ = model(zs, zero, reverse=True)
-                xx_s.append(xx)
-                xs_s.append(xs)
+                recon_all = reconstruct(z, model)
 
-            representation.append(z)
-            s_s.append(s)
-            y_s.append(y)
+                recon_y = reconstruct(z, model, zero_zs=True, zero_zn=True)
+                recon_s = reconstruct(z, model, zero_zy=True, zero_zn=True)
+                recon_n = reconstruct(z, model, zero_zy=True, zero_zs=True)
+
+                recon_ys = reconstruct(z, model, zero_zn=True)
+                recon_yn = reconstruct(z, model, zero_zs=True)
+
+                representations['recon_all'].append(recon_all)
+                representations['recon_y'].append(recon_y)
+                representations['recon_s'].append(recon_s)
+                representations['recon_n'].append(recon_n)
+                representations['recon_ys'].append(recon_ys)
+                representations['recon_yn'].append(recon_yn)
+
+            representations['all_z'].append(z)
+            all_s.append(s)
+            all_y.append(y)
             # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
 
-    if ARGS.dataset == 'cmnist':
-        representation = torch.cat(representation, dim=0)
-        xx_s = torch.cat(xx_s, dim=0)
-        xs_s = torch.cat(xs_s, dim=0)
-        s_s = torch.cat(s_s, dim=0)
-        y_s = torch.cat(y_s, dim=0)
+    for key, entry in representations.items():
+        if entry:
+            representations[key] = torch.cat(entry, dim=0).detach().cpu()
 
-        z_all = torch.utils.data.TensorDataset(representation, s_s, y_s)
-        xx = torch.utils.data.TensorDataset(xx_s, s_s, y_s)
-        xs = torch.utils.data.TensorDataset(xs_s, s_s, y_s)
-        return z_all, xx, xs
+    if ARGS.dataset == 'cmnist':
+        all_s = torch.cat(all_s, dim=0)
+        all_y = torch.cat(all_y, dim=0)
+
+        representations['all_z'] = torch.utils.data.TensorDataset(representations['all_z'], all_s, all_y)
+        representations['recon_y'] = torch.utils.data.TensorDataset(representations['recon_y'], all_s, all_y)
+        representations['recon_s'] = torch.utils.data.TensorDataset(representations['recon_s'], all_s, all_y)
+
+        return representations
+
     elif ARGS.dataset == 'adult':
-        representation = torch.cat(representation, dim=0).cpu().detach().numpy()
-        z_all = pd.DataFrame(representation)
-        columns = z_all.columns.astype(str)
-        z_all.columns = columns
-        zx = z_all[columns[:-ARGS.zs_dim]]
-        zs = z_all[columns[-ARGS.zs_dim:]]
-        return z_all, zx, zs
+        representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
+        columns = representations['all_z'].columns.astype(str)
+        representations['all_z'].columns = columns
+        representations['zy'] = representations['all_z'][columns[z.size(1) - ARGS.zy_dim:]]
+        representations['zs'] = representations['all_z'][columns[ARGS.zn_dim: z.size(1) - ARGS.zy_dim:]]
+        representations['zn'] = representations['all_z'][:columns[ARGS.zn_dim]]
+
+        return representations
 
 
 def current_experiment():
