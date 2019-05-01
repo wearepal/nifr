@@ -2,13 +2,12 @@ import argparse
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
+
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 
 from models import MnistConvClassifier
-from utils import utils
 from functools import partial
 
 
@@ -66,10 +65,6 @@ def parse_arguments():
     parser.add_argument('-iw2t', '--independence_weight_2_towers', type=float, default=1.e3)
     parser.add_argument('--pred_y_weight', type=float, default=1.)
     parser.add_argument('--pred_s_weight', type=float, default=1.)
-    parser.add_argument('--base_density', default='normal',
-                        choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
-    parser.add_argument('--base_density_zs', default='',
-                        choices=['normal', 'binormal', 'logitbernoulli', 'bernoulli'])
 
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=20)
