@@ -80,7 +80,7 @@ def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy
         pred_s_from_zs_loss = ARGS.pred_s_from_zs_weight\
                               * loss_fn(disc_s_from_zs(zs), s, reduction='mean')
 
-    log_px = (log_pz - delta_logp).mean()
+    log_px = ARGS.log_px_weight * (log_pz - delta_logp).mean()
     loss = -log_px + pred_y_loss + pred_s_from_zs_loss + pred_s_from_zy_loss
 
     if return_z:
