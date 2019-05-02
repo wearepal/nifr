@@ -376,7 +376,7 @@ def encode_dataset(args, data, model):
         representations['all_z'].columns = columns
         representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
         representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
-        representations['zn'] = representations['all_z'][:columns[args.zn_dim]]
+        representations['zn'] = representations['all_z'][columns[:args.zn_dim]]
 
         return representations
 

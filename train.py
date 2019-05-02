@@ -50,7 +50,7 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
         loss_fn = F.nll_loss
         class_loss_fn = F.nll_loss
     else:
-        loss_fn = F.binary_cross_entropy_with_logits
+        loss_fn = F.binary_cross_entropy
         x = torch.cat((x, s.float()), dim=1)
         class_loss_fn = F.binary_cross_entropy_with_logits
 
@@ -243,7 +243,7 @@ def main(args, train_data, test_data):
         s_dim = 1
         x_dim += s_dim
         y_dim = 1
-        output_activation = None
+        output_activation = nn.Sigmoid
         hidden_sizes = [40, 40]
 
 
@@ -253,7 +253,7 @@ def main(args, train_data, test_data):
                              output_activation=output_activation)
         hidden_sizes = [40, 40]
         disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [y_dim], activation=nn.ReLU,
-                             output_activation=nn.Sigmoid)
+                             output_activation=output_activation)
         disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, s_dim], activation=nn.ReLU,
                                      output_activation=output_activation)
     else:

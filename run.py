@@ -225,8 +225,8 @@ def main():
         print("predict s from original x:")
 
         if args.dataset == 'cmnist':
-            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
-                                      use_s=False)
+            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
+                                            use_s=False)
             preds_s_fair, test_fair_predict_s = clf(test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.s)
@@ -241,8 +241,8 @@ def main():
         print("predict s from original x & s:")
 
         if args.dataset == 'cmnist':
-            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
-                                      use_s=True)
+            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
+                                            use_s=True)
             preds_s_fair, test_fair_predict_s = clf(test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_with_s, s=train_tuple.s, y=train_tuple.s)
