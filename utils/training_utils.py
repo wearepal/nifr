@@ -78,6 +78,8 @@ def parse_arguments():
     parser.add_argument('--patience', type=int, default=10,
                         help='Number of iterations without improvement in val loss before'
                              'reducing learning rate.')
+    parser.add_argument('--meta_learn', type=int, default=False, choices=[True, False],
+                        help='Use meta learning procedure whe')
 
     return parser.parse_args()
 
@@ -87,7 +89,94 @@ def find(value, value_list):
     return torch.tensor(result_list).flatten()
 
 
-def run_conv_classifier(args, data, palette, pred_s, use_s):
+def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette):
+
+    if not isinstance(train_data, DataLoader):
+        train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+
+    model.train()
+    for x, s, y in train_data:
+
+        if pred_s:
+            target = find(s, palette)
+            # target = s
+        else:
+            target = y
+        x = x.to(args.device)
+        target = target.to(args.device)
+
+        if not use_s:
+            x = x.mean(dim=1, keepdim=True)
+
+        optimizer.zero_grad()
+        preds = model(x)
+
+        loss = F.nll_loss(preds, target, reduction='sum')
+
+        loss.backward()
+        optimizer.step()
+
+
+def validate_classifier(args, model, val_loader, use_s, pred_s, palette):
+    with torch.no_grad():
+        model.eval()
+        val_loss = 0
+        acc = 0
+        for x, s, y in val_loader:
+
+            if pred_s:
+                # TODO: do this in EthicML instead
+                target = find(s, palette)
+                # target = s
+            else:
+                target = y
+
+            x = x.to(args.device)
+            target = target.to(args.device)
+
+            if not use_s:
+                x = x.mean(dim=1, keepdim=True)
+
+            preds = model(x)
+            val_loss += F.nll_loss(preds, target, reduction='sum').item()
+            acc += torch.sum(preds.argmax(dim=1) == target).item()
+
+        acc /= len(val_loader.dataset)
+
+        val_loss /= len(val_loader.dataset)
+        return val_loss, acc
+
+
+def classifier_training_loop(args, model, train_data, val_data, use_s=True,
+                             pred_s=False, palette=None):
+
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
+
+    n_vals_without_improvement = 0
+
+    best_loss = float('inf')
+
+    for i in range(args.clf_epochs):
+
+        if n_vals_without_improvement > args.clf_early_stopping > 0:
+            break
+
+        train_classifier(args, model, optimizer, train_loader, use_s, pred_s, palette)
+        val_loss, acc = validate_classifier(args, model, val_loader, use_s, pred_s, palette)
+
+        if val_loss < best_loss:
+            best_loss = val_loss
+            n_vals_without_improvement = 0
+        else:
+            n_vals_without_improvement += 1
+
+    return model
+
+
+def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -104,96 +193,12 @@ def run_conv_classifier(args, data, palette, pred_s, use_s):
     lengths = [train_len, val_length]
     train_data, val_data = random_split(data, lengths=lengths)
 
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
-
     in_dim = 3 if use_s else 1
-    model = MnistConvClassifier(in_dim).to(args.device)
+    model = MnistConvClassifier(in_dim) if model is None else model
+    model.to(args.device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
-
-    n_vals_without_improvement = 0
-
-    best_loss = float('inf')
-
-    for i in range(args.clf_epochs):
-
-        if n_vals_without_improvement > args.clf_early_stopping > 0:
-            break
-
-        model.train()
-        for x, s, y in train_loader:
-
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = find(s, palette)
-                # target = s
-            else:
-                target = y
-            x = x.to(args.device)
-            target = target.to(args.device)
-
-            if not use_s:
-                x = x.mean(dim=1, keepdim=True)
-
-            optimizer.zero_grad()
-            preds = model(x)
-
-            loss = F.nll_loss(preds, target, reduction='sum')
-
-            loss.backward()
-            optimizer.step()
-
-        with torch.no_grad():
-            model.eval()
-            val_loss = 0
-            for x, s, y in val_loader:
-
-                if pred_s:
-                    # TODO: do this in EthicML instead
-                    target = find(s, palette)
-                    # target = s
-                else:
-                    target = y
-
-                x = x.to(args.device)
-                target = target.to(args.device)
-
-                if not use_s:
-                    x = x.mean(dim=1, keepdim=True)
-
-                preds = model(x)
-                val_loss += F.nll_loss(preds, target, reduction='sum').item()
-
-            val_loss /= len(val_loader)
-
-            if val_loss < best_loss:
-                best_loss = val_loss
-                n_vals_without_improvement = 0
-            else:
-                n_vals_without_improvement += 1
-
-        for x, s, y in train_loader:
-
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = find(s, palette)
-                # target = s
-            else:
-                target = y
-
-            x = x.to(args.device)
-            target = target.to(args.device)
-
-            if not use_s:
-                x = x.mean(dim=1, keepdim=True)
-
-            optimizer.zero_grad()
-            preds = model(x)
-
-            loss = F.nll_loss(preds, target, reduction='sum')
-
-            loss.backward()
+    model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s,
+                                     pred_s=pred_s, palette=palette)
 
     return partial(evaluate, model=model, palette=palette, batch_size=args.test_batch_size,
                    device=args.device, pred_s=pred_s, use_s=use_s)
@@ -214,7 +219,6 @@ def evaluate(test_data, model, palette, batch_size, device, pred_s=False, use_s=
             if pred_s:
                 # TODO: do this in EthicML instead
                 target = find(s, palette)
-                # target = s
             else:
                 target = y
 

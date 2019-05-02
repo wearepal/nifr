@@ -403,6 +403,9 @@ def encode_dataset(dataloader, model, cvt):
         representations['recon_y'] = torch.utils.data.TensorDataset(representations['recon_y'], all_s, all_y)
         representations['recon_s'] = torch.utils.data.TensorDataset(representations['recon_s'], all_s, all_y)
 
+        representations['zy'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, z.size(1) - ARGS.zy_dim], all_s, all_y)
+
         return representations
 
     elif ARGS.dataset == 'adult':
