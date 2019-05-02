@@ -46,7 +46,8 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
     zero = x.new_zeros(x.size(0), 1)
 
     if ARGS.dataset == 'cmnist':
-        loss_fn = F.l1_loss
+        # loss_fn = F.l1_loss
+        loss_fn = F.nll_loss
     else:
         loss_fn = F.binary_cross_entropy_with_logits
         x = torch.cat((x, s), dim=1)
@@ -248,9 +249,9 @@ def main(args, train_data, test_data):
         ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
         ARGS.zy_dim = round(ARGS.zy_frac * z_channels)
         ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
-        s_dim = 3
+        s_dim = 10
         y_dim = 10
-        output_activation = nn.Sigmoid()
+        output_activation = nn.LogSoftmax(dim=1)
 
         if not ARGS.meta_learn:
             hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]

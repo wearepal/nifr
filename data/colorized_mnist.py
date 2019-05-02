@@ -119,8 +119,8 @@ class MnistColorizer:
                     colorized_data = 1 - img * (
                         1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
 
-        return colorized_data, torch.Tensor(mean_values)
-        # return colorized_data, torch.LongTensor(target)
+        # return colorized_data, torch.Tensor(mean_values)
+        return colorized_data, torch.LongTensor(target)
 
     def __call__(self, img, target):
         return self._transform(img, target, self.train, self.background, self.black)
