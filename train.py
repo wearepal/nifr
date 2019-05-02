@@ -85,7 +85,8 @@ def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy
 
     if return_z:
         return loss, z
-    return loss, -log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss
+    return (loss, -log_px, pred_y_loss, ARGS.pred_s_from_zy_weight * pred_s_from_zy_loss,
+            pred_s_from_zs_loss)
 
 
 def compute_log_pz(z):
