@@ -2,12 +2,11 @@
 # import sys
 # from pathlib import Path
 
-import torch
-import torch.nn as nn
 import pandas as pd
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn/torch
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
+import torch.nn as nn
 from torch.utils.data.dataset import random_split
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
@@ -28,6 +27,13 @@ def main():
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
 
     if args.meta_learn:
+        args.zy_frac = 0  # we don't use y here when metalearning
+        if args.dataset == 'cmnist':
+            whole_train_data.swap_train_test_colorization()
+            whole_test_data.swap_train_test_colorization()
+        else:
+            # something needs to be done to the adult dataset when we're metalearning
+            raise RuntimeError("Meta learning doesn't work with adult yet")
         whole_train_dagger = whole_test_data
         whole_train_data, whole_test_data = random_split(whole_train_data, lengths=(50000, 10000))
 
@@ -50,9 +56,10 @@ def main():
                              hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
         model = model.to(args.device)
         model = classifier_training_loop(args, model, test_repr['zn'], val_data=whole_train_dagger)
-        acc = validate_classifier(args, model, whole_train_dagger, use_s=True,
-                                  pred_s=False, palette=whole_train_data.palette)
-        return acc
+        _, acc = validate_classifier(args, model, whole_train_dagger, use_s=True,
+                                     pred_s=False, palette=whole_train_data.palette)
+        experiment.log_metric("Accuracy on Ddagger", acc)
+        print(f"Accuracy on Ddagger: {acc:.4f}")
     # flatten the images so that they're amenable to logistic regression
 
     def _compute_metrics(predictions, actual, name):
@@ -91,8 +98,8 @@ def main():
     experiment.log_other("evaluation model", model.name)
 
     # ===========================================================================
-    this_is_dumb = False
-    if this_is_dumb:
+    this_is_dumb = True
+    if not this_is_dumb:
         print("Original x:")
 
         if args.dataset == 'cmnist':

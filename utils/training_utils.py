@@ -78,8 +78,8 @@ def parse_arguments():
     parser.add_argument('--patience', type=int, default=10,
                         help='Number of iterations without improvement in val loss before'
                              'reducing learning rate.')
-    parser.add_argument('--meta_learn', type=int, default=False, choices=[True, False],
-                        help='Use meta learning procedure whe')
+    parser.add_argument('--meta_learn', type=eval, default=False, choices=[True, False],
+                        help='Use meta learning procedure')
 
     return parser.parse_args()
 
