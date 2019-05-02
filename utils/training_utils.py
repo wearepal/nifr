@@ -118,12 +118,14 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
         optimizer.step()
 
 
-def validate_classifier(args, model, val_loader, use_s, pred_s, palette):
+def validate_classifier(args, model, val_data, use_s, pred_s, palette):
+    if not isinstance(val_data, DataLoader):
+        val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
     with torch.no_grad():
         model.eval()
         val_loss = 0
         acc = 0
-        for x, s, y in val_loader:
+        for x, s, y in val_data:
 
             if pred_s:
                 # TODO: do this in EthicML instead
@@ -142,9 +144,9 @@ def validate_classifier(args, model, val_loader, use_s, pred_s, palette):
             val_loss += F.nll_loss(preds, target, reduction='sum').item()
             acc += torch.sum(preds.argmax(dim=1) == target).item()
 
-        acc /= len(val_loader.dataset)
+        acc /= len(val_data.dataset)
 
-        val_loss /= len(val_loader.dataset)
+        val_loss /= len(val_data.dataset)
         return val_loss, acc
 
 
@@ -311,7 +313,8 @@ def reconstruct_all(args, z, model):
     return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
 
 
-def encode_dataset(args, dataloader, model, cvt):
+def encode_dataset(args, data, model):
+    dataloader = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
 
     all_s = []
     all_y = []
@@ -325,7 +328,8 @@ def encode_dataset(args, dataloader, model, cvt):
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
         for x, s, y in tqdm(dataloader):
-            x, s = cvt(x, s)
+            x = x.to(args.device)
+            s = s.to(args.device)
 
             if args.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
@@ -371,7 +375,48 @@ def encode_dataset(args, dataloader, model, cvt):
         columns = representations['all_z'].columns.astype(str)
         representations['all_z'].columns = columns
         representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
-        representations['zs'] = representations['all_z'][columns[args.zn_dim: z.size(1) - args.zy_dim:]]
+        representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
         representations['zn'] = representations['all_z'][:columns[args.zn_dim]]
 
         return representations
+
+
+def encode_dataset_no_recon(args, data, model):
+    dataloader = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
+    encodings = {'all_z': [], 'all_s': [], 'all_y': []}
+    with torch.no_grad():
+        # test_loss = utils.AverageMeter()
+        for x, s, y in tqdm(dataloader):
+            x = x.to(args.device)
+            s = s.to(args.device)
+
+            if args.dataset == 'adult':
+                x = torch.cat((x, s), dim=1)
+            zero = x.new_zeros(x.size(0), 1)
+            z, _ = model(x, zero)
+
+            encodings['all_z'].append(z)
+            encodings['all_s'].append(s)
+            encodings['all_y'].append(y)
+            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
+
+    for key, entry in encodings.items():
+        if entry:
+            encodings[key] = torch.cat(entry, dim=0).detach().cpu()
+
+    if args.dataset == 'cmnist':
+        encodings['zn'] = torch.utils.data.TensorDataset(
+            encodings['all_z'][:, :args.zn_dim], encodings['all_s'], encodings['all_y'])
+        encodings['all_z'] = torch.utils.data.TensorDataset(
+            encodings['all_z'], encodings['all_s'], encodings['all_y'])
+        return encodings
+
+    elif args.dataset == 'adult':
+        encodings['all_z'] = pd.DataFrame(encodings['all_z'].numpy())
+        columns = encodings['all_z'].columns.astype(str)
+        encodings['all_z'].columns = columns
+        encodings['zy'] = encodings['all_z'][columns[z.size(1) - args.zy_dim:]]
+        encodings['zs'] = encodings['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
+        encodings['zn'] = encodings['all_z'][:columns[args.zn_dim]]
+
+        return encodings
