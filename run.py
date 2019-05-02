@@ -28,9 +28,6 @@ def main():
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
 
     if args.meta_learn:
-        whole_train_data.train = False
-        whole_test_data.train = True
-
         whole_train_dagger = whole_test_data
         whole_train_data, whole_test_data = random_split(whole_train_data, lengths=(50000, 10000))
 
@@ -52,7 +49,7 @@ def main():
         model = MnistConvNet(in_channels=args.zs_dim, out_dims=10, kernel_size=3,
                              hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
         model = model.to(args.device)
-        model = classifier_training_loop(args, model, test_repr['zy'], val_data=whole_train_dagger)
+        model = classifier_training_loop(args, model, test_repr['zn'], val_data=whole_train_dagger)
         acc = validate_classifier(args, model, whole_train_dagger, use_s=True,
                                   pred_s=False, palette=whole_train_data.palette)
         return acc
