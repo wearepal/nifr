@@ -63,9 +63,9 @@ def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy
     zy = z[:, (z.size(1) - ARGS.zy_dim):]
     # Enforce independence between the fair representation, zy,
     #  and the sensitive attribute, s
-    pred_y_loss = 0
-    pred_s_from_zy_loss = 0
-    pred_s_from_zs_loss = 0
+    pred_y_loss = z.new_zeros(1)
+    pred_s_from_zy_loss = z.new_zeros(1)
+    pred_s_from_zs_loss = z.new_zeros(1)
 
     if disc_y_from_zys is not None and zy.size(1) > 0 and zs.size(1) > 0:
         pred_y_loss = ARGS.pred_y_weight \
@@ -249,25 +249,24 @@ def main(args, train_data, test_data):
         output_activation = nn.Sigmoid()
 
         if not ARGS.meta_learn:
-            hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
+            hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
             disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, output_activation=output_activation,
                                                  hidden_sizes=hidden_sizes)
             hidden_sizes = [(ARGS.zy_dim + ARGS.zs_dim * 8), (ARGS.zy_dim + ARGS.zs_dim) * 8]
             disc_y_from_zys = models.MnistConvNet(ARGS.zy_dim + ARGS.zs_dim, y_dim,
                                                   output_activation=nn.LogSoftmax(dim=1),
                                                   hidden_sizes=hidden_sizes)
+            disc_s_from_zy.to(ARGS.device)
+            disc_y_from_zys.to(ARGS.device)
         else:
             disc_s_from_zy = None
             disc_y_from_zys = None
 
-        hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
+        hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
         disc_s_from_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
                                              hidden_sizes=hidden_sizes)
 
-
-    disc_s_from_zy.to(ARGS.device)
     disc_s_from_zs.to(ARGS.device)
-    disc_y_from_zys.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
 
@@ -280,7 +279,8 @@ def main(args, train_data, test_data):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_params = chain(disc_y_from_zys.parameters(), disc_s_from_zy.parameters(), disc_s_from_zs.parameters())
+        disc_params = chain(*[disc.parameters() for disc in [disc_y_from_zys, disc_s_from_zy, disc_s_from_zs]
+                              if disc is not None])
         disc_optimizer = Adam(disc_params, lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
