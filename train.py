@@ -40,7 +40,8 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy, *, return_z=False):
+def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, disc_s_from_zy=None,
+                 return_z=False):
 
     zero = x.new_zeros(x.size(0), 1)
 
@@ -53,7 +54,7 @@ def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy
     z, delta_logp = model(x, zero)  # run model forward
 
     log_pz = compute_log_pz(z)
-    zn = z[:, :ARGS.zn_dim]
+    # zn = z[:, :ARGS.zn_dim]
     zs = z[:,  ARGS.zn_dim: (z.size(1) - ARGS.zy_dim)]
     zy = z[:, (z.size(1) - ARGS.zy_dim):]
     # Enforce independence between the fair representation, zy,
@@ -63,8 +64,8 @@ def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy
     pred_s_from_zs_loss = z.new_zeros(1)
 
     if disc_y_from_zys is not None and zy.size(1) > 0 and zs.size(1) > 0:
-        pred_y_loss = ARGS.pred_y_weight \
-                      * F.nll_loss(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean')
+        pred_y_loss = (ARGS.pred_y_weight
+                       * F.nll_loss(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
     if disc_s_from_zy is not None and zy.size(1) > 0:
         pred_s_from_zy_loss = loss_fn(
             layers.grad_reverse(disc_s_from_zy(zy), lambda_=ARGS.pred_s_from_zy_weight),
@@ -117,8 +118,12 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss =\
-            compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, return_z=False)
+        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = compute_loss(
+            x, s, y, model,
+            disc_y_from_zys=disc_y_from_zys,
+            disc_s_from_zs=disc_s_from_zs,
+            disc_s_from_zy=disc_s_from_zy,
+            return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         pred_y_loss_meter.update(pred_y_loss.item())
@@ -152,8 +157,8 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     log_images(SUMMARY, recon_yn, 'reconstruction_yn')
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} |"
-                "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss {:.6f} ({:.6f})", epoch,
-                time_meter.val, time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
+                "pred_y_from_zys: {:.6f} | pred_s_from_zy: {:.6f} | pred_s_from_zs {:.6f} ({:.6f})",
+                epoch, time_meter.val, time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
 
 
@@ -164,7 +169,11 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader)
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in dataloader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs)
+            loss, _, _, _, _ = compute_loss(
+                x_val, s_val, y_val, model,
+                disc_y_from_zys=disc_y_from_zys,
+                disc_s_from_zs=disc_s_from_zs,
+                disc_s_from_zy=disc_s_from_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
