@@ -45,7 +45,7 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def compute_loss(x, s, y, model, disc_zn, disc_zs, disc_zy, *, return_z=False):
+def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy, *, return_z=False):
 
     zero = x.new_zeros(x.size(0), 1)
 
@@ -63,27 +63,30 @@ def compute_loss(x, s, y, model, disc_zn, disc_zs, disc_zy, *, return_z=False):
     zy = z[:, (z.size(1) - ARGS.zy_dim):]
     # Enforce independence between the fair representation, zy,
     #  and the sensitive attribute, s
-    indie_loss = 0
     pred_y_loss = 0
-    pred_s_loss = 0
+    pred_s_from_zy_loss = 0
+    pred_s_from_zs_loss = 0
 
-    if zn.size(1) > 0:
-        probs = disc_zn(layers.grad_reverse(zn, lambda_=ARGS.independence_weight))
-        indie_loss = loss_fn(probs, s, reduction='mean')
-
+    if zy.size(1) > 0 and zs.size(1) > 0:
+        pred_y_loss = ARGS.pred_y_weight \
+                      * F.nll_loss(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean')
     if zy.size(1) > 0:
-        pred_y_loss = ARGS.pred_y_weight * F.nll_loss(disc_zy(zy), y, reduction='mean')
+        pred_s_from_zy_loss = loss_fn(
+            layers.grad_reverse(disc_s_from_zy(zy), lambda_=ARGS.pred_s_from_zy_weight),
+            s, reduction='mean')
     # Enforce independence between the fair, zy, and unfair, zs, partitions
 
     if zs.size(1) > 0:
-        pred_s_loss = ARGS.pred_s_weight * loss_fn(disc_zs(zs), s, reduction='mean')
+        pred_s_from_zs_loss = ARGS.pred_s_from_zs_weight\
+                              * loss_fn(disc_s_from_zs(zs), s, reduction='mean')
 
-    log_px = (log_pz - delta_logp).mean()
-    loss = -log_px + indie_loss + pred_s_loss + pred_y_loss
+    log_px = ARGS.log_px_weight * (log_pz - delta_logp).mean()
+    loss = -log_px + pred_y_loss + pred_s_from_zs_loss + pred_s_from_zy_loss
 
     if return_z:
         return loss, z
-    return loss, -log_px, indie_loss * ARGS.independence_weight, pred_s_loss, pred_y_loss
+    return (loss, -log_px, pred_y_loss, ARGS.pred_s_from_zy_weight * pred_s_from_zy_loss,
+            pred_s_from_zs_loss)
 
 
 def compute_log_pz(z):
@@ -98,14 +101,15 @@ def restore_model(model, filename):
     return model
 
 
-def train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, dataloader, epoch):
+def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
+          disc_optimizer, dataloader, epoch):
     model.train()
 
     loss_meter = utils.AverageMeter()
     log_p_x_meter = utils.AverageMeter()
-    indie_loss_meter = utils.AverageMeter()
-    pred_s_loss_meter = utils.AverageMeter()
     pred_y_loss_meter = utils.AverageMeter()
+    pred_s_from_zy_loss_meter = utils.AverageMeter()
+    pred_s_from_zs_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
     end = time.time()
 
@@ -118,13 +122,13 @@ def train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, indie_loss, pred_s_loss, pred_y_loss = compute_loss(x, s, y, model, disc_zn, disc_zs, disc_zy,
-                                                                           return_z=False)
+        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss =\
+            compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
-        indie_loss_meter.update(indie_loss.item())
-        pred_s_loss_meter.update(pred_s_loss.item())
         pred_y_loss_meter.update(pred_y_loss.item())
+        pred_s_from_zy_loss_meter.update(pred_s_from_zy_loss.item())
+        pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         loss.backward()
         optimizer.step()
@@ -136,9 +140,9 @@ def train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
 
         SUMMARY.set_step(itr)
         SUMMARY.log_metric('Loss log_p_x', log_p_x.item())
-        SUMMARY.log_metric('Loss indie_loss', indie_loss.item())
-        SUMMARY.log_metric('Loss predict_s_loss', pred_s_loss.item())
-        SUMMARY.log_metric('Loss predict_y_loss', pred_y_loss.item())
+        SUMMARY.log_metric('Loss pred_y_from_zys_loss', pred_y_loss.item())
+        SUMMARY.log_metric('Loss pred_s_from_zy_loss', pred_s_from_zy_loss.item())
+        SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
 
     log_images(SUMMARY, x, 'original_x')
@@ -154,18 +158,18 @@ def train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, dataloade
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} |"
                 "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss {:.6f} ({:.6f})", epoch,
-                time_meter.val, time_meter.avg, log_p_x_meter.avg, indie_loss_meter.avg,
-                pred_s_loss_meter.avg, pred_y_loss_meter.avg, loss_meter.avg)
+                time_meter.val, time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
+                pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
 
 
-def validate(model, disc_zn, disc_zs, disc_zy, dataloader):
+def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in dataloader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_zn, disc_zs, disc_zy)
+            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
@@ -228,11 +232,13 @@ def main(args, train_data, test_data):
         y_dim = 1
         output_activation = None
         hidden_sizes = [40, 40]
-        disc_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
+        disc_s_from_zy = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
         hidden_sizes = [40, 40]
-        disc_zy = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [y_dim], activation=nn.ReLU,
+        disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [y_dim], activation=nn.ReLU,
                              output_activation=nn.Sigmoid)
+        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
+                                     output_activation=output_activation)
     else:
         z_channels = x_dim * 16
         ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
@@ -240,29 +246,26 @@ def main(args, train_data, test_data):
         s_dim = 3
         y_dim = 10
         output_activation = nn.Sigmoid()
+
         hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
-        disc_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
-                                      hidden_sizes=hidden_sizes)
+        disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, output_activation=output_activation,
+                                             hidden_sizes=hidden_sizes)
+
         hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
-        disc_zy = models.MnistConvNet(ARGS.zy_dim, y_dim, output_activation=nn.LogSoftmax(dim=1),
-                                      hidden_sizes=hidden_sizes)
-    disc_zs.to(ARGS.device)
-    disc_zy.to(ARGS.device)
+        disc_s_from_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
+                                             hidden_sizes=hidden_sizes)
+
+        ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
+        hidden_sizes = [(ARGS.zy_dim + ARGS.zs_dim * 8), (ARGS.zy_dim + ARGS.zs_dim) * 8]
+        disc_y_from_zys = models.MnistConvNet(ARGS.zy_dim + ARGS.zs_dim, y_dim,
+                                              output_activation=nn.LogSoftmax(dim=1),
+                                              hidden_sizes=hidden_sizes)
+
+    disc_s_from_zy.to(ARGS.device)
+    disc_s_from_zs.to(ARGS.device)
+    disc_y_from_zys.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
-
-    if ARGS.ind_method == 'disc':
-        if ARGS.dataset == 'adult':
-            disc_zn = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
-                                 output_activation=output_activation)
-        else:
-            ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
-            hidden_sizes = [ARGS.zn_dim * 8, ARGS.zn_dim * 8]
-            disc_zn = models.MnistConvNet(ARGS.zn_dim, s_dim, output_activation=output_activation,
-                                          hidden_sizes=hidden_sizes)
-        disc_zn.to(ARGS.device)
-    else:
-        disc_zn = None
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -274,7 +277,7 @@ def main(args, train_data, test_data):
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
         disc_optimizer = Adam(
-            chain(disc_zn.parameters(), disc_zs.parameters(), disc_zy.parameters()),
+            chain(disc_y_from_zys.parameters(), disc_s_from_zy.parameters(), disc_s_from_zs.parameters()),
             lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
@@ -288,13 +291,13 @@ def main(args, train_data, test_data):
                 break
 
             with SUMMARY.train():
-                train(model, disc_zn, disc_zs, disc_zy, optimizer, disc_optimizer, train_loader,
+                train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer, disc_optimizer, train_loader,
                       epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
                     # SUMMARY.set_step((epoch + 1) * len(train_loader))
-                    val_loss = validate(model, disc_zn, disc_zs, disc_zy, val_loader)
+                    val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
 
                     if val_loss < best_loss:
                         best_loss = val_loss
