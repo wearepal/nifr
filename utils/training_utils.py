@@ -291,9 +291,9 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
     """Reconstruct the input from the representation in various different ways"""
     z_ = z.clone()
     if zero_zy:
-        z_[:, -args.zy_dim:].zero_()
+        z_[:, z_.size(1) - args.zy_dim:].zero_()
     if zero_zs:
-        z_[:, args.zs_dim: z_.size(1) - args.zy_dim:].zero_()
+        z_[:, args.zs_dim:z_.size(1) - args.zy_dim].zero_()
     if zero_zn:
         z_[:, :args.zn_dim].zero_()
     recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
