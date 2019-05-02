@@ -48,9 +48,11 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
     if ARGS.dataset == 'cmnist':
         # loss_fn = F.l1_loss
         loss_fn = F.nll_loss
+        class_loss_fn = F.nll_loss
     else:
         loss_fn = F.binary_cross_entropy_with_logits
-        x = torch.cat((x, s), dim=1)
+        x = torch.cat((x, s.float()), dim=1)
+        class_loss_fn = F.binary_cross_entropy_with_logits
 
     z, delta_logp = model(x, zero)  # run model forward
 
@@ -66,7 +68,7 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
 
     if disc_y_from_zys is not None and zy.size(1) > 0 and zs.size(1) > 0:
         pred_y_loss = (ARGS.pred_y_weight
-                       * F.nll_loss(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
+                       * class_loss_fn(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
     if disc_s_from_zy is not None and zy.size(1) > 0:
         pred_s_from_zy_loss = loss_fn(
             layers.grad_reverse(disc_s_from_zy(zy), lambda_=ARGS.pred_s_from_zy_weight),
@@ -146,6 +148,8 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
 
+    x = torch.cat((x, s), dim=1) if ARGS.dataset == 'adult' else x
+
     log_images(SUMMARY, x, 'original_x')
     zero = x.new_zeros(x.size(0), 1)
     z, _ = model(x, zero)
@@ -179,6 +183,9 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader)
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
     log_images(SUMMARY, x_val, 'original_x', train=False)
+
+    x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
+
     zero = x_val.new_zeros(x_val.size(0), 1)
     z, _ = model(x_val, zero)
     recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
@@ -230,6 +237,7 @@ def main(args, train_data, test_data):
     x_dim, z_dim_flat = get_data_dim(train_loader)
 
     if args.dataset == 'adult':
+        z_dim_flat += 1
         ARGS.zs_dim = round(ARGS.zs_frac * z_dim_flat)
         ARGS.zy_dim = round(ARGS.zy_frac * z_dim_flat)
         s_dim = 1
@@ -237,12 +245,16 @@ def main(args, train_data, test_data):
         y_dim = 1
         output_activation = None
         hidden_sizes = [40, 40]
+
+
+        ARGS.zn_dim = z_dim_flat - ARGS.zs_dim - ARGS.zy_dim
+
         disc_s_from_zy = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
         hidden_sizes = [40, 40]
         disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [y_dim], activation=nn.ReLU,
                              output_activation=nn.Sigmoid)
-        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zs_dim] + [100, 100, s_dim], activation=nn.ReLU,
+        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, s_dim], activation=nn.ReLU,
                                      output_activation=output_activation)
     else:
         z_channels = x_dim * 16

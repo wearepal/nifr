@@ -114,8 +114,8 @@ def main():
     experiment.log_other("evaluation model", model.name)
 
     # ===========================================================================
-    this_is_dumb = True
-    if not this_is_dumb:
+    check_originals = True
+    if check_originals:
         print("Original x:")
 
         if args.dataset == 'cmnist':
@@ -214,11 +214,44 @@ def main():
         preds_unfair, test_unfair = clf(test_repr['recon_s'])
     else:
         train_unfair = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.y)
-        test_unfair = DataTuple(x=train_repr['zs'], s=test_tuple.s, y=test_tuple.y)
+        test_unfair = DataTuple(x=test_repr['zs'], s=test_tuple.s, y=test_tuple.y)
         preds_unfair = model.run(train_unfair, test_unfair)
 
     print("\tTest performance")
     _compute_metrics(preds_unfair, test_unfair, "Unfair")
+
+    if check_originals:
+        # ===========================================================================
+        print("predict s from original x:")
+
+        if args.dataset == 'cmnist':
+            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
+                                      use_s=False)
+            preds_s_fair, test_fair_predict_s = clf(test_data)
+        else:
+            train_fair_predict_s = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.s)
+            test_fair_predict_s = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.s)
+            preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+
+        results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
+        experiment.log_metric("Fair pred s", results['Accuracy'])
+        print(results)
+
+        # ===========================================================================
+        print("predict s from original x & s:")
+
+        if args.dataset == 'cmnist':
+            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
+                                      use_s=True)
+            preds_s_fair, test_fair_predict_s = clf(test_data)
+        else:
+            train_fair_predict_s = DataTuple(x=train_x_with_s, s=train_tuple.s, y=train_tuple.s)
+            test_fair_predict_s = DataTuple(x=test_x_with_s, s=test_tuple.s, y=test_tuple.s)
+            preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+
+        results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
+        experiment.log_metric("Fair pred s", results['Accuracy'])
+        print(results)
 
     # ===========================================================================
     print("predict s from fair representation:")
