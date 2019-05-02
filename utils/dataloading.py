@@ -115,6 +115,7 @@ def load_dataset(args):
                                    cspace=args.cspace,
                                    background=args.background,
                                    black=args.black)
+
         # train_data, test_data = load_cmnist_from_file(args)
         train_tuple, test_tuple = None, None
     else:

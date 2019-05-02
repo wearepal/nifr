@@ -1,4 +1,5 @@
 import argparse
+from functools import partial
 import numpy as np
 import pandas as pd
 import torch
@@ -7,9 +8,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 import torchvision
+from tqdm import tqdm
 
 from models import MnistConvClassifier
-from functools import partial
 
 
 def parse_arguments():
@@ -78,6 +79,8 @@ def parse_arguments():
     parser.add_argument('--patience', type=int, default=10,
                         help='Number of iterations without improvement in val loss before'
                              'reducing learning rate.')
+    parser.add_argument('--meta_learn', type=eval, default=True, choices=[True, False],
+                        help='Use meta learning procedure')
 
     return parser.parse_args()
 
@@ -87,7 +90,96 @@ def find(value, value_list):
     return torch.tensor(result_list).flatten()
 
 
-def run_conv_classifier(args, data, palette, pred_s, use_s):
+def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette):
+
+    if not isinstance(train_data, DataLoader):
+        train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+
+    model.train()
+    for x, s, y in train_data:
+
+        if pred_s:
+            target = find(s, palette)
+            # target = s
+        else:
+            target = y
+        x = x.to(args.device)
+        target = target.to(args.device)
+
+        if not use_s:
+            x = x.mean(dim=1, keepdim=True)
+
+        optimizer.zero_grad()
+        preds = model(x)
+
+        loss = F.nll_loss(preds, target, reduction='sum')
+
+        loss.backward()
+        optimizer.step()
+
+
+def validate_classifier(args, model, val_data, use_s, pred_s, palette):
+    if not isinstance(val_data, DataLoader):
+        val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+    with torch.no_grad():
+        model.eval()
+        val_loss = 0
+        acc = 0
+        for x, s, y in val_data:
+
+            if pred_s:
+                # TODO: do this in EthicML instead
+                target = find(s, palette)
+                # target = s
+            else:
+                target = y
+
+            x = x.to(args.device)
+            target = target.to(args.device)
+
+            if not use_s:
+                x = x.mean(dim=1, keepdim=True)
+
+            preds = model(x)
+            val_loss += F.nll_loss(preds, target, reduction='sum').item()
+            acc += torch.sum(preds.argmax(dim=1) == target).item()
+
+        acc /= len(val_data.dataset)
+
+        val_loss /= len(val_data.dataset)
+        return val_loss, acc
+
+
+def classifier_training_loop(args, model, train_data, val_data, use_s=True,
+                             pred_s=False, palette=None):
+
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
+
+    n_vals_without_improvement = 0
+
+    best_loss = float('inf')
+
+    for i in range(args.clf_epochs):
+
+        if n_vals_without_improvement > args.clf_early_stopping > 0:
+            break
+
+        train_classifier(args, model, optimizer, train_loader, use_s, pred_s, palette)
+        val_loss, acc = validate_classifier(args, model, val_loader, use_s, pred_s, palette)
+
+        if val_loss < best_loss:
+            best_loss = val_loss
+            n_vals_without_improvement = 0
+        else:
+            n_vals_without_improvement += 1
+
+    return model
+
+
+def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -104,96 +196,12 @@ def run_conv_classifier(args, data, palette, pred_s, use_s):
     lengths = [train_len, val_length]
     train_data, val_data = random_split(data, lengths=lengths)
 
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
-
     in_dim = 3 if use_s else 1
-    model = MnistConvClassifier(in_dim).to(args.device)
+    model = MnistConvClassifier(in_dim) if model is None else model
+    model.to(args.device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
-
-    n_vals_without_improvement = 0
-
-    best_loss = float('inf')
-
-    for i in range(args.clf_epochs):
-
-        if n_vals_without_improvement > args.clf_early_stopping > 0:
-            break
-
-        model.train()
-        for x, s, y in train_loader:
-
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = find(s, palette)
-                # target = s
-            else:
-                target = y
-            x = x.to(args.device)
-            target = target.to(args.device)
-
-            if not use_s:
-                x = x.mean(dim=1, keepdim=True)
-
-            optimizer.zero_grad()
-            preds = model(x)
-
-            loss = F.nll_loss(preds, target, reduction='sum')
-
-            loss.backward()
-            optimizer.step()
-
-        with torch.no_grad():
-            model.eval()
-            val_loss = 0
-            for x, s, y in val_loader:
-
-                if pred_s:
-                    # TODO: do this in EthicML instead
-                    target = find(s, palette)
-                    # target = s
-                else:
-                    target = y
-
-                x = x.to(args.device)
-                target = target.to(args.device)
-
-                if not use_s:
-                    x = x.mean(dim=1, keepdim=True)
-
-                preds = model(x)
-                val_loss += F.nll_loss(preds, target, reduction='sum').item()
-
-            val_loss /= len(val_loader)
-
-            if val_loss < best_loss:
-                best_loss = val_loss
-                n_vals_without_improvement = 0
-            else:
-                n_vals_without_improvement += 1
-
-        for x, s, y in train_loader:
-
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = find(s, palette)
-                # target = s
-            else:
-                target = y
-
-            x = x.to(args.device)
-            target = target.to(args.device)
-
-            if not use_s:
-                x = x.mean(dim=1, keepdim=True)
-
-            optimizer.zero_grad()
-            preds = model(x)
-
-            loss = F.nll_loss(preds, target, reduction='sum')
-
-            loss.backward()
+    model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s,
+                                     pred_s=pred_s, palette=palette)
 
     return partial(evaluate, model=model, palette=palette, batch_size=args.test_batch_size,
                    device=args.device, pred_s=pred_s, use_s=use_s)
@@ -214,7 +222,6 @@ def evaluate(test_data, model, palette, batch_size, device, pred_s=False, use_s=
             if pred_s:
                 # TODO: do this in EthicML instead
                 target = find(s, palette)
-                # target = s
             else:
                 target = y
 
@@ -278,3 +285,138 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
     # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
     shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
     experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
+
+
+def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
+    """Reconstruct the input from the representation in various different ways"""
+    z_ = z.clone()
+    if zero_zy:
+        z_[:, -args.zy_dim:].zero_()
+    if zero_zs:
+        z_[:, args.zs_dim: z_.size(1) - args.zy_dim:].zero_()
+    if zero_zn:
+        z_[:, :args.zn_dim].zero_()
+    recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
+
+    return recon
+
+
+def reconstruct_all(args, z, model):
+    recon_all = reconstruct(args, z, model)
+
+    recon_y = reconstruct(args, z, model, zero_zs=True, zero_zn=True)
+    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zn=True)
+    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True)
+
+    recon_ys = reconstruct(args, z, model, zero_zn=True)
+    recon_yn = reconstruct(args, z, model, zero_zs=True)
+    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
+
+
+def encode_dataset(args, data, model):
+    dataloader = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
+
+    all_s = []
+    all_y = []
+
+    representations = ['all_z']
+    if args.dataset == 'cmnist':
+        representations.extend(['recon_all', 'recon_y', 'recon_s',
+                                'recon_n', 'recon_yn', 'recon_ys'])
+    representations = {key: [] for key in representations}
+
+    with torch.no_grad():
+        # test_loss = utils.AverageMeter()
+        for x, s, y in tqdm(dataloader):
+            x = x.to(args.device)
+            s = s.to(args.device)
+
+            if args.dataset == 'adult':
+                x = torch.cat((x, s), dim=1)
+            zero = x.new_zeros(x.size(0), 1)
+            z, _ = model(x, zero)
+
+            if args.dataset == 'cmnist':
+                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
+                                                                                           model)
+                representations['recon_all'].append(recon_all)
+                representations['recon_y'].append(recon_y)
+                representations['recon_s'].append(recon_s)
+                representations['recon_n'].append(recon_n)
+                representations['recon_ys'].append(recon_ys)
+                representations['recon_yn'].append(recon_yn)
+
+            representations['all_z'].append(z)
+            all_s.append(s)
+            all_y.append(y)
+            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
+
+    for key, entry in representations.items():
+        if entry:
+            representations[key] = torch.cat(entry, dim=0).detach().cpu()
+
+    if args.dataset == 'cmnist':
+        all_s = torch.cat(all_s, dim=0)
+        all_y = torch.cat(all_y, dim=0)
+
+        representations['zn'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, :args.zn_dim], all_s, all_y)
+        representations['all_z'] = torch.utils.data.TensorDataset(
+            representations['all_z'], all_s, all_y)
+        representations['recon_y'] = torch.utils.data.TensorDataset(
+            representations['recon_y'], all_s, all_y)
+        representations['recon_s'] = torch.utils.data.TensorDataset(
+            representations['recon_s'], all_s, all_y)
+
+        return representations
+
+    elif args.dataset == 'adult':
+        representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
+        columns = representations['all_z'].columns.astype(str)
+        representations['all_z'].columns = columns
+        representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
+        representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
+        representations['zn'] = representations['all_z'][:columns[args.zn_dim]]
+
+        return representations
+
+
+def encode_dataset_no_recon(args, data, model):
+    dataloader = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
+    encodings = {'all_z': [], 'all_s': [], 'all_y': []}
+    with torch.no_grad():
+        # test_loss = utils.AverageMeter()
+        for x, s, y in tqdm(dataloader):
+            x = x.to(args.device)
+            s = s.to(args.device)
+
+            if args.dataset == 'adult':
+                x = torch.cat((x, s), dim=1)
+            zero = x.new_zeros(x.size(0), 1)
+            z, _ = model(x, zero)
+
+            encodings['all_z'].append(z)
+            encodings['all_s'].append(s)
+            encodings['all_y'].append(y)
+            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
+
+    for key, entry in encodings.items():
+        if entry:
+            encodings[key] = torch.cat(entry, dim=0).detach().cpu()
+
+    if args.dataset == 'cmnist':
+        encodings['zn'] = torch.utils.data.TensorDataset(
+            encodings['all_z'][:, :args.zn_dim], encodings['all_s'], encodings['all_y'])
+        encodings['all_z'] = torch.utils.data.TensorDataset(
+            encodings['all_z'], encodings['all_s'], encodings['all_y'])
+        return encodings
+
+    elif args.dataset == 'adult':
+        encodings['all_z'] = pd.DataFrame(encodings['all_z'].numpy())
+        columns = encodings['all_z'].columns.astype(str)
+        encodings['all_z'].columns = columns
+        encodings['zy'] = encodings['all_z'][columns[z.size(1) - args.zy_dim:]]
+        encodings['zs'] = encodings['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
+        encodings['zn'] = encodings['all_z'][:columns[args.zn_dim]]
+
+        return encodings

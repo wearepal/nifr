@@ -6,7 +6,9 @@ import pandas as pd
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn/torch
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
+import torch.nn as nn
 from torch.utils.data.dataset import random_split
+from torch.utils.data import DataLoader
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
@@ -15,14 +17,33 @@ from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_da
 from ethicml.metrics import Accuracy  # , ProbPos, Theil
 
 from train import current_experiment, main as training_loop
+from models import MnistConvNet
 from utils.dataloading import load_dataset
-from utils.training_utils import parse_arguments, run_conv_classifier
+from utils.training_utils import (
+    parse_arguments, train_and_evaluate_classifier, classifier_training_loop, validate_classifier,
+    encode_dataset, encode_dataset_no_recon)
 
 
 def main():
     args = parse_arguments()
-
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
+
+    if args.meta_learn:
+        args.zy_frac = 0  # we don't use y here when metalearning
+        if args.dataset == 'cmnist':
+            whole_train_data.swap_train_test_colorization()
+            whole_test_data.swap_train_test_colorization()
+        else:
+            # something needs to be done to the adult dataset when we're metalearning
+            raise RuntimeError("Meta learning doesn't work with adult yet")
+        whole_train_dagger = whole_test_data
+        # whole_train_data: D*, whole_test_data: D
+        whole_train_data, whole_test_data = random_split(whole_train_data, lengths=(50000, 10000))
+
+        dagger_len = int(args.data_pcnt * len(whole_train_dagger))
+        dagger_data, _ = random_split(whole_train_dagger,
+                                      lengths=(dagger_len, len(whole_train_dagger) - dagger_len))
+
     train_len = int(args.data_pcnt * len(whole_train_data))
     train_data, _ = random_split(whole_train_data,
                                  lengths=(train_len, len(whole_train_data) - train_len))
@@ -30,12 +51,31 @@ def main():
     test_data, _ = random_split(whole_test_data,
                                 lengths=(test_len, len(whole_test_data) - test_len))
 
-    train_repr, test_repr = training_loop(args, train_data, test_data)
+    model = training_loop(args, train_data, test_data)
+    print('Encoding training set...')
+    train_repr = encode_dataset(args, train_data, model)
+    print('Encoding test set...')
+    test_repr = encode_dataset(args, test_data, model)
     # (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(
     #     args, train_data, test_data)
+
     experiment = current_experiment()  # works only after training_loop has been called
     experiment.log_dataset_info(name=args.dataset)
 
+    if args.meta_learn:
+        print('Encoding dagger set...')
+        dagger_repr = encode_dataset_no_recon(args, dagger_data, model)
+
+        meta_clf = MnistConvNet(in_channels=args.zn_dim, out_dims=10, kernel_size=3,
+                                hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
+        meta_clf = meta_clf.to(args.device)
+        classifier_training_loop(args, meta_clf, test_repr['zn'], val_data=dagger_repr['zn'])
+
+        _, acc = validate_classifier(args, meta_clf, dagger_repr['zn'], use_s=True,
+                                     pred_s=False, palette=whole_train_dagger.palette)
+        experiment.log_metric("Accuracy on Ddagger", acc)
+        print(f"Accuracy on Ddagger: {acc:.4f}")
+        return
     # flatten the images so that they're amenable to logistic regression
 
     def _compute_metrics(predictions, actual, name):
@@ -74,14 +114,14 @@ def main():
     experiment.log_other("evaluation model", model.name)
 
     # ===========================================================================
-    this_is_dumb = False
-    if this_is_dumb:
+    this_is_dumb = True
+    if not this_is_dumb:
         print("Original x:")
 
         if args.dataset == 'cmnist':
             print("\tTraining performance")
-            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
-                                      use_s=False)
+            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
+                                                use_s=False)
             preds_x, test_x = clf(train_data)
             _compute_metrics(preds_x, test_x, "Original - Train")
 
@@ -99,8 +139,8 @@ def main():
 
         if args.dataset == 'cmnist':
             print("\tTraining performance")
-            clf = run_conv_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
-                                      use_s=True)
+            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
+                                                use_s=True)
             preds_x_and_s, test_x_and_s = clf(train_data)
             _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
@@ -148,8 +188,8 @@ def main():
 
     if args.dataset == 'cmnist':
         print("\tTraining performance")
-        clf = run_conv_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=False,
-                                  use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=False,
+                                            use_s=False)
         preds_fair, train_fair = clf(train_repr['recon_y'])
         _compute_metrics(preds_fair, train_fair, "Fair")
 
@@ -166,8 +206,8 @@ def main():
     print("unfair:")
     if args.dataset == 'cmnist':
         print("\tTraining performance")
-        clf = run_conv_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=False,
-                                  use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=False,
+                                            use_s=False)
         preds_unfair, train_unfair = clf(train_repr['recon_s'])
         _compute_metrics(preds_unfair, train_unfair, "Unfair")
 
@@ -184,8 +224,8 @@ def main():
     print("predict s from fair representation:")
 
     if args.dataset == 'cmnist':
-        clf = run_conv_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=True,
-                                  use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=True,
+                                            use_s=False)
         preds_s_fair, test_fair_predict_s = clf(test_repr['recon_y'])
     else:
         train_fair_predict_s = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.s)
@@ -200,8 +240,8 @@ def main():
     print("predict s from unfair representation:")
 
     if args.dataset == 'cmnist':
-        clf = run_conv_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=True,
-                                  use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=True,
+                                            use_s=False)
         preds_s_unfair, test_unfair_predict_s = clf(test_repr['recon_s'])
     else:
         train_unfair_predict_s = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.s)

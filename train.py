@@ -1,5 +1,4 @@
 """Main training file"""
-import argparse
 from itertools import chain
 import time
 from pathlib import Path
@@ -9,17 +8,13 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchvision import transforms
 from torch.utils.data import DataLoader, TensorDataset
-from pyro.distributions import MixtureOfDiagNormals
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
 
-from utils import utils, metrics, unbiased_hsic, dataloading
 from optimisation.custom_optimizers import Adam
 import layers
-from utils.training_utils import fetch_model, get_data_dim, log_images
+from utils import utils  # , unbiased_hsic
+from utils.training_utils import (fetch_model, get_data_dim, log_images, reconstruct_all,
+                                  encode_dataset)
 import models
 
 NDECS = 0
@@ -45,7 +40,8 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy, *, return_z=False):
+def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, disc_s_from_zy=None,
+                 return_z=False):
 
     zero = x.new_zeros(x.size(0), 1)
 
@@ -58,25 +54,25 @@ def compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zs, disc_s_from_zy
     z, delta_logp = model(x, zero)  # run model forward
 
     log_pz = compute_log_pz(z)
-    zn = z[:, :ARGS.zn_dim]
+    # zn = z[:, :ARGS.zn_dim]
     zs = z[:,  ARGS.zn_dim: (z.size(1) - ARGS.zy_dim)]
     zy = z[:, (z.size(1) - ARGS.zy_dim):]
     # Enforce independence between the fair representation, zy,
     #  and the sensitive attribute, s
-    pred_y_loss = 0
-    pred_s_from_zy_loss = 0
-    pred_s_from_zs_loss = 0
+    pred_y_loss = z.new_zeros(1)
+    pred_s_from_zy_loss = z.new_zeros(1)
+    pred_s_from_zs_loss = z.new_zeros(1)
 
-    if zy.size(1) > 0 and zs.size(1) > 0:
-        pred_y_loss = ARGS.pred_y_weight \
-                      * F.nll_loss(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean')
-    if zy.size(1) > 0:
+    if disc_y_from_zys is not None and zy.size(1) > 0 and zs.size(1) > 0:
+        pred_y_loss = (ARGS.pred_y_weight
+                       * F.nll_loss(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
+    if disc_s_from_zy is not None and zy.size(1) > 0:
         pred_s_from_zy_loss = loss_fn(
             layers.grad_reverse(disc_s_from_zy(zy), lambda_=ARGS.pred_s_from_zy_weight),
             s, reduction='mean')
     # Enforce independence between the fair, zy, and unfair, zs, partitions
 
-    if zs.size(1) > 0:
+    if disc_s_from_zs is not None and zs.size(1) > 0:
         pred_s_from_zs_loss = ARGS.pred_s_from_zs_weight\
                               * loss_fn(disc_s_from_zs(zs), s, reduction='mean')
 
@@ -122,8 +118,12 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss =\
-            compute_loss(x, s, y, model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, return_z=False)
+        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = compute_loss(
+            x, s, y, model,
+            disc_y_from_zys=disc_y_from_zys,
+            disc_s_from_zs=disc_s_from_zs,
+            disc_s_from_zy=disc_s_from_zy,
+            return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         pred_y_loss_meter.update(pred_y_loss.item())
@@ -148,7 +148,7 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     log_images(SUMMARY, x, 'original_x')
     zero = x.new_zeros(x.size(0), 1)
     z, _ = model(x, zero)
-    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
+    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
     log_images(SUMMARY, recon_all, 'reconstruction_all')
     log_images(SUMMARY, recon_y, 'reconstruction_y')
     log_images(SUMMARY, recon_s, 'reconstruction_s')
@@ -157,8 +157,8 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     log_images(SUMMARY, recon_yn, 'reconstruction_yn')
 
     LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} |"
-                "indie_loss: {:.6f} | pred_s_loss: {:.6f} | pred_y_loss {:.6f} ({:.6f})", epoch,
-                time_meter.val, time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
+                "pred_y_from_zys: {:.6f} | pred_s_from_zy: {:.6f} | pred_s_from_zs {:.6f} ({:.6f})",
+                epoch, time_meter.val, time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
 
 
@@ -169,14 +169,18 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader)
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in dataloader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _, _ = compute_loss(x_val, s_val, y_val, model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs)
+            loss, _, _, _, _ = compute_loss(
+                x_val, s_val, y_val, model,
+                disc_y_from_zys=disc_y_from_zys,
+                disc_s_from_zs=disc_s_from_zs,
+                disc_s_from_zy=disc_s_from_zy)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
     log_images(SUMMARY, x_val, 'original_x', train=False)
     zero = x_val.new_zeros(x_val.size(0), 1)
     z, _ = model(x_val, zero)
-    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
+    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
     log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
     log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
     log_images(SUMMARY, recon_s, 'reconstruction_s', train=False)
@@ -243,27 +247,30 @@ def main(args, train_data, test_data):
         z_channels = x_dim * 16
         ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
         ARGS.zy_dim = round(ARGS.zy_frac * z_channels)
+        ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
         s_dim = 3
         y_dim = 10
         output_activation = nn.Sigmoid()
 
-        hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
-        disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, output_activation=output_activation,
-                                             hidden_sizes=hidden_sizes)
+        if not ARGS.meta_learn:
+            hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
+            disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, output_activation=output_activation,
+                                                 hidden_sizes=hidden_sizes)
+            hidden_sizes = [(ARGS.zy_dim + ARGS.zs_dim * 8), (ARGS.zy_dim + ARGS.zs_dim) * 8]
+            disc_y_from_zys = models.MnistConvNet(ARGS.zy_dim + ARGS.zs_dim, y_dim,
+                                                  output_activation=nn.LogSoftmax(dim=1),
+                                                  hidden_sizes=hidden_sizes)
+            disc_s_from_zy.to(ARGS.device)
+            disc_y_from_zys.to(ARGS.device)
+        else:
+            disc_s_from_zy = None
+            disc_y_from_zys = None
 
-        hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
+        hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
         disc_s_from_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
                                              hidden_sizes=hidden_sizes)
 
-        ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
-        hidden_sizes = [(ARGS.zy_dim + ARGS.zs_dim * 8), (ARGS.zy_dim + ARGS.zs_dim) * 8]
-        disc_y_from_zys = models.MnistConvNet(ARGS.zy_dim + ARGS.zs_dim, y_dim,
-                                              output_activation=nn.LogSoftmax(dim=1),
-                                              hidden_sizes=hidden_sizes)
-
-    disc_s_from_zy.to(ARGS.device)
     disc_s_from_zs.to(ARGS.device)
-    disc_y_from_zys.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
 
@@ -276,9 +283,9 @@ def main(args, train_data, test_data):
 
     if not ARGS.evaluate:
         optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_optimizer = Adam(
-            chain(disc_y_from_zys.parameters(), disc_s_from_zy.parameters(), disc_s_from_zs.parameters()),
-            lr=ARGS.disc_lr)
+        disc_params = chain(*[disc.parameters() for disc in [disc_y_from_zys, disc_s_from_zy, disc_s_from_zs]
+                              if disc is not None])
+        disc_optimizer = Adam(disc_params, lr=ARGS.disc_lr)
         scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                       min_lr=1.e-7, cooldown=1)
 
@@ -291,13 +298,14 @@ def main(args, train_data, test_data):
                 break
 
             with SUMMARY.train():
-                train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer, disc_optimizer, train_loader,
-                      epoch)
+                train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
+                      disc_optimizer, train_loader, epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
                     # SUMMARY.set_step((epoch + 1) * len(train_loader))
-                    val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
+                    val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
+                                        val_loader)
 
                     if val_loss < best_loss:
                         best_loss = val_loss
@@ -321,99 +329,7 @@ def main(args, train_data, test_data):
         model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
 
     model.eval()
-    LOGGER.info('Encoding training set...')
-    train_encodings = encode_dataset(
-        DataLoader(train_data, shuffle=False, batch_size=args.test_batch_size), model, cvt)
-    LOGGER.info('Encoding test set...')
-    test_encodings = encode_dataset(val_loader, model, cvt)
-
-    return train_encodings, test_encodings
-
-
-def reconstruct(z, model, zero_zy=False, zero_zs=False, zero_zn=False):
-    """Reconstruct the input from the representation in various different ways"""
-    z_ = z.clone()
-    if zero_zy:
-        z_[:, -ARGS.zy_dim:].zero_()
-    if zero_zs:
-        z_[:, ARGS.zs_dim: z_.size(1) - ARGS.zy_dim:].zero_()
-    if zero_zn:
-        z_[:, :ARGS.zn_dim].zero_()
-    recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
-
-    return recon
-
-
-def reconstruct_all(z, model):
-    recon_all = reconstruct(z, model)
-
-    recon_y = reconstruct(z, model, zero_zs=True, zero_zn=True)
-    recon_s = reconstruct(z, model, zero_zy=True, zero_zn=True)
-    recon_n = reconstruct(z, model, zero_zy=True, zero_zs=True)
-
-    recon_ys = reconstruct(z, model, zero_zn=True)
-    recon_yn = reconstruct(z, model, zero_zs=True)
-    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
-
-
-def encode_dataset(dataloader, model, cvt):
-
-    all_s = []
-    all_y = []
-
-    representations = ['all_z']
-    if ARGS.dataset == 'cmnist':
-        representations.extend(['recon_all', 'recon_y', 'recon_s',
-                                'recon_n', 'recon_yn', 'recon_ys'])
-    representations = {key: [] for key in representations}
-
-    with torch.no_grad():
-        # test_loss = utils.AverageMeter()
-        for x, s, y in tqdm(dataloader):
-            x, s = cvt(x, s)
-
-            if ARGS.dataset == 'adult':
-                x = torch.cat((x, s), dim=1)
-            zero = x.new_zeros(x.size(0), 1)
-            z, _ = model(x, zero)
-
-            if ARGS.dataset == 'cmnist':
-                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
-                representations['recon_all'].append(recon_all)
-                representations['recon_y'].append(recon_y)
-                representations['recon_s'].append(recon_s)
-                representations['recon_n'].append(recon_n)
-                representations['recon_ys'].append(recon_ys)
-                representations['recon_yn'].append(recon_yn)
-
-            representations['all_z'].append(z)
-            all_s.append(s)
-            all_y.append(y)
-            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
-
-    for key, entry in representations.items():
-        if entry:
-            representations[key] = torch.cat(entry, dim=0).detach().cpu()
-
-    if ARGS.dataset == 'cmnist':
-        all_s = torch.cat(all_s, dim=0)
-        all_y = torch.cat(all_y, dim=0)
-
-        representations['all_z'] = torch.utils.data.TensorDataset(representations['all_z'], all_s, all_y)
-        representations['recon_y'] = torch.utils.data.TensorDataset(representations['recon_y'], all_s, all_y)
-        representations['recon_s'] = torch.utils.data.TensorDataset(representations['recon_s'], all_s, all_y)
-
-        return representations
-
-    elif ARGS.dataset == 'adult':
-        representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
-        columns = representations['all_z'].columns.astype(str)
-        representations['all_z'].columns = columns
-        representations['zy'] = representations['all_z'][columns[z.size(1) - ARGS.zy_dim:]]
-        representations['zs'] = representations['all_z'][columns[ARGS.zn_dim: z.size(1) - ARGS.zy_dim:]]
-        representations['zn'] = representations['all_z'][:columns[ARGS.zn_dim]]
-
-        return representations
+    return model
 
 
 def current_experiment():

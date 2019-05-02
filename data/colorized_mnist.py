@@ -137,6 +137,9 @@ class ColorizedMNIST(datasets.MNIST):
                                         black=black, color_space=cspace)
         self.palette = self.colorizer.palette
 
+    def swap_train_test_colorization(self):
+        self.colorizer.train = not self.colorizer.train
+
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
 

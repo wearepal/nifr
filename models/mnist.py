@@ -33,7 +33,7 @@ class MnistConvClassifier(nn.Module):
 
 class MnistConvNet(nn.Module):
     def __init__(self, in_channels, out_dims, hidden_sizes=(20, 50), kernel_size=3,
-                 output_activation=None):
+                 padding=1, output_activation=None):
         super().__init__()
 
         layers = []
@@ -41,7 +41,7 @@ class MnistConvNet(nn.Module):
         curr_channels = in_channels
 
         for hsize in hidden_sizes:
-            layers.append(nn.Conv2d(curr_channels, hsize, kernel_size, stride=1, padding=1))
+            layers.append(nn.Conv2d(curr_channels, hsize, kernel_size, stride=1, padding=padding))
             layers.append(nn.ReLU(inplace=True))
             # layers.append(nn.MaxPool2d(2, 2))
             curr_channels = hsize
