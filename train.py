@@ -1,5 +1,4 @@
 """Main training file"""
-import argparse
 from itertools import chain
 import time
 from pathlib import Path
@@ -9,17 +8,13 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from torchvision import transforms
 from torch.utils.data import DataLoader, TensorDataset
-from pyro.distributions import MixtureOfDiagNormals
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
 
-from utils import utils, metrics, unbiased_hsic, dataloading
 from optimisation.custom_optimizers import Adam
 import layers
-from utils.training_utils import fetch_model, get_data_dim, log_images
+from utils import utils  # , unbiased_hsic
+from utils.training_utils import (fetch_model, get_data_dim, log_images, reconstruct_all,
+                                  encode_dataset)
 import models
 
 NDECS = 0
@@ -148,7 +143,7 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     log_images(SUMMARY, x, 'original_x')
     zero = x.new_zeros(x.size(0), 1)
     z, _ = model(x, zero)
-    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
+    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
     log_images(SUMMARY, recon_all, 'reconstruction_all')
     log_images(SUMMARY, recon_y, 'reconstruction_y')
     log_images(SUMMARY, recon_s, 'reconstruction_s')
@@ -176,7 +171,7 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader)
     log_images(SUMMARY, x_val, 'original_x', train=False)
     zero = x_val.new_zeros(x_val.size(0), 1)
     z, _ = model(x_val, zero)
-    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
+    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
     log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
     log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
     log_images(SUMMARY, recon_s, 'reconstruction_s', train=False)
@@ -294,13 +289,14 @@ def main(args, train_data, test_data):
                 break
 
             with SUMMARY.train():
-                train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer, disc_optimizer, train_loader,
-                      epoch)
+                train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
+                      disc_optimizer, train_loader, epoch)
 
             if epoch % ARGS.val_freq == 0:
                 with SUMMARY.test():
                     # SUMMARY.set_step((epoch + 1) * len(train_loader))
-                    val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
+                    val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
+                                        val_loader)
 
                     if val_loss < best_loss:
                         best_loss = val_loss
@@ -326,100 +322,11 @@ def main(args, train_data, test_data):
     model.eval()
     LOGGER.info('Encoding training set...')
     train_encodings = encode_dataset(
-        DataLoader(train_data, shuffle=False, batch_size=args.test_batch_size), model, cvt)
+        ARGS, DataLoader(train_data, shuffle=False, batch_size=args.test_batch_size), model, cvt)
     LOGGER.info('Encoding test set...')
-    test_encodings = encode_dataset(val_loader, model, cvt)
+    test_encodings = encode_dataset(ARGS, val_loader, model, cvt)
 
     return train_encodings, test_encodings
-
-
-def reconstruct(z, model, zero_zy=False, zero_zs=False, zero_zn=False):
-    """Reconstruct the input from the representation in various different ways"""
-    z_ = z.clone()
-    if zero_zy:
-        z_[:, -ARGS.zy_dim:].zero_()
-    if zero_zs:
-        z_[:, ARGS.zs_dim: z_.size(1) - ARGS.zy_dim:].zero_()
-    if zero_zn:
-        z_[:, :ARGS.zn_dim].zero_()
-    recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
-
-    return recon
-
-
-def reconstruct_all(z, model):
-    recon_all = reconstruct(z, model)
-
-    recon_y = reconstruct(z, model, zero_zs=True, zero_zn=True)
-    recon_s = reconstruct(z, model, zero_zy=True, zero_zn=True)
-    recon_n = reconstruct(z, model, zero_zy=True, zero_zs=True)
-
-    recon_ys = reconstruct(z, model, zero_zn=True)
-    recon_yn = reconstruct(z, model, zero_zs=True)
-    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
-
-
-def encode_dataset(dataloader, model, cvt):
-
-    all_s = []
-    all_y = []
-
-    representations = ['all_z']
-    if ARGS.dataset == 'cmnist':
-        representations.extend(['recon_all', 'recon_y', 'recon_s',
-                                'recon_n', 'recon_yn', 'recon_ys'])
-    representations = {key: [] for key in representations}
-
-    with torch.no_grad():
-        # test_loss = utils.AverageMeter()
-        for x, s, y in tqdm(dataloader):
-            x, s = cvt(x, s)
-
-            if ARGS.dataset == 'adult':
-                x = torch.cat((x, s), dim=1)
-            zero = x.new_zeros(x.size(0), 1)
-            z, _ = model(x, zero)
-
-            if ARGS.dataset == 'cmnist':
-                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(z, model)
-                representations['recon_all'].append(recon_all)
-                representations['recon_y'].append(recon_y)
-                representations['recon_s'].append(recon_s)
-                representations['recon_n'].append(recon_n)
-                representations['recon_ys'].append(recon_ys)
-                representations['recon_yn'].append(recon_yn)
-
-            representations['all_z'].append(z)
-            all_s.append(s)
-            all_y.append(y)
-            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
-
-    for key, entry in representations.items():
-        if entry:
-            representations[key] = torch.cat(entry, dim=0).detach().cpu()
-
-    if ARGS.dataset == 'cmnist':
-        all_s = torch.cat(all_s, dim=0)
-        all_y = torch.cat(all_y, dim=0)
-
-        representations['all_z'] = torch.utils.data.TensorDataset(representations['all_z'], all_s, all_y)
-        representations['recon_y'] = torch.utils.data.TensorDataset(representations['recon_y'], all_s, all_y)
-        representations['recon_s'] = torch.utils.data.TensorDataset(representations['recon_s'], all_s, all_y)
-
-        representations['zn'] = torch.utils.data.TensorDataset(
-            representations['all_z'][:, :ARGS.zn_dim], all_s, all_y)
-
-        return representations
-
-    elif ARGS.dataset == 'adult':
-        representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
-        columns = representations['all_z'].columns.astype(str)
-        representations['all_z'].columns = columns
-        representations['zy'] = representations['all_z'][columns[z.size(1) - ARGS.zy_dim:]]
-        representations['zs'] = representations['all_z'][columns[ARGS.zn_dim: z.size(1) - ARGS.zy_dim:]]
-        representations['zn'] = representations['all_z'][:columns[ARGS.zn_dim]]
-
-        return representations
 
 
 def current_experiment():

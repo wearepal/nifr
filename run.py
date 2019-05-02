@@ -35,6 +35,7 @@ def main():
             # something needs to be done to the adult dataset when we're metalearning
             raise RuntimeError("Meta learning doesn't work with adult yet")
         whole_train_dagger = whole_test_data
+        # whole_train_data: D*, whole_test_data: D
         whole_train_data, whole_test_data = random_split(whole_train_data, lengths=(50000, 10000))
 
     train_len = int(args.data_pcnt * len(whole_train_data))
@@ -52,7 +53,7 @@ def main():
     experiment.log_dataset_info(name=args.dataset)
 
     if args.meta_learn:
-        model = MnistConvNet(in_channels=args.zs_dim, out_dims=10, kernel_size=3,
+        model = MnistConvNet(in_channels=args.zn_dim, out_dims=10, kernel_size=3,
                              hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
         model = model.to(args.device)
         model = classifier_training_loop(args, model, test_repr['zn'], val_data=whole_train_dagger)

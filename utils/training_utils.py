@@ -1,4 +1,5 @@
 import argparse
+from functools import partial
 import numpy as np
 import pandas as pd
 import torch
@@ -7,9 +8,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 import torchvision
+from tqdm import tqdm
 
 from models import MnistConvClassifier
-from functools import partial
 
 
 def parse_arguments():
@@ -282,3 +283,95 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
     # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)
     shw = torchvision.utils.make_grid(images, nrow=nrows).clamp(0, 1).cpu()
     experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
+
+
+def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
+    """Reconstruct the input from the representation in various different ways"""
+    z_ = z.clone()
+    if zero_zy:
+        z_[:, -args.zy_dim:].zero_()
+    if zero_zs:
+        z_[:, args.zs_dim: z_.size(1) - args.zy_dim:].zero_()
+    if zero_zn:
+        z_[:, :args.zn_dim].zero_()
+    recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
+
+    return recon
+
+
+def reconstruct_all(args, z, model):
+    recon_all = reconstruct(args, z, model)
+
+    recon_y = reconstruct(args, z, model, zero_zs=True, zero_zn=True)
+    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zn=True)
+    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True)
+
+    recon_ys = reconstruct(args, z, model, zero_zn=True)
+    recon_yn = reconstruct(args, z, model, zero_zs=True)
+    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
+
+
+def encode_dataset(args, dataloader, model, cvt):
+
+    all_s = []
+    all_y = []
+
+    representations = ['all_z']
+    if args.dataset == 'cmnist':
+        representations.extend(['recon_all', 'recon_y', 'recon_s',
+                                'recon_n', 'recon_yn', 'recon_ys'])
+    representations = {key: [] for key in representations}
+
+    with torch.no_grad():
+        # test_loss = utils.AverageMeter()
+        for x, s, y in tqdm(dataloader):
+            x, s = cvt(x, s)
+
+            if args.dataset == 'adult':
+                x = torch.cat((x, s), dim=1)
+            zero = x.new_zeros(x.size(0), 1)
+            z, _ = model(x, zero)
+
+            if args.dataset == 'cmnist':
+                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
+                                                                                           model)
+                representations['recon_all'].append(recon_all)
+                representations['recon_y'].append(recon_y)
+                representations['recon_s'].append(recon_s)
+                representations['recon_n'].append(recon_n)
+                representations['recon_ys'].append(recon_ys)
+                representations['recon_yn'].append(recon_yn)
+
+            representations['all_z'].append(z)
+            all_s.append(s)
+            all_y.append(y)
+            # LOGGER.info('Progress: {:.2f}%', itr / len(dataloader) * 100)
+
+    for key, entry in representations.items():
+        if entry:
+            representations[key] = torch.cat(entry, dim=0).detach().cpu()
+
+    if args.dataset == 'cmnist':
+        all_s = torch.cat(all_s, dim=0)
+        all_y = torch.cat(all_y, dim=0)
+
+        representations['zn'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, :args.zn_dim], all_s, all_y)
+        representations['all_z'] = torch.utils.data.TensorDataset(
+            representations['all_z'], all_s, all_y)
+        representations['recon_y'] = torch.utils.data.TensorDataset(
+            representations['recon_y'], all_s, all_y)
+        representations['recon_s'] = torch.utils.data.TensorDataset(
+            representations['recon_s'], all_s, all_y)
+
+        return representations
+
+    elif args.dataset == 'adult':
+        representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
+        columns = representations['all_z'].columns.astype(str)
+        representations['all_z'].columns = columns
+        representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
+        representations['zs'] = representations['all_z'][columns[args.zn_dim: z.size(1) - args.zy_dim:]]
+        representations['zn'] = representations['all_z'][:columns[args.zn_dim]]
+
+        return representations
