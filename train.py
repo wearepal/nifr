@@ -240,6 +240,7 @@ def make_networks(x_dim, z_dim_flat):
                                     output_activation=output_activation)
         disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim],
                                      activation=nn.ReLU, output_activation=output_activation)
+        disc_y_from_zys.to(ARGS.device)
     else:
         z_channels = x_dim * 16
         ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
@@ -270,8 +271,8 @@ def make_networks(x_dim, z_dim_flat):
                                              output_activation=output_activation)
 
     LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
-    disc_s_from_zs = disc_s_from_zs.to(ARGS.device)
-    disc_s_from_zy = disc_s_from_zy.to(ARGS.device)
+    disc_s_from_zs.to(ARGS.device)
+    disc_s_from_zy.to(ARGS.device)
     model = fetch_model(ARGS, x_dim)
     return model, disc_s_from_zs, disc_s_from_zy, disc_y_from_zys
 
