@@ -1,9 +1,13 @@
+"""Utility functions for computing metrics"""
 import torch.nn as nn
 from models import MnistConvNet
-from utils.training_utils import validate_classifier, classifier_training_loop, encode_dataset_no_recon
+from utils.training_utils import (validate_classifier, classifier_training_loop,
+                                  encode_dataset_no_recon)
 
 
 def evaluate_metalearner(args, model, train_zy, dagger_data):
+    """Evaluate the metalearning model"""
+    print('Encoding dagger set...')
     dagger_repr = encode_dataset_no_recon(args, dagger_data, model)
 
     if args.dataset == 'cmnist':

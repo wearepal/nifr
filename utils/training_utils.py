@@ -152,9 +152,10 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
 def classifier_training_loop(args, model, train_data, val_data, use_s=True,
                              pred_s=False, palette=None):
-
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+    if not isinstance(train_data, DataLoader):
+        train_data = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    if not isinstance(val_data, DataLoader):
+        val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
 
@@ -162,13 +163,13 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
 
     best_loss = float('inf')
 
-    for i in range(args.clf_epochs):
+    for _ in range(args.clf_epochs):
 
         if n_vals_without_improvement > args.clf_early_stopping > 0:
             break
 
-        train_classifier(args, model, optimizer, train_loader, use_s, pred_s, palette)
-        val_loss, acc = validate_classifier(args, model, val_loader, use_s, pred_s, palette)
+        train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
+        val_loss, _ = validate_classifier(args, model, val_data, use_s, pred_s, palette)
 
         if val_loss < best_loss:
             best_loss = val_loss
@@ -382,11 +383,12 @@ def encode_dataset(args, data, model):
 
 
 def encode_dataset_no_recon(args, data, model):
-    dataloader = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
+    if not isinstance(data, DataLoader):
+        data = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
     encodings = {'all_z': [], 'all_s': [], 'all_y': []}
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
-        for x, s, y in tqdm(dataloader):
+        for x, s, y in tqdm(data):
             x = x.to(args.device)
             s = s.to(args.device)
 
