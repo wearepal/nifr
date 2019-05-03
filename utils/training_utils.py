@@ -161,7 +161,8 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
 
     best_loss = float('inf')
 
-    for _ in range(args.clf_epochs):
+    print("Training classifier...")
+    for _ in tqdm(range(args.clf_epochs)):
 
         if n_vals_without_improvement > args.clf_early_stopping > 0:
             break

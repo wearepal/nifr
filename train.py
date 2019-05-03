@@ -191,8 +191,7 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
 
     x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
 
-    zero = x_val.new_zeros(x_val.size(0), 1)
-    z, _ = model(x_val, zero)
+    z = model(x_val[:64])
     recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
     log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
     log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
@@ -209,6 +208,7 @@ def test(model, test_loader, val_loader):
         val_repr = encode_dataset_no_recon(ARGS, val_loader, model)
         acc = evaluate_metalearner(ARGS, model, val_repr['zy'], test_loader)
         SUMMARY.log_metric("Accuracy on Ddagger", acc)
+        print(f"Accuracy on Ddagger: {acc:.4f}")
 
 
 def cvt(*tensors):
