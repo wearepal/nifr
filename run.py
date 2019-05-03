@@ -55,7 +55,7 @@ def main():
     print('Encoding training set...')
     train_repr = encode_dataset(args, train_data, model)
     print('Encoding test set...')
-    test_repr = encode_dataset(args, test_data, model)
+    val_repr = encode_dataset(args, val_data, model)
     # (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(
     #     args, train_data, test_data)
 
@@ -63,7 +63,7 @@ def main():
     experiment.log_dataset_info(name=args.dataset)
 
     if args.meta_learn:
-        acc = evaluate_metalearner(args, model, test_repr['zy'], test_data)
+        acc = evaluate_metalearner(args, model, val_repr['zy'], test_data)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return

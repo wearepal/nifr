@@ -14,7 +14,7 @@ from optimisation.custom_optimizers import Adam
 import layers
 from utils import utils  # , unbiased_hsic
 from utils.training_utils import (fetch_model, get_data_dim, log_images, reconstruct_all,
-                                  encode_dataset)
+                                  encode_dataset_no_recon)
 from utils.eval_metrics import evaluate_metalearner
 import models
 
@@ -206,8 +206,9 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
 def test(model, test_loader, val_loader):
     model.eval()
     if ARGS.meta_learn:
-        accuracy = evaluate_metalearner(ARGS, model, val_loader, test_loader)
-        SUMMARY.log_metric("Accuracy on Ddagger", accuracy)
+        val_repr = encode_dataset_no_recon(ARGS, val_loader, model)
+        acc = evaluate_metalearner(ARGS, model, val_repr['zy'], test_loader)
+        SUMMARY.log_metric("Accuracy on Ddagger", acc)
 
 
 def cvt(*tensors):

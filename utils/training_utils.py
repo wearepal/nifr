@@ -152,10 +152,8 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
 def classifier_training_loop(args, model, train_data, val_data, use_s=True,
                              pred_s=False, palette=None):
-    if not isinstance(train_data, DataLoader):
-        train_data = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    if not isinstance(val_data, DataLoader):
-        val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
 
@@ -168,8 +166,8 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
         if n_vals_without_improvement > args.clf_early_stopping > 0:
             break
 
-        train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
-        val_loss, _ = validate_classifier(args, model, val_data, use_s, pred_s, palette)
+        train_classifier(args, model, optimizer, train_loader, use_s, pred_s, palette)
+        val_loss, _ = validate_classifier(args, model, val_loader, use_s, pred_s, palette)
 
         if val_loss < best_loss:
             best_loss = val_loss
@@ -334,8 +332,7 @@ def encode_dataset(args, data, model):
 
             if args.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
-            zero = x.new_zeros(x.size(0), 1)
-            z, _ = model(x, zero)
+            z = model(x)
 
             if args.dataset == 'cmnist':
                 recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
@@ -394,8 +391,7 @@ def encode_dataset_no_recon(args, data, model):
 
             if args.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
-            zero = x.new_zeros(x.size(0), 1)
-            z, _ = model(x, zero)
+            z = model(x)
 
             encodings['all_z'].append(z)
             encodings['all_s'].append(s)
