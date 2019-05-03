@@ -202,13 +202,27 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
     return loss_meter.avg
 
 
-def test(model, test_loader, val_loader):
+def test(model, train_loader, val_loader, test_loader):
     model.eval()
     if ARGS.meta_learn:
         val_repr = encode_dataset_no_recon(ARGS, val_loader, model)
         acc = evaluate_metalearner(ARGS, model, val_repr['zy'], test_loader)
         SUMMARY.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
+
+    if ARGS.dataset == 'adult':
+        train_repr = encode_dataset_no_recon(ARGS, train_loader, model)
+        test_repr = encode_dataset_no_recon(ARGS, test_loader, model)
+        train_data_ = TensorDataset(torch.Tensor(train_repr['zy'].values),
+                                    torch.Tensor(train_repr['s'].values).long(),
+                                    torch.Tensor(train_repr['y'].values).long())
+        test_data_ = TensorDataset(torch.Tensor(test_repr['zy'].values),
+                                   torch.Tensor(test_repr['s'].values).long(),
+                                   torch.Tensor(test_repr['y'].values).long())
+
+        clf = nn.Sequential(nn.Linear(ARGS.zy_dim, 1), nn.Sigmoid())
+        classifier_training_loop(ARGS, model=clf, train_data=train_data_,
+                                 val_data=test_data_, pred_s=True, use_s=False)
 
 
 def cvt(*tensors):
@@ -353,7 +367,7 @@ def main(args, train_data, val_data, test_data):
                 val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
                                     val_loader)
                 if ARGS.meta_learn:
-                    test(model, test_loader, val_loader)
+                    test(model, train_loader, val_loader, train_loader)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
