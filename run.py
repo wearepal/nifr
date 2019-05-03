@@ -148,30 +148,23 @@ def main():
         _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
     # ===========================================================================
-    # print("All z:")
+    print("All z:")
 
-    # if args.dataset == 'cmnist':
-    #     train_loader = DataLoader(train_all, shuffle=True, batch_size=args.batch_size)
-    #     # for data, color, labels in train_loader:
-    #     #     save_image(data[:64], './colorized_reconstruction_all.png', nrow=8)
-    #     #     shw = torchvision.utils.make_grid(data[:64], nrow=8).permute(1, 2, 0)
-    #     #     experiment.log_image(shw, "colorized_reconstruction_all")
-    #     #     break
+    if args.dataset == 'cmnist':
+        print("\tTraining performance")
+        clf = train_and_evaluate_classifier(args, train_repr['all_z'], palette=whole_train_data.palette, pred_s=False,
+                                            use_s=False)
+        preds_fair, train_fair = clf(train_repr['all_z'])
+        _compute_metrics(preds_fair, train_fair, "All_Z")
 
-    #     print("\tTraining performance")
-    #     clf = run_conv_classifier(args, train_all, palette=whole_train_data.palette, pred_s=False,
-    #                               use_s=False)
-    #     preds_z, test_z = clf(train_all)
-    #     _compute_metrics(preds_z, test_z, "Z")
+        preds_z, test_z = clf(val_repr['all_z'])
+    else:
+        train_z = DataTuple(x=train_repr['all_z'], s=train_tuple.s, y=train_tuple.y)
+        test_z = DataTuple(x=val_repr['all_z'], s=test_tuple.s, y=test_tuple.y)
+        preds_z = model.run(train_z, test_z)
 
-    #     preds_z, test_z = clf(test_all)
-    # else:
-    #     train_z = DataTuple(x=train_all, s=train_tuple.s, y=train_tuple.y)
-    #     test_z = DataTuple(x=test_all, s=test_tuple.s, y=test_tuple.y)
-    #     preds_z = model.run(train_z, test_z)
-
-    # print("\tTest performance")
-    # _compute_metrics(preds_z, test_z, "Z")
+    print("\tTest performance")
+    _compute_metrics(preds_z, test_z, "Z")
 
     # ===========================================================================
     print("fair:")
@@ -183,10 +176,10 @@ def main():
         preds_fair, train_fair = clf(train_repr['recon_y'])
         _compute_metrics(preds_fair, train_fair, "Fair")
 
-        preds_fair, test_fair = clf(test_repr['recon_y'])
+        preds_fair, test_fair = clf(val_repr['recon_y'])
     else:
         train_fair = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.y)
-        test_fair = DataTuple(x=test_repr['zy'], s=test_tuple.s, y=test_tuple.y)
+        test_fair = DataTuple(x=val_repr['zy'], s=test_tuple.s, y=test_tuple.y)
         preds_fair = model.run(train_fair, test_fair)
 
     print("\tTest performance")
@@ -201,10 +194,10 @@ def main():
         preds_unfair, train_unfair = clf(train_repr['recon_s'])
         _compute_metrics(preds_unfair, train_unfair, "Unfair")
 
-        preds_unfair, test_unfair = clf(test_repr['recon_s'])
+        preds_unfair, test_unfair = clf(val_repr['recon_s'])
     else:
         train_unfair = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.y)
-        test_unfair = DataTuple(x=test_repr['zs'], s=test_tuple.s, y=test_tuple.y)
+        test_unfair = DataTuple(x=val_repr['zs'], s=test_tuple.s, y=test_tuple.y)
         preds_unfair = model.run(train_unfair, test_unfair)
 
     print("\tTest performance")
@@ -249,10 +242,10 @@ def main():
     if args.dataset == 'cmnist':
         clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=True,
                                             use_s=False)
-        preds_s_fair, test_fair_predict_s = clf(test_repr['recon_y'])
+        preds_s_fair, test_fair_predict_s = clf(val_repr['recon_y'])
     else:
         train_fair_predict_s = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.s)
-        test_fair_predict_s = DataTuple(x=test_repr['zy'], s=test_tuple.s, y=test_tuple.s)
+        test_fair_predict_s = DataTuple(x=val_repr['zy'], s=test_tuple.s, y=test_tuple.s)
         preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
 
     results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
@@ -265,10 +258,10 @@ def main():
     if args.dataset == 'cmnist':
         clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=True,
                                             use_s=False)
-        preds_s_unfair, test_unfair_predict_s = clf(test_repr['recon_s'])
+        preds_s_unfair, test_unfair_predict_s = clf(val_repr['recon_s'])
     else:
         train_unfair_predict_s = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.s)
-        test_unfair_predict_s = DataTuple(x=test_repr['zs'], s=test_tuple.s, y=test_tuple.s)
+        test_unfair_predict_s = DataTuple(x=val_repr['zs'], s=test_tuple.s, y=test_tuple.s)
         preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
 
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])

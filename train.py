@@ -219,7 +219,7 @@ def cvt(*tensors):
     return tuple(moved)
 
 
-def create_discriminators(x_dim, z_dim_flat):
+def make_networks(x_dim, z_dim_flat):
     """Create the discriminators that enfoce the partition on z"""
     if ARGS.dataset == 'adult':
         z_dim_flat += 1
@@ -272,7 +272,8 @@ def create_discriminators(x_dim, z_dim_flat):
     LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
     disc_s_from_zs.to(ARGS.device)
     disc_s_from_zy.to(ARGS.device)
-    return disc_s_from_zs, disc_s_from_zy, disc_y_from_zys
+    model = fetch_model(ARGS, x_dim)
+    return model, disc_s_from_zs, disc_s_from_zy, disc_y_from_zys
 
 
 def main(args, train_data, val_data, test_data):
@@ -318,8 +319,7 @@ def main(args, train_data, val_data, test_data):
 
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
-    disc_s_from_zs, disc_s_from_zy, disc_y_from_zys = create_discriminators(x_dim, z_dim_flat)
-    model = fetch_model(args, x_dim)
+    model, disc_s_from_zs, disc_s_from_zy, disc_y_from_zys = make_networks(x_dim, z_dim_flat)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
