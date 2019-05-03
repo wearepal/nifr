@@ -61,17 +61,20 @@ def main():
     experiment = current_experiment()  # works only after training_loop has been called
     experiment.log_dataset_info(name=args.dataset)
 
-    if args.meta_learn:
-        print('Encoding dagger set...')
+    def evaluate_metalearner(args, model, train_zy, dagger_data):
         dagger_repr = encode_dataset_no_recon(args, dagger_data, model)
-
         meta_clf = MnistConvNet(in_channels=args.zy_dim, out_dims=10, kernel_size=3,
                                 hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
         meta_clf = meta_clf.to(args.device)
-        classifier_training_loop(args, meta_clf, test_repr['zy'], val_data=dagger_repr['zy'])
+        classifier_training_loop(args, meta_clf, train_zy, val_data=dagger_repr['zy'])
 
         _, acc = validate_classifier(args, meta_clf, dagger_repr['zy'], use_s=True,
                                      pred_s=False, palette=whole_train_dagger.palette)
+        return acc
+
+    if args.meta_learn:
+        print('Encoding dagger set...')
+        acc = evaluate_metalearner(args, test_data['zy'], dagger_data)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
@@ -225,7 +228,7 @@ def main():
 
         if args.dataset == 'cmnist':
             clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
-                                            use_s=False)
+                                                use_s=False)
             preds_s_fair, test_fair_predict_s = clf(test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.s)
@@ -241,7 +244,7 @@ def main():
 
         if args.dataset == 'cmnist':
             clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
-                                            use_s=True)
+                                                use_s=True)
             preds_s_fair, test_fair_predict_s = clf(test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_with_s, s=train_tuple.s, y=train_tuple.s)

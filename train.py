@@ -195,6 +195,7 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader)
     log_images(SUMMARY, recon_n, 'reconstruction_n', train=False)
     log_images(SUMMARY, recon_ys, 'reconstruction_ys', train=False)
     log_images(SUMMARY, recon_yn, 'reconstruction_yn', train=False)
+    validation_hook(x_val, z)
     return loss_meter.avg
 
 
@@ -206,7 +207,7 @@ def cvt(*tensors):
     return tuple(moved)
 
 
-def main(args, train_data, test_data):
+def main(args, train_data, test_data, validation_hook):
     # ==== initialize globals ====
     global ARGS, LOGGER, SUMMARY
     ARGS = args
