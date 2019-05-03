@@ -249,12 +249,12 @@ def main(args, train_data, test_data):
 
         ARGS.zn_dim = z_dim_flat - ARGS.zs_dim - ARGS.zy_dim
 
-        disc_s_from_zy = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
+        disc_s_from_zy = layers.Mlp([ARGS.zy_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
         hidden_sizes = [40, 40]
-        disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [y_dim], activation=nn.ReLU,
+        disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                              output_activation=output_activation)
-        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, s_dim], activation=nn.ReLU,
+        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim], activation=nn.ReLU,
                                      output_activation=output_activation)
     else:
         z_channels = x_dim * 16
