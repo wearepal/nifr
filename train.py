@@ -278,10 +278,10 @@ def main(args, train_data, test_data):
 
             disc_y_from_zys = None
 
-        hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
+        hidden_sizes = [ARGS.zs_dim * 16, ARGS.zs_dim * 16]
         disc_s_from_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, hidden_sizes=hidden_sizes,
                                              output_activation=output_activation)
-        hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
+        hidden_sizes = [ARGS.zy_dim * 16, ARGS.zy_dim * 16, ARGS.zy_dim * 16]
         disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, hidden_sizes=hidden_sizes,
                                              output_activation=output_activation)
 
