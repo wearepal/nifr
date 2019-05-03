@@ -21,11 +21,11 @@ class InvFlatten(InvertibleLayer):
         super(InvFlatten, self).__init__()
         self.orig_shape = None
 
-    def _forward(self, x, logpx, reverse=False):
+    def _forward(self, x, logpx=None, reverse=False):
         self.orig_shape = x.shape
         return x.view(x.size(0), -1), logpx
 
-    def _reverse(self, x, logpx):
+    def _reverse(self, x, logpx=None):
         return x.view(self.orig_shape), logpx
 
 

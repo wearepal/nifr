@@ -3,8 +3,6 @@ from abc import abstractmethod
 import torch
 import torch.nn as nn
 
-from utils.utils import flatten_sum
-
 
 class InvertibleLayer(nn.Module):
     """Base class of an invertible layer"""
@@ -15,11 +13,11 @@ class InvertibleLayer(nn.Module):
             return self._forward(x, logpx)
 
     @abstractmethod
-    def _forward(self, x, logpx):
+    def _forward(self, x, logpx=None):
         """Forward pass"""
 
     @abstractmethod
-    def _reverse(self, x, logpx):
+    def _reverse(self, x, logpx=None):
         """Reverse pass"""
 
 
@@ -42,7 +40,7 @@ class AffineCouplingLayer(InvertibleLayer):
         self.NN = ConvBlock(in_channels // 2, hidden_channels=hidden_channels[0],
                             out_channels=in_channels)
 
-    def _forward(self, x, logpx):
+    def _forward(self, x, logpx=None):
         z1, z2 = torch.chunk(x, 2, dim=1)
         h = self.NN(z1)
         shift = h[:, 0::2]
@@ -50,21 +48,27 @@ class AffineCouplingLayer(InvertibleLayer):
         z2 += shift
         z2 *= scale
 
-        delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
+        y = torch.cat([z1, z2], dim=1)
+        if logpx is None:
+            return y
+        else:
+            delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
+            return y, logpx - delta_logp
 
-        return torch.cat([z1, z2], dim=1), logpx - delta_logp
-
-    def _reverse(self, x, logpx):
+    def _reverse(self, x, logpx=None):
         z1, z2 = torch.chunk(x, 2, dim=1)
         h = self.NN(z1)
         shift = h[:, 0::2]
         scale = (h[:, 1::2] + 2.).sigmoid()
         z2 /= scale
         z2 -= shift
+        y = torch.cat([z1, z2], dim=1)
 
-        delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
-
-        return torch.cat([z1, z2], dim=1), logpx + delta_logp
+        if logpx is None:
+            return y
+        else:
+            delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
+            return y, logpx + delta_logp
 
 
 class CouplingLayer(nn.Module):

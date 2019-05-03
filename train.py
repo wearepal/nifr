@@ -342,7 +342,7 @@ def main(args, train_data, test_data):
                     LOGGER.info(log_message)
 
         LOGGER.info('Training has finished.')
-        model = restore_model(model, save_dir / 'checkpt.pth').to(ARGS.device)
+        model = restore_model(model, model_save_path).to(ARGS.device)
 
     model.eval()
     return model
