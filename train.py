@@ -221,6 +221,7 @@ def main(args, train_data, test_data):
 
     save_dir = Path(ARGS.save)
     save_dir.mkdir(parents=True, exist_ok=True)
+    model_save_path = save_dir / str(time.time()) / 'checkpt.pth'
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
 
@@ -325,7 +326,7 @@ def main(args, train_data, test_data):
                         torch.save({
                             'ARGS': ARGS,
                             'state_dict': model.state_dict(),
-                        }, save_dir / 'checkpt.pth')
+                        }, model_save_path)
                         n_vals_without_improvement = 0
                     else:
                         n_vals_without_improvement += 1
