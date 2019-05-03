@@ -66,7 +66,7 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
     pred_s_from_zy_loss = z.new_zeros(1)
     pred_s_from_zs_loss = z.new_zeros(1)
 
-    if disc_y_from_zys is not None and zy.size(1) > 0 and zs.size(1) > 0:
+    if disc_y_from_zys is not None and zy.size(1) > 0 and zs.size(1) > 0 and not ARGS.meta_learn:
         pred_y_loss = (ARGS.pred_y_weight
                        * class_loss_fn(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
     if disc_s_from_zy is not None and zy.size(1) > 0:
@@ -247,7 +247,6 @@ def main(args, train_data, test_data):
         output_activation = nn.Sigmoid
         hidden_sizes = [40, 40]
 
-
         ARGS.zn_dim = z_dim_flat - ARGS.zs_dim - ARGS.zy_dim
 
         disc_s_from_zy = layers.Mlp([ARGS.zy_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
@@ -267,24 +266,23 @@ def main(args, train_data, test_data):
         output_activation = nn.LogSoftmax(dim=1)
 
         if not ARGS.meta_learn:
-            hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
-            disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, output_activation=output_activation,
-                                                 hidden_sizes=hidden_sizes)
             hidden_sizes = [(ARGS.zy_dim + ARGS.zs_dim * 8), (ARGS.zy_dim + ARGS.zs_dim) * 8]
             disc_y_from_zys = models.MnistConvNet(ARGS.zy_dim + ARGS.zs_dim, y_dim,
                                                   output_activation=nn.LogSoftmax(dim=1),
                                                   hidden_sizes=hidden_sizes)
-            disc_s_from_zy.to(ARGS.device)
             disc_y_from_zys.to(ARGS.device)
         else:
-            disc_s_from_zy = None
             disc_y_from_zys = None
 
         hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]
-        disc_s_from_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, output_activation=output_activation,
-                                             hidden_sizes=hidden_sizes)
+        disc_s_from_zs = models.MnistConvNet(ARGS.zs_dim, s_dim, hidden_sizes=hidden_sizes,
+                                             output_activation=output_activation)
+        hidden_sizes = [ARGS.zy_dim * 8, ARGS.zy_dim * 8]
+        disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, hidden_sizes=hidden_sizes,
+                                             output_activation=output_activation)
 
     disc_s_from_zs.to(ARGS.device)
+    disc_s_from_zy.to(ARGS.device)
 
     model = fetch_model(args, x_dim)
 

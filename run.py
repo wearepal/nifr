@@ -29,7 +29,7 @@ def main():
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
 
     if args.meta_learn:
-        args.zy_frac = 0  # we don't use y here when metalearning
+        args.zn_frac = 0  # we don't need zn when doing metalearning
         if args.dataset == 'cmnist':
             whole_train_data.swap_train_test_colorization()
             whole_test_data.swap_train_test_colorization()
@@ -66,12 +66,12 @@ def main():
         print('Encoding dagger set...')
         dagger_repr = encode_dataset_no_recon(args, dagger_data, model)
 
-        meta_clf = MnistConvNet(in_channels=args.zn_dim, out_dims=10, kernel_size=3,
+        meta_clf = MnistConvNet(in_channels=args.zy_dim, out_dims=10, kernel_size=3,
                                 hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
         meta_clf = meta_clf.to(args.device)
-        classifier_training_loop(args, meta_clf, test_repr['zn'], val_data=dagger_repr['zn'])
+        classifier_training_loop(args, meta_clf, test_repr['zy'], val_data=dagger_repr['zy'])
 
-        _, acc = validate_classifier(args, meta_clf, dagger_repr['zn'], use_s=True,
+        _, acc = validate_classifier(args, meta_clf, dagger_repr['zy'], use_s=True,
                                      pred_s=False, palette=whole_train_dagger.palette)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
