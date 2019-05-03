@@ -259,19 +259,23 @@ def main(args, train_data, test_data):
     else:
         z_channels = x_dim * 16
         ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
-        ARGS.zy_dim = round(ARGS.zy_frac * z_channels)
-        ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
         s_dim = 10
         y_dim = 10
         output_activation = nn.LogSoftmax(dim=1)
 
         if not ARGS.meta_learn:
+            ARGS.zy_dim = round(ARGS.zy_frac * z_channels)
+            ARGS.zn_dim = z_channels - ARGS.zs_dim - ARGS.zy_dim
+
             hidden_sizes = [(ARGS.zy_dim + ARGS.zs_dim * 8), (ARGS.zy_dim + ARGS.zs_dim) * 8]
             disc_y_from_zys = models.MnistConvNet(ARGS.zy_dim + ARGS.zs_dim, y_dim,
                                                   output_activation=nn.LogSoftmax(dim=1),
                                                   hidden_sizes=hidden_sizes)
             disc_y_from_zys.to(ARGS.device)
         else:
+            ARGS.zy_dim = z_channels - ARGS.zs_dim
+            ARGS.zn_dim = 0
+
             disc_y_from_zys = None
 
         hidden_sizes = [ARGS.zs_dim * 8, ARGS.zs_dim * 8]

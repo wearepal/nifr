@@ -293,7 +293,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
     if zero_zy:
         z_[:, z_.size(1) - args.zy_dim:].zero_()
     if zero_zs:
-        z_[:, args.zs_dim:z_.size(1) - args.zy_dim].zero_()
+        z_[:, args.zn_dim:z_.size(1) - args.zy_dim].zero_()
     if zero_zn:
         z_[:, :args.zn_dim].zero_()
     recon, _ = model(z_, z.new_zeros(z.size(0), 1), reverse=True)
@@ -360,7 +360,7 @@ def encode_dataset(args, data, model):
         all_y = torch.cat(all_y, dim=0)
 
         representations['zy'] = torch.utils.data.TensorDataset(
-            representations['all_z'][:, z.site(1) - args.zy_dim:], all_s, all_y)
+            representations['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
         representations['all_z'] = torch.utils.data.TensorDataset(
             representations['all_z'], all_s, all_y)
         representations['recon_y'] = torch.utils.data.TensorDataset(
