@@ -359,8 +359,8 @@ def encode_dataset(args, data, model):
         all_s = torch.cat(all_s, dim=0)
         all_y = torch.cat(all_y, dim=0)
 
-        representations['zn'] = torch.utils.data.TensorDataset(
-            representations['all_z'][:, :args.zn_dim], all_s, all_y)
+        representations['zy'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, z.site(1) - args.zy_dim:], all_s, all_y)
         representations['all_z'] = torch.utils.data.TensorDataset(
             representations['all_z'], all_s, all_y)
         representations['recon_y'] = torch.utils.data.TensorDataset(
@@ -405,8 +405,8 @@ def encode_dataset_no_recon(args, data, model):
             encodings[key] = torch.cat(entry, dim=0).detach().cpu()
 
     if args.dataset == 'cmnist':
-        encodings['zn'] = torch.utils.data.TensorDataset(
-            encodings['all_z'][:, :args.zn_dim], encodings['all_s'], encodings['all_y'])
+        encodings['zy'] = torch.utils.data.TensorDataset(
+            encodings['all_z'][:, z.size(1) - args.zy_dim:], encodings['all_s'], encodings['all_y'])
         encodings['all_z'] = torch.utils.data.TensorDataset(
             encodings['all_z'], encodings['all_s'], encodings['all_y'])
         return encodings
