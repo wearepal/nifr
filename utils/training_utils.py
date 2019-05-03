@@ -60,8 +60,8 @@ def parse_arguments():
     parser.add_argument('--ind-method', type=str, choices=['hsic', 'disc'], default='disc')
     parser.add_argument('--ind-method2t', type=str, choices=['hsic', 'none'], default='none')
 
-    parser.add_argument('--zs_frac', type=int, default=0.33)
-    parser.add_argument('--zy_frac', type=int, default=0.33)
+    parser.add_argument('--zs_frac', type=float, default=0.33)
+    parser.add_argument('--zy_frac', type=float, default=0.33)
 
     parser.add_argument('--log_px_weight', type=float, default=1.)
     parser.add_argument('--pred_y_weight', type=float, default=1.)
@@ -376,7 +376,7 @@ def encode_dataset(args, data, model):
         representations['all_z'].columns = columns
         representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
         representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
-        representations['zn'] = representations['all_z'][:columns[args.zn_dim]]
+        representations['zn'] = representations['all_z'][columns[:args.zn_dim]]
 
         return representations
 
