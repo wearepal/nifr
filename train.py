@@ -15,6 +15,7 @@ import layers
 from utils import utils  # , unbiased_hsic
 from utils.training_utils import (fetch_model, get_data_dim, log_images, reconstruct_all,
                                   encode_dataset)
+from utils.eval_metrics import evaluate_metalearner
 import models
 
 NDECS = 0
@@ -94,7 +95,11 @@ def compute_log_pz(z):
     return log_pz.view(z.size(0), 1)
 
 
-def restore_model(model, filename):
+def save_model(filename, model):
+    torch.save({'ARGS': ARGS, 'state_dict': model.state_dict()}, filename)
+
+
+def restore_model(filename, model):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpt["state_dict"])
     return model
@@ -167,12 +172,12 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
 
 
-def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader):
+def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
-        for x_val, s_val, y_val in dataloader:
+        for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
             loss, _, _, _, _ = compute_loss(
                 x_val, s_val, y_val, model,
@@ -195,8 +200,14 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, dataloader)
     log_images(SUMMARY, recon_n, 'reconstruction_n', train=False)
     log_images(SUMMARY, recon_ys, 'reconstruction_ys', train=False)
     log_images(SUMMARY, recon_yn, 'reconstruction_yn', train=False)
-    validation_hook(x_val, z)
     return loss_meter.avg
+
+
+def test(model, test_loader, val_loader):
+    model.eval()
+    if ARGS.meta_learn:
+        accuracy = evaluate_metalearner(ARGS, model, val_loader, test_loader)
+        SUMMARY.log_metric("Accuracy on Ddagger", accuracy)
 
 
 def cvt(*tensors):
@@ -207,38 +218,9 @@ def cvt(*tensors):
     return tuple(moved)
 
 
-def main(args, train_data, test_data, validation_hook):
-    # ==== initialize globals ====
-    global ARGS, LOGGER, SUMMARY
-    ARGS = args
-
-    torch.manual_seed(ARGS.seed)
-    torch.cuda.manual_seed(ARGS.seed)
-
-    SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
-                         workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)
-    SUMMARY.disable_mp()
-    SUMMARY.log_parameters(vars(ARGS))
-
-    save_dir = Path(ARGS.save) / str(time.time())
-    save_dir.mkdir(parents=True, exist_ok=True)
-    model_save_path = save_dir / 'checkpt.pth'
-    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
-    LOGGER.info(ARGS)
-
-    # ==== check GPU ====
-    ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if (
-        torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu")
-    LOGGER.info('{} GPUs available.', torch.cuda.device_count())
-
-    # ==== construct dataset ====
-    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    val_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
-
-    x_dim, z_dim_flat = get_data_dim(train_loader)
-
-    if args.dataset == 'adult':
+def create_discriminators(x_dim, z_dim_flat):
+    """Create the discriminators that enfoce the partition on z"""
+    if ARGS.dataset == 'adult':
         z_dim_flat += 1
         ARGS.zs_dim = round(ARGS.zs_frac * z_dim_flat)
         ARGS.zy_dim = round(ARGS.zy_frac * z_dim_flat)
@@ -251,12 +233,12 @@ def main(args, train_data, test_data, validation_hook):
         ARGS.zn_dim = z_dim_flat - ARGS.zs_dim - ARGS.zy_dim
 
         disc_s_from_zy = layers.Mlp([ARGS.zy_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
-                             output_activation=output_activation)
+                                    output_activation=output_activation)
         hidden_sizes = [40, 40]
         disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
-                             output_activation=output_activation)
-        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim], activation=nn.ReLU,
-                                     output_activation=output_activation)
+                                    output_activation=output_activation)
+        disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim],
+                                     activation=nn.ReLU, output_activation=output_activation)
     else:
         z_channels = x_dim * 16
         ARGS.zs_dim = round(ARGS.zs_frac * z_channels)
@@ -286,9 +268,56 @@ def main(args, train_data, test_data, validation_hook):
         disc_s_from_zy = models.MnistConvNet(ARGS.zy_dim, s_dim, hidden_sizes=hidden_sizes,
                                              output_activation=output_activation)
 
+    LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
     disc_s_from_zs.to(ARGS.device)
     disc_s_from_zy.to(ARGS.device)
+    return disc_s_from_zs, disc_s_from_zy, disc_y_from_zys
 
+
+def main(args, train_data, val_data, test_data):
+    """Main function
+
+    Args:
+        args: commandline arguments
+        train_data: training data
+        val_data: validation data
+        test_data: test data
+
+    Returns:
+        the trained model
+    """
+    # ==== initialize globals ====
+    global ARGS, LOGGER, SUMMARY
+    ARGS = args
+
+    torch.manual_seed(ARGS.seed)
+    torch.cuda.manual_seed(ARGS.seed)
+
+    SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
+                         workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)
+    SUMMARY.disable_mp()
+    SUMMARY.log_parameters(vars(ARGS))
+
+    save_dir = Path(ARGS.save) / str(time.time())
+    save_dir.mkdir(parents=True, exist_ok=True)
+    model_save_path = save_dir / 'checkpt.pth'
+    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
+    LOGGER.info(ARGS)
+
+    # ==== check GPU ====
+    ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if (
+        torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu")
+    LOGGER.info('{} GPUs available. Using GPU {}', torch.cuda.device_count(), ARGS.gpu)
+
+    # ==== construct dataset ====
+    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
+    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+    test_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
+
+    # ==== construct networks ====
+    x_dim, z_dim_flat = get_data_dim(train_loader)
+    disc_s_from_zs, disc_s_from_zy, disc_y_from_zys = create_discriminators(x_dim, z_dim_flat)
     model = fetch_model(args, x_dim)
 
     if ARGS.resume is not None:
@@ -298,52 +327,49 @@ def main(args, train_data, test_data, validation_hook):
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
-    if not ARGS.evaluate:
-        optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-        disc_params = chain(*[disc.parameters() for disc in [disc_y_from_zys, disc_s_from_zy, disc_s_from_zs]
-                              if disc is not None])
-        disc_optimizer = Adam(disc_params, lr=ARGS.disc_lr)
-        scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
-                                      min_lr=1.e-7, cooldown=1)
+    optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
+    disc_params = chain(*[disc.parameters() for disc in [disc_y_from_zys, disc_s_from_zy, disc_s_from_zs]
+                          if disc is not None])
+    disc_optimizer = Adam(disc_params, lr=ARGS.disc_lr)
+    scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
+                                  min_lr=1.e-7, cooldown=1)
 
-        best_loss = float('inf')
+    best_loss = float('inf')
 
-        n_vals_without_improvement = 0
+    n_vals_without_improvement = 0
 
-        for epoch in range(ARGS.epochs):
-            if n_vals_without_improvement > ARGS.early_stopping > 0:
-                break
+    for epoch in range(ARGS.epochs):
+        if n_vals_without_improvement > ARGS.early_stopping > 0:
+            break
 
-            with SUMMARY.train():
-                train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
-                      disc_optimizer, train_loader, epoch)
+        with SUMMARY.train():
+            train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
+                  disc_optimizer, train_loader, epoch)
 
-            if epoch % ARGS.val_freq == 0:
-                with SUMMARY.test():
-                    # SUMMARY.set_step((epoch + 1) * len(train_loader))
-                    val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
-                                        val_loader)
+        if epoch % ARGS.val_freq == 0:
+            with SUMMARY.test():
+                # SUMMARY.set_step((epoch + 1) * len(train_loader))
+                val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
+                                    val_loader)
+                if ARGS.meta_learn:
+                    test(model, test_loader, val_loader)
 
-                    if val_loss < best_loss:
-                        best_loss = val_loss
-                        torch.save({
-                            'ARGS': ARGS,
-                            'state_dict': model.state_dict(),
-                        }, model_save_path)
-                        n_vals_without_improvement = 0
-                    else:
-                        n_vals_without_improvement += 1
+                if val_loss < best_loss:
+                    best_loss = val_loss
+                    save_model(model_save_path, model)
+                    n_vals_without_improvement = 0
+                else:
+                    n_vals_without_improvement += 1
 
-                    scheduler.step(val_loss)
+                scheduler.step(val_loss)
 
-                    log_message = (
-                        '[VAL] Epoch {:04d} | Val Loss {:.6f} | '
-                        'No improvement during validation: {:02d}'.format(
-                            epoch, val_loss, n_vals_without_improvement))
-                    LOGGER.info(log_message)
+                LOGGER.info('[VAL] Epoch {:04d} | Val Loss {:.6f} | '
+                            'No improvement during validation: {:02d}', epoch, val_loss,
+                            n_vals_without_improvement)
 
-        LOGGER.info('Training has finished.')
-        model = restore_model(model, model_save_path).to(ARGS.device)
+    LOGGER.info('Training has finished.')
+    model = restore_model(model_save_path, model).to(ARGS.device)
+    test(model, test_loader, val_loader)
 
     model.eval()
     return model
@@ -356,4 +382,4 @@ def current_experiment():
 
 if __name__ == '__main__':
     from utils.training_utils import parse_arguments
-    main(parse_arguments(), None, None)
+    main(parse_arguments(), None, None, None)

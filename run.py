@@ -6,9 +6,7 @@ import pandas as pd
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn/torch
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
-import torch.nn as nn
 from torch.utils.data.dataset import random_split
-from torch.utils.data import DataLoader
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
@@ -17,16 +15,19 @@ from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_da
 from ethicml.metrics import Accuracy  # , ProbPos, Theil
 
 from train import current_experiment, main as training_loop
-from models import MnistConvNet
 from utils.dataloading import load_dataset
-from utils.training_utils import (
-    parse_arguments, train_and_evaluate_classifier, classifier_training_loop, validate_classifier,
-    encode_dataset, encode_dataset_no_recon)
+from utils.training_utils import parse_arguments, train_and_evaluate_classifier, encode_dataset
+from utils.eval_metrics import evaluate_metalearner
 
 
 def main():
     args = parse_arguments()
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
+
+    # shrink test set according to args.data_pcnt
+    test_len = int(args.data_pcnt * len(whole_test_data))
+    test_data, _ = random_split(whole_test_data,
+                                lengths=(test_len, len(whole_test_data) - test_len))
 
     if args.meta_learn:
         if args.dataset == 'cmnist':
@@ -35,22 +36,22 @@ def main():
         else:
             # something needs to be done to the adult dataset when we're metalearning
             raise RuntimeError("Meta learning doesn't work with adult yet")
-        whole_train_dagger = whole_test_data
-        # whole_train_data: D*, whole_test_data: D
-        whole_train_data, whole_test_data = random_split(whole_train_data, lengths=(50000, 10000))
+        # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
+        # split the training set to get training and validation sets
+        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
+        # shrink validation set according to args.data_pcnt
+        val_len = int(args.data_pcnt * len(whole_val_data))
+        val_data, _ = random_split(whole_val_data,
+                                   lengths=(val_len, len(whole_val_data) - val_len))
+    else:
+        val_data = test_data  # just use the test set as validation set
 
-        dagger_len = int(args.data_pcnt * len(whole_train_dagger))
-        dagger_data, _ = random_split(whole_train_dagger,
-                                      lengths=(dagger_len, len(whole_train_dagger) - dagger_len))
-
+    # shrink train set according to args.data_pcnt
     train_len = int(args.data_pcnt * len(whole_train_data))
     train_data, _ = random_split(whole_train_data,
                                  lengths=(train_len, len(whole_train_data) - train_len))
-    test_len = int(args.data_pcnt * len(whole_test_data))
-    test_data, _ = random_split(whole_test_data,
-                                lengths=(test_len, len(whole_test_data) - test_len))
 
-    model = training_loop(args, train_data, test_data)
+    model = training_loop(args, train_data, val_data, test_data)
     print('Encoding training set...')
     train_repr = encode_dataset(args, train_data, model)
     print('Encoding test set...')
@@ -61,24 +62,11 @@ def main():
     experiment = current_experiment()  # works only after training_loop has been called
     experiment.log_dataset_info(name=args.dataset)
 
-    def evaluate_metalearner(args, model, train_zy, dagger_data):
-        dagger_repr = encode_dataset_no_recon(args, dagger_data, model)
-        meta_clf = MnistConvNet(in_channels=args.zy_dim, out_dims=10, kernel_size=3,
-                                hidden_sizes=[256, 256], output_activation=nn.LogSoftmax(dim=1))
-        meta_clf = meta_clf.to(args.device)
-        classifier_training_loop(args, meta_clf, train_zy, val_data=dagger_repr['zy'])
-
-        _, acc = validate_classifier(args, meta_clf, dagger_repr['zy'], use_s=True,
-                                     pred_s=False, palette=whole_train_dagger.palette)
-        return acc
-
     if args.meta_learn:
-        print('Encoding dagger set...')
-        acc = evaluate_metalearner(args, test_data['zy'], dagger_data)
+        acc = evaluate_metalearner(args, model, test_repr['zy'], test_data)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
-    # flatten the images so that they're amenable to logistic regression
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
