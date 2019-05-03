@@ -296,7 +296,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
         z_[:, args.zn_dim:z_.size(1) - args.zy_dim].zero_()
     if zero_zn:
         z_[:, :args.zn_dim].zero_()
-    recon, _ = model(z_, None, reverse=True)
+    recon = model(z_, reverse=True)
 
     return recon
 

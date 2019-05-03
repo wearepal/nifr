@@ -219,9 +219,9 @@ def main(args, train_data, test_data):
     SUMMARY.disable_mp()
     SUMMARY.log_parameters(vars(ARGS))
 
-    save_dir = Path(ARGS.save)
+    save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
-    model_save_path = save_dir / str(time.time()) / 'checkpt.pth'
+    model_save_path = save_dir / 'checkpt.pth'
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
 
