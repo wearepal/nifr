@@ -71,7 +71,7 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
                        * class_loss_fn(disc_y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
     if disc_s_from_zy is not None and zy.size(1) > 0:
         pred_s_from_zy_loss = loss_fn(
-            layers.grad_reverse(disc_s_from_zy(zy), lambda_=ARGS.pred_s_from_zy_weight),
+            disc_s_from_zy(layers.grad_reverse(zy, lambda_=ARGS.pred_s_from_zy_weight)),
             s, reduction='mean')
     # Enforce independence between the fair, zy, and unfair, zs, partitions
 
