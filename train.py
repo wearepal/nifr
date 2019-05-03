@@ -14,7 +14,7 @@ from optimisation.custom_optimizers import Adam
 import layers
 from utils import utils  # , unbiased_hsic
 from utils.training_utils import (fetch_model, get_data_dim, log_images, reconstruct_all,
-                                  encode_dataset_no_recon)
+                                  encode_dataset_no_recon, classifier_training_loop)
 from utils.eval_metrics import evaluate_metalearner
 import models
 
