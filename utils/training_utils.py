@@ -98,24 +98,27 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
     if not isinstance(train_data, DataLoader):
         train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
 
+    loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy
     model.train()
     for x, s, y in train_data:
 
         if pred_s:
-            target = find(s, palette)
+            target = s
             # target = s
         else:
             target = y
         x = x.to(args.device)
         target = target.to(args.device)
 
-        if not use_s:
+        if args.dataset == 'adult' and use_s:
+            x = torch.cat((x, s), dim=1)
+        elif args.dataset == 'mnist' and not use_s:
             x = x.mean(dim=1, keepdim=True)
 
         optimizer.zero_grad()
         preds = model(x)
 
-        loss = F.nll_loss(preds, target, reduction='sum')
+        loss = loss_fn(preds.float(), target.float(), reduction='sum')
 
         loss.backward()
         optimizer.step()
@@ -124,6 +127,9 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
 def validate_classifier(args, model, val_data, use_s, pred_s, palette):
     if not isinstance(val_data, DataLoader):
         val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
+
+    loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy
+
     with torch.no_grad():
         model.eval()
         val_loss = 0
@@ -132,7 +138,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
             if pred_s:
                 # TODO: do this in EthicML instead
-                target = find(s, palette)
+                target = s
                 # target = s
             else:
                 target = y
@@ -140,16 +146,22 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
             x = x.to(args.device)
             target = target.to(args.device)
 
-            if not use_s:
+            if args.dataset == 'adult' and use_s:
+                x = torch.cat((x, s), dim=1)
+            elif args.dataset == 'mnist' and not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
-            val_loss += F.nll_loss(preds, target, reduction='sum').item()
-            acc += torch.sum(preds.argmax(dim=1) == target).item()
+            val_loss += loss_fn(preds.float(), target.float(), reduction='sum').item()
+
+            if args.dataset == 'adult':
+                acc += torch.sum(preds.round().long() == target).item()
+            else:
+                acc += torch.sum(preds.argmax(dim=1) == target).item()
 
         acc /= len(val_data.dataset)
-
         val_loss /= len(val_data.dataset)
+
         return val_loss, acc
 
 
@@ -206,11 +218,11 @@ def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None
     model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s,
                                      pred_s=pred_s, palette=palette)
 
-    return partial(evaluate, model=model, palette=palette, batch_size=args.test_batch_size,
+    return partial(evaluate, args=args, model=model, palette=palette, batch_size=args.test_batch_size,
                    device=args.device, pred_s=pred_s, use_s=use_s)
 
 
-def evaluate(test_data, model, palette, batch_size, device, pred_s=False, use_s=True):
+def evaluate(args, test_data, model, palette, batch_size, device, pred_s=False, use_s=True):
 
     test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
 
@@ -224,14 +236,16 @@ def evaluate(test_data, model, palette, batch_size, device, pred_s=False, use_s=
 
             if pred_s:
                 # TODO: do this in EthicML instead
-                target = find(s, palette)
+                target = s, palette
             else:
                 target = y
 
             x = x.to(device)
             target = target.to(device)
 
-            if not use_s:
+            if args.dataset == 'adult' and use_s:
+                x = torch.cat((x, s), dim=1)
+            elif args.dataset == 'mnist' and not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x).argmax(dim=1)
@@ -357,10 +371,10 @@ def encode_dataset(args, data, model):
         if entry:
             representations[key] = torch.cat(entry, dim=0).detach().cpu()
 
-    if args.dataset == 'cmnist':
-        all_s = torch.cat(all_s, dim=0)
-        all_y = torch.cat(all_y, dim=0)
+    all_s = torch.cat(all_s, dim=0)
+    all_y = torch.cat(all_y, dim=0)
 
+    if args.dataset == 'cmnist':
         representations['zy'] = torch.utils.data.TensorDataset(
             representations['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
         representations['all_z'] = torch.utils.data.TensorDataset(
@@ -379,6 +393,8 @@ def encode_dataset(args, data, model):
         representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
         representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
         representations['zn'] = representations['all_z'][columns[:args.zn_dim]]
+        representations['s'] = pd.DataFrame(all_s.cpu().numpy())
+        representations['y'] = pd.DataFrame(all_y.cpu().numpy())
 
         return representations
 
@@ -420,5 +436,6 @@ def encode_dataset_no_recon(args, data, model):
         encodings['zy'] = encodings['all_z'][columns[z.size(1) - args.zy_dim:]]
         encodings['zs'] = encodings['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
         encodings['zn'] = encodings['all_z'][:columns[args.zn_dim]]
-
+        encodings['s'] = pd.DataFrame(encodings['all_s'].cpu().numpy())
+        encodings['y'] = pd.DataFrame(encodings['all_y'].cpu().numpy())
         return encodings
