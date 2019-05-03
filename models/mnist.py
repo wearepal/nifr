@@ -42,6 +42,7 @@ class MnistConvNet(nn.Module):
 
         for hsize in hidden_sizes:
             layers.append(nn.Conv2d(curr_channels, hsize, kernel_size, stride=1, padding=padding))
+            layers.append(nn.BatchNorm2d(hsize))
             layers.append(nn.ReLU(inplace=True))
             # layers.append(nn.MaxPool2d(2, 2))
             curr_channels = hsize
@@ -49,9 +50,10 @@ class MnistConvNet(nn.Module):
         layers.append(nn.AdaptiveAvgPool2d(1))
         layers.append(Flatten())
 
-        layers.append(nn.Linear(curr_channels, 500))
+        layers.append(nn.Linear(curr_channels, curr_channels))
         layers.append(nn.ReLU(inplace=True))
-        layers.append(nn.Linear(500, out_dims))
+        layers.append(nn.LayerNorm(curr_channels))
+        layers.append(nn.Linear(curr_channels, out_dims))
         if output_activation is not None:
             layers.append(output_activation)
 
