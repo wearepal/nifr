@@ -29,7 +29,6 @@ def main():
     whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
 
     if args.meta_learn:
-        args.zn_frac = 0  # we don't need zn when doing metalearning
         if args.dataset == 'cmnist':
             whole_train_data.swap_train_test_colorization()
             whole_test_data.swap_train_test_colorization()
