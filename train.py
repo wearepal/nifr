@@ -52,7 +52,7 @@ def compute_loss(x, s, y, model, *, disc_y_from_zys=None, disc_s_from_zs=None, d
         class_loss_fn = F.nll_loss
     else:
         loss_fn = F.binary_cross_entropy
-        x = torch.cat((x, s.float()), dim=1)
+        x = torch.cat((x, s), dim=1)
         class_loss_fn = F.binary_cross_entropy_with_logits
 
     z, delta_logp = model(x, zero)  # run model forward
@@ -239,7 +239,7 @@ def make_networks(x_dim, z_dim_flat):
         disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                                     output_activation=output_activation)
         disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim],
-                                     activation=nn.ReLU, output_activation=output_activation)
+                                     activation=nn.ReLU, output_activation=None)
         disc_y_from_zys.to(ARGS.device)
     else:
         z_channels = x_dim * 16

@@ -100,7 +100,7 @@ def main():
         test_x_without_s = test_tuple.x
 
     model = LR()
-    # model = SVM()
+    # model = SVM(kernel='linear')
     experiment.log_other("evaluation model", model.name)
 
     # ===========================================================================
