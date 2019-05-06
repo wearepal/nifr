@@ -13,6 +13,7 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
 from ethicml.metrics import Accuracy  # , ProbPos, Theil
+from ethicml.data import Adult
 
 from train import main as training_loop
 from utils.dataloading import load_dataset, pytorch_data_to_dataframe
@@ -60,18 +61,17 @@ def main():
 
 def log_metrics(args, experiment, model, train_data, val_data, test_data):
     """Compute and log a variety of metrics"""
-    print('Encoding training set...')
-    train_repr = encode_dataset(args, train_data, model)
     print('Encoding test set...')
     val_repr = encode_dataset(args, val_data, model)
-    # (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(
-    #     args, train_data, test_data)
 
     if args.meta_learn:
         acc = evaluate_metalearner(args, model, val_repr['zy'], test_data)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
+
+    print('Encoding training set...')
+    train_repr = encode_dataset(args, train_data, model)
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
@@ -99,8 +99,11 @@ def log_metrics(args, experiment, model, train_data, val_data, test_data):
     #     train_x_with_s = np.reshape(train_tuple.x, (train_tuple.x.shape[0], -1))
     #     test_x_with_s = np.reshape(test_tuple.x, (test_tuple.x.shape[0], -1))
     if args.dataset == 'adult':
-        train_tuple = pytorch_data_to_dataframe(train_data)
-        test_tuple = pytorch_data_to_dataframe(test_data)
+        # FIXME: this is needed because the information about feature names got lost
+        sens_attrs = Adult().feature_split['s']
+        train_tuple = pytorch_data_to_dataframe(train_data, sens_attrs=sens_attrs)
+        test_tuple = pytorch_data_to_dataframe(test_data, sens_attrs=sens_attrs)
+
         train_x_with_s = pd.concat([train_tuple.x, train_tuple.s], axis='columns')
         test_x_with_s = pd.concat([test_tuple.x, test_tuple.s], axis='columns')
         train_x_without_s = train_tuple.x

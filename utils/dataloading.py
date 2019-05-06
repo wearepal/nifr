@@ -146,13 +146,20 @@ def load_dataset(args):
 #             im.save(path / , 'PNG')
 
 
-def pytorch_data_to_dataframe(dataset):
-    """Load a pytorch dataset into a DataTuple consisting of Pandas DataFrames"""
+def pytorch_data_to_dataframe(dataset, sens_attrs=None):
+    """Load a pytorch dataset into a DataTuple consisting of Pandas DataFrames
+
+    Args:
+        dataset: PyTorch dataset
+        sens_attrs: (optional) list of names of the sensitive attributes
+    """
     # create data loader with one giant batch
     data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     # get the data
     data = next(iter(data_loader))
     # convert it to Pandas DataFrames
     data = [pd.DataFrame(tensor.numpy()) for tensor in data]
+    if sens_attrs:
+        data[1].columns = sens_attrs
     # create a DataTuple
     return DataTuple(x=data[0], s=data[1], y=data[2])
