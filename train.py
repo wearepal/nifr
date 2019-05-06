@@ -230,7 +230,7 @@ def make_networks(x_dim, z_dim_flat):
         disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                                     output_activation=output_activation)
         disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim],
-                                     activation=nn.ReLU, output_activation=output_activation)
+                                     activation=nn.ReLU, output_activation=None)
         disc_y_from_zys.to(ARGS.device)
     else:
         z_channels = x_dim * 16

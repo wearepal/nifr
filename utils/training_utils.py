@@ -17,6 +17,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
     parser.add_argument('--data_pcnt', type=float, metavar='P', default=1.0)
+    parser.add_argument('--add-sampling-bias', type=eval, default=False, choices=[True, False],
+                        help='if True, a sampling bias is added to the data')
 
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)

@@ -27,10 +27,14 @@ def load_adult_data(args):
     from ethicml.preprocessing.domain_adaptation import domain_split
 
     data = load_data(Adult())
-    # train_tuple, test_tuple = train_test_split(data)
-    train_tuple, test_tuple = domain_split(datatup=data,
-                               tr_cond='education_Masters == 0. & education_Doctorate == 0.',
-                               te_cond='education_Masters == 1. | education_Doctorate == 1.')
+    if args.add_sampling_bias:
+        train_tuple, test_tuple = domain_split(
+            datatup=data,
+            tr_cond='education_Masters == 0. & education_Doctorate == 0.',
+            te_cond='education_Masters == 1. | education_Doctorate == 1.'
+        )
+    else:
+        train_tuple, test_tuple = train_test_split(data)
 
     # def load_dataframe(path: Path) -> pd.DataFrame:
     #     """Load dataframe from a parquet file"""
