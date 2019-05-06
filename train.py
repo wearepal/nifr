@@ -115,7 +115,8 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     pred_s_from_zy_loss_meter = utils.AverageMeter()
     pred_s_from_zs_loss_meter = utils.AverageMeter()
     time_meter = utils.AverageMeter()
-    end = time.time()
+    start_epoch_time = time.time()
+    end = start_epoch_time
 
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
@@ -166,9 +167,11 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     log_images(SUMMARY, recon_ys, 'reconstruction_ys')
     log_images(SUMMARY, recon_yn, 'reconstruction_yn')
 
-    LOGGER.info("[TRN] Epoch {:04d} | Time {:.4f}({:.4f}) | Loss -log_p_x (surprisal): {:.6f} |"
-                "pred_y_from_zys: {:.6f} | pred_s_from_zy: {:.6f} | pred_s_from_zs {:.6f} ({:.6f})",
-                epoch, time_meter.val, time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
+    time_for_epoch = time.time() - start_epoch_time
+    LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
+                "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | "
+                "pred_s_from_zy: {:.5g} | pred_s_from_zs {:.5g} ({:.5g})",
+                epoch, time_for_epoch, 1 / time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
 
 
