@@ -73,7 +73,8 @@ def get_mnist_data_tuple(args, data, train=True):
 
     data_path = get_path_from_args(args) / dataset
 
-    if os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values") and os.path.exists(data_path / "y_values"):
+    if (os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values")
+            and os.path.exists(data_path / "y_values")):
         LOGGER.info("data tuples found on file")
         x_all = np.load(data_path / "x_values.npy")
         s_all = pd.read_csv(data_path / "s_values", index_col=0)
@@ -139,3 +140,15 @@ def load_dataset(args):
 #         for sample in x.unfold(dim=0):
 #             im = to_pil(x.detach().cpu())
 #             im.save(path / , 'PNG')
+
+
+def pytorch_data_to_dataframe(dataset):
+    """Load a pytorch dataset into a DataTuple consisting of Pandas DataFrames"""
+    # create data loader with one giant batch
+    data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+    # get the data
+    data = next(iter(data_loader))
+    # convert it to Pandas DataFrames
+    data = [pd.DataFrame(tensor.numpy()) for tensor in data]
+    # create a DataTuple
+    return DataTuple(x=data[0], s=data[1], y=data[2])

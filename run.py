@@ -14,15 +14,15 @@ from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
 from ethicml.metrics import Accuracy  # , ProbPos, Theil
 
-from train import current_experiment, main as training_loop
-from utils.dataloading import load_dataset
+from train import main as training_loop
+from utils.dataloading import load_dataset, pytorch_data_to_dataframe
 from utils.training_utils import parse_arguments, train_and_evaluate_classifier, encode_dataset
 from utils.eval_metrics import evaluate_metalearner
 
 
 def main():
     args = parse_arguments()
-    whole_train_data, whole_test_data, train_tuple, test_tuple = load_dataset(args)
+    whole_train_data, whole_test_data, _, _ = load_dataset(args)
 
     # shrink test set according to args.data_pcnt
     test_len = int(args.data_pcnt * len(whole_test_data))
@@ -51,16 +51,21 @@ def main():
     train_data, _ = random_split(whole_train_data,
                                  lengths=(train_len, len(whole_train_data) - train_len))
 
-    model = training_loop(args, train_data, val_data, test_data)
+    if args.dataset == 'cmnist':
+        # FIXME: this is a very fragile hack that could break any time
+        test_data.palette = whole_test_data.palette
+
+    training_loop(args, train_data, val_data, test_data, log_metrics)
+
+
+def log_metrics(args, experiment, model, train_data, val_data, test_data):
+    """Compute and log a variety of metrics"""
     print('Encoding training set...')
     train_repr = encode_dataset(args, train_data, model)
     print('Encoding test set...')
     val_repr = encode_dataset(args, val_data, model)
     # (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(
     #     args, train_data, test_data)
-
-    experiment = current_experiment()  # works only after training_loop has been called
-    experiment.log_dataset_info(name=args.dataset)
 
     if args.meta_learn:
         acc = evaluate_metalearner(args, model, val_repr['zy'], test_data)
@@ -94,6 +99,8 @@ def main():
     #     train_x_with_s = np.reshape(train_tuple.x, (train_tuple.x.shape[0], -1))
     #     test_x_with_s = np.reshape(test_tuple.x, (test_tuple.x.shape[0], -1))
     if args.dataset == 'adult':
+        train_tuple = pytorch_data_to_dataframe(train_data)
+        test_tuple = pytorch_data_to_dataframe(test_data)
         train_x_with_s = pd.concat([train_tuple.x, train_tuple.s], axis='columns')
         test_x_with_s = pd.concat([test_tuple.x, test_tuple.s], axis='columns')
         train_x_without_s = train_tuple.x
@@ -110,8 +117,8 @@ def main():
 
         if args.dataset == 'cmnist':
             print("\tTraining performance")
-            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
-                                                use_s=False)
+            clf = train_and_evaluate_classifier(args, train_data, palette=test_data.palette,
+                                                pred_s=False, use_s=False)
             preds_x, test_x = clf(train_data)
             _compute_metrics(preds_x, test_x, "Original - Train")
 
@@ -129,8 +136,8 @@ def main():
 
         if args.dataset == 'cmnist':
             print("\tTraining performance")
-            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=False,
-                                                use_s=True)
+            clf = train_and_evaluate_classifier(args, train_data, palette=test_data.palette,
+                                                pred_s=False, use_s=True)
             preds_x_and_s, test_x_and_s = clf(train_data)
             _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
 
@@ -152,8 +159,8 @@ def main():
 
     if args.dataset == 'cmnist':
         print("\tTraining performance")
-        clf = train_and_evaluate_classifier(args, train_repr['all_z'], palette=whole_train_data.palette, pred_s=False,
-                                            use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['all_z'], palette=test_data.palette,
+                                            pred_s=False, use_s=False)
         preds_fair, train_fair = clf(train_repr['all_z'])
         _compute_metrics(preds_fair, train_fair, "All_Z")
 
@@ -171,8 +178,8 @@ def main():
 
     if args.dataset == 'cmnist':
         print("\tTraining performance")
-        clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=False,
-                                            use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=test_data.palette,
+                                            pred_s=False, use_s=False)
         preds_fair, train_fair = clf(train_repr['recon_y'])
         _compute_metrics(preds_fair, train_fair, "Fair")
 
@@ -189,8 +196,8 @@ def main():
     print("unfair:")
     if args.dataset == 'cmnist':
         print("\tTraining performance")
-        clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=False,
-                                            use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=test_data.palette,
+                                            pred_s=False, use_s=False)
         preds_unfair, train_unfair = clf(train_repr['recon_s'])
         _compute_metrics(preds_unfair, train_unfair, "Unfair")
 
@@ -208,8 +215,8 @@ def main():
         print("predict s from original x:")
 
         if args.dataset == 'cmnist':
-            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
-                                                use_s=False)
+            clf = train_and_evaluate_classifier(args, train_data, palette=test_data.palette,
+                                                pred_s=True, use_s=False)
             preds_s_fair, test_fair_predict_s = clf(test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.s)
@@ -224,8 +231,8 @@ def main():
         print("predict s from original x & s:")
 
         if args.dataset == 'cmnist':
-            clf = train_and_evaluate_classifier(args, train_data, palette=whole_train_data.palette, pred_s=True,
-                                                use_s=True)
+            clf = train_and_evaluate_classifier(args, train_data, palette=test_data.palette,
+                                                pred_s=True, use_s=True)
             preds_s_fair, test_fair_predict_s = clf(test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_with_s, s=train_tuple.s, y=train_tuple.s)
@@ -240,8 +247,8 @@ def main():
     print("predict s from fair representation:")
 
     if args.dataset == 'cmnist':
-        clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=whole_train_data.palette, pred_s=True,
-                                            use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_y'], palette=test_data.palette,
+                                            pred_s=True, use_s=False)
         preds_s_fair, test_fair_predict_s = clf(val_repr['recon_y'])
     else:
         train_fair_predict_s = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.s)
@@ -256,8 +263,8 @@ def main():
     print("predict s from unfair representation:")
 
     if args.dataset == 'cmnist':
-        clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=whole_train_data.palette, pred_s=True,
-                                            use_s=False)
+        clf = train_and_evaluate_classifier(args, train_repr['recon_s'], palette=test_data.palette,
+                                            pred_s=True, use_s=False)
         preds_s_unfair, test_unfair_predict_s = clf(val_repr['recon_s'])
     else:
         train_unfair_predict_s = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.s)
