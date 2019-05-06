@@ -17,6 +17,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
     parser.add_argument('--data_pcnt', type=float, metavar='P', default=1.0)
+    parser.add_argument('--add-sampling-bias', type=eval, default=False, choices=[True, False],
+                        help='if True, a sampling bias is added to the data')
 
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)
@@ -25,15 +27,16 @@ def parse_arguments():
     parser.add_argument('--black', type=eval, default=False, choices=[True, False])
     parser.add_argument('--root', type=str, default="data")
 
-    parser.add_argument('--train_x', metavar="PATH")
-    parser.add_argument('--train_s', metavar="PATH")
-    parser.add_argument('--train_y', metavar="PATH")
-    parser.add_argument('--test_x', metavar="PATH")
-    parser.add_argument('--test_s', metavar="PATH")
-    parser.add_argument('--test_y', metavar="PATH")
+    # path to data
+    # parser.add_argument('--train_x', metavar="PATH")
+    # parser.add_argument('--train_s', metavar="PATH")
+    # parser.add_argument('--train_y', metavar="PATH")
+    # parser.add_argument('--test_x', metavar="PATH")
+    # parser.add_argument('--test_s', metavar="PATH")
+    # parser.add_argument('--test_y', metavar="PATH")
 
-    parser.add_argument('--train_new', metavar="PATH")
-    parser.add_argument('--test_new', metavar="PATH")
+    # parser.add_argument('--train_new', metavar="PATH")
+    # parser.add_argument('--test_new', metavar="PATH")
 
     parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")

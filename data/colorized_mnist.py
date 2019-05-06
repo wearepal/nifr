@@ -1,5 +1,4 @@
 import argparse
-import random
 
 import torch
 from torchvision import datasets, transforms
@@ -17,8 +16,8 @@ class MnistColorizer:
         self.background = background
         self.black = black
 
-        np.random.seed(seed)
-        random.seed(seed)
+        # create a local random state that won't affect the global random state of the training
+        self.random_state = np.random.RandomState(seed)
 
         self.color_space = color_space
         if color_space == 'rgb':
@@ -76,15 +75,16 @@ class MnistColorizer:
 
     def _sample_color(self, mean_color_values):
         if self.color_space == 'hsv':
-            return np.clip(np.random.normal(mean_color_values, self.scale), 0, 1)
+            return np.clip(self.random_state.normal(mean_color_values, self.scale), 0, 1)
         else:
-            return np.clip(np.random.multivariate_normal(mean_color_values, self.scale), 0, 1)
+            return np.clip(
+                self.random_state.multivariate_normal(mean_color_values, self.scale), 0, 1)
 
     def _transform(self, img, target, train, background=True, black=True):
         if train:
             target = target.numpy()
         else:
-            target = np.random.randint(0, 10, target.shape)
+            target = self.random_state.randint(0, 10, target.shape)
 
         mean_values = []
         colors_per_sample = []

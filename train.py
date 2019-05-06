@@ -1,9 +1,11 @@
 """Main training file"""
 from itertools import chain
 import time
+import random
 from pathlib import Path
 
 from comet_ml import Experiment
+import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -13,9 +15,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from optimisation.custom_optimizers import Adam
 import layers
 from utils import utils  # , unbiased_hsic
-from utils.training_utils import (fetch_model, get_data_dim, log_images, reconstruct_all,
-                                  encode_dataset_no_recon)
-from utils.eval_metrics import evaluate_metalearner
+from utils.training_utils import fetch_model, get_data_dim, log_images, reconstruct_all
 import models
 
 NDECS = 0
@@ -202,15 +202,6 @@ def validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, val_loader)
     return loss_meter.avg
 
 
-def test(model, test_loader, val_loader):
-    model.eval()
-    if ARGS.meta_learn:
-        val_repr = encode_dataset_no_recon(ARGS, val_loader, model)
-        acc = evaluate_metalearner(ARGS, model, val_repr['zy'], test_loader)
-        SUMMARY.log_metric("Accuracy on Ddagger", acc)
-        print(f"Accuracy on Ddagger: {acc:.4f}")
-
-
 def cvt(*tensors):
     """Put tensors on the correct device and set type to float32"""
     moved = [tensor.to(ARGS.device, non_blocking=True) for tensor in tensors]
@@ -239,7 +230,7 @@ def make_networks(x_dim, z_dim_flat):
         disc_s_from_zs = layers.Mlp([ARGS.zs_dim] + hidden_sizes + [s_dim], activation=nn.ReLU,
                                     output_activation=output_activation)
         disc_y_from_zys = layers.Mlp([z_dim_flat - ARGS.zn_dim] + [100, 100, y_dim],
-                                     activation=nn.ReLU, output_activation=output_activation)
+                                     activation=nn.ReLU, output_activation=None)
         disc_y_from_zys.to(ARGS.device)
     else:
         z_channels = x_dim * 16
@@ -277,7 +268,7 @@ def make_networks(x_dim, z_dim_flat):
     return model, disc_s_from_zs, disc_s_from_zy, disc_y_from_zys
 
 
-def main(args, train_data, val_data, test_data):
+def main(args, train_data, val_data, test_data, metric_callback):
     """Main function
 
     Args:
@@ -285,6 +276,7 @@ def main(args, train_data, val_data, test_data):
         train_data: training data
         val_data: validation data
         test_data: test data
+        metric_callback: a function that computes metrics
 
     Returns:
         the trained model
@@ -293,6 +285,8 @@ def main(args, train_data, val_data, test_data):
     global ARGS, LOGGER, SUMMARY
     ARGS = args
 
+    random.seed(ARGS.seed)
+    np.random.seed(ARGS.seed)
     torch.manual_seed(ARGS.seed)
     torch.cuda.manual_seed(ARGS.seed)
 
@@ -300,6 +294,7 @@ def main(args, train_data, val_data, test_data):
                          workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)
     SUMMARY.disable_mp()
     SUMMARY.log_parameters(vars(ARGS))
+    SUMMARY.log_dataset_info(name=ARGS.dataset)
 
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -313,10 +308,9 @@ def main(args, train_data, val_data, test_data):
     LOGGER.info('{} GPUs available. Using GPU {}', torch.cuda.device_count(), ARGS.gpu)
 
     # ==== construct dataset ====
-    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
-    test_loader = DataLoader(test_data, shuffle=False, batch_size=args.test_batch_size)
+    ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
+    train_loader = DataLoader(train_data, shuffle=True, batch_size=ARGS.batch_size)
+    val_loader = DataLoader(val_data, shuffle=False, batch_size=ARGS.test_batch_size)
 
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
@@ -354,7 +348,7 @@ def main(args, train_data, val_data, test_data):
                 val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
                                     val_loader)
                 if ARGS.meta_learn:
-                    test(model, test_loader, val_loader)
+                    metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
@@ -371,17 +365,11 @@ def main(args, train_data, val_data, test_data):
 
     LOGGER.info('Training has finished.')
     model = restore_model(model_save_path, model).to(ARGS.device)
-    test(model, test_loader, val_loader)
+    metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
 
     model.eval()
     return model
 
 
-def current_experiment():
-    global SUMMARY
-    return SUMMARY
-
-
 if __name__ == '__main__':
-    from utils.training_utils import parse_arguments
-    main(parse_arguments(), None, None, None)
+    print('This file cannot be run directly.')

@@ -10,12 +10,11 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
-from ethicml.data import Adult
-from ethicml.data.load import load_data
-from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.metrics import Accuracy, ProbPos, Theil
 
-from train import current_experiment, main as training_loop
+from train import main as training_loop
+from utils.training_utils import parse_arguments, encode_dataset
+from utils.dataloading import pytorch_data_to_dataframe, load_adult_data
 
 
 # class ModelWrapper(BasicTPA):
@@ -37,11 +36,24 @@ from train import current_experiment, main as training_loop
 def main():
     # model = ModelWrapper()
 
-    dataset = Adult()
-    train, test = train_test_split(load_data(dataset))
-    (train_all, train_zx, train_zs), (test_all, test_zx, test_zs) = training_loop(train, test)
-    experiment = current_experiment()  # works only after training_loop has been called
-    experiment.log_dataset_info(name=dataset.name)
+    args = parse_arguments()
+    train, test, _, _ = load_adult_data(args)
+    training_loop(args, train, test, test, log_metrics)
+
+
+def log_metrics(args, experiment, inn_model, train_data, val_data, _):
+    train = pytorch_data_to_dataframe(train_data)
+    test = pytorch_data_to_dataframe(val_data)
+
+    train_repr = encode_dataset(args, train_data, inn_model)
+    train_all = train_repr['all_z']
+    train_zx = train_repr['zy']
+    train_zs = train_repr['zs']
+
+    test_repr = encode_dataset(args, val_data, inn_model)
+    test_all = test_repr['all_z']
+    test_zx = test_repr['zy']
+    test_zs = test_repr['zs']
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""

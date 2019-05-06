@@ -27,10 +27,14 @@ def load_adult_data(args):
     from ethicml.preprocessing.domain_adaptation import domain_split
 
     data = load_data(Adult())
-    # train_tuple, test_tuple = train_test_split(data)
-    train_tuple, test_tuple = domain_split(datatup=data,
-                               tr_cond='education_Masters == 0. & education_Doctorate == 0.',
-                               te_cond='education_Masters == 1. | education_Doctorate == 1.')
+    if args.add_sampling_bias:
+        train_tuple, test_tuple = domain_split(
+            datatup=data,
+            tr_cond='education_Masters == 0. & education_Doctorate == 0.',
+            te_cond='education_Masters == 1. | education_Doctorate == 1.'
+        )
+    else:
+        train_tuple, test_tuple = train_test_split(data)
 
     # def load_dataframe(path: Path) -> pd.DataFrame:
     #     """Load dataframe from a parquet file"""
@@ -73,7 +77,8 @@ def get_mnist_data_tuple(args, data, train=True):
 
     data_path = get_path_from_args(args) / dataset
 
-    if os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values") and os.path.exists(data_path / "y_values"):
+    if (os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values")
+            and os.path.exists(data_path / "y_values")):
         LOGGER.info("data tuples found on file")
         x_all = np.load(data_path / "x_values.npy")
         s_all = pd.read_csv(data_path / "s_values", index_col=0)
@@ -139,3 +144,22 @@ def load_dataset(args):
 #         for sample in x.unfold(dim=0):
 #             im = to_pil(x.detach().cpu())
 #             im.save(path / , 'PNG')
+
+
+def pytorch_data_to_dataframe(dataset, sens_attrs=None):
+    """Load a pytorch dataset into a DataTuple consisting of Pandas DataFrames
+
+    Args:
+        dataset: PyTorch dataset
+        sens_attrs: (optional) list of names of the sensitive attributes
+    """
+    # create data loader with one giant batch
+    data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+    # get the data
+    data = next(iter(data_loader))
+    # convert it to Pandas DataFrames
+    data = [pd.DataFrame(tensor.numpy()) for tensor in data]
+    if sens_attrs:
+        data[1].columns = sens_attrs
+    # create a DataTuple
+    return DataTuple(x=data[0], s=data[1], y=data[2])
