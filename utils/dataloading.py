@@ -53,12 +53,12 @@ def load_adult_data(args):
     # train_data = TensorDataset(train_x, train_s, train_y)
     # test_data = TensorDataset(test_x, test_s, test_y)
 
-    scaler = StandardScaler()
+    # scaler = StandardScaler()
 
-    train_scaled = pd.DataFrame(scaler.fit_transform(train_tuple.x), columns=train_tuple.x.columns)
-    train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
-    test_scaled = pd.DataFrame(scaler.transform(test_tuple.x), columns=test_tuple.x.columns)
-    test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
+    # train_scaled = pd.DataFrame(scaler.fit_transform(train_tuple.x), columns=train_tuple.x.columns)
+    # train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
+    # test_scaled = pd.DataFrame(scaler.transform(test_tuple.x), columns=test_tuple.x.columns)
+    # test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
 
     train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in train_tuple])
     test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in test_tuple])
