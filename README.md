@@ -1,2 +1,2 @@
 # Fair Invertible Networks
-Learning fair representaitons with invertible neural networks.
+Learning fair representations with invertible neural networks.
