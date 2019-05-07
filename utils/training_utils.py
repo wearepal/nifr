@@ -16,7 +16,7 @@ from models import MnistConvClassifier
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
-    parser.add_argument('--data_pcnt', type=float, metavar='P', default=1.0)
+    parser.add_argument('--data-pcnt', type=float, metavar='P', default=1.0)
     parser.add_argument('--add-sampling-bias', type=eval, default=False, choices=[True, False],
                         help='if True, a sampling bias is added to the data')
 
@@ -43,33 +43,30 @@ def parse_arguments():
     parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch_norm', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--bn_lag', type=float, default=0)
+    parser.add_argument('--bn-lag', type=float, default=0)
 
-    parser.add_argument('--early_stopping', type=int, default=30)
+    parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch_size', type=int, default=100)
-    parser.add_argument('--test_batch_size', type=int, default=None)
+    parser.add_argument('--batch-size', type=int, default=100)
+    parser.add_argument('--test-batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc_lr', type=float, default=1e-2)
-    parser.add_argument('--weight_decay', type=float, default=1e-6)
+    parser.add_argument('--disc-lr', type=float, default=1e-2)
+    parser.add_argument('--weight-decay', type=float, default=1e-6)
     parser.add_argument('--seed', type=int, default=42)
 
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--evaluate', action='store_true')
-    parser.add_argument('--val_freq', type=int, default=4)
-    parser.add_argument('--log_freq', type=int, default=10)
+    parser.add_argument('--val-freq', type=int, default=4)
+    parser.add_argument('--log-freq', type=int, default=10)
 
-    parser.add_argument('--ind-method', type=str, choices=['hsic', 'disc'], default='disc')
-    parser.add_argument('--ind-method2t', type=str, choices=['hsic', 'none'], default='none')
+    parser.add_argument('--zs-frac', type=float, default=0.33)
+    parser.add_argument('--zy-frac', type=float, default=0.33)
 
-    parser.add_argument('--zs_frac', type=float, default=0.33)
-    parser.add_argument('--zy_frac', type=float, default=0.33)
-
-    parser.add_argument('--log_px_weight', type=float, default=1.)
-    parser.add_argument('--pred_y_weight', type=float, default=1.)
-    parser.add_argument('-pszyw', '--pred_s_from_zy_weight', type=float, default=1.)
-    parser.add_argument('-pszsw', '--pred_s_from_zs_weight', type=float, default=1.)
+    parser.add_argument('--log-px-weight', type=float, default=1.)
+    parser.add_argument('--pred-y-weight', type=float, default=1.)
+    parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
+    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
 
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=20)
@@ -77,12 +74,12 @@ def parse_arguments():
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
-    parser.add_argument('--use_comet', type=eval, default=False, choices=[True, False],
+    parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
                         help='whether to use the comet.ml logging')
     parser.add_argument('--patience', type=int, default=10,
                         help='Number of iterations without improvement in val loss before'
                              'reducing learning rate.')
-    parser.add_argument('--meta_learn', type=eval, default=True, choices=[True, False],
+    parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
 
     return parser.parse_args()
@@ -90,7 +87,7 @@ def parse_arguments():
 
 def find(value, value_list):
     result_list = [[i for i, val in enumerate(value.new_tensor(value_list)) if (s_i == val).all()] for s_i in value]
-    return torch.tensor(result_list).flatten()
+    return torch.tensor(result_list).flatten(start_dim=1)
 
 
 def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette):
