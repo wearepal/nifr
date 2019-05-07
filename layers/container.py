@@ -6,10 +6,12 @@ class MultiHead(nn.Module):
 
     def __init__(self, head_list, split_dim):
         super(MultiHead, self).__init__()
+
+        head_list = list(head_list)
         self.heads = nn.ModuleList(head_list)
         self.split_dim = split_dim
 
-        assert len(head_list) != len(split_dim), "Number of heads must" \
+        assert len(head_list) == len(split_dim), "Number of heads must" \
                                                  " equal the number of specified splits"
 
         for i, head in enumerate(head_list):
@@ -18,14 +20,18 @@ class MultiHead(nn.Module):
 
     def forward(self, x, logpx=None, reverse=False, inds=None):
 
-        xs = x.split(split_size_or_sections=self.split_dim, dim=1)
+        xs = x.split(split_size=self.split_dim + [x.size(1) - sum(self.split_dim)], dim=1)
         outputs = []
 
-        for x_, head in zip(self.heads, xs):
-            output_, logpx_ = head(x_, logpx, reverse)
+        for x_, head in zip(xs, self.heads):
+            if head is None:
+                output_, = x_
+            else:
+                output_, logpx_ = head(x_, logpx, reverse)
 
-            if logpx is not None:
-                logpx += logpx_
+                if logpx is not None:
+                    logpx += logpx_
+
             outputs.append(output_)
 
         outputs = torch.cat(outputs, dim=1)

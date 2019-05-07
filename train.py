@@ -179,7 +179,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
-    model_save_path = save_dir / 'checkpt.pth'
+    model_save_path = save_dir / 'model_checkpt.pth'
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
 
@@ -196,7 +196,8 @@ def main(args, train_data, val_data, test_data, metric_callback):
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
     model, discs = make_networks(ARGS, x_dim, z_dim_flat)
-    LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
+    LOGGER.info('zyn_dim: {}, zs_dim: {}', ARGS.zyn_dim, ARGS.zs_dim)
+    # LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
@@ -247,7 +248,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
     metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
 
     model.eval()
-    return model
+    return model, discs
 
 
 if __name__ == '__main__':
