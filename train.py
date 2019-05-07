@@ -121,8 +121,7 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
 
-        if ARGS.ind_method == 'disc':
-            disc_optimizer.zero_grad()
+        disc_optimizer.zero_grad()
 
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
@@ -142,8 +141,7 @@ def train(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs, optimizer,
         loss.backward()
         optimizer.step()
 
-        if ARGS.ind_method == 'disc':
-            disc_optimizer.step()
+        disc_optimizer.step()
 
         time_meter.update(time.time() - end)
 
