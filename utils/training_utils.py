@@ -44,13 +44,15 @@ def parse_arguments():
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch_norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=float, default=0)
+    parser.add_argument('--inv-disc', type=eval, default=True, choices=[True, False])
+    # parser.add_argument('--multi-head', type=eval, default=True, choices=[True, False])
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=100)
     parser.add_argument('--test-batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc-lr', type=float, default=1e-2)
+    parser.add_argument('--disc-lr', type=float, default=1e-3)
     parser.add_argument('--weight-decay', type=float, default=1e-6)
     parser.add_argument('--seed', type=int, default=42)
 

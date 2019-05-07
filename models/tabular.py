@@ -1,4 +1,5 @@
 import layers
+from layers import InvFlatten
 
 
 def tabular_model(args, input_dim):
@@ -7,7 +8,7 @@ def tabular_model(args, input_dim):
     If ARGS.glow is true, then each layer includes 1x1 convolutions.
     """
     hidden_dims = tuple(map(int, args.dims.split("-")))
-    chain = []
+    chain = [InvFlatten()]
     for i in range(args.depth):
         if args.glow:
             chain += [layers.BruteForceLayer(input_dim)]
