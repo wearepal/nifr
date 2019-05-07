@@ -1,13 +1,48 @@
+import torch
 import torch.nn as nn
+
+
+class MultiHead(nn.Module):
+
+    def __init__(self, head_list, split_dim):
+        super(MultiHead, self).__init__()
+        self.heads = nn.ModuleList(head_list)
+        self.split_dim = split_dim
+
+        assert len(head_list) != len(split_dim), "Number of heads must" \
+                                                 " equal the number of specified splits"
+
+        for i, head in enumerate(head_list):
+            if not isinstance(head, SequentialFlow):
+                head_list[i] = SequentialFlow(head_list[i])
+
+    def forward(self, x, logpx=None, reverse=False, inds=None):
+
+        xs = x.split(split_size_or_sections=self.split_dim, dim=1)
+        outputs = []
+
+        for x_, head in zip(self.heads, xs):
+            output_, logpx_ = head(x_, logpx, reverse)
+
+            if logpx is not None:
+                logpx += logpx_
+            outputs.append(output_)
+
+        outputs = torch.cat(outputs, dim=1)
+
+        if logpx is None:
+            return outputs
+        else:
+            return outputs, logpx
 
 
 class SequentialFlow(nn.Module):
     """A generalized nn.Sequential container for normalizing flows.
     """
 
-    def __init__(self, layersList):
+    def __init__(self, layer_list):
         super(SequentialFlow, self).__init__()
-        self.chain = nn.ModuleList(layersList)
+        self.chain = nn.ModuleList(layer_list)
 
     def forward(self, x, logpx=None, reverse=False, inds=None):
         if inds is None:
