@@ -17,8 +17,9 @@ from ethicml.data import Adult
 
 from train import main as training_loop
 from utils.dataloading import load_dataset, pytorch_data_to_dataframe
-from utils.training_utils import parse_arguments, train_and_evaluate_classifier, encode_dataset
-from utils.eval_metrics import evaluate_metalearner
+from utils.training_utils import (parse_arguments, train_and_evaluate_classifier, encode_dataset,
+                                  encode_dataset_no_recon)
+from utils.eval_metrics import evaluate_with_classifier
 
 
 def main():
@@ -61,11 +62,13 @@ def main():
 
 def log_metrics(args, experiment, model, train_data, val_data, test_data):
     """Compute and log a variety of metrics"""
-    print('Encoding test set...')
+    print('Encoding validation set...')
     val_repr = encode_dataset(args, val_data, model)
 
     if args.meta_learn:
-        acc = evaluate_metalearner(args, model, val_repr['zy'], test_data)
+        print('Encoding test set...')
+        test_repr = encode_dataset_no_recon(args, test_data, model)
+        acc = evaluate_with_classifier(args, val_repr['zy'], test_repr['zy'], args.zy_dim)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
