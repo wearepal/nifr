@@ -348,7 +348,8 @@ def main(args, train_data, val_data, test_data, metric_callback):
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
                 val_loss = validate(model, disc_y_from_zys, disc_s_from_zy, disc_s_from_zs,
                                     val_loader)
-                metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
+                if args.super_val:
+                    metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
 
                 if val_loss < best_loss:
                     best_loss = val_loss

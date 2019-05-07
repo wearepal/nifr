@@ -57,6 +57,8 @@ def parse_arguments():
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--evaluate', action='store_true')
+    parser.add_argument('--super-val', type=eval, default=False, choices=[True, False],
+                        help='Train classifier on encodings as part of validation step.')
     parser.add_argument('--val-freq', type=int, default=4)
     parser.add_argument('--log-freq', type=int, default=10)
 
