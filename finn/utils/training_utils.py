@@ -423,7 +423,7 @@ def encode_dataset_no_recon(args, data, model):
         encodings['all_z'].columns = columns
         encodings['zy'] = encodings['all_z'][columns[z.size(1) - args.zy_dim:]]
         encodings['zs'] = encodings['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
-        encodings['zn'] = encodings['all_z'][:columns[args.zn_dim]]
+        encodings['zn'] = encodings['all_z'][columns[:args.zn_dim]]
         encodings['s'] = pd.DataFrame(encodings['all_s'].cpu().numpy())
         encodings['y'] = pd.DataFrame(encodings['all_y'].cpu().numpy())
         return encodings
