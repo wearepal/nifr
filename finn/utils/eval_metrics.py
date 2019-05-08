@@ -6,9 +6,7 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from tqdm import tqdm
 
-from finn.models import MnistConvNet
-from finn.models.inv_discriminators import assemble_whole_model, multi_class_loss, binary_class_loss
-from finn.models.nn_discriminators import compute_log_pz
+from finn.models import MnistConvNet, DiscBase, compute_log_pz
 from finn.utils.training_utils import validate_classifier, classifier_training_loop
 
 
@@ -28,7 +26,8 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels):
 
 
 def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
-    whole_model = assemble_whole_model(args, trunk, discs=discs)
+    assert isinstance(discs, DiscBase)
+    whole_model = discs.assemble_whole_model(trunk)
     whole_model.eval()
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size)
@@ -42,9 +41,9 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
     best_loss = float('inf')
 
     if args.dataset == 'cmnist':
-        class_loss = multi_class_loss
+        class_loss = discs.multi_class_loss
     else:
-        class_loss = binary_class_loss
+        class_loss = discs.binary_class_loss
 
     for epoch in range(args.clf_epochs):
 

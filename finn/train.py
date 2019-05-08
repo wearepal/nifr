@@ -1,5 +1,4 @@
 """Main training file"""
-from itertools import chain
 import time
 import random
 from pathlib import Path
@@ -13,6 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
+from finn.models import NNDisc, InvDisc
 
 NDECS = 0
 ARGS = None
@@ -42,17 +42,9 @@ def save_model(save_dir, model, discs):
     save_dict = {'ARGS': ARGS,
                  'model': model.state_dict()}
 
-    if discs.s_from_zs is not None:
-        save_dict['disc_s_from_zs'] = discs.s_from_zs.state_dict()
-
-    if ARGS.inv_disc:
-        if discs.y_from_zy is not None:
-            save_dict['disc_y_from_zy'] = discs.y_from_zy.state_dict()
-    else:
-        if discs.y_from_zys is not None:
-            save_dict['disc_y_from_zys'] = discs.y_from_zys.state_dict()
-        if discs.s_from_zy is not None:
-            save_dict['disc_s_from_zy'] = discs.s_from_zy.state_dict()
+    for name, disc in discs.discs_dict.items():
+        if disc is not None:
+            save_dict[name] = disc.state_dict()
 
     torch.save(save_dict, filename)
 
@@ -83,8 +75,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = compute_loss(
-            ARGS, x, s, y, model, discs, return_z=False)
+        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(
+            x, s, y, model, return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         pred_y_loss_meter.update(pred_y_loss.item())
@@ -134,7 +126,7 @@ def validate(model, discs, val_loader):
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _, _ = compute_loss(ARGS, x_val, s_val, y_val, model, discs)
+            loss, _, _, _, _ = discs.compute_loss(x_val, s_val, y_val, model)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
@@ -177,13 +169,8 @@ def main(args, train_data, val_data, test_data, metric_callback):
         the trained model
     """
     # ==== initialize globals ====
-    global ARGS, LOGGER, SUMMARY, make_networks, compute_loss
+    global ARGS, LOGGER, SUMMARY
     ARGS = args
-
-    if args.inv_disc:
-        from finn.models.inv_discriminators import make_networks, compute_loss
-    else:
-        from finn.models.nn_discriminators import make_networks, compute_loss
 
     random.seed(ARGS.seed)
     np.random.seed(ARGS.seed)
@@ -214,7 +201,12 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
-    model, discs = make_networks(ARGS, x_dim, z_dim_flat)
+
+    if ARGS.inv_disc:
+        discs = InvDisc(ARGS, x_dim, z_dim_flat)
+    else:
+        discs = NNDisc(ARGS, x_dim, z_dim_flat)
+    model = discs.create_model()
     LOGGER.info('zy_dim: {}, zs_dim: {}', ARGS.zy_dim, ARGS.zs_dim)
     # LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
@@ -226,8 +218,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
     optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-    disc_params = chain(*[disc.parameters() for disc in discs if disc is not None])
-    disc_optimizer = Adam(disc_params, lr=ARGS.disc_lr)
+    disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr)
     scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                   min_lr=1.e-7, cooldown=1)
 
