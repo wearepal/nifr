@@ -15,6 +15,7 @@ from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_da
 from ethicml.metrics import Accuracy  # , ProbPos, Theil
 from ethicml.data import Adult
 
+from models.inv_discriminators import InvDisc
 from train import main as training_loop
 from utils.dataloading import load_dataset, pytorch_data_to_dataframe
 from utils.training_utils import (parse_arguments, train_and_evaluate_classifier, encode_dataset,
@@ -73,7 +74,8 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
     if args.inv_disc:
-        acc = train_zy_head(args, model, discs, val_data, test_data, experiment)
+        disc_model = InvDisc()
+        acc = train_zy_head(args, model, discs, val_data, test_data, experiment, disc_model)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return

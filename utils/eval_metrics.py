@@ -7,8 +7,8 @@ from torch.optim import Adam
 from tqdm import tqdm
 
 from models import MnistConvNet
-from models.inv_discriminators import assemble_whole_model, multi_class_loss, binary_class_loss
-from models.nn_discriminators import compute_log_pz
+# from models.inv_discriminators import assemble_whole_model, multi_class_loss, binary_class_loss
+# from models.nn_discriminators import compute_log_pz
 from train import cvt
 from utils.training_utils import validate_classifier, classifier_training_loop
 
@@ -28,8 +28,8 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels):
     return acc
 
 
-def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
-    whole_model = assemble_whole_model(args, trunk, discs=discs)
+def train_zy_head(args, trunk, discs, train_data, val_data, experiment, disc_model):
+    whole_model = disc_model.assemble_whole_model(args, trunk, discs=discs)
     whole_model.eval()
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size)
@@ -43,9 +43,9 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
     best_loss = float('inf')
 
     if args.dataset == 'cmnist':
-        class_loss = multi_class_loss
+        class_loss = disc_model.multi_class_loss
     else:
-        class_loss = binary_class_loss
+        class_loss = disc_model.binary_class_loss
 
     for epoch in range(args.clf_epochs):
 
@@ -69,7 +69,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                 wh = z.size(1) // (args.zy_dim + args.zs_dim)
                 zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
                 pred_y_loss = args.pred_y_weight * class_loss(zy, y)
-                log_pz = compute_log_pz(zy)
+                log_pz = disc_model.compute_log_pz(zy)
 
                 log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
 
@@ -98,7 +98,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                     wh = z.size(1) // (args.zy_dim + args.zs_dim)
                     zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
                     pred_y_loss = args.pred_y_weight * class_loss(zy, y)
-                    log_pz = compute_log_pz(zy)
+                    log_pz = disc_model.compute_log_pz(zy)
 
                     log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
 
