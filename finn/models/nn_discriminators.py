@@ -4,9 +4,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import layers
-import models
-from utils.training_utils import fetch_model
+from finn import layers, models
+from finn.utils.training_utils import fetch_model
 
 Discriminators = namedtuple('Discriminators', ['s_from_zs', 's_from_zy', 'y_from_zys'])
 

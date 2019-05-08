@@ -6,8 +6,6 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 
-from data.colorized_mnist import ColorizedMNIST
-
 
 class Net(nn.Module):
     def __init__(self, in_channels):
@@ -101,7 +99,7 @@ def main():
 
     args = parser.parse_args()
 
-    from utils.dataloading import load_dataset
+    from finn.utils.dataloading import load_dataset
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -110,11 +108,11 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
 
     if args.dataset == 'mnist':
-        train_data = datasets.MNIST('../data', train=True, download=True,
+        train_data = datasets.MNIST('./data', train=True, download=True,
                                     transform=transforms.Compose([
                                         transforms.ToTensor(),
                                         transforms.Normalize((0.1307,), (0.3081,))])),
-        test_data = datasets.MNIST('../data', train=False,
+        test_data = datasets.MNIST('./data', train=False,
                                    transform=transforms.Compose([
                                        transforms.ToTensor(),
                                        transforms.Normalize((0.1307,), (0.3081,))])),

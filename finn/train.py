@@ -10,9 +10,9 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, TensorDataset
 
-from optimisation.custom_optimizers import Adam
-from utils import utils  # , unbiased_hsic
-from utils.training_utils import get_data_dim, log_images, reconstruct_all
+from finn.optimisation.custom_optimizers import Adam
+from finn.utils import utils  # , unbiased_hsic
+from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
 
 NDECS = 0
 ARGS = None
@@ -181,9 +181,9 @@ def main(args, train_data, val_data, test_data, metric_callback):
     ARGS = args
 
     if args.inv_disc:
-        from models.inv_discriminators import make_networks, compute_loss
+        from finn.models.inv_discriminators import make_networks, compute_loss
     else:
-        from models.nn_discriminators import make_networks, compute_loss
+        from finn.models.nn_discriminators import make_networks, compute_loss
 
     random.seed(ARGS.seed)
     np.random.seed(ARGS.seed)

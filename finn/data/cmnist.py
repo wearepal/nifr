@@ -6,8 +6,8 @@ import torchvision
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from data.preprocess_cmnist import dataset_args_to_str, get_path_from_args
-from utils import utils
+from finn.data.preprocess_cmnist import get_path_from_args
+from finn.utils import utils
 
 
 def update(existing_aggregate, new_value):

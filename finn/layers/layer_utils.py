@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from pyro.distributions.util import broadcast_shape
 
-from layers.coupling import InvertibleLayer
+from finn.layers.coupling import InvertibleLayer
 
 
 class Flatten(nn.Module):

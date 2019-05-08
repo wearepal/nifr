@@ -10,7 +10,7 @@ from torch.utils.data.dataset import random_split
 import torchvision
 from tqdm import tqdm
 
-from models import MnistConvClassifier
+from finn.models import MnistConvClassifier
 
 
 def parse_arguments():
@@ -281,7 +281,7 @@ def metameric_sampling(model, xzx, xzs, zs_dim):
 
 
 def fetch_model(args, x_dim):
-    import models
+    from finn import models
 
     if args.dataset == 'cmnist':
         model = models.glow(args, x_dim).to(args.device)

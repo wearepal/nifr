@@ -1,4 +1,4 @@
-import layers
+from finn import layers
 
 
 def tabular_model(args, input_dim):

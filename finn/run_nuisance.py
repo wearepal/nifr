@@ -4,7 +4,6 @@
 
 import pandas as pd
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
-
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
@@ -12,9 +11,9 @@ from ethicml.algorithms.utils import DataTuple  # , PathTuple
 from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_data
 from ethicml.metrics import Accuracy, ProbPos, Theil
 
-from train import main as training_loop
-from utils.training_utils import parse_arguments, encode_dataset
-from utils.dataloading import pytorch_data_to_dataframe, load_adult_data
+from finn.train import main as training_loop
+from finn.utils.training_utils import parse_arguments, encode_dataset
+from finn.utils.dataloading import pytorch_data_to_dataframe, load_adult_data
 
 
 # class ModelWrapper(BasicTPA):

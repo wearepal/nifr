@@ -1,13 +1,11 @@
 from collections import namedtuple
-import math
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import layers
-import models
-from utils.training_utils import fetch_model
+from finn import layers, models
+from finn.utils.training_utils import fetch_model
 from .nn_discriminators import compute_log_pz
 
 Discriminators = namedtuple('Discriminators', ['s_from_zs', 'y_from_zy', 's_from_zy'])

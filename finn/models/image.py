@@ -1,4 +1,4 @@
-import layers
+from finn import layers
 
 
 def inv_block(args, input_dim, hidden_dims):
