@@ -83,8 +83,6 @@ def compute_loss(args, x, s, y, model, discs, return_z=False):
     wh = z.size(1) // (args.zy_dim + args.zs_dim)
     zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
 
-    # Enforce independence between the fair representation, zy,
-    #  and the sensitive attribute, s
     pred_y_loss = z.new_zeros(1)
     pred_s_from_zs_loss = z.new_zeros(1)
 

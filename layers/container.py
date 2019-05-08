@@ -25,7 +25,7 @@ class MultiHead(nn.Module):
 
         for x_, head in zip(xs, self.heads):
             if head is None:
-                output_, = x_
+                output_ = x_
             else:
                 output_, logpx_ = head(x_, logpx, reverse)
 

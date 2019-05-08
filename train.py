@@ -106,7 +106,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         end = time.time()
 
     if ARGS.dataset == 'cmnist':
-        x = torch.cat((x, s), dim=1) if ARGS.dataset == 'adult' else x
 
         log_images(SUMMARY, x, 'original_x')
         zero = x.new_zeros(x.size(0), 1)
@@ -216,7 +215,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
     model, discs = make_networks(ARGS, x_dim, z_dim_flat)
-    LOGGER.info('zyn_dim: {}, zs_dim: {}', ARGS.zy_dim, ARGS.zs_dim)
+    LOGGER.info('zy_dim: {}, zs_dim: {}', ARGS.zy_dim, ARGS.zs_dim)
     # LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:

@@ -78,7 +78,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
                 head_optimizer.step()
 
-                pbar.set_postfix(log_px=log_px.item(), pred_y_loss=pred_y_loss.item())
+                pbar.set_postfix(log_px=log_px.item(), pred_y_loss=pred_y_loss.item(), total_loss=train_loss.item())
                 pbar.update()
 
         discs.y_from_zy.eval()
