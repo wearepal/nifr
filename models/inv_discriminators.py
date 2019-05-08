@@ -35,20 +35,18 @@ class InvDisc(DiscBase):
             args.zy_dim = z_channels - args.zs_dim
             args.zn_dim = 0
 
-            if not args.meta_learn:
-                disc_y_from_zy = models.tabular_model(args, input_dim=(wh * args.zy_dim))  # logs-softmax
-                disc_y_from_zy.to(args.device)
-            else:
-                args.zy_dim = z_channels - args.zs_dim
-                args.zn_dim = 0
-
-                disc_y_from_zy = None
+            disc_y_from_zy = models.tabular_model(args, input_dim=(wh * args.zy_dim))  # logs-softmax
+            disc_y_from_zy.to(args.device)
 
             # logistic output
             disc_s_from_zs = models.tabular_model(args, input_dim=(wh * args.zs_dim))
+            disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
+                                        activation=nn.ReLU,
+                                        output_activation=torch.nn.LogSoftmax)
 
         disc_s_from_zs.to(args.device)
-        discs = Discriminators(s_from_zs=disc_s_from_zs, y_from_zy=disc_y_from_zy)
+        discs = Discriminators(s_from_zs=disc_s_from_zs, y_from_zy=disc_y_from_zy,
+                               s_from_zy=disc_s_from_zy)
 
         return fetch_model(args, x_dim), discs
 
