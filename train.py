@@ -10,6 +10,8 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, TensorDataset
 
+from models.inv_discriminators import InvDisc
+from models.nn_discriminators import NNDisc
 from optimisation.custom_optimizers import Adam
 from utils import utils  # , unbiased_hsic
 from utils.training_utils import get_data_dim, log_images, reconstruct_all
@@ -63,7 +65,7 @@ def restore_model(filename, model):
     return model
 
 
-def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
+def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, disc_model):
     model.train()
 
     loss_meter = utils.AverageMeter()
@@ -83,7 +85,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = compute_loss(
+        loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = disc_model.compute_loss(
             ARGS, x, s, y, model, discs, return_z=False)
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
@@ -127,14 +129,14 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
 
 
-def validate(model, discs, val_loader):
+def validate(model, discs, val_loader, disc_model):
     model.eval()
     # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, _, _, _, _ = compute_loss(ARGS, x_val, s_val, y_val, model, discs)
+            loss, _, _, _, _ = disc_model.compute_loss(ARGS, x_val, s_val, y_val, model, discs)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
@@ -177,13 +179,13 @@ def main(args, train_data, val_data, test_data, metric_callback):
         the trained model
     """
     # ==== initialize globals ====
-    global ARGS, LOGGER, SUMMARY, make_networks, compute_loss
+    global ARGS, LOGGER, SUMMARY
     ARGS = args
 
     if args.inv_disc:
-        from models.inv_discriminators import make_networks, compute_loss
+        disc_model = InvDisc()
     else:
-        from models.nn_discriminators import make_networks, compute_loss
+        disc_model = NNDisc()
 
     random.seed(ARGS.seed)
     np.random.seed(ARGS.seed)
@@ -214,7 +216,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
-    model, discs = make_networks(ARGS, x_dim, z_dim_flat)
+    model, discs = disc_model.make_networks(ARGS, x_dim, z_dim_flat)
     LOGGER.info('zy_dim: {}, zs_dim: {}', ARGS.zy_dim, ARGS.zs_dim)
     # LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
@@ -240,12 +242,12 @@ def main(args, train_data, val_data, test_data, metric_callback):
             break
 
         with SUMMARY.train():
-            train(model, discs, optimizer, disc_optimizer, train_loader, epoch)
+            train(model, discs, optimizer, disc_optimizer, train_loader, epoch, disc_model)
 
         if epoch % ARGS.val_freq == 0:
             with SUMMARY.test():
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
-                val_loss = validate(model, discs, val_loader)
+                val_loss = validate(model, discs, val_loader, disc_model)
                 if args.super_val:
                     metric_callback(ARGS, SUMMARY, model, discs, train_data, val_data, test_data)
 
