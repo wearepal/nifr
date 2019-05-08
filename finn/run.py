@@ -31,15 +31,18 @@ def main():
                                 lengths=(test_len, len(whole_test_data) - test_len))
 
     if args.meta_learn:
+        # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
         if args.dataset == 'cmnist':
             whole_train_data.swap_train_test_colorization()
             whole_test_data.swap_train_test_colorization()
+            # split the training set to get training and validation sets
+            whole_train_data, whole_val_data = random_split(whole_train_data,
+                                                            lengths=(50000, 10000))
         else:
-            # something needs to be done to the adult dataset when we're metalearning
-            raise RuntimeError("Meta learning doesn't work with adult yet")
-        # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
-        # split the training set to get training and validation sets
-        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
+            val_len = round(0.1 / 0.75 * len(whole_train_data))
+            train_len = len(whole_train_data) - val_len
+            whole_train_data, whole_val_data = random_split(whole_train_data,
+                                                            lengths=(train_len, val_len))
         # shrink validation set according to args.data_pcnt
         val_len = int(args.data_pcnt * len(whole_val_data))
         val_data, _ = random_split(whole_val_data,
@@ -61,24 +64,7 @@ def main():
 
 def log_metrics(args, experiment, model, discs, train_data, val_data, test_data):
     """Compute and log a variety of metrics"""
-    print('Encoding validation set...')
-    val_repr = encode_dataset(args, val_data, model)
-
-    if args.meta_learn and not args.inv_disc:
-        print('Encoding test set...')
-        test_repr = encode_dataset_no_recon(args, test_data, model)
-        acc = evaluate_with_classifier(args, val_repr['zy'], test_repr['zy'], args.zy_dim)
-        experiment.log_metric("Accuracy on Ddagger", acc)
-        print(f"Accuracy on Ddagger: {acc:.4f}")
-        return
-    if args.inv_disc:
-        acc = train_zy_head(args, model, discs, val_data, test_data, experiment)
-        experiment.log_metric("Accuracy on Ddagger", acc)
-        print(f"Accuracy on Ddagger: {acc:.4f}")
-        return
-
-    print('Encoding training set...')
-    train_repr = encode_dataset(args, train_data, model)
+    ethicml_model = LR()
 
     def _compute_metrics(predictions, actual, name):
         """Compute accuracy and fairness metrics and log them"""
@@ -94,6 +80,35 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         for key, value in metrics.items():
             print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
+
+    print('Encoding validation set...')
+    val_repr = encode_dataset(args, val_data, model)
+
+    if args.meta_learn and not args.inv_disc:
+        print('Encoding test set...')
+        test_repr = encode_dataset_no_recon(args, test_data, model)
+        if args.dataset == 'cmnist':
+            ddagger_repr = test_repr['zy']  # s = y
+            d_repr = val_repr['zy']  # s independent y
+            acc = evaluate_with_classifier(args, ddagger_repr, d_repr, args.zy_dim)
+            experiment.log_metric("Meta Accuracy", acc)
+            print(f"Meta Accuracy: {acc:.4f}")
+        else:
+            val_tuple = pytorch_data_to_dataframe(val_data)
+            test_tuple = pytorch_data_to_dataframe(test_data)
+            ddagger_repr = DataTuple(x=test_repr['zy'], s=test_tuple.s, y=test_tuple.y)
+            d_repr = DataTuple(x=val_repr['zy'], s=val_tuple.s, y=val_tuple.y)
+            preds_meta = ethicml_model.run(ddagger_repr, d_repr)
+            _compute_metrics(preds_meta, d_repr, "Meta")
+        return
+    if args.inv_disc:
+        acc = train_zy_head(args, model, discs, val_data, test_data, experiment)
+        experiment.log_metric("Accuracy on Ddagger", acc)
+        print(f"Accuracy on Ddagger: {acc:.4f}")
+        return
+
+    print('Encoding training set...')
+    train_repr = encode_dataset(args, train_data, model)
 
     # if args.dataset == 'cmnist':
     #     # mnist_shape = (-1, 3, 28, 28)
@@ -116,9 +131,8 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         train_x_without_s = train_tuple.x
         test_x_without_s = test_tuple.x
 
-    model = LR()
     # model = SVM()
-    experiment.log_other("evaluation model", model.name)
+    experiment.log_other("evaluation model", ethicml_model.name)
 
     # ===========================================================================
     check_originals = True
@@ -136,7 +150,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         else:
             train_x = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.y)
             test_x = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.y)
-            preds_x = model.run(train_x, test_x)
+            preds_x = ethicml_model.run(train_x, test_x)
 
         print("\tTest performance")
         _compute_metrics(preds_x, test_x, "Original")
@@ -159,7 +173,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
             test_x_and_s = DataTuple(x=test_x_with_s,
                                      s=test_tuple.s,
                                      y=test_tuple.y)
-            preds_x_and_s = model.run(train_x_and_s, test_x_and_s)
+            preds_x_and_s = ethicml_model.run(train_x_and_s, test_x_and_s)
 
         print("\tTest performance")
         _compute_metrics(preds_x_and_s, test_x_and_s, "Original+s")
@@ -178,7 +192,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
     else:
         train_z = DataTuple(x=train_repr['all_z'], s=train_tuple.s, y=train_tuple.y)
         test_z = DataTuple(x=val_repr['all_z'], s=test_tuple.s, y=test_tuple.y)
-        preds_z = model.run(train_z, test_z)
+        preds_z = ethicml_model.run(train_z, test_z)
 
     print("\tTest performance")
     _compute_metrics(preds_z, test_z, "Z")
@@ -197,7 +211,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
     else:
         train_fair = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.y)
         test_fair = DataTuple(x=val_repr['zy'], s=test_tuple.s, y=test_tuple.y)
-        preds_fair = model.run(train_fair, test_fair)
+        preds_fair = ethicml_model.run(train_fair, test_fair)
 
     print("\tTest performance")
     _compute_metrics(preds_fair, test_fair, "Fair")
@@ -215,7 +229,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
     else:
         train_unfair = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.y)
         test_unfair = DataTuple(x=val_repr['zs'], s=test_tuple.s, y=test_tuple.y)
-        preds_unfair = model.run(train_unfair, test_unfair)
+        preds_unfair = ethicml_model.run(train_unfair, test_unfair)
 
     print("\tTest performance")
     _compute_metrics(preds_unfair, test_unfair, "Unfair")
@@ -231,7 +245,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_without_s, s=train_tuple.s, y=train_tuple.s)
             test_fair_predict_s = DataTuple(x=test_x_without_s, s=test_tuple.s, y=test_tuple.s)
-            preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+            preds_s_fair = ethicml_model.run(train_fair_predict_s, test_fair_predict_s)
 
         results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
         experiment.log_metric("Fair pred s", results['Accuracy'])
@@ -247,7 +261,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         else:
             train_fair_predict_s = DataTuple(x=train_x_with_s, s=train_tuple.s, y=train_tuple.s)
             test_fair_predict_s = DataTuple(x=test_x_with_s, s=test_tuple.s, y=test_tuple.s)
-            preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+            preds_s_fair = ethicml_model.run(train_fair_predict_s, test_fair_predict_s)
 
         results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
         experiment.log_metric("Fair pred s", results['Accuracy'])
@@ -263,7 +277,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
     else:
         train_fair_predict_s = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.s)
         test_fair_predict_s = DataTuple(x=val_repr['zy'], s=test_tuple.s, y=test_tuple.s)
-        preds_s_fair = model.run(train_fair_predict_s, test_fair_predict_s)
+        preds_s_fair = ethicml_model.run(train_fair_predict_s, test_fair_predict_s)
 
     results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
     experiment.log_metric("Fair pred s", results['Accuracy'])
@@ -279,7 +293,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
     else:
         train_unfair_predict_s = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.s)
         test_unfair_predict_s = DataTuple(x=val_repr['zs'], s=test_tuple.s, y=test_tuple.s)
-        preds_s_unfair = model.run(train_unfair_predict_s, test_unfair_predict_s)
+        preds_s_unfair = ethicml_model.run(train_unfair_predict_s, test_unfair_predict_s)
 
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])
     experiment.log_metric("Unfair pred s", results['Accuracy'])
