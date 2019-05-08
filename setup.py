@@ -13,7 +13,7 @@ setup(
         "pandas >= 0.24",
         'pyro-ppl >= 0.3.1',
         "scikit-learn >= 0.20",
-        "skcikit-image >= 0.15",
+        "scikit-image >= 0.15",
         "tqdm >= 4.31",
         "torch >= 1.0",
         "scipy >= 1.2.1",
