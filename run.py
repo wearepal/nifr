@@ -19,7 +19,7 @@ from train import main as training_loop
 from utils.dataloading import load_dataset, pytorch_data_to_dataframe
 from utils.training_utils import (parse_arguments, train_and_evaluate_classifier, encode_dataset,
                                   encode_dataset_no_recon)
-from utils.eval_metrics import evaluate_with_classifier
+from utils.eval_metrics import evaluate_with_classifier, train_zy_head
 
 
 def main():
@@ -60,17 +60,20 @@ def main():
     training_loop(args, train_data, val_data, test_data, log_metrics)
 
 
-def log_metrics(args, experiment, model, train_data, val_data, test_data):
+def log_metrics(args, experiment, model, discs, train_data, val_data, test_data):
     """Compute and log a variety of metrics"""
     print('Encoding validation set...')
     val_repr = encode_dataset(args, val_data, model)
 
-    if args.meta_learn:
+    if args.meta_learn and not args.inv_disc:
         print('Encoding test set...')
         test_repr = encode_dataset_no_recon(args, test_data, model)
         acc = evaluate_with_classifier(args, val_repr['zy'], test_repr['zy'], args.zy_dim)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
+        return
+    if args.inv_disc:
+        train_zy_head(args, model, discs, val_data, test_data, experiment)
         return
 
     print('Encoding training set...')

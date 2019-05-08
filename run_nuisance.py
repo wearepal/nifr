@@ -41,7 +41,7 @@ def main():
     training_loop(args, train, test, test, log_metrics)
 
 
-def log_metrics(args, experiment, inn_model, train_data, val_data, _):
+def log_metrics(args, experiment, inn_model, discs, train_data, val_data, _):
     train = pytorch_data_to_dataframe(train_data)
     test = pytorch_data_to_dataframe(val_data)
 

@@ -37,13 +37,14 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def save_model(filename, model):
-    torch.save({'ARGS': ARGS, 'state_dict': model.state_dict()}, filename)
+def save_model(save_dir, model):
+    filename = save_dir / ('model_' + 'checkpt.pth')
+    torch.save({'ARGS': ARGS, 'model': model.state_dict()}, filename)
 
 
 def restore_model(filename, model):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    model.load_state_dict(checkpt["state_dict"])
+    model.load_state_dict(checkpt['model'])
     return model
 
 
@@ -179,7 +180,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
-    model_save_path = save_dir / 'model_checkpt.pth'
+
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
 
@@ -196,7 +197,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
     model, discs = make_networks(ARGS, x_dim, z_dim_flat)
-    LOGGER.info('zyn_dim: {}, zs_dim: {}', ARGS.zyn_dim, ARGS.zs_dim)
+    LOGGER.info('zyn_dim: {}, zs_dim: {}', ARGS.zy_dim, ARGS.zs_dim)
     # LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:
@@ -228,11 +229,11 @@ def main(args, train_data, val_data, test_data, metric_callback):
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
                 val_loss = validate(model, discs, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
+                    metric_callback(ARGS, SUMMARY, model, discs, train_data, val_data, test_data)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    save_model(model_save_path, model)
+                    save_model(save_dir=save_dir, model=model)
                     n_vals_without_improvement = 0
                 else:
                     n_vals_without_improvement += 1
@@ -244,9 +245,9 @@ def main(args, train_data, val_data, test_data, metric_callback):
                             n_vals_without_improvement)
 
     LOGGER.info('Training has finished.')
-    model = restore_model(model_save_path, model).to(ARGS.device)
-    metric_callback(ARGS, SUMMARY, model, train_data, val_data, test_data)
-
+    model = restore_model(save_dir / ('model_' + 'checkpt.pth'), model).to(ARGS.device)
+    metric_callback(ARGS, SUMMARY, model, discs, train_data, val_data, test_data)
+    save_model(save_dir=save_dir, model=model)
     model.eval()
     return model, discs
 
