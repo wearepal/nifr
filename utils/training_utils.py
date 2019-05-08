@@ -351,6 +351,7 @@ def encode_dataset(args, data, model):
 
             if args.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
+
             z = model(x)
 
             if args.dataset == 'cmnist':

@@ -7,7 +7,7 @@ from torch.optim import Adam
 from tqdm import tqdm
 
 from models import MnistConvNet
-from models.inv_discriminators import assemble_whole_model, multi_class_loss
+from models.inv_discriminators import assemble_whole_model, multi_class_loss, binary_class_loss
 from models.nn_discriminators import compute_log_pz
 from train import cvt
 from utils.training_utils import validate_classifier, classifier_training_loop
@@ -42,6 +42,11 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
     best_loss = float('inf')
 
+    if args.dataset == 'cmnist':
+        class_loss = multi_class_loss
+    else:
+        class_loss = binary_class_loss
+
     for epoch in range(args.clf_epochs):
 
         if n_vals_without_improvement > args.clf_early_stopping > 0:
@@ -54,6 +59,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
             for i, (x, s, y) in enumerate(train_loader):
 
                 x, s, y = cvt(x, s, y)
+                if args.dataset == 'adult':
+                    x = torch.cat((x, s.float()), dim=1)
 
                 head_optimizer.zero_grad()
 
@@ -61,7 +68,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                 z, delta_log_p = whole_model(x, zero)
                 wh = z.size(1) // (args.zy_dim + args.zs_dim)
                 zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
-                pred_y_loss = args.pred_y_weight * multi_class_loss(zy, y)
+                pred_y_loss = args.pred_y_weight * class_loss(zy, y)
                 log_pz = compute_log_pz(zy)
 
                 log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
@@ -82,13 +89,15 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                 for i, (x, s, y) in enumerate(val_loader):
 
                     x, s, y = cvt(x, s, y)
+                    if args.dataset == 'adult':
+                        x = torch.cat((x, s.float()), dim=1)
 
                     zero = x.new_zeros(x.size(0), 1)
                     z, delta_log_p = whole_model(x, zero)
 
                     wh = z.size(1) // (args.zy_dim + args.zs_dim)
                     zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
-                    pred_y_loss = args.pred_y_weight * multi_class_loss(zy, y)
+                    pred_y_loss = args.pred_y_weight * class_loss(zy, y)
                     log_pz = compute_log_pz(zy)
 
                     log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
@@ -109,7 +118,5 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
             acc /= len(val_loader.dataset)
             print(f'===> Average val accuracy {acc:.4f}')
-            experiment.set_step(epoch * len(train_loader))
-            experiment.log_metric('z_y head accuracy', acc)
 
-    return whole_model
+    return acc

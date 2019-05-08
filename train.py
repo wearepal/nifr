@@ -37,9 +37,24 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def save_model(save_dir, model):
-    filename = save_dir / ('model_' + 'checkpt.pth')
-    torch.save({'ARGS': ARGS, 'model': model.state_dict()}, filename)
+def save_model(save_dir, model, discs):
+    filename = save_dir / 'checkpt.pth'
+    save_dict = {'ARGS': ARGS,
+                 'model': model.state_dict()}
+
+    if discs.s_from_zs is not None:
+        save_dict['disc_s_from_zs'] = discs.s_from_zs.state_dict()
+
+    if ARGS.inv_disc:
+        if discs.y_from_zy is not None:
+            save_dict['disc_y_from_zy'] = discs.y_from_zy.state_dict()
+    else:
+        if discs.y_from_zys is not None:
+            save_dict['disc_y_from_zys'] = discs.y_from_zys.state_dict()
+        if discs.s_from_zy is not None:
+            save_dict['disc_s_from_zy'] = discs.s_from_zy.state_dict()
+
+    torch.save(save_dict, filename)
 
 
 def restore_model(filename, model):
@@ -90,18 +105,20 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
 
-    x = torch.cat((x, s), dim=1) if ARGS.dataset == 'adult' else x
+    if ARGS.dataset == 'cmnist':
+        x = torch.cat((x, s), dim=1) if ARGS.dataset == 'adult' else x
 
-    log_images(SUMMARY, x, 'original_x')
-    zero = x.new_zeros(x.size(0), 1)
-    z, _ = model(x, zero)
-    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
-    log_images(SUMMARY, recon_all, 'reconstruction_all')
-    log_images(SUMMARY, recon_y, 'reconstruction_y')
-    log_images(SUMMARY, recon_s, 'reconstruction_s')
-    log_images(SUMMARY, recon_n, 'reconstruction_n')
-    log_images(SUMMARY, recon_ys, 'reconstruction_ys')
-    log_images(SUMMARY, recon_yn, 'reconstruction_yn')
+        log_images(SUMMARY, x, 'original_x')
+        zero = x.new_zeros(x.size(0), 1)
+        z, _ = model(x, zero)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
+
+        log_images(SUMMARY, recon_all, 'reconstruction_all')
+        log_images(SUMMARY, recon_y, 'reconstruction_y')
+        log_images(SUMMARY, recon_s, 'reconstruction_s')
+        log_images(SUMMARY, recon_n, 'reconstruction_n')
+        log_images(SUMMARY, recon_ys, 'reconstruction_ys')
+        log_images(SUMMARY, recon_yn, 'reconstruction_yn')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
@@ -122,18 +139,20 @@ def validate(model, discs, val_loader):
 
             loss_meter.update(loss.item(), n=x_val.size(0))
     SUMMARY.log_metric("Loss", loss_meter.avg)
-    log_images(SUMMARY, x_val, 'original_x', train=False)
 
     x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
 
-    z = model(x_val[:64])
-    recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
-    log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
-    log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
-    log_images(SUMMARY, recon_s, 'reconstruction_s', train=False)
-    log_images(SUMMARY, recon_n, 'reconstruction_n', train=False)
-    log_images(SUMMARY, recon_ys, 'reconstruction_ys', train=False)
-    log_images(SUMMARY, recon_yn, 'reconstruction_yn', train=False)
+    if ARGS.dataset == 'cmnist':
+        z = model(x_val[:64])
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
+        log_images(SUMMARY, x_val, 'original_x', train=False)
+        log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
+        log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
+        log_images(SUMMARY, recon_s, 'reconstruction_s', train=False)
+        log_images(SUMMARY, recon_n, 'reconstruction_n', train=False)
+        log_images(SUMMARY, recon_ys, 'reconstruction_ys', train=False)
+        log_images(SUMMARY, recon_yn, 'reconstruction_yn', train=False)
+
     return loss_meter.avg
 
 
@@ -233,7 +252,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    save_model(save_dir=save_dir, model=model)
+                    save_model(save_dir=save_dir, model=model, discs=discs)
                     n_vals_without_improvement = 0
                 else:
                     n_vals_without_improvement += 1
@@ -245,9 +264,9 @@ def main(args, train_data, val_data, test_data, metric_callback):
                             n_vals_without_improvement)
 
     LOGGER.info('Training has finished.')
-    model = restore_model(save_dir / ('model_' + 'checkpt.pth'), model).to(ARGS.device)
+    model = restore_model(save_dir / 'checkpt.pth', model).to(ARGS.device)
     metric_callback(ARGS, SUMMARY, model, discs, train_data, val_data, test_data)
-    save_model(save_dir=save_dir, model=model)
+    save_model(save_dir=save_dir, model=model, discs=discs)
     model.eval()
     return model, discs
 

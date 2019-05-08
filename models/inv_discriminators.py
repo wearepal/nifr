@@ -62,6 +62,10 @@ def multi_class_loss(_logits, _target):
     return F.nll_loss(_preds, _target, reduction='mean')
 
 
+def binary_class_loss(_logits, _target):
+    return F.binary_cross_entropy_with_logits(_logits[:, :1], _target, reduction='mean')
+
+
 def compute_loss(args, x, s, y, model, discs, return_z=False):
     whole_model = assemble_whole_model(args, model, discs)
     zero = x.new_zeros(x.size(0), 1)
@@ -69,9 +73,7 @@ def compute_loss(args, x, s, y, model, discs, return_z=False):
     if args.dataset == 'cmnist':
         class_loss = multi_class_loss
     else:
-        def class_loss(_logits, _target):
-            return F.binary_cross_entropy_with_logits(_logits[:, :1], reduction='mean')
-
+        class_loss = binary_class_loss
         x = torch.cat((x, s.float()), dim=1)
 
     z, delta_log_p = whole_model(x, zero)  # run model forward
