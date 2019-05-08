@@ -1,7 +1,5 @@
 import torch.nn as nn
 
-from layers.coupling import InvertibleLayer
-
 
 class SqueezeLayer(nn.Module):
     def __init__(self, downscale_factor):

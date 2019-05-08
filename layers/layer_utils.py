@@ -23,7 +23,13 @@ class InvFlatten(InvertibleLayer):
 
     def _forward(self, x, logpx=None, reverse=False):
         self.orig_shape = x.shape
-        return x.view(x.size(0), -1), logpx
+
+        y = x.view(x.size(0), -1)
+
+        if logpx is None:
+            return y
+        else:
+            return y, logpx
 
     def _reverse(self, x, logpx=None):
         return x.view(self.orig_shape), logpx

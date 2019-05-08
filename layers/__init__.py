@@ -1,4 +1,4 @@
-from .container import SequentialFlow
+from .container import SequentialFlow, MultiHead
 from .squeeze import SqueezeLayer, UnsqueezeLayer
 from .normalization import MovingBatchNorm1d, MovingBatchNorm2d, MovingBatchNormNd, Parameter
 from .elemwise import LogitTransform, SigmoidTransform, SoftplusTransform

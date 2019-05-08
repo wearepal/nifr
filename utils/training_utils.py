@@ -44,13 +44,14 @@ def parse_arguments():
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch_norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=float, default=0)
+    parser.add_argument('--inv-disc', type=eval, default=True, choices=[True, False])
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=200)
     parser.add_argument('--batch-size', type=int, default=100)
     parser.add_argument('--test-batch_size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc-lr', type=float, default=1e-2)
+    parser.add_argument('--disc-lr', type=float, default=1e-3)
     parser.add_argument('--weight-decay', type=float, default=1e-6)
     parser.add_argument('--seed', type=int, default=42)
 
@@ -81,7 +82,7 @@ def parse_arguments():
     parser.add_argument('--patience', type=int, default=10,
                         help='Number of iterations without improvement in val loss before'
                              'reducing learning rate.')
-    parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
+    parser.add_argument('--meta-learn', type=eval, default=False, choices=[True, False],
                         help='Use meta learning procedure')
 
     return parser.parse_args()
@@ -349,6 +350,7 @@ def encode_dataset(args, data, model):
 
             if args.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
+
             z = model(x)
 
             if args.dataset == 'cmnist':
