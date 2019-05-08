@@ -3,7 +3,7 @@
 # from pathlib import Path
 
 import pandas as pd
-
+import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
