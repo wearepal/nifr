@@ -21,8 +21,7 @@ from finn.utils.training_utils import (parse_arguments, train_and_evaluate_class
 from finn.utils.eval_metrics import evaluate_with_classifier, train_zy_head
 
 
-def main():
-    args = parse_arguments()
+def main(args):
     whole_train_data, whole_test_data, _, _ = load_dataset(args)
 
     # shrink test set according to args.data_pcnt
@@ -292,4 +291,5 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_arguments()
+    main(args)
