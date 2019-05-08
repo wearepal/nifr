@@ -13,7 +13,7 @@ from tqdm import tqdm
 from finn.models import MnistConvClassifier
 
 
-def parse_arguments():
+def parse_arguments(raw_args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
     parser.add_argument('--data-pcnt', type=float, metavar='P', default=1.0)
@@ -85,7 +85,7 @@ def parse_arguments():
     parser.add_argument('--meta-learn', type=eval, default=False, choices=[True, False],
                         help='Use meta learning procedure')
 
-    return parser.parse_args()
+    return parser.parse_args(raw_args)
 
 
 def find(value, value_list):
