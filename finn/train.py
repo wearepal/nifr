@@ -10,7 +10,7 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader, TensorDataset
 
-from finn.optimisation.custom_optimizers import Adam
+from .optimisation.custom_optimizers import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
 
