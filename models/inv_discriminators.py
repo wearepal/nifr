@@ -82,7 +82,7 @@ class InvDisc(DiscBase):
         pred_s_from_zy_loss = indie_loss(pred_s_from_zy, s, reduction='mean')
 
         if zs.size(1) > 0:
-            log_pz += compute_log_pz(zs)
+            log_pz += nn_disc.compute_log_pz(zs)
             pred_s_from_zs_loss = args.pred_s_from_zs_weight * class_loss(zs, s)
 
         log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
