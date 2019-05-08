@@ -13,10 +13,10 @@ from sklearn.preprocessing import StandardScaler
 from torchvision import transforms
 from tqdm import tqdm
 
-from data.cmnist import CMNIST
-from data.colorized_mnist import ColorizedMNIST
-from data.preprocess_cmnist import get_path_from_args, make_cmnist_dataset
-from utils import utils
+from finn.data.cmnist import CMNIST
+from finn.data.colorized_mnist import ColorizedMNIST
+from finn.data.preprocess_cmnist import get_path_from_args
+from finn.utils import utils
 
 
 def load_adult_data(args):

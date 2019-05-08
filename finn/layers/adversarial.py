@@ -1,6 +1,6 @@
 import torch.nn as nn
 from torch.autograd import Function
-from layers.mlp import Mlp
+from finn.layers import Mlp
 
 
 class GradReverse(Function):

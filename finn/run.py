@@ -3,7 +3,6 @@
 # from pathlib import Path
 
 import pandas as pd
-import comet_ml  # this import is needed because comet_ml has to be imported before sklearn/torch
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from torch.utils.data.dataset import random_split
@@ -15,11 +14,11 @@ from ethicml.evaluators.evaluate_models import run_metrics  # , call_on_saved_da
 from ethicml.metrics import Accuracy  # , ProbPos, Theil
 from ethicml.data import Adult
 
-from train import main as training_loop
-from utils.dataloading import load_dataset, pytorch_data_to_dataframe
-from utils.training_utils import (parse_arguments, train_and_evaluate_classifier, encode_dataset,
-                                  encode_dataset_no_recon)
-from utils.eval_metrics import evaluate_with_classifier, train_zy_head
+from finn.train import main as training_loop
+from finn.utils.dataloading import load_dataset, pytorch_data_to_dataframe
+from finn.utils.training_utils import (parse_arguments, train_and_evaluate_classifier, encode_dataset,
+                                       encode_dataset_no_recon)
+from finn.utils.eval_metrics import evaluate_with_classifier, train_zy_head
 
 
 def main():

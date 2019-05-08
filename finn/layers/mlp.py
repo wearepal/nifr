@@ -1,8 +1,7 @@
 from inspect import isclass
 
-import torch
 import torch.nn as nn
-from layers.layer_utils import ConcatModule, call_nn_op,ListOutModule
+from finn.layers.layer_utils import ConcatModule, call_nn_op,ListOutModule
 
 
 class Mlp(nn.Module):

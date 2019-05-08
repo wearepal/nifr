@@ -6,11 +6,10 @@ from torch.utils.data import DataLoader
 from torch.optim import Adam
 from tqdm import tqdm
 
-from models import MnistConvNet
-from models.inv_discriminators import assemble_whole_model, multi_class_loss, binary_class_loss
-from models.nn_discriminators import compute_log_pz
-from train import cvt
-from utils.training_utils import validate_classifier, classifier_training_loop
+from finn.models import MnistConvNet
+from finn.models.inv_discriminators import assemble_whole_model, multi_class_loss, binary_class_loss
+from finn.models.nn_discriminators import compute_log_pz
+from finn.utils.training_utils import validate_classifier, classifier_training_loop
 
 
 def evaluate_with_classifier(args, train_data, test_data, in_channels):
@@ -58,7 +57,9 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
         with tqdm(total=len(train_loader)) as pbar:
             for i, (x, s, y) in enumerate(train_loader):
 
-                x, s, y = cvt(x, s, y)
+                x = x.to(args.device)
+                s = s.to(args.device)
+                y = y.to(args.device)
                 if args.dataset == 'adult':
                     x = torch.cat((x, s.float()), dim=1)
 
@@ -88,7 +89,9 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                 acc = 0
                 for i, (x, s, y) in enumerate(val_loader):
 
-                    x, s, y = cvt(x, s, y)
+                    x = x.to(args.device)
+                    s = s.to(args.device)
+                    y = y.to(args.device)
                     if args.dataset == 'adult':
                         x = torch.cat((x, s.float()), dim=1)
 

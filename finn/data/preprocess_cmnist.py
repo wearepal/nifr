@@ -1,4 +1,3 @@
-import argparse
 import os
 from pathlib import Path
 
@@ -6,11 +5,9 @@ import torch
 from torchvision.transforms import transforms
 from tqdm import tqdm
 
-from data.colorized_mnist import ColorizedMNIST
+from finn.data.colorized_mnist import ColorizedMNIST
 
-import matplotlib.pyplot as plt
-
-from utils import utils
+from finn.utils import utils
 
 
 def load_cmnist_data(args):
