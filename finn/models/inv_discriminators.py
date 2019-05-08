@@ -13,6 +13,9 @@ Discriminators = namedtuple('Discriminators', ['s_from_zs', 'y_from_zy', 's_from
 
 def make_networks(args, x_dim, z_dim_flat):
     """Create the discriminators that enfoce the partition on z"""
+
+    disc_s_from_zy = None
+
     if args.dataset == 'adult':
         z_dim_flat += 1
         args.zs_dim = round(args.zs_frac * z_dim_flat)
@@ -39,6 +42,7 @@ def make_networks(args, x_dim, z_dim_flat):
         disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
                                     activation=nn.ReLU,
                                     output_activation=torch.nn.LogSoftmax)
+        disc_s_from_zy.to(args.device)
 
     disc_s_from_zs.to(args.device)
     discs = Discriminators(s_from_zs=disc_s_from_zs, y_from_zy=disc_y_from_zy,
