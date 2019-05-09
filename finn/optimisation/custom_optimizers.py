@@ -3,7 +3,7 @@ import torch
 from torch.optim import Optimizer
 
 
-class Adam(Optimizer):
+class CustomAdam(Optimizer):
     """Implements Adam algorithm.
 
     It has been proposed in `Adam: A Method for Stochastic Optimization`_.
