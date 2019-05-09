@@ -22,6 +22,7 @@ class InvDisc(DiscBase):
             x_dim += s_dim
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim)
+            disc_s_from_zy = tabular_model(args, input_dim=args.zs_dim)
             disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim)
             disc_y_from_zy.to(args.device)
         else:
@@ -71,7 +72,6 @@ class InvDisc(DiscBase):
     @staticmethod
     def binary_class_loss(_logits, _target):
         return F.binary_cross_entropy_with_logits(_logits[:, :1], _target, reduction='mean')
-
 
     def compute_loss(self, x, s, y, model, return_z=False):
         whole_model = self.assemble_whole_model(model)
