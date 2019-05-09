@@ -9,6 +9,7 @@ from .tabular import tabular_model
 
 class InvDisc(DiscBase):
     def __init__(self, args, x_dim, z_dim_flat):
+        super(InvDisc, self).__init__()
         """Create the discriminators that enfoce the partition on z"""
 
         disc_s_from_zy = None
