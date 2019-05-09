@@ -102,7 +102,6 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
             d_repr = DataTuple(x=val_repr['zy'], s=val_tuple.s, y=val_tuple.y)
             preds_meta = ethicml_model.run(ddagger_repr, d_repr)
             _compute_metrics(preds_meta, d_repr, "Meta")
-        return
     if args.inv_disc:
         acc = train_zy_head(args, model, discs, test_data, val_data)
         experiment.log_metric("Meta Accuracy", acc)
