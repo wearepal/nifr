@@ -3,6 +3,7 @@
 # from pathlib import Path
 
 import pandas as pd
+import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from torch.utils.data.dataset import random_split
