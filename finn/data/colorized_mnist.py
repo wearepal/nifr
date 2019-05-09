@@ -58,14 +58,14 @@ class MnistColorizer:
                 value = np.ones_like(value)
         # colored digits
         else:
-            # black background
             if black:
+                # black background
                 saturation = np.ones_like(value) * saturation_value
-            # white background
             else:
+                # white background
                 saturation = value
                 value = np.ones_like(value)
-        hue = np.tile(hue[..., None][..., None], (1, *hw))
+        hue = np.tile(hue[..., None, None], (1, *hw))
         hsv = np.stack([hue, saturation, value], axis=-1).reshape(-1, hw[0], 3)
 
         rgb = color.hsv2rgb(hsv).reshape(-1, *hw, 3)
@@ -97,7 +97,10 @@ class MnistColorizer:
             img = (img > 0).float()
 
         if self.color_space == 'hsv':
-            colorized_data = self._hsv_colorize(img.numpy().squeeze(), np.array(colors_per_sample),
+            img = img.numpy().squeeze()
+            if len(img.shape) == 2:
+                img = img[None, ...]  # re-add the batch dimension in case it was removed
+            colorized_data = self._hsv_colorize(img, np.array(colors_per_sample),
                                                 background=background, black=black)
         else:
             if background:
