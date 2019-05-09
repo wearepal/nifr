@@ -140,7 +140,7 @@ def validate(model, discs, val_loader):
     if ARGS.dataset == 'cmnist':
 
         whole_model = discs.assemble_whole_model(model)
-        z = model(x_val[:64])
+        z = whole_model(x_val[:64])
 
         recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model)
         log_images(SUMMARY, x_val, 'original_x', train=False)
