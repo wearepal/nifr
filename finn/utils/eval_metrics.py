@@ -68,8 +68,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
                 zero = x.new_zeros(x.size(0), 1)
                 z, delta_log_p = whole_model(x, zero)
-                wh = z.size(1) // (args.zy_dim + args.zs_dim)
-                zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
+                _, zy = discs.split_zs_zy(z)
                 pred_y_loss = args.pred_y_weight * class_loss(zy, y)
                 log_pz = compute_log_pz(zy)
 
@@ -100,8 +99,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                     zero = x.new_zeros(x.size(0), 1)
                     z, delta_log_p = whole_model(x, zero)
 
-                    wh = z.size(1) // (args.zy_dim + args.zs_dim)
-                    zy, zs = z.split(split_size=[args.zy_dim * wh, args.zs_dim * wh], dim=1)
+                    _, zy = discs.split_zs_zy(z)
                     pred_y_loss = args.pred_y_weight * class_loss(zy, y)
                     log_pz = compute_log_pz(zy)
 

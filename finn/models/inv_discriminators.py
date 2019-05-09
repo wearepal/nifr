@@ -68,10 +68,16 @@ class InvDisc(DiscBase):
         _preds = F.log_softmax(_logits[:, :10], dim=1)
         return F.nll_loss(_preds, _target, reduction='mean')
 
-
     @staticmethod
     def binary_class_loss(_logits, _target):
         return F.binary_cross_entropy_with_logits(_logits[:, :1], _target, reduction='mean')
+
+    def split_zs_zy(self, z):
+        assert z.size(1) % (self.args.zs_dim + self.args.zy_dim) == 0
+        width_x_height = z.size(1) // (self.args.zs_dim + self.args.zy_dim)
+        return z.split(
+            split_size=[self.args.zs_dim * width_x_height, self.args.zy_dim * width_x_height],
+            dim=1)
 
     def compute_loss(self, x, s, y, model, return_z=False):
         whole_model = self.assemble_whole_model(model)
@@ -89,8 +95,7 @@ class InvDisc(DiscBase):
 
         log_pz = 0
         # zn = z[:, :self.args.zn_dim]
-        wh = z.size(1) // (self.args.zy_dim + self.args.zs_dim)
-        zs, zy = z.split(split_size=[self.args.zs_dim * wh, self.args.zy_dim * wh], dim=1)
+        zs, zy = self.split_zs_zy(z)
 
         pred_y_loss = z.new_zeros(1)
         pred_s_from_zs_loss = z.new_zeros(1)

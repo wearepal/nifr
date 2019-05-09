@@ -207,8 +207,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
     else:
         discs = NNDisc(ARGS, x_dim, z_dim_flat)
     model = discs.create_model()
-    LOGGER.info('zy_dim: {}, zs_dim: {}', ARGS.zy_dim, ARGS.zs_dim)
-    # LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
+    LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:
         checkpt = torch.load(ARGS.resume)
