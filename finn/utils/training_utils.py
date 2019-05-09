@@ -290,20 +290,22 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
 def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
     """Reconstruct the input from the representation in various different ways"""
     z_ = z.clone()
+    wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
+
     if zero_zy:
         if args.inv_disc:
-            z_[:, z_.size(1) - args.zy_dim:][:, :args.y_dim].zero_()
+            z_[:, z_.size(1) - args.zy_dim * wh:][:, :args.y_dim].zero_()
         else:
             z_[:, z_.size(1) - args.zy_dim:].zero_()
     if zero_zs:
         if args.inv_disc:
-            z_[:, args.zn_dim:z_.size(1) - args.zy_dim][:, :args.s_dim].zero_()
+            z_[:, args.zn_dim * wh:z_.size(1) - args.zy_dim * wh][:, :args.s_dim].zero_()
         else:
             z_[:, args.zn_dim:z_.size(1) - args.zy_dim].zero_()
     if zero_zn:
         if args.inv_disc:
-            z_[:, z_.size(1) - args.zy_dim:][:, args.y_dim:].zero_()
-            z_[:, args.zn_dim:z_.size(1) - args.zy_dim][:, args.s_dim:].zero_()
+            z_[:, z_.size(1) - args.zy_dim * wh:][:, args.y_dim:].zero_()
+            z_[:, args.zn_dim:z_.size(1) - args.zy_dim * wh][:, args.s_dim:].zero_()
         else:
             z_[:, :args.zn_dim].zero_()
 
