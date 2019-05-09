@@ -20,9 +20,9 @@ class InvDisc(DiscBase):
             x_dim += s_dim
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim)
-
-            disc_s_from_zy = tabular_model(args, input_dim=args.zy_dim)
-
+            disc_s_from_zy = layers.Mlp([args.zy_dim] + [200, 200] + [1],
+                                        activation=nn.ReLU,
+                                        output_activation=None)
             disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim)
         else:
             z_channels = x_dim * 4 * 4
@@ -31,9 +31,7 @@ class InvDisc(DiscBase):
             args.zy_dim = z_channels - args.zs_dim
             args.zn_dim = 0
 
-            disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim))  # logs-softmax
-
-            # logistic output
+            disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim))
             disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim))
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
                                         activation=nn.ReLU,
