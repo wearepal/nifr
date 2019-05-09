@@ -5,5 +5,6 @@ from . import (
     utils,
     run_nuisance,
     train,
-    weight_adjust
+    weight_adjust,
+    optimisation,
 )
