@@ -52,7 +52,6 @@ class Invertible1x1Conv(nn.Module):
         else:
             l = self.l * self.l_mask + torch.eye(self.num_channels, device=self.l.device)
             u = self.u * self.l_mask.t() + torch.diag(self.sign_s * self.log_s.exp())
-            w = self.p @ (l @ u)
 
             if reverse:
                 u_inv = u.inverse()
@@ -61,6 +60,7 @@ class Invertible1x1Conv(nn.Module):
                 w_inv = u_inv @ (l_inv @ p_inv)
                 return w_inv.unsqueeze(-1).unsqueeze(-1)
             else:
+                w = self.p @ (l @ u)
                 return w.unsqueeze(-1).unsqueeze(-1)
 
     def dlogdet(self, x):
