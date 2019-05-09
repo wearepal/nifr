@@ -45,7 +45,7 @@ class Invertible1x1Conv(nn.Module):
 
         if not self.use_lr_decomp:
             if reverse:
-                w_inv = torch.inverse(self.weight.squeeze())
+                w_inv = self.weight.squeeze().inverse()
                 return w_inv.unsqueeze(-1).unsqueeze(-1)
             else:
                 return self.weight
