@@ -9,7 +9,6 @@ from .mnist import MnistConvNet
 
 class NNDisc(DiscBase):
     def __init__(self, args, x_dim, z_dim_flat):
-        super(NNDisc, self).__init__()
         """Create the discriminators that enfoce the partition on z"""
         if args.dataset == 'adult':
             z_dim_flat += 1

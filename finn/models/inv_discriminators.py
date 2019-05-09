@@ -9,10 +9,7 @@ from .tabular import tabular_model
 
 class InvDisc(DiscBase):
     def __init__(self, args, x_dim, z_dim_flat):
-        super(InvDisc, self).__init__()
         """Create the discriminators that enfoce the partition on z"""
-
-        disc_s_from_zy = None
 
         if args.dataset == 'adult':
             z_dim_flat += 1
@@ -23,9 +20,10 @@ class InvDisc(DiscBase):
             x_dim += s_dim
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim)
-            disc_s_from_zy = tabular_model(args, input_dim=args.zs_dim)
+
+            disc_s_from_zy = tabular_model(args, input_dim=args.zy_dim)
+
             disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim)
-            disc_y_from_zy.to(args.device)
         else:
             z_channels = x_dim * 4 * 4
             wh = z_dim_flat // z_channels
@@ -34,16 +32,17 @@ class InvDisc(DiscBase):
             args.zn_dim = 0
 
             disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim))  # logs-softmax
-            disc_y_from_zy.to(args.device)
 
             # logistic output
             disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim))
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
                                         activation=nn.ReLU,
                                         output_activation=torch.nn.LogSoftmax)
-            disc_s_from_zy.to(args.device)
 
+        disc_y_from_zy.to(args.device)
+        disc_s_from_zy.to(args.device)
         disc_s_from_zs.to(args.device)
+
         self.s_from_zs = disc_s_from_zs
         self.y_from_zy = disc_y_from_zy
         self.s_from_zy = disc_s_from_zy
