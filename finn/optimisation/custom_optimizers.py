@@ -25,6 +25,11 @@ class CustomAdam(Optimizer):
         https://arxiv.org/abs/1412.6980
     .. _On the Convergence of Adam and Beyond:
         https://openreview.net/forum?id=ryQu7f-RZ
+        
+    NOTE:
+        The difference between this and the Adam optimizer in PyTorch is in how
+        the weight decay (L2 regularization) is applied. In this implementation
+        it is applied to the weights instead of to the gradient.
     """
 
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, amsgrad=False):
