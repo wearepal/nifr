@@ -28,17 +28,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--black', type=eval, default=False, choices=[True, False])
     parser.add_argument('--root', type=str, default="data")
 
-    # path to data
-    # parser.add_argument('--train_x', metavar="PATH")
-    # parser.add_argument('--train_s', metavar="PATH")
-    # parser.add_argument('--train_y', metavar="PATH")
-    # parser.add_argument('--test_x', metavar="PATH")
-    # parser.add_argument('--test_s', metavar="PATH")
-    # parser.add_argument('--test_y', metavar="PATH")
-
-    # parser.add_argument('--train_new', metavar="PATH")
-    # parser.add_argument('--test_new', metavar="PATH")
-
     parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
