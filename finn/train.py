@@ -13,6 +13,7 @@ from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
 from finn.models import NNDisc, InvDisc
+from finn.optimisation import CustomAdam
 
 NDECS = 0
 ARGS = None
@@ -217,7 +218,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
-    optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
+    optimizer = CustomAdam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
 
     if args.inv_disc:
         args.disc_lr = args.lr
