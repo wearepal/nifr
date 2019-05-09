@@ -40,7 +40,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--batch-size', type=int, default=100)
     parser.add_argument('--test-batch-size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc-lr', type=float, default=1e-3)
+    parser.add_argument('--disc-lr', type=float, default=1e-4)
     parser.add_argument('--weight-decay', type=float, default=1e-6)
     parser.add_argument('--seed', type=int, default=42)
 
