@@ -2,45 +2,103 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+from scipy import linalg
 
 
-class Invertible1x1Conv(nn.Conv2d):
+class Invertible1x1Conv(nn.Module):
     """Invertible 1x1 convolution"""
-    def __init__(self, num_channels):
+    def __init__(self, num_channels, use_lr_decomp=True):
+        super().__init__()
+
         self.num_channels = num_channels
-        super().__init__(num_channels, num_channels, 1, bias=False)
+        self.use_lr_decomp = use_lr_decomp
+
+        self.reset_parameters()
 
     def reset_parameters(self):
         # initialization done with rotation matrix
-        w_init = np.linalg.qr(np.random.randn(self.num_channels, self.num_channels))[0]
-        w_init = torch.from_numpy(w_init.astype('float32'))
-        w_init = w_init.unsqueeze(-1).unsqueeze(-1)
-        self.weight.data.copy_(w_init)
+        w_shape = (self.num_channels, self.num_channels)
+        if not self.use_lr_decomp:
+            w_init = np.linalg.qr(np.random.randn(*w_shape))[0]
+            w_init = torch.from_numpy(w_init.astype('float32'))
+            w_init = w_init.unsqueeze(-1).unsqueeze(-1)
+            self.weight = nn.Parameter(w_init)
+        else:
+            np_w = linalg.qr(np.random.randn(*w_shape))[
+                0].astype('float32')
+            np_p, np_l, np_u = linalg.lu(np_w)
+            np_s = np.diag(np_u)
+            np_sign_s = np.sign(np_s)
+            np_log_s = np.log(abs(np_s))
+            np_u = np.triu(np_u, k=1)
+
+            self.register_buffer('p', torch.as_tensor(np_p))
+            self.l = nn.Parameter(torch.as_tensor(np_l))
+            self.register_buffer('sign_s', torch.as_tensor(np_sign_s))
+            self.log_s = nn.Parameter(torch.as_tensor(np_log_s))
+            self.u = nn.Parameter(torch.as_tensor(np_u))
+
+            l_mask = np.tril(np.ones(w_shape, dtype=np.float32), -1)
+            self.register_buffer('l_mask', torch.as_tensor(l_mask))
+
+    def get_w(self, reverse=False):
+
+        if not self.use_lr_decomp:
+            if reverse:
+                w_inv = self.weight.squeeze().inverse()
+                return w_inv.unsqueeze(-1).unsqueeze(-1)
+            else:
+                return self.weight
+        else:
+            l = self.l * self.l_mask + torch.eye(self.num_channels, device=self.l.device)
+            u = self.u * self.l_mask.t() + torch.diag(self.sign_s * self.log_s.exp())
+
+            if reverse:
+                u_inv = u.inverse()
+                l_inv = l.inverse()
+                p_inv = self.p.inverse()
+                w_inv = u_inv @ (l_inv @ p_inv)
+                return w_inv.unsqueeze(-1).unsqueeze(-1)
+            else:
+                w = self.p @ (l @ u)
+                return w.unsqueeze(-1).unsqueeze(-1)
+
+    def dlogdet(self, x):
+        if not self.use_lr_decomp:
+            dlogdet = self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)
+        else:
+            dlogdet = self.log_s.sum() * (x.size(2) * x.size(3))
+        return dlogdet
 
     def forward(self, x, logpx=None, reverse=False):
+
         if not reverse:
             return self._forward(x, logpx)
         else:
             return self._reverse(x, logpx)
 
     def _forward(self, x, logpx):
-        output = F.conv2d(x, self.weight, self.bias, self.stride, self.padding,
-                          self.dilation, self.groups)
+
+        w = self.get_w(reverse=False)
+        output = F.conv2d(x, w)
+
         if logpx is None:
             return output
         else:
-            dlogdet = self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)
+            dlogdet = self.dlogdet(x)
             logpx -= dlogdet
             return output, logpx
 
     def _reverse(self, x, logpx):
-        weight_inv = torch.inverse(self.weight.squeeze()).unsqueeze(-1).unsqueeze(-1)
-        output = F.conv2d(x, weight_inv, self.bias, self.stride, self.padding,
-                          self.dilation, self.groups)
+
+        weight_inv = self.get_w(reverse=True)
+
+        output = F.conv2d(x, weight_inv)
+
         if logpx is None:
             return output
         else:
-            dlogdet = self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)
+            dlogdet = self.dlogdet(x)
             logpx += dlogdet
             return output, logpx
 
@@ -107,3 +165,9 @@ class ActNorm(nn.Module):
         dlogdet = torch.sum(logs) * input.size(-1)  # c x h
 
         return output.view(input_shape), objective - dlogdet
+
+
+def _test():
+    x = torch.randn(100, 3, 28, 28)
+    conv = Invertible1x1Conv(3, use_lr_decomp=True)
+    print(conv(x))
