@@ -294,18 +294,18 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
 
     if zero_zy:
         if args.inv_disc:
-            z_[:, z_.size(1) - args.zy_dim * wh:][:, :args.y_dim].zero_()
+            z_[:, (z_.size(1) - args.zy_dim * wh):][:, :args.y_dim].zero_()
         else:
-            z_[:, z_.size(1) - args.zy_dim:].zero_()
+            z_[:, (z_.size(1) - args.zy_dim):].zero_()
     if zero_zs:
         if args.inv_disc:
-            z_[:, args.zn_dim * wh:z_.size(1) - args.zy_dim * wh][:, :args.s_dim].zero_()
+            z_[:, (args.zn_dim * wh): (z_.size(1) - (args.zy_dim * wh))][:, :args.s_dim].zero_()
         else:
-            z_[:, args.zn_dim:z_.size(1) - args.zy_dim].zero_()
+            z_[:, args.zn_dim: (z_.size(1) - args.zy_dim)].zero_()
     if zero_zn:
         if args.inv_disc:
-            z_[:, z_.size(1) - args.zy_dim * wh:][:, args.y_dim:].zero_()
-            z_[:, args.zn_dim:z_.size(1) - args.zy_dim * wh][:, args.s_dim:].zero_()
+            z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
+            z_[:, args.zn_dim: (z_.size(1) - args.zy_dim * wh)][:, args.s_dim:].zero_()
         else:
             z_[:, :args.zn_dim].zero_()
 
