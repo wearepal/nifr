@@ -86,7 +86,7 @@ class Invertible1x1Conv(nn.Module):
             return output
         else:
             dlogdet = self.dlogdet(x)
-            logpx += dlogdet
+            logpx -= dlogdet
             return output, logpx
 
     def _reverse(self, x, logpx):
@@ -99,7 +99,7 @@ class Invertible1x1Conv(nn.Module):
             return output
         else:
             dlogdet = self.dlogdet(x)
-            logpx -= dlogdet
+            logpx += dlogdet
             return output, logpx
 
 
