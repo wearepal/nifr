@@ -1,12 +1,10 @@
-from collections import namedtuple
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from finn import layers, models
-from finn.utils.training_utils import fetch_model
-from .discriminator_base import DiscBase, compute_log_pz
+from finn import layers
+from .discriminator_base import DiscBase, compute_log_pz, fetch_model
+from .tabular import tabular_model
 
 
 class InvDisc(DiscBase):
@@ -23,8 +21,8 @@ class InvDisc(DiscBase):
             s_dim = 1
             x_dim += s_dim
 
-            disc_y_from_zy = models.tabular_model(args, input_dim=args.zy_dim)
-            disc_s_from_zs = models.tabular_model(args, input_dim=args.zs_dim)
+            disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim)
+            disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim)
             disc_y_from_zy.to(args.device)
         else:
             z_channels = x_dim * 4 * 4
@@ -33,11 +31,11 @@ class InvDisc(DiscBase):
             args.zy_dim = z_channels - args.zs_dim
             args.zn_dim = 0
 
-            disc_y_from_zy = models.tabular_model(args, input_dim=(wh * args.zy_dim))  # logs-softmax
+            disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim))  # logs-softmax
             disc_y_from_zy.to(args.device)
 
             # logistic output
-            disc_s_from_zs = models.tabular_model(args, input_dim=(wh * args.zs_dim))
+            disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim))
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
                                         activation=nn.ReLU,
                                         output_activation=torch.nn.LogSoftmax)

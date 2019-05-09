@@ -2,11 +2,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torch.optim import Adam
 from tqdm import tqdm
 
-from finn.models import MnistConvNet, DiscBase, compute_log_pz
+from finn.models import MnistConvNet, InvDisc, compute_log_pz
 from finn.utils.training_utils import validate_classifier, classifier_training_loop
 
 
@@ -26,7 +26,9 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels):
 
 
 def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
-    assert isinstance(discs, DiscBase)
+    assert isinstance(discs, InvDisc)
+    assert isinstance(train_data, Dataset)
+    assert isinstance(val_data, Dataset)
     whole_model = discs.assemble_whole_model(trunk)
     whole_model.eval()
 
@@ -78,7 +80,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
                 head_optimizer.step()
 
-                pbar.set_postfix(log_px=log_px.item(), pred_y_loss=pred_y_loss.item(), total_loss=train_loss.item())
+                pbar.set_postfix(log_px=log_px.item(), pred_y_loss=pred_y_loss.item(),
+                                 total_loss=train_loss.item())
                 pbar.update()
 
         discs.y_from_zy.eval()

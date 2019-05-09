@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from finn import layers, models
-from finn.utils.training_utils import fetch_model
-from .discriminator_base import DiscBase, compute_log_pz
+from finn import layers
+from .discriminator_base import DiscBase, compute_log_pz, fetch_model
+from .mnist import MnistConvNet
 
 
 class NNDisc(DiscBase):
@@ -42,7 +42,7 @@ class NNDisc(DiscBase):
                 args.zn_dim = z_channels - args.zs_dim - args.zy_dim
 
                 hidden_sizes = [(args.zy_dim + args.zs_dim * 8), (args.zy_dim + args.zs_dim) * 8]
-                disc_y_from_zys = models.MnistConvNet(args.zy_dim + args.zs_dim, y_dim,
+                disc_y_from_zys = MnistConvNet(args.zy_dim + args.zs_dim, y_dim,
                                                       output_activation=nn.LogSoftmax(dim=1),
                                                       hidden_sizes=hidden_sizes)
                 disc_y_from_zys.to(args.device)
@@ -53,10 +53,10 @@ class NNDisc(DiscBase):
                 disc_y_from_zys = None
 
             hidden_sizes = [args.zs_dim * 16, args.zs_dim * 16]
-            disc_s_from_zs = models.MnistConvNet(args.zs_dim, s_dim, hidden_sizes=hidden_sizes,
+            disc_s_from_zs = MnistConvNet(args.zs_dim, s_dim, hidden_sizes=hidden_sizes,
                                                  output_activation=output_activation)
             hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
-            disc_s_from_zy = models.MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
+            disc_s_from_zy = MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
                                                  output_activation=output_activation)
 
         disc_s_from_zs.to(args.device)
