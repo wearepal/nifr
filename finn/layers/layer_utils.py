@@ -24,7 +24,7 @@ class InvFlatten(InvertibleLayer):
     def _forward(self, x, logpx=None, reverse=False):
         self.orig_shape = x.shape
 
-        y = x.view(x.size(0), -1)
+        y = x.flatten(start_dim=1)
 
         if logpx is None:
             return y
@@ -32,7 +32,12 @@ class InvFlatten(InvertibleLayer):
             return y, logpx
 
     def _reverse(self, x, logpx=None):
-        return x.view(self.orig_shape), logpx
+        y = x.view(self.orig_shape)
+
+        if logpx is None:
+            return y
+        else:
+            return y, logpx
 
 
 class Exp(nn.Module):
