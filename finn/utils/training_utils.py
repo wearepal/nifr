@@ -41,7 +41,6 @@ def parse_arguments(raw_args=None):
 
     parser.add_argument('--depth', type=int, default=4)
     parser.add_argument('--dims', type=str, default="100-100")
-    parser.add_argument('--nonlinearity', type=str, default="tanh")
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=float, default=0)
