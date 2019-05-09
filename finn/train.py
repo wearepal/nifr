@@ -102,14 +102,10 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
 
         log_images(SUMMARY, x, 'original_x')
 
-        if ARGS.inv_disc:
-            model_ = discs.assemble_whole_model(model)
-            z = model_(x[:64])
-        else:
-            model_ = model
-            z = model(x[:64])
+        whole_model = discs.assemble_whole_model(model)
+        z = whole_model(x[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model_)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model)
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -143,14 +139,10 @@ def validate(model, discs, val_loader):
 
     if ARGS.dataset == 'cmnist':
 
-        if ARGS.inv_disc:
-            model_ = discs.assemble_whole_model(model)
-            z = model_(x_val[:64])
-        else:
-            model_ = model
-            z = model(x_val[:64])
+        whole_model = discs.assemble_whole_model(model)
+        z = model(x_val[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model_)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model)
         log_images(SUMMARY, x_val, 'original_x', train=False)
         log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
         log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)

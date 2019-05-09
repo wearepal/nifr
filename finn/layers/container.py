@@ -27,10 +27,11 @@ class MultiHead(nn.Module):
             if head is None:
                 output_ = x_
             else:
-                output_, logpx_ = head(x_, logpx, reverse)
-
                 if logpx is not None:
+                    output_, logpx_ = head(x_, logpx, reverse)
                     logpx += logpx_
+                else:
+                    output_ = head(x_, logpx, reverse)
 
             outputs.append(output_)
 
