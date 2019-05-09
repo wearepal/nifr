@@ -308,9 +308,9 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
 def reconstruct_all(args, z, model):
     recon_all = reconstruct(args, z, model)
 
-    recon_y = reconstruct(args, z, model, zero_zs=True, zero_zn=True)
-    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zn=True)
-    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True)
+    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_zn=True)
+    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_zn=True)
+    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True, zero_zn=False)
 
     recon_ys = reconstruct(args, z, model, zero_zn=True)
     recon_yn = reconstruct(args, z, model, zero_zs=True)

@@ -58,8 +58,8 @@ class InvDisc(DiscBase):
 
     def assemble_whole_model(self, trunk):
         chain = [trunk]
-        chain += [layers.MultiHead([self.y_from_zy, self.s_from_zs],
-                                   split_dim=[self.args.zy_dim, self.args.zs_dim])]
+        chain += [layers.MultiHead([self.s_from_zs, self.y_from_zy],
+                                   split_dim=[self.args.zs_dim, self.args.zy_dim])]
         return layers.SequentialFlow(chain)
 
     @staticmethod
@@ -90,7 +90,7 @@ class InvDisc(DiscBase):
         log_pz = 0
         # zn = z[:, :self.args.zn_dim]
         wh = z.size(1) // (self.args.zy_dim + self.args.zs_dim)
-        zy, zs = z.split(split_size=[self.args.zy_dim * wh, self.args.zs_dim * wh], dim=1)
+        zs, zy = z.split(split_size=[self.args.zs_dim * wh, self.args.zy_dim * wh], dim=1)
 
         pred_y_loss = z.new_zeros(1)
         pred_s_from_zs_loss = z.new_zeros(1)
