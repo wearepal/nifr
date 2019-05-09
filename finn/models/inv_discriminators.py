@@ -117,4 +117,4 @@ class InvDisc(DiscBase):
         if return_z:
             return loss, z
 
-        return loss, -log_px, pred_y_loss, z.new_zeros(1), pred_s_from_zs_loss
+        return loss, -log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss
