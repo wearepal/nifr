@@ -16,7 +16,8 @@ from finn.models import MnistConvClassifier
 def parse_arguments(raw_args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
-    parser.add_argument('--data-pcnt', type=float, metavar='P', default=1.0)
+    parser.add_argument('--data-pcnt', type=restricted_float, metavar='P', default=1.0,
+                        help="data %% should be a real value > 0, and up to 1")
     parser.add_argument('--add-sampling-bias', type=eval, default=False, choices=[True, False],
                         help='if True, a sampling bias is added to the data')
 
@@ -86,6 +87,13 @@ def parse_arguments(raw_args=None):
                         help='Use meta learning procedure')
 
     return parser.parse_args(raw_args)
+
+
+def restricted_float(x):
+    x = float(x)
+    if x <= 0.0 or x > 1.0:
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+    return x
 
 
 def find(value, value_list):
