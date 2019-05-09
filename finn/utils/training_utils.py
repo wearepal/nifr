@@ -280,19 +280,6 @@ def metameric_sampling(model, xzx, xzs, zs_dim):
     return xm
 
 
-def fetch_model(args, x_dim):
-    from finn import models
-
-    if args.dataset == 'cmnist':
-        model = models.glow(args, x_dim).to(args.device)
-    elif args.dataset == 'adult':
-        model = models.tabular_model(args, x_dim).to(args.device)
-    else:
-        raise NotImplementedError("Only works for cmnist and adult - How have you even got"
-                                  "hererere?????")
-    return model
-
-
 def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=False, train=True):
     """Make a grid of the given images, save them in a file and log them with Comet"""
     prefix = "train_" if train else "test_"

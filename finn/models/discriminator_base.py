@@ -2,9 +2,8 @@ from abc import ABC, abstractmethod
 from itertools import chain
 
 import torch
-import torch.nn.functional as F
-
-from finn.layers import MultiHead, SequentialFlow
+from .image import glow
+from .tabular import tabular_model
 
 
 class DiscBase(ABC):
@@ -37,3 +36,14 @@ def compute_log_pz(z):
     """Log of the base probability: log(p(z))"""
     log_pz = torch.distributions.Normal(0, 1).log_prob(z).flatten(1).sum(1)
     return log_pz.view(z.size(0), 1)
+
+
+def fetch_model(args, x_dim):
+    if args.dataset == 'cmnist':
+        model = glow(args, x_dim).to(args.device)
+    elif args.dataset == 'adult':
+        model = tabular_model(args, x_dim).to(args.device)
+    else:
+        raise NotImplementedError("Only works for cmnist and adult - How have you even got"
+                                  "hererere?????")
+    return model
