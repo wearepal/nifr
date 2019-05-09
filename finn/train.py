@@ -129,6 +129,7 @@ def validate(model, discs, val_loader):
             loss, _, _, _, _ = discs.compute_loss(x_val, s_val, y_val, model)
 
             loss_meter.update(loss.item(), n=x_val.size(0))
+
     SUMMARY.log_metric("Loss", loss_meter.avg)
 
     x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val

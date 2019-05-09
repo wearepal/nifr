@@ -61,7 +61,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
 
     # classifier parameters (for computing fairness metrics)
-    parser.add_argument('--clf-epochs', type=int, metavar='N', default=20)
+    parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
     parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
 

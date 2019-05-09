@@ -7,6 +7,7 @@ from torch.optim import Adam
 from tqdm import tqdm
 
 from finn.models import MnistConvNet, InvDisc, compute_log_pz
+from finn.utils import utils
 from finn.utils.training_utils import validate_classifier, classifier_training_loop
 
 
@@ -61,6 +62,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                 x = x.to(args.device)
                 s = s.to(args.device)
                 y = y.to(args.device)
+
                 if args.dataset == 'adult':
                     x = torch.cat((x, s.float()), dim=1)
 
@@ -87,12 +89,14 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
         with tqdm(total=len(val_loader)) as pbar:
             with torch.no_grad():
-                acc = 0
+                acc_meter = utils.AverageMeter()
+                val_loss_meter = utils.AverageMeter()
                 for i, (x, s, y) in enumerate(val_loader):
 
                     x = x.to(args.device)
                     s = s.to(args.device)
                     y = y.to(args.device)
+
                     if args.dataset == 'adult':
                         x = torch.cat((x, s.float()), dim=1)
 
@@ -107,19 +111,23 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
                     val_loss = -log_px + pred_y_loss
 
-                    acc_ = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1) == y).item()
-                    acc += acc_
+                    acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1) == y).item()
+                    acc_meter.update(acc.item(), n=x.size(0))
 
-                    if val_loss < best_loss:
-                        best_loss = val_loss
-                        n_vals_without_improvement = 0
-                    else:
-                        n_vals_without_improvement += 1
+                    val_loss_meter.update(val_loss.item(), n=x.size(0))
 
-                    pbar.set_postfix(acc=acc_)
+                    pbar.set_postfix(acc=acc)
                     pbar.update()
 
-            acc /= len(val_loader.dataset)
+                val_loss = val_loss_meter.avg
+
+                if val_loss < best_loss:
+                    best_loss = val_loss
+                    n_vals_without_improvement = 0
+                else:
+                    n_vals_without_improvement += 1
+
+            avg_acc = acc_meter.avg
             print(f'===> Average val accuracy {acc:.4f}')
 
-    return acc
+    return avg_acc
