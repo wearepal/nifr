@@ -217,7 +217,11 @@ def main(args, train_data, val_data, test_data, metric_callback):
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
 
     optimizer = Adam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
-    disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr)
+
+    if args.inv_disc:
+        args.disc_lr = args.lr
+
+    disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
     scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                                   min_lr=1.e-7, cooldown=1)
 
