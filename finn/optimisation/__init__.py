@@ -1,1 +1,1 @@
-from .custom_optimizers import Adam as CustomAdam
+from .custom_optimizers import CustomAdam
