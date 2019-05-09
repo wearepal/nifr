@@ -50,7 +50,7 @@ class Invertible1x1Conv(nn.Module):
             else:
                 return self.weight
         else:
-            l = self.l * self.l_mask + torch.eye(self.num_channels)
+            l = self.l * self.l_mask + torch.eye(self.num_channels, device=self.l.device)
             u = self.u * self.l_mask.t() + torch.diag(self.sign_s * self.log_s.exp())
             w = self.p @ (l @ u)
 
