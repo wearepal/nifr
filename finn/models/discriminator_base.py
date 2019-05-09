@@ -16,7 +16,7 @@ class DiscBase(ABC):
         pass
 
     @abstractmethod
-    def compute_loss(self, x, s, y, model, eturn_z=False):
+    def compute_loss(self, x, s, y, model, return_z=False):
         """Compute the loss with the discriminators"""
 
     @abstractmethod
