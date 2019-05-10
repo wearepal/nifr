@@ -43,7 +43,7 @@ class NNDisc(DiscBase):
                                         activation=nn.ReLU, output_activation=output_activation)
 
             if not args.meta_learn:
-                disc_y_from_zys = layers.Mlp([z_dim_flat - args.zn_dim] + [100, 100, self.y_dim],
+                disc_y_from_zys = layers.Mlp([self.z_channels - args.zn_dim, 100, 100, self.y_dim],
                                              activation=nn.ReLU, output_activation=None)
                 disc_y_from_zys.to(args.device)
         else:
@@ -60,8 +60,8 @@ class NNDisc(DiscBase):
             if not args.meta_learn:
                 hidden_sizes = [(args.zy_dim + args.zs_dim * 8), (args.zy_dim + args.zs_dim) * 8]
                 disc_y_from_zys = MnistConvNet(args.zy_dim + args.zs_dim, self.y_dim,
-                                                      output_activation=nn.LogSoftmax(dim=1),
-                                                      hidden_sizes=hidden_sizes)
+                                               output_activation=nn.LogSoftmax(dim=1),
+                                               hidden_sizes=hidden_sizes)
                 disc_y_from_zys.to(args.device)
 
         disc_s_from_zs.to(args.device)
@@ -69,7 +69,7 @@ class NNDisc(DiscBase):
         self.s_from_zs = disc_s_from_zs
         self.s_from_zy = disc_s_from_zy
         self.y_from_zys = disc_y_from_zys
-        self.disc_name_list =['s_from_zs', 's_from_zy', 'y_from_zys']  # for generating discs_dict
+        self.disc_name_list = ['s_from_zs', 's_from_zy', 'y_from_zys']  # for generating discs_dict
         self.args = args
 
     @property
