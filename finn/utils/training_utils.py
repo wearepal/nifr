@@ -90,7 +90,7 @@ def find(value, value_list):
     return torch.tensor(result_list).flatten(start_dim=1)
 
 
-def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette):
+def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
 
     if not isinstance(train_data, DataLoader):
         train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
@@ -109,7 +109,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
 
         if args.dataset == 'adult' and use_s:
             x = torch.cat((x, s), dim=1)
-        elif args.dataset == 'mnist' and not use_s:
+        elif args.dataset == 'cmnist' and not use_s:
             x = x.mean(dim=1, keepdim=True)
 
         optimizer.zero_grad()
@@ -121,7 +121,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
         optimizer.step()
 
 
-def validate_classifier(args, model, val_data, use_s, pred_s, palette):
+def validate_classifier(args, model, val_data, use_s, pred_s):
     if not isinstance(val_data, DataLoader):
         val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
@@ -145,7 +145,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
             if args.dataset == 'adult' and use_s:
                 x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'mnist' and not use_s:
+            elif args.dataset == 'cmnist' and not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
@@ -163,7 +163,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
 
 def classifier_training_loop(args, model, train_data, val_data, use_s=True,
-                             pred_s=False, palette=None):
+                             pred_s=False):
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
@@ -179,8 +179,8 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
         if n_vals_without_improvement > args.clf_early_stopping > 0:
             break
 
-        train_classifier(args, model, optimizer, train_loader, use_s, pred_s, palette)
-        val_loss, _ = validate_classifier(args, model, val_loader, use_s, pred_s, palette)
+        train_classifier(args, model, optimizer, train_loader, use_s, pred_s)
+        val_loss, _ = validate_classifier(args, model, val_loader, use_s, pred_s)
 
         if val_loss < best_loss:
             best_loss = val_loss
@@ -191,7 +191,7 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
     return model
 
 
-def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None):
+def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -213,13 +213,13 @@ def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None
     model.to(args.device)
 
     model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s,
-                                     pred_s=pred_s, palette=palette)
+                                     pred_s=pred_s)
 
-    return partial(evaluate, args=args, model=model, palette=palette, batch_size=args.test_batch_size,
+    return partial(evaluate, args=args, model=model, batch_size=args.test_batch_size,
                    device=args.device, pred_s=pred_s, use_s=use_s)
 
 
-def evaluate(args, test_data, model, palette, batch_size, device, pred_s=False, use_s=True):
+def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True):
 
     test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
 
@@ -231,18 +231,14 @@ def evaluate(args, test_data, model, palette, batch_size, device, pred_s=False, 
         all_targets = []
         for x, s, y in test_loader:
 
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = s, palette
-            else:
-                target = y
+            target = s if pred_s else y
 
             x = x.to(device)
             target = target.to(device)
 
             if args.dataset == 'adult' and use_s:
                 x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'mnist' and not use_s:
+            elif args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x).argmax(dim=1)
@@ -362,6 +358,10 @@ def encode_dataset(args, data, model):
     if args.dataset == 'cmnist':
         representations['zy'] = torch.utils.data.TensorDataset(
             representations['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
+        representations['zs'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, args.zn_dim:-args.zy_dim], all_s, all_y)
+        representations['zn'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, :args.zn_dim], all_s, all_y)
         representations['all_z'] = torch.utils.data.TensorDataset(
             representations['all_z'], all_s, all_y)
         representations['recon_y'] = torch.utils.data.TensorDataset(
