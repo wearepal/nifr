@@ -149,7 +149,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
-            val_loss += loss_fn(preds.float(), target.float(), reduction='sum').item()
+            val_loss += loss_fn(preds.float(), target.long(), reduction='sum').item()
 
             if args.dataset == 'adult':
                 acc += torch.sum(preds.round().long() == target).item()
