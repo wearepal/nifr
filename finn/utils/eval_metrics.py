@@ -129,8 +129,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
                     zy_old = discs.y_from_zy(zy_trunk)
 
-                    regularization = - (standard_normal.log_prob(zy_new).sum()
-                                        - standard_normal.log_prob(zy_old).sum())
+                    regularization = (standard_normal.log_prob(zy_new).sum(dim=1) -
+                                      standard_normal.log_prob(zy_old).sum(dim=1)).mean()
 
                     log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
 
