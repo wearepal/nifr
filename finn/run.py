@@ -39,7 +39,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
 
     else:
         if args.inv_disc:
-            acc = train_zy_head(args, model, discs, val_data, test_data, experiment)
+            acc = train_zy_head(args, model, discs, val_data, test_data)
             experiment.log_metric("Accuracy on Ddagger", acc)
             print(f"Accuracy on Ddagger: {acc:.4f}")
             return

@@ -26,7 +26,7 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels):
     return acc
 
 
-def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
+def train_zy_head(args, trunk, discs, train_data, val_data):
     assert isinstance(discs, InvDisc)
     assert isinstance(train_data, Dataset)
     assert isinstance(val_data, Dataset)
@@ -111,8 +111,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
                     val_loss = -log_px + pred_y_loss
 
-                    acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1) == y).item()
-                    acc_meter.update(acc.item(), n=x.size(0))
+                    acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1).float() == y).item()
+                    acc_meter.update(acc, n=x.size(0))
 
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
 

@@ -115,7 +115,8 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
         optimizer.zero_grad()
         preds = model(x)
 
-        loss = loss_fn(preds.float(), target.float(), reduction='sum')
+        target_tensor = target.float() if args.dataset =='cmnist' else target.long()
+        loss = loss_fn(preds.float(), target_tensor, reduction='sum')
 
         loss.backward()
         optimizer.step()
@@ -376,8 +377,8 @@ def encode_dataset(args, data, model):
         columns = representations['all_z'].columns.astype(str)
         representations['all_z'].columns = columns
 
-        representations['s'] = pd.DataFrame(all_s.cpu().numpy())
-        representations['y'] = pd.DataFrame(all_y.cpu().numpy())
+        representations['s'] = pd.DataFrame(all_s.float().cpu().numpy())
+        representations['y'] = pd.DataFrame(all_y.float().cpu().numpy())
 
         representations['zy'] = DataTuple(x=representations['all_z'][columns[z.size(1) - args.zy_dim:]], s=representations['s'], y=representations['y'])
         representations['zs'] = DataTuple(x=representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]], s=representations['s'], y=representations['y'])
