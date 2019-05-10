@@ -30,7 +30,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
     assert isinstance(discs, InvDisc)
     assert isinstance(train_data, Dataset)
     assert isinstance(val_data, Dataset)
-    saved_params = discs.y_from_zy.state_dict()
+    # saved_params = discs.y_from_zy.state_dict()
     whole_model = discs.assemble_whole_model(trunk)
     whole_model.eval()
 
@@ -131,6 +131,6 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
             avg_acc = acc_meter.avg
             print(f'===> Average val accuracy {avg_acc:.4f}')
 
-    discs.y_from_zy.load_state_dict(saved_params)
+    # discs.y_from_zy.load_state_dict(saved_params)
 
     return avg_acc
