@@ -96,7 +96,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                 regularization *= args.clf_reg_weight
                 log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
 
-                train_loss = -log_px + pred_y_loss + regularization
+                train_loss = 0 * -log_px + pred_y_loss + regularization
                 train_loss.backward()
 
                 head_optimizer.step()
