@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 
 import torch.nn.functional as F
+from ethicml.algorithms.utils import DataTuple
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 import torchvision
@@ -89,7 +90,7 @@ def find(value, value_list):
     return torch.tensor(result_list).flatten(start_dim=1)
 
 
-def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette):
+def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
 
     if not isinstance(train_data, DataLoader):
         train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
@@ -108,19 +109,20 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
 
         if args.dataset == 'adult' and use_s:
             x = torch.cat((x, s), dim=1)
-        elif args.dataset == 'mnist' and not use_s:
+        elif args.dataset == 'cmnist' and not use_s:
             x = x.mean(dim=1, keepdim=True)
 
         optimizer.zero_grad()
         preds = model(x)
 
-        loss = loss_fn(preds.float(), target.long(), reduction='mean')
+        target_tensor = target.float() if args.dataset =='cmnist' else target.long()
+        loss = loss_fn(preds.float(), target_tensor, reduction='mean')
 
         loss.backward()
         optimizer.step()
 
 
-def validate_classifier(args, model, val_data, use_s, pred_s, palette):
+def validate_classifier(args, model, val_data, use_s, pred_s):
     if not isinstance(val_data, DataLoader):
         val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
@@ -144,7 +146,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
             if args.dataset == 'adult' and use_s:
                 x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'mnist' and not use_s:
+            elif args.dataset == 'cmnist' and not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
@@ -162,7 +164,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s, palette):
 
 
 def classifier_training_loop(args, model, train_data, val_data, use_s=True,
-                             pred_s=False, palette=None):
+                             pred_s=False):
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
@@ -178,8 +180,8 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
         if n_vals_without_improvement > args.clf_early_stopping > 0:
             break
 
-        train_classifier(args, model, optimizer, train_loader, use_s, pred_s, palette)
-        val_loss, _ = validate_classifier(args, model, val_loader, use_s, pred_s, palette)
+        train_classifier(args, model, optimizer, train_loader, use_s, pred_s)
+        val_loss, _ = validate_classifier(args, model, val_loader, use_s, pred_s)
 
         if val_loss < best_loss:
             best_loss = val_loss
@@ -190,7 +192,7 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
     return model
 
 
-def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None):
+def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -212,13 +214,29 @@ def train_and_evaluate_classifier(args, data, palette, pred_s, use_s, model=None
     model.to(args.device)
 
     model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s,
-                                     pred_s=pred_s, palette=palette)
+                                     pred_s=pred_s)
 
-    return partial(evaluate, args=args, model=model, palette=palette, batch_size=args.test_batch_size,
+    return partial(evaluate, args=args, model=model, batch_size=args.test_batch_size,
                    device=args.device, pred_s=pred_s, use_s=use_s)
 
 
-def evaluate(args, test_data, model, palette, batch_size, device, pred_s=False, use_s=True):
+def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True):
+    """
+    Evaluate a model on a given test set and return the predictions
+
+    :param args: Our global store
+    :param test_data: evaluate gets passed around as a partial function. test_data is
+                        the value that is supplied that we evaluate
+    :param model: the model that we want to run the test data on
+    :param batch_size:
+    :param device:
+    :param pred_s: whether we want to predict s (in which case set s
+                    from the test_data as the target), or not
+    :param use_s: Should we include S as input to the model (as well as x)
+    :param using_x: are we training the model in x space or z space? If training
+                    in x mark this as true, else we'll assume we're running in z space
+    :return: a dataframe of predictions
+    """
 
     test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
 
@@ -230,18 +248,14 @@ def evaluate(args, test_data, model, palette, batch_size, device, pred_s=False, 
         all_targets = []
         for x, s, y in test_loader:
 
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = s, palette
-            else:
-                target = y
+            target = s if pred_s else y
 
             x = x.to(device)
             target = target.to(device)
 
             if args.dataset == 'adult' and use_s:
                 x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'mnist' and not use_s:
+            elif args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x).argmax(dim=1)
@@ -375,6 +389,10 @@ def encode_dataset(args, data, model):
     if args.dataset == 'cmnist':
         representations['zy'] = torch.utils.data.TensorDataset(
             representations['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
+        representations['zs'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, args.zn_dim:-args.zy_dim], all_s, all_y)
+        representations['zn'] = torch.utils.data.TensorDataset(
+            representations['all_z'][:, :args.zn_dim], all_s, all_y)
         representations['all_z'] = torch.utils.data.TensorDataset(
             representations['all_z'], all_s, all_y)
         representations['recon_y'] = torch.utils.data.TensorDataset(
@@ -388,11 +406,15 @@ def encode_dataset(args, data, model):
         representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
         columns = representations['all_z'].columns.astype(str)
         representations['all_z'].columns = columns
-        representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
-        representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
-        representations['zn'] = representations['all_z'][columns[:args.zn_dim]]
-        representations['s'] = pd.DataFrame(all_s.cpu().numpy())
-        representations['y'] = pd.DataFrame(all_y.cpu().numpy())
+
+        representations['s'] = pd.DataFrame(all_s.float().cpu().numpy())
+        representations['y'] = pd.DataFrame(all_y.float().cpu().numpy())
+
+        representations['zy'] = DataTuple(x=representations['all_z'][columns[z.size(1) - args.zy_dim:]], s=representations['s'], y=representations['y'])
+        representations['zs'] = DataTuple(x=representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]], s=representations['s'], y=representations['y'])
+        representations['zn'] = DataTuple(x=representations['all_z'][columns[:args.zn_dim]], s=representations['s'], y=representations['y'])
+
+        representations['all_z'] = DataTuple(x=representations['all_z'], s=representations['s'], y=representations['y'])
 
         return representations
 
