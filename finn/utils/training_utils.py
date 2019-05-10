@@ -66,6 +66,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
     parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
+    parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
