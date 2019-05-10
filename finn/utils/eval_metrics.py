@@ -40,6 +40,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                                         depth=2,
                                         batch_norm=False)
     disc_y_from_zy_copy.load_state_dict(discs.y_from_zy.state_dict())
+    disc_y_from_zy_copy.to(args.device)
     disc_y_from_zy_copy.train()
 
     discs.assemble_whole_model(trunk).eval()
