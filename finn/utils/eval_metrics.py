@@ -86,6 +86,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                                  total_loss=train_loss.item())
                 pbar.update()
 
+        print(f'====> Validating...')
         discs.y_from_zy.eval()
         with tqdm(total=len(val_loader)) as pbar:
             with torch.no_grad():
