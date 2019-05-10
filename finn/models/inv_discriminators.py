@@ -34,9 +34,9 @@ class InvDisc(DiscBase):
             args.zn_dim = 0
 
             disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim),
-                                           depth=2, batch_norm=True)
+                                           depth=2, batch_norm=False)
             disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim),
-                                           depth=2, batch_norm=True)
+                                           depth=2, batch_norm=False)
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
                                         activation=nn.ReLU,
                                         output_activation=torch.nn.LogSoftmax)
