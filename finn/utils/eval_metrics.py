@@ -132,10 +132,11 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
                     regularization = - (standard_normal.log_prob(zy_new).sum(dim=1) -
                                         standard_normal.log_prob(zy_old).sum(dim=1)).mean()
+                    regularization *= args.clf_reg_weight
 
                     log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
 
-                    val_loss = -log_px + pred_y_loss + args.clf_reg_weight * regularization
+                    val_loss = -log_px + pred_y_loss + regularization
 
                     if args.dataset == 'adult':
                         acc = torch.sum((zy_new[:, :args.y_dim].sigmoid().round()) == y).item()
@@ -145,7 +146,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     acc_meter.update(acc / x.size(0), n=x.size(0))
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
 
-                    pbar.set_postfix(acc=acc / x.size(0))
+                    pbar.set_postfix(total_loss=val_loss.item(), acc=acc / x.size(0))
                     pbar.update()
 
                 val_loss = val_loss_meter.avg
