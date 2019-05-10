@@ -116,7 +116,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
                     val_loss = -log_px + pred_y_loss
 
-                    acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1).float() == y).item()
+                    acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1).float() == y.float()).item()
                     acc_meter.update(acc, n=x.size(0))
 
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
