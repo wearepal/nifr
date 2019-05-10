@@ -113,7 +113,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     val_loss = -log_px + pred_y_loss
 
                     if args.dataset == 'adult':
-                        acc = torch.sum(round(zy[:, :args.y_dim].sigmoid()) == y.long()).item()
+                        acc = torch.sum((zy[:, :args.y_dim].sigmoid().round()) == y.long()).item()
                     else:
                         acc = torch.sum(F.softmax(zy[:, :args.y_dim], dim=1).argmax(dim=1) == y).item()
 
