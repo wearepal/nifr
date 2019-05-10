@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 
 import torch.nn.functional as F
+from ethicml.algorithms.utils import DataTuple
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 import torchvision
@@ -388,11 +389,15 @@ def encode_dataset(args, data, model):
         representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
         columns = representations['all_z'].columns.astype(str)
         representations['all_z'].columns = columns
-        representations['zy'] = representations['all_z'][columns[z.size(1) - args.zy_dim:]]
-        representations['zs'] = representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]]
-        representations['zn'] = representations['all_z'][columns[:args.zn_dim]]
+
         representations['s'] = pd.DataFrame(all_s.cpu().numpy())
         representations['y'] = pd.DataFrame(all_y.cpu().numpy())
+
+        representations['zy'] = DataTuple(x=representations['all_z'][columns[z.size(1) - args.zy_dim:]], s=representations['s'], y=representations['y'])
+        representations['zs'] = DataTuple(x=representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]], s=representations['s'], y=representations['y'])
+        representations['zn'] = DataTuple(x=representations['all_z'][columns[:args.zn_dim]], s=representations['s'], y=representations['y'])
+
+        representations['all_z'] = DataTuple(x=representations['all_z'], s=representations['s'], y=representations['y'])
 
         return representations
 
