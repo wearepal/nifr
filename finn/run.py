@@ -106,6 +106,9 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
+    if not args.meta_learn:
+        print("Encoding test set...")
+        test_repr = encode_dataset_no_recon(args, test_data, model)
 
     print('Encoding training set...')
     train_repr = encode_dataset(args, train_data, model)
