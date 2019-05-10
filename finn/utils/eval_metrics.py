@@ -86,7 +86,6 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                 pbar.update()
 
         discs.y_from_zy.eval()
-
         with tqdm(total=len(val_loader)) as pbar:
             with torch.no_grad():
                 acc_meter = utils.AverageMeter()
