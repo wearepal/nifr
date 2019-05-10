@@ -26,10 +26,11 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels):
     return acc
 
 
-def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
+def train_zy_head(args, trunk, discs, train_data, val_data):
     assert isinstance(discs, InvDisc)
     assert isinstance(train_data, Dataset)
     assert isinstance(val_data, Dataset)
+    saved_params = discs.y_from_zy.state_dict()
     whole_model = discs.assemble_whole_model(trunk)
     whole_model.eval()
 
@@ -85,8 +86,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                                  total_loss=train_loss.item())
                 pbar.update()
 
+        print(f'====> Validating...')
         discs.y_from_zy.eval()
-
         with tqdm(total=len(val_loader)) as pbar:
             with torch.no_grad():
                 acc_meter = utils.AverageMeter()
@@ -111,8 +112,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
                     val_loss = -log_px + pred_y_loss
 
-                    acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1) == y).item()
-                    acc_meter.update(acc, n=x.size(0))
+                    acc = torch.sum(F.softmax(zy[:, :args.y_dim], dim=1).argmax(dim=1) == y).item()
+                    acc_meter.update(acc / x.size(0), n=x.size(0))
 
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
 
@@ -129,5 +130,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
 
             avg_acc = acc_meter.avg
             print(f'===> Average val accuracy {avg_acc:.4f}')
+
+    discs.y_from_zy.load_state_dict(saved_params)
 
     return avg_acc

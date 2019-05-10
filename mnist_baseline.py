@@ -76,7 +76,7 @@ def main():
     parser.add_argument('--save', type=str, default='experiments/finn')
     parser.add_argument('--dataset', type=str, metavar='D',
                         choices=['cmnist', 'mnist'], default='cmnist')
-    parser.add_argument('--greyscale', action='store_true', default=True)
+    parser.add_argument('--greyscale', action='store_true', default=False)
     parser.add_argument('--batch-size', type=int, default=100, metavar='N',
                         help='input batch size for training (default: 100)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',

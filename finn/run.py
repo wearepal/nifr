@@ -82,8 +82,9 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
             print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
 
-    print('Encoding validation set...')
-    val_repr = encode_dataset(args, val_data, model)
+    if not args.inv_disc:
+        print('Encoding validation set...')
+        val_repr = encode_dataset(args, val_data, model)
 
     if args.meta_learn and not args.inv_disc:
         print('Encoding test set...')
@@ -103,8 +104,8 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
             _compute_metrics(preds_meta, d_repr, "Meta")
         return
     if args.inv_disc:
-        acc = train_zy_head(args, model, discs, val_data, test_data, experiment)
-        experiment.log_metric("Accuracy on Ddagger", acc)
+        acc = train_zy_head(args, model, discs, test_data, val_data)
+        experiment.log_metric("Meta Accuracy", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
 
