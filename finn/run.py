@@ -35,20 +35,16 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         if args.inv_disc:
             raise NotImplementedError()
         else:
-            val_tuple = pytorch_data_to_dataframe(val_data)
-            test_tuple = pytorch_data_to_dataframe(test_data)
-            ddagger_repr = DataTuple(x=test_repr['zy'], s=test_tuple.s, y=test_tuple.y)
-            d_repr = DataTuple(x=val_repr['zy'], s=val_tuple.s, y=val_tuple.y)
-            preds_meta = ethicml_model.run(ddagger_repr, d_repr)
-            _compute_metrics(preds_meta, d_repr, "Meta")
-    if args.inv_disc:
-        acc = train_zy_head(args, model, discs, val_data, test_data, experiment)
-        experiment.log_metric("Meta Accuracy", acc)
-        print(f"Accuracy on Ddagger: {acc:.4f}")
-        return
-    if not args.meta_learn:
-        print("Encoding test set...")
-        test_repr = encode_dataset_no_recon(args, test_data, model)
+            metrics_for_meta_learn(args, experiment, ethicml_model, reprs, datasets)
+
+    else:
+        if args.inv_disc:
+            acc = train_zy_head(args, model, discs, val_data, test_data)
+            experiment.log_metric("Accuracy on Ddagger", acc)
+            print(f"Accuracy on Ddagger: {acc:.4f}")
+            return
+        else:
+            raise NotImplementedError()
 
     if args.dataset == 'adult':
 
