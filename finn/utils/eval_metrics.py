@@ -94,7 +94,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                                     standard_normal.log_prob(zy_old).sum(dim=1)).mean()
 
                 regularization *= args.clf_reg_weight
-                log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
+                log_px = 0 * args.log_px_weight * (log_pz - delta_log_p).mean()
 
                 train_loss = -log_px + pred_y_loss + regularization
                 train_loss.backward()
