@@ -148,9 +148,13 @@ def load_dataset(args):
                                    black=args.black)
 
         # train_data, test_data = load_cmnist_from_file(args)
+        args.y_dim = 10
+        args.s_dim = 10
         train_tuple, test_tuple = None, None
     else:
         train_data, test_data, train_tuple, test_tuple = load_adult_data(args)
+        args.y_dim = 1
+        args.s_dim = 1
 
     return train_data, test_data, train_tuple, test_tuple
 

@@ -18,19 +18,27 @@ class MultiHead(nn.Module):
             if not isinstance(head, SequentialFlow):
                 head_list[i] = SequentialFlow(head_list[i])
 
+    def split_dims(self, z):
+        assert z.size(1) % sum(self.split_dim) == 0
+        width_x_height = z.size(1) // sum(self.split_dim)
+        return z.split(
+            split_size=[dim * width_x_height for dim in self.split_dim],
+            dim=1)
+
     def forward(self, x, logpx=None, reverse=False, inds=None):
 
-        xs = x.split(split_size=self.split_dim + [x.size(1) - sum(self.split_dim)], dim=1)
+        xs = self.split_dims(x)
         outputs = []
 
         for x_, head in zip(xs, self.heads):
             if head is None:
                 output_ = x_
             else:
-                output_, logpx_ = head(x_, logpx, reverse)
-
                 if logpx is not None:
+                    output_, logpx_ = head(x_, logpx, reverse)
                     logpx += logpx_
+                else:
+                    output_ = head(x_, logpx, reverse)
 
             outputs.append(output_)
 

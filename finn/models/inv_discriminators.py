@@ -19,11 +19,13 @@ class InvDisc(DiscBase):
             s_dim = 1
             x_dim += s_dim
 
-            disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim)
+            disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
+                                           depth=2, batch_norm=False)
             disc_s_from_zy = layers.Mlp([args.zy_dim] + [200, 200] + [1],
                                         activation=nn.ReLU,
                                         output_activation=None)
-            disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim)
+            disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim,
+                                           depth=2, batch_norm=False)
         else:
             z_channels = x_dim * 4 * 4
             wh = z_dim_flat // z_channels
@@ -31,8 +33,10 @@ class InvDisc(DiscBase):
             args.zy_dim = z_channels - args.zs_dim
             args.zn_dim = 0
 
-            disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim))
-            disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim))
+            disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim),
+                                           depth=2, batch_norm=False)
+            disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim),
+                                           depth=2, batch_norm=False)
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [512, 512] + [10],
                                         activation=nn.ReLU,
                                         output_activation=torch.nn.LogSoftmax)
@@ -93,23 +97,23 @@ class InvDisc(DiscBase):
 
         log_pz = 0
         # zn = z[:, :self.args.zn_dim]
-        zs, zy = self.split_zs_zy(z)
+        z_sn, z_yn = self.split_zs_zy(z)    # zsn, zyn
 
         pred_y_loss = z.new_zeros(1)
         pred_s_from_zs_loss = z.new_zeros(1)
 
-        if zy.size(1) > 0:
-            log_pz += compute_log_pz(zy)
+        if z_yn.size(1) > 0:
+            log_pz += compute_log_pz(z_yn)
             if not self.args.meta_learn:
-                pred_y_loss = self.args.pred_y_weight * class_loss(zy, y)
+                pred_y_loss = self.args.pred_y_weight * class_loss(z_yn, y)
 
             pred_s_from_zy = self.s_from_zy(
-                layers.grad_reverse(zy, lambda_=self.args.pred_s_from_zy_weight))
+                layers.grad_reverse(z_yn, lambda_=self.args.pred_s_from_zy_weight))
             pred_s_from_zy_loss = indie_loss(pred_s_from_zy, s, reduction='mean')
 
-        if zs.size(1) > 0:
-            log_pz += compute_log_pz(zs)
-            pred_s_from_zs_loss = self.args.pred_s_from_zs_weight * class_loss(zs, s)
+        if z_sn.size(1) > 0:
+            log_pz += compute_log_pz(z_sn)
+            pred_s_from_zs_loss = self.args.pred_s_from_zs_weight * class_loss(z_sn, s)
 
         log_px = self.args.log_px_weight * (log_pz - delta_log_p).mean()
         loss = -log_px + pred_y_loss + pred_s_from_zs_loss + pred_s_from_zy_loss

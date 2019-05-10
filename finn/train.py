@@ -101,9 +101,11 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
     if ARGS.dataset == 'cmnist':
 
         log_images(SUMMARY, x, 'original_x')
-        zero = x.new_zeros(x.size(0), 1)
-        z, _ = model(x, zero)
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
+
+        whole_model = discs.assemble_whole_model(model)
+        z = whole_model(x[:64])
+
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model, True)
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -136,8 +138,11 @@ def validate(model, discs, val_loader):
     x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
 
     if ARGS.dataset == 'cmnist':
-        z = model(x_val[:64])
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, model)
+
+        whole_model = discs.assemble_whole_model(model)
+        z = whole_model(x_val[:64])
+
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model, True)
         log_images(SUMMARY, x_val, 'original_x', train=False)
         log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
         log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
