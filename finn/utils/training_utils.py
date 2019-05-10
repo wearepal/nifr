@@ -221,6 +221,22 @@ def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
 
 
 def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True):
+    """
+    Evaluate a model on a given test set and return the predictions
+
+    :param args: Our global store
+    :param test_data: evaluate gets passed around as a partial function. test_data is
+                        the value that is supplied that we evaluate
+    :param model: the model that we want to run the test data on
+    :param batch_size:
+    :param device:
+    :param pred_s: whether we want to predict s (in which case set s
+                    from the test_data as the target), or not
+    :param use_s: Should we include S as input to the model (as well as x)
+    :param using_x: are we training the model in x space or z space? If training
+                    in x mark this as true, else we'll assume we're running in z space
+    :return: a dataframe of predictions
+    """
 
     test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
 

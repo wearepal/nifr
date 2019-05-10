@@ -39,14 +39,10 @@ def create_train_test_and_val(args, whole_train_data, whole_test_data):
     train_len = int(args.data_pcnt * len(whole_train_data))
     train_data, _ = random_split(whole_train_data, lengths=(train_len, len(whole_train_data) - train_len))
 
-    if args.dataset == 'cmnist':
-        # FIXME: this is a very fragile hack that could break any time
-        test_data.palette = whole_test_data.palette
-
     return train_data, val_data, test_data
 
 
-def _get_data_tuples(train_data, val_data, test_data):
+def get_data_tuples(train_data, val_data, test_data):
 
     # FIXME: this is needed because the information about feature names got lost
     sens_attrs = Adult().feature_split['s']
@@ -57,7 +53,7 @@ def _get_data_tuples(train_data, val_data, test_data):
     return train_tuple, val_tuple, test_tuple
 
 
-def _make_reprs(args, train_data, val_data, test_data, model):
+def make_reprs(args, train_data, val_data, test_data, model):
     print('Encoding training set...')
     train_repr = encode_dataset(args, train_data, model)
     print('Encoding validation set...')
@@ -68,7 +64,7 @@ def _make_reprs(args, train_data, val_data, test_data, model):
     return train_repr, val_repr, test_repr
 
 
-def _compute_metrics(experiment, predictions, actual, name, run_all=False):
+def compute_metrics(experiment, predictions, actual, name, run_all=False):
     """Compute accuracy and fairness metrics and log them"""
     metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
     experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
@@ -102,7 +98,7 @@ def metrics_for_meta_learn(args, experiment, clf, repr_tuple, dataset_tuple):
         ddagger_repr = test_repr['zy']
         d_repr = val_repr['zy']
         preds_meta = clf.run(ddagger_repr, d_repr)
-        _compute_metrics(experiment, preds_meta, d_repr, "Meta")
+        compute_metrics(experiment, preds_meta, d_repr, "Meta")
 
 
 def make_tuple_from_data(train, test, pred_s, use_s):
@@ -181,7 +177,7 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         else:
             clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s= not predict_y, use_s=use_s, applicative=True)
         preds_x, test_x = clf(test_data=train_data)
-        _compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
+        compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
         preds_x, test_x = clf(test_data=test_data)
         print("\tTraining performance")
 
@@ -190,4 +186,4 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         preds_x = LR().run(train_x, test_x)
 
     print("\tTest performance")
-    _compute_metrics(experiment, preds_x, test_x, name)
+    compute_metrics(experiment, preds_x, test_x, name)
