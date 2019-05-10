@@ -128,6 +128,6 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                     n_vals_without_improvement += 1
 
             avg_acc = acc_meter.avg
-            print(f'===> Average val accuracy {acc:.4f}')
+            print(f'===> Average val accuracy {avg_acc:.4f}')
 
     return avg_acc
