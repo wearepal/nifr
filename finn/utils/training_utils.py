@@ -287,7 +287,7 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
     experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
 
 
-def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
+def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False, merge_n=True):
     """Reconstruct the input from the representation in various different ways"""
     z_ = z.clone()
     wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
@@ -304,7 +304,8 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
             z_[:, args.zn_dim: (z_.size(1) - args.zy_dim)].zero_()
     if zero_zn:
         if args.inv_disc:
-            z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
+            if not merge_n:
+                z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
             z_[:, args.zn_dim: (z_.size(1) - args.zy_dim * wh)][:, args.s_dim:].zero_()
         else:
             z_[:, :args.zn_dim].zero_()
@@ -314,15 +315,15 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False):
     return recon
 
 
-def reconstruct_all(args, z, model):
+def reconstruct_all(args, z, model, merge_n):
     recon_all = reconstruct(args, z, model)
 
-    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_zn=True)
-    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_zn=True)
-    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True, zero_zn=False)
+    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_zn=True, merge_n=merge_n)
+    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_zn=True, merge_n=merge_n)
+    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True, zero_zn=False, merge_n=merge_n)
 
-    recon_ys = reconstruct(args, z, model, zero_zn=True)
-    recon_yn = reconstruct(args, z, model, zero_zs=True)
+    recon_ys = reconstruct(args, z, model, zero_zn=True, merge_n=merge_n)
+    recon_yn = reconstruct(args, z, model, zero_zs=True, merge_n=merge_n)
     return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
 
 

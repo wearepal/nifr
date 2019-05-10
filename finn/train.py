@@ -105,7 +105,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         whole_model = discs.assemble_whole_model(model)
         z = whole_model(x[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model, True)
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -142,7 +142,7 @@ def validate(model, discs, val_loader):
         whole_model = discs.assemble_whole_model(model)
         z = whole_model(x_val[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model, True)
         log_images(SUMMARY, x_val, 'original_x', train=False)
         log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
         log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
