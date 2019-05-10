@@ -82,10 +82,9 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
             print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
 
-    print('Encoding validation set...')
-    val_repr = encode_dataset(args, val_data, model)
-
     if args.meta_learn and not args.inv_disc:
+        print('Encoding validation set...')
+        val_repr = encode_dataset(args, val_data, model)
         print('Encoding test set...')
         test_repr = encode_dataset_no_recon(args, test_data, model)
         if args.dataset == 'cmnist':
