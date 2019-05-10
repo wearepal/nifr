@@ -156,15 +156,35 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
 
     name = get_name(use_s, use_x, predict_y, use_fair, use_unfair)
 
+    if args.meta_learn:
+        if use_fair and use_unfair:
+            in_channels = args.zy_dim + args.zs_dim
+        elif use_fair:
+            in_channels = args.zy_dim
+        else:
+            in_channels = args.zs_dim
+    else:
+        if use_fair and use_unfair:
+            in_channels = args.zy_dim + args.zs_dim + args.zn_dim
+        elif use_fair:
+            in_channels = args.zy_dim
+        elif use_unfair:
+            in_channels = args.zs_dim
+        else:
+            in_channels = args.zn_dim
+
     print(f"{name}:")
 
     if args.dataset == 'cmnist':
-        print("\tTraining performance")
-        clf = train_and_evaluate_classifier(args, train_data, palette=test_data.palette, pred_s=not predict_y, use_s=use_s)
-        preds_x, test_x = clf(train_data)
+        if use_x:
+            clf = train_and_evaluate_classifier(args, train_data, pred_s=not predict_y, use_s=use_s)
+        else:
+            clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s= not predict_y, use_s=use_s, applicative=True)
+        preds_x, test_x = clf(test_data=train_data)
         _compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
+        preds_x, test_x = clf(test_data=test_data)
+        print("\tTraining performance")
 
-        preds_x, test_x = clf(test_data)
     else:
         train_x, test_x = make_tuple_from_data(train_data, test_data, pred_s=not predict_y, use_s=use_s)
         preds_x = LR().run(train_x, test_x)
