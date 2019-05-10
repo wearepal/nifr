@@ -112,11 +112,11 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                     val_loss = -log_px + pred_y_loss
 
                     acc = torch.sum(F.softmax(zy[:, :10], dim=1).argmax(dim=1) == y).item()
-                    acc_meter.update(acc.item(), n=x.size(0))
+                    acc_meter.update(acc, n=x.size(0))
 
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
 
-                    pbar.set_postfix(acc=acc)
+                    pbar.set_postfix(acc=acc / x.size(0))
                     pbar.update()
 
                 val_loss = val_loss_meter.avg
@@ -128,6 +128,6 @@ def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
                     n_vals_without_improvement += 1
 
             avg_acc = acc_meter.avg
-            print(f'===> Average val accuracy {acc:.4f}')
+            print(f'===> Average val accuracy {avg_acc:.4f}')
 
     return avg_acc
