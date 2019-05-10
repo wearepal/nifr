@@ -191,7 +191,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         preds_z, test_z = clf(val_repr['all_z'])
     else:
         train_z = DataTuple(x=train_repr['all_z'], s=train_tuple.s, y=train_tuple.y)
-        test_z = DataTuple(x=val_repr['all_z'], s=test_tuple.s, y=test_tuple.y)
+        test_z = DataTuple(x=test_repr['all_z'], s=test_tuple.s, y=test_tuple.y)
         preds_z = ethicml_model.run(train_z, test_z)
 
     print("\tTest performance")
@@ -210,7 +210,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         preds_fair, test_fair = clf(val_repr['recon_y'])
     else:
         train_fair = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.y)
-        test_fair = DataTuple(x=val_repr['zy'], s=test_tuple.s, y=test_tuple.y)
+        test_fair = DataTuple(x=test_repr['zy'], s=test_tuple.s, y=test_tuple.y)
         preds_fair = ethicml_model.run(train_fair, test_fair)
 
     print("\tTest performance")
@@ -228,7 +228,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         preds_unfair, test_unfair = clf(val_repr['recon_s'])
     else:
         train_unfair = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.y)
-        test_unfair = DataTuple(x=val_repr['zs'], s=test_tuple.s, y=test_tuple.y)
+        test_unfair = DataTuple(x=test_repr['zs'], s=test_tuple.s, y=test_tuple.y)
         preds_unfair = ethicml_model.run(train_unfair, test_unfair)
 
     print("\tTest performance")
@@ -276,7 +276,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         preds_s_fair, test_fair_predict_s = clf(val_repr['recon_y'])
     else:
         train_fair_predict_s = DataTuple(x=train_repr['zy'], s=train_tuple.s, y=train_tuple.s)
-        test_fair_predict_s = DataTuple(x=val_repr['zy'], s=test_tuple.s, y=test_tuple.s)
+        test_fair_predict_s = DataTuple(x=test_repr['zy'], s=test_tuple.s, y=test_tuple.s)
         preds_s_fair = ethicml_model.run(train_fair_predict_s, test_fair_predict_s)
 
     results = run_metrics(preds_s_fair, test_fair_predict_s, [Accuracy()], [])
@@ -292,7 +292,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
         preds_s_unfair, test_unfair_predict_s = clf(val_repr['recon_s'])
     else:
         train_unfair_predict_s = DataTuple(x=train_repr['zs'], s=train_tuple.s, y=train_tuple.s)
-        test_unfair_predict_s = DataTuple(x=val_repr['zs'], s=test_tuple.s, y=test_tuple.s)
+        test_unfair_predict_s = DataTuple(x=test_repr['zs'], s=test_tuple.s, y=test_tuple.s)
         preds_s_unfair = ethicml_model.run(train_unfair_predict_s, test_unfair_predict_s)
 
     results = run_metrics(preds_s_unfair, test_unfair_predict_s, [Accuracy()], [])
