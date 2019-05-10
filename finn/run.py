@@ -82,12 +82,11 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
             print(f"\t\t{key}: {value:.4f}")
         print()  # empty line
 
-    print('Encoding validation set...')
-    val_repr = encode_dataset(args, val_data, model)
-
     if args.meta_learn and not args.inv_disc:
-        print('Encoding test set...')
+        print('Encoding D†...')
         test_repr = encode_dataset_no_recon(args, test_data, model)
+        print('Encoding D...')
+        val_repr = encode_dataset_no_recon(args, val_data, model)
         if args.dataset == 'cmnist':
             ddagger_repr = test_repr['zy']  # s = y
             d_repr = val_repr['zy']  # s independent y
@@ -110,6 +109,9 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
 
     print('Encoding training set...')
     train_repr = encode_dataset(args, train_data, model)
+
+    print('Encoding validation set...')
+    val_repr = encode_dataset(args, val_data, model)
 
     # if args.dataset == 'cmnist':
     #     # mnist_shape = (-1, 3, 28, 28)
