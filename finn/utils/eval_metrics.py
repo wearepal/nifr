@@ -26,7 +26,7 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels):
     return acc
 
 
-def train_zy_head(args, trunk, discs, train_data, val_data, experiment):
+def train_zy_head(args, trunk, discs, train_data, val_data):
     assert isinstance(discs, InvDisc)
     assert isinstance(train_data, Dataset)
     assert isinstance(val_data, Dataset)
