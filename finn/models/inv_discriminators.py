@@ -16,12 +16,11 @@ class InvDisc(DiscBase):
             args.zs_dim = round(args.zs_frac * z_dim_flat)
             args.zy_dim = z_dim_flat - args.zs_dim
             args.zn_dim = 0
-            s_dim = 1
             in_dim = x_dim + args.s_dim
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
                                            depth=2, batch_norm=False)
-            disc_s_from_zy = layers.Mlp([args.zy_dim] + [400, 400] + [1],
+            disc_s_from_zy = layers.Mlp([args.zy_dim] + [40, 40] + [1],
                                         activation=nn.ReLU,
                                         output_activation=None)
             disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim,
