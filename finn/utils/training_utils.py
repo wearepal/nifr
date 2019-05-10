@@ -115,8 +115,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s, palette)
         optimizer.zero_grad()
         preds = model(x)
 
-        target_tensor = target.float() if args.dataset =='cmnist' else target.long()
-        loss = loss_fn(preds.float(), target_tensor, reduction='sum')
+        loss = loss_fn(preds.float(), target.long(), reduction='sum')
 
         loss.backward()
         optimizer.step()
