@@ -17,6 +17,7 @@ class InvDisc(DiscBase):
             args.zy_dim = z_dim_flat - args.zs_dim
             args.zn_dim = 0
             in_dim = x_dim + args.s_dim
+            wh = 1
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
                                            depth=2, batch_norm=False)
@@ -53,6 +54,7 @@ class InvDisc(DiscBase):
         self.x_dim = x_dim
         self.in_dim = in_dim
         self.z_dim_flat = z_dim_flat
+        self.wh = wh
 
 
     @property
