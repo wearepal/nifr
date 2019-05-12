@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch import distributions
 import torch.nn.functional as F
 
 from finn import layers
@@ -40,7 +41,7 @@ class InvDisc(DiscBase):
                                            depth=2, batch_norm=False)
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [1024, 1024] + [10],
                                         activation=nn.ReLU,
-                                        output_activation=torch.nn.LogSoftmax)
+                                        output_activation=nn.LogSoftmax)
 
         disc_y_from_zy.to(args.device)
         disc_s_from_zy.to(args.device)
@@ -72,6 +73,8 @@ class InvDisc(DiscBase):
 
     @staticmethod
     def multi_class_loss(_logits, _target):
+        # sample = distributions.Normal(_logits[:, :10], _logits[:, 10:20]).rsample()
+        # _preds = F.log_softmax(sample, dim=1)
         _preds = F.log_softmax(_logits[:, :10], dim=1)
         return F.nll_loss(_preds, _target, reduction='mean')
 

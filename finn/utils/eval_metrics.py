@@ -48,13 +48,13 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
     train_loader = DataLoader(train_data, batch_size=args.batch_size)
     val_loader = DataLoader(val_data, batch_size=args.test_batch_size)
 
-    head_optimizer = Adam(disc_y_from_zy_copy.parameters(), lr=args.disc_lr,
-                          weight_decay=args.weight_decay)
+    head_optimizer = Adam(disc_y_from_zy_copy.parameters(), lr=args.lr,
+                          weight_decay=0)
     standard_normal = torch.distributions.Normal(0, 1)
 
     n_vals_without_improvement = 0
 
-    best_loss = float('inf')
+    best_acc = float('inf')
 
     if args.dataset == 'cmnist':
         class_loss = discs.multi_class_loss
@@ -63,8 +63,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
     for epoch in range(args.clf_epochs):
 
-        if n_vals_without_improvement > args.clf_early_stopping > 0:
-            break
+        # if n_vals_without_improvement > args.clf_early_stopping > 0:
+        #     break
 
         print(f'====> Epoch {epoch} of z_y head training')
 
@@ -83,19 +83,26 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                 zero = x.new_zeros(x.size(0), 1)
                 z, delta_log_p = trunk(x, zero)
                 _, zy_trunk = discs.split_zs_zy(z)
-                zy_new, delta_log_p_ = disc_y_from_zy_copy(zy_trunk, delta_log_p)
+                zy_new, delta_log_p_new = disc_y_from_zy_copy(zy_trunk, delta_log_p)
 
                 pred_y_loss = args.pred_y_weight * class_loss(zy_new, y)
-                log_pz = compute_log_pz(zy_new)
+                log_pz_new = compute_log_pz(zy_new)
 
-                zy_old = discs.y_from_zy(zy_trunk)
+                zy_old, delta_log_p_old = discs.y_from_zy(zy_trunk, delta_log_p)
+                log_pz_old = compute_log_pz(zy_old)
+                # zy_new_spliced = zy_old
+                # zy_new_spliced[:, args.y_dim:] = zy_new[:, args.y_dim:].detach()
+                # regularization = F.mse_loss(discs.y_from_zy(zy_new, reverse=True),
+                #                             zy_trunk, reduction='mean')
 
-                regularization = - (standard_normal.log_prob(zy_new).sum(dim=1) -
-                                    standard_normal.log_prob(zy_old).sum(dim=1)).mean()
+                # regularization = - (standard_normal.log_prob(zy_new).sum(dim=1) -
+                #                     standard_normal.log_prob(zy_old).sum(dim=1)).mean()
 
-                regularization *= args.clf_reg_weight
-                log_px = 0 * args.log_px_weight * (log_pz - delta_log_p).mean()
-
+                log_px = (log_pz_new - delta_log_p_new).mean()
+                log_px_old = (log_pz_old - delta_log_p_old).mean()
+                regularization = args.clf_reg_weight * (log_px - log_px_old)**2
+                log_px = 0 * args.log_px_weight * log_px
+                # log_px = 0
                 train_loss = -log_px + pred_y_loss + regularization
                 train_loss.backward()
 
@@ -129,9 +136,12 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     log_pz = compute_log_pz(zy_new)
 
                     zy_old = discs.y_from_zy(zy_trunk)
+                    # zy_new_spliced = zy_old
+                    # zy_new_spliced[:, args.y_dim:] = zy_new[:, args.y_dim:].detach()
+                    # zy_trunk_new = discs.y_from_zy(zy_new, reverse=True)
+                    regularization = F.mse_loss(discs.y_from_zy(zy_new, reverse=True),
+                                                zy_trunk, reduction='mean')
 
-                    regularization = - (standard_normal.log_prob(zy_new).sum(dim=1) -
-                                        standard_normal.log_prob(zy_old).sum(dim=1)).mean()
                     regularization *= args.clf_reg_weight
 
                     log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
@@ -149,15 +159,14 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     pbar.set_postfix(total_loss=val_loss.item(), acc=acc / x.size(0))
                     pbar.update()
 
-                val_loss = val_loss_meter.avg
-
-                if val_loss < best_loss:
-                    best_loss = val_loss
+                val_acc = acc_meter.avg
+                if val_acc < best_acc:
+                    best_acc = val_acc
                     n_vals_without_improvement = 0
                 else:
                     n_vals_without_improvement += 1
 
-            avg_acc = acc_meter.avg
-            print(f'===> Average val accuracy {avg_acc:.4f}')
+            average_val_acc = acc_meter.avg
+            print(f'===> Average validation accuracy {average_val_acc:.4f}')
 
-    return avg_acc
+    return average_val_acc
