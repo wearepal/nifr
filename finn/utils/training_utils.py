@@ -347,9 +347,9 @@ def encode_dataset(args, data, model):
     all_y = []
 
     representations = ['all_z']
-    if args.dataset == 'cmnist':
-        representations.extend(['recon_all', 'recon_y', 'recon_s',
-                                'recon_n', 'recon_yn', 'recon_ys'])
+    # if args.dataset == 'cmnist':
+    representations.extend(['recon_all', 'recon_y', 'recon_s',
+                            'recon_n', 'recon_yn', 'recon_ys'])
     representations = {key: [] for key in representations}
 
     with torch.no_grad():
