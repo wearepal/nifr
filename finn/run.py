@@ -43,42 +43,42 @@ def log_metrics(args, experiment, model, discs, data):
     print('Encoding test set...')
     task_train_repr = encode_dataset(args, data.task_train, model)
 
-    reprs = (train_repr, val_repr, test_repr)
-    datasets = (train_data, val_data, test_data)
+    reprs = (meta_train_repr, task_repr, task_train_repr)
 
     if args.meta_learn and not args.inv_disc:
-        metrics_for_meta_learn(args, experiment, ethicml_model, reprs, datasets)
+        metrics_for_meta_learn(args, experiment, ethicml_model, reprs, data)
 
     if args.dataset == 'adult':
-        train_data, val_data, test_data = get_data_tuples(train_data, val_data, test_data)
+        meta_train_data, task_data, task_train_data = get_data_tuples(data.meta_train, data.task, data.task_train)
+        data = MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data)
 
     experiment.log_other("evaluation model", ethicml_model.name)
 
     # ===========================================================================
     check_originals = True
     if check_originals:
-        evaluate_representations(args, experiment, test_data, val_data,
+        evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
-        evaluate_representations(args, experiment, test_data, val_data,
+        evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True, use_s=True)
 
     # ===========================================================================
 
-    evaluate_representations(args, experiment, test_repr['all_z'], val_repr['all_z'],
+    evaluate_representations(args, experiment, task_train_repr['all_z'], task_repr['all_z'],
                              predict_y=True, use_fair=True, use_unfair=True)
-    evaluate_representations(args, experiment, test_repr['recon_y'], val_repr['recon_y'],
+    evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
                              predict_y=True, use_x=True, use_fair=True)
-    evaluate_representations(args, experiment, test_repr['recon_s'], val_repr['recon_s'],
+    evaluate_representations(args, experiment, task_train_repr['recon_s'], task_repr['recon_s'],
                              predict_y=True, use_x=True, use_unfair=True)
 
     # ===========================================================================
     if check_originals:
-        evaluate_representations(args, experiment, train_data, test_data, use_x=True)
-        evaluate_representations(args, experiment, train_data, test_data, use_s=True, use_x=True)
+        evaluate_representations(args, experiment, data.task_train, data.task, use_x=True)
+        evaluate_representations(args, experiment, data.task_train, data.task, use_s=True, use_x=True)
 
     # ===========================================================================
-    evaluate_representations(args, experiment, train_repr['zy'], test_repr['zy'], use_fair=True)
-    evaluate_representations(args, experiment, train_repr['zs'], test_repr['zs'], use_unfair=True)
+    evaluate_representations(args, experiment, meta_train_repr['zy'], task_repr['zy'], use_fair=True)
+    evaluate_representations(args, experiment, meta_train_repr['zs'], task_repr['zs'], use_unfair=True)
 
 
 if __name__ == "__main__":
