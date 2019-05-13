@@ -488,7 +488,7 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
     # get the data
     data = next(iter(data_loader))
     # convert it to Pandas DataFrames
-    data = [pd.DataFrame(tensor.numpy()) for tensor in data]
+    data = [pd.DataFrame(tensor.detach().cpu().numpy()) for tensor in data]
     if sens_attrs:
         data[1].columns = sens_attrs
     # create a DataTuple
