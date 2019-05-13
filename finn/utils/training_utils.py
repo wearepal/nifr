@@ -6,7 +6,8 @@ import torch
 
 import torch.nn.functional as F
 from ethicml.algorithms.utils import DataTuple
-from torch.utils.data import DataLoader
+from ethicml.data import Adult
+from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
 import torchvision
 from tqdm import tqdm
@@ -69,9 +70,9 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
                         help='whether to use the comet.ml logging')
-    parser.add_argument('--patience', type=int, default=10,
-                        help='Number of iterations without improvement in val loss before'
-                             'reducing learning rate.')
+    parser.add_argument('--gamma', type=float, default=0.95,
+                        help='Gamma value for Exponential Learning Rate scheduler. '
+                             'Value of 0.95 arbitrarily chosen.')
     parser.add_argument('--meta-learn', type=eval, default=False, choices=[True, False],
                         help='Use meta learning procedure')
 
@@ -347,9 +348,8 @@ def encode_dataset(args, data, model):
     all_y = []
 
     representations = ['all_z']
-    if args.dataset == 'cmnist':
-        representations.extend(['recon_all', 'recon_y', 'recon_s',
-                                'recon_n', 'recon_yn', 'recon_ys'])
+    representations.extend(['recon_all', 'recon_y', 'recon_s',
+                            'recon_n', 'recon_yn', 'recon_ys'])
     representations = {key: [] for key in representations}
 
     with torch.no_grad():
@@ -363,15 +363,14 @@ def encode_dataset(args, data, model):
 
             z = model(x)
 
-            if args.dataset == 'cmnist':
-                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
-                                                                                           model, False)
-                representations['recon_all'].append(recon_all)
-                representations['recon_y'].append(recon_y)
-                representations['recon_s'].append(recon_s)
-                representations['recon_n'].append(recon_n)
-                representations['recon_ys'].append(recon_ys)
-                representations['recon_yn'].append(recon_yn)
+            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
+                                                                                       model, False)
+            representations['recon_all'].append(recon_all)
+            representations['recon_y'].append(recon_y)
+            representations['recon_s'].append(recon_s)
+            representations['recon_n'].append(recon_n)
+            representations['recon_ys'].append(recon_ys)
+            representations['recon_yn'].append(recon_yn)
 
             representations['all_z'].append(z)
             all_s.append(s)
@@ -386,20 +385,13 @@ def encode_dataset(args, data, model):
     all_y = torch.cat(all_y, dim=0)
 
     if args.dataset == 'cmnist':
-        representations['zy'] = torch.utils.data.TensorDataset(
+        representations['zy'] = TensorDataset(
             representations['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
-        representations['zs'] = torch.utils.data.TensorDataset(
-            representations['all_z'][:, args.zn_dim:-args.zy_dim], all_s, all_y)
-        representations['zn'] = torch.utils.data.TensorDataset(
-            representations['all_z'][:, :args.zn_dim], all_s, all_y)
-        representations['all_z'] = torch.utils.data.TensorDataset(
-            representations['all_z'], all_s, all_y)
-        representations['recon_y'] = torch.utils.data.TensorDataset(
-            representations['recon_y'], all_s, all_y)
-        representations['recon_s'] = torch.utils.data.TensorDataset(
-            representations['recon_s'], all_s, all_y)
-
-        return representations
+        representations['zs'] = TensorDataset(representations['all_z'][:, args.zn_dim:-args.zy_dim], all_s, all_y)
+        representations['zn'] = TensorDataset(representations['all_z'][:, :args.zn_dim], all_s, all_y)
+        representations['all_z'] = TensorDataset(representations['all_z'], all_s, all_y)
+        representations['recon_y'] = TensorDataset(representations['recon_y'], all_s, all_y)
+        representations['recon_s'] = TensorDataset(representations['recon_s'], all_s, all_y)
 
     elif args.dataset == 'adult':
         representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
@@ -415,7 +407,24 @@ def encode_dataset(args, data, model):
 
         representations['all_z'] = DataTuple(x=representations['all_z'], s=representations['s'], y=representations['y'])
 
-        return representations
+        recon_all = 'fff'
+
+        sens_attrs = Adult().feature_split['s']
+        recon_all_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_all'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_y_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_y'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_s_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_s'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_n_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_n'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_ys_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_ys'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_yn_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_yn'], all_s, all_y), sens_attrs=sens_attrs)
+
+        representations['recon_all'] = recon_all_tuple
+        representations['recon_y'] = recon_y_tuple
+        representations['recon_s'] = recon_s_tuple
+        representations['recon_n'] = recon_n_tuple
+        representations['recon_ys'] = recon_ys_tuple
+        representations['recon_yn'] = recon_yn_tuple
+
+    return representations
 
 
 def encode_dataset_no_recon(args, data, model):
@@ -442,10 +451,8 @@ def encode_dataset_no_recon(args, data, model):
             encodings[key] = torch.cat(entry, dim=0).detach().cpu()
 
     if args.dataset == 'cmnist':
-        encodings['zy'] = torch.utils.data.TensorDataset(
-            encodings['all_z'][:, z.size(1) - args.zy_dim:], encodings['all_s'], encodings['all_y'])
-        encodings['all_z'] = torch.utils.data.TensorDataset(
-            encodings['all_z'], encodings['all_s'], encodings['all_y'])
+        encodings['zy'] = TensorDataset(encodings['all_z'][:, z.size(1) - args.zy_dim:], encodings['all_s'], encodings['all_y'])
+        encodings['all_z'] = TensorDataset(encodings['all_z'], encodings['all_s'], encodings['all_y'])
         return encodings
 
     elif args.dataset == 'adult':
@@ -472,7 +479,7 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
     # get the data
     data = next(iter(data_loader))
     # convert it to Pandas DataFrames
-    data = [pd.DataFrame(tensor.numpy()) for tensor in data]
+    data = [pd.DataFrame(tensor.detach().cpu().numpy()) for tensor in data]
     if sens_attrs:
         data[1].columns = sens_attrs
     # create a DataTuple
