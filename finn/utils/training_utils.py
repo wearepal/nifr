@@ -105,7 +105,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         else:
             target = y
         x = x.to(args.device)
-        target = target.to(args.device)
+        target = target.to(args.device).long()
 
         if args.dataset == 'adult' and use_s:
             x = torch.cat((x, s), dim=1)
@@ -115,8 +115,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         optimizer.zero_grad()
         preds = model(x)
 
-        target_tensor = target.float() if args.dataset =='cmnist' else target.long()
-        loss = loss_fn(preds.float(), target_tensor, reduction='mean')
+        loss = loss_fn(preds.float(), target, reduction='mean')
 
         loss.backward()
         optimizer.step()
