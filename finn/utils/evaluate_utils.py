@@ -117,9 +117,12 @@ def get_name(use_s, use_x, predict_y, use_fair, use_unfair):
         name += "pred s "
 
     if use_x:
-        name += "Original x "
-        if use_fair or use_unfair:
-            raise NotImplementedError("We only consider the fair and unfair parts of Z")
+        if use_fair:
+            name += "Recon Z not S "
+        elif use_unfair:
+            name += "Recon Z S "
+        else:
+            name += "Original x "
     else:
         if use_fair and use_unfair:
             name += "all Z "

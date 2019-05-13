@@ -61,19 +61,19 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
     # ===========================================================================
     check_originals = True
     if check_originals:
-        evaluate_representations(args, experiment, train_data, test_data,
+        evaluate_representations(args, experiment, test_data, val_data,
                                  predict_y=True, use_x=True)
-        evaluate_representations(args, experiment, train_data, test_data,
+        evaluate_representations(args, experiment, test_data, val_data,
                                  predict_y=True, use_x=True, use_s=True)
 
     # ===========================================================================
 
-    evaluate_representations(args, experiment, train_repr['all_z'], test_repr['all_z'],
+    evaluate_representations(args, experiment, test_repr['all_z'], val_repr['all_z'],
                              predict_y=True, use_fair=True, use_unfair=True)
-    evaluate_representations(args, experiment, train_repr['zy'], test_repr['zy'],
-                             predict_y=True, use_fair=True)
-    evaluate_representations(args, experiment, train_repr['zs'], test_repr['zs'],
-                             predict_y=True, use_unfair=True)
+    evaluate_representations(args, experiment, test_repr['recon_y'], val_repr['recon_y'],
+                             predict_y=True, use_x=True, use_fair=True)
+    evaluate_representations(args, experiment, test_repr['recon_s'], val_repr['recon_s'],
+                             predict_y=True, use_x=True, use_unfair=True)
 
     # ===========================================================================
     if check_originals:
