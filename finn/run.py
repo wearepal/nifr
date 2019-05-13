@@ -33,7 +33,7 @@ def log_metrics(args, experiment, model, discs, train_data, val_data, test_data)
 
     if args.meta_learn:
         if args.inv_disc:
-            acc = train_zy_head(args, model, discs, val_data, test_data)
+            acc = train_zy_head(args, model, discs, test_data, val_data)
             experiment.log_metric("Accuracy on Ddagger", acc)
             print(f"Accuracy on Ddagger: {acc:.4f}")
             return
