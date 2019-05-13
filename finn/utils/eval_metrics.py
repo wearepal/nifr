@@ -90,26 +90,18 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
                 zy_old, delta_log_p_old = discs.y_from_zy(zy_trunk, delta_log_p)
                 log_pz_old = compute_log_pz(zy_old)
-                # zy_new_spliced = zy_old
-                # zy_new_spliced[:, args.y_dim:] = zy_new[:, args.y_dim:].detach()
-                # regularization = F.mse_loss(discs.y_from_zy(zy_new, reverse=True),
-                #                             zy_trunk, reduction='mean')
 
-                # regularization = - (standard_normal.log_prob(zy_new).sum(dim=1) -
-                #                     standard_normal.log_prob(zy_old).sum(dim=1)).mean()
+                log_px_new = (log_pz_new - delta_log_p_new)
+                log_px_old = (log_pz_old - delta_log_p_old)
+                regularization = args.clf_reg_weight * F.mse_loss(log_px_new, log_px_old)
 
-                log_px = (log_pz_new - delta_log_p_new).mean()
-                log_px_old = (log_pz_old - delta_log_p_old).mean()
-                regularization = args.clf_reg_weight * (log_px - log_px_old)**2
-                log_px = 0 * args.log_px_weight * log_px
-                # log_px = 0
-                train_loss = -log_px + pred_y_loss + regularization
+                train_loss = pred_y_loss + regularization
                 train_loss.backward()
 
                 head_optimizer.step()
 
-                pbar.set_postfix(log_px=log_px.item(), pred_y_loss=pred_y_loss.item(),
-                                 reg_loss=regularization.item(), total_loss=train_loss.item())
+                pbar.set_postfix(pred_y_loss=pred_y_loss.item(), reg_loss=regularization.item(),
+                                 total_loss=train_loss.item())
                 pbar.update()
 
         print(f'====> Validating...')
@@ -130,23 +122,23 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     zero = x.new_zeros(x.size(0), 1)
                     z, delta_log_p = trunk(x, zero)
                     _, zy_trunk = discs.split_zs_zy(z)
-                    zy_new, delta_log_p_ = disc_y_from_zy_copy(zy_trunk, delta_log_p)
+                    zy_new, delta_log_p_new = disc_y_from_zy_copy(zy_trunk, delta_log_p)
 
                     pred_y_loss = args.pred_y_weight * class_loss(zy_new, y)
-                    log_pz = compute_log_pz(zy_new)
+                    log_pz_new = compute_log_pz(zy_new)
 
-                    zy_old = discs.y_from_zy(zy_trunk)
+                    zy_old, delta_log_p_old = discs.y_from_zy(zy_trunk, delta_log_p)
+                    log_pz_old = compute_log_pz(zy_old)
                     # zy_new_spliced = zy_old
                     # zy_new_spliced[:, args.y_dim:] = zy_new[:, args.y_dim:].detach()
                     # zy_trunk_new = discs.y_from_zy(zy_new, reverse=True)
-                    regularization = F.mse_loss(discs.y_from_zy(zy_new, reverse=True),
-                                                zy_trunk, reduction='mean')
+                    # regularization = F.mse_loss(discs.y_from_zy(zy_new, reverse=True),
+                    #                             zy_trunk, reduction='mean')
 
-                    regularization *= args.clf_reg_weight
-
-                    log_px = args.log_px_weight * (log_pz - delta_log_p).mean()
-
-                    val_loss = -log_px + pred_y_loss + regularization
+                    log_px_new = (log_pz_new - delta_log_p_new)
+                    log_px_old = (log_pz_old - delta_log_p_old)
+                    regularization = args.clf_reg_weight * F.mse_loss(log_px_new, log_px_old)
+                    val_loss = pred_y_loss + regularization
 
                     if args.dataset == 'adult':
                         acc = torch.sum((zy_new[:, :args.y_dim].sigmoid().round()) == y).item()
