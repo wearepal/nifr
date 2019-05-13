@@ -8,7 +8,7 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 
 from finn.train import main as training_loop
-from finn.utils.dataloading import load_dataset
+from finn.data import load_dataset
 from finn.utils.evaluate_utils import (create_train_test_and_val, metrics_for_meta_learn,
                                        get_data_tuples, evaluate_representations)
 from finn.utils.training_utils import parse_arguments, encode_dataset

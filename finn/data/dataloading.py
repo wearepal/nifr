@@ -17,10 +17,9 @@ from sklearn.preprocessing import StandardScaler
 from torchvision import transforms
 from tqdm import tqdm
 
-from finn.data.cmnist import CMNIST
-from finn.data.colorized_mnist import ColorizedMNIST
-from finn.data.preprocess_cmnist import get_path_from_args
-from finn.utils import utils
+from .cmnist import CMNIST
+from .colorized_mnist import ColorizedMNIST
+from .preprocess_cmnist import get_path_from_args
 
 
 def load_adult_data(args):
@@ -90,20 +89,19 @@ def get_mnist_data_tuple(args, data, train=True):
 
     save_dir = Path(args.save)
     save_dir.mkdir(parents=True, exist_ok=True)
-    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
-    LOGGER.info("Making data tuple")
+    print("Making data tuple")
 
     data_path = get_path_from_args(args) / dataset
 
     if (os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values")
             and os.path.exists(data_path / "y_values")):
-        LOGGER.info("data tuples found on file")
+        print("data tuples found on file")
         x_all = np.load(data_path / "x_values.npy")
         s_all = pd.read_csv(data_path / "s_values", index_col=0)
         y_all = pd.read_csv(data_path / "y_values", index_col=0)
     else:
-        LOGGER.info("data tuples haven't been created - this may take a while")
+        print("data tuples haven't been created - this may take a while")
         data_loader = DataLoader(data, batch_size=args.batch_size)
         x_all, s_all, y_all = [], [], []
 
@@ -167,22 +165,3 @@ def load_dataset(args):
 #         for sample in x.unfold(dim=0):
 #             im = to_pil(x.detach().cpu())
 #             im.save(path / , 'PNG')
-
-
-def pytorch_data_to_dataframe(dataset, sens_attrs=None):
-    """Load a pytorch dataset into a DataTuple consisting of Pandas DataFrames
-
-    Args:
-        dataset: PyTorch dataset
-        sens_attrs: (optional) list of names of the sensitive attributes
-    """
-    # create data loader with one giant batch
-    data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
-    # get the data
-    data = next(iter(data_loader))
-    # convert it to Pandas DataFrames
-    data = [pd.DataFrame(tensor.numpy()) for tensor in data]
-    if sens_attrs:
-        data[1].columns = sens_attrs
-    # create a DataTuple
-    return DataTuple(x=data[0], s=data[1], y=data[2])

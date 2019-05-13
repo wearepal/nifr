@@ -99,7 +99,7 @@ def main():
 
     args = parser.parse_args()
 
-    from finn.utils.dataloading import load_dataset
+    from finn.data import load_dataset
 
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
