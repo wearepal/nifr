@@ -36,16 +36,16 @@ def log_metrics(args, experiment, model, discs, data):
         print(f"Meta Accuracy: {acc:.4f}")
 
     print('Encoding training set...')
-    meta_train_repr = encode_dataset(args, data.meta_train, model)
+    meta_train_repr_ = encode_dataset(args, data.meta_train, model)
     print('Encoding validation set...')
-    task_repr = encode_dataset(args, data.task, model)
+    task_repr_ = encode_dataset(args, data.task, model)
     print('Encoding test set...')
-    task_train_repr = encode_dataset(args, data.task_train, model)
+    task_train_repr_ = encode_dataset(args, data.task_train, model)
 
-    reprs = (meta_train_repr, task_repr, task_train_repr)
+    repr = MetaDataset(meta_train=meta_train_repr_, task=task_repr_, task_train=task_train_repr_)
 
     if args.meta_learn and not args.inv_disc:
-        metrics_for_meta_learn(args, experiment, ethicml_model, reprs, data)
+        metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
         meta_train_data, task_data, task_train_data = get_data_tuples(data.meta_train, data.task, data.task_train)
@@ -63,11 +63,11 @@ def log_metrics(args, experiment, model, discs, data):
 
     # ===========================================================================
 
-    evaluate_representations(args, experiment, task_train_repr['all_z'], task_repr['all_z'],
+    evaluate_representations(args, experiment, repr.task_train['all_z'], repr.task['all_z'],
                              predict_y=True, use_fair=True, use_unfair=True)
-    evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
+    evaluate_representations(args, experiment, repr.task_train['recon_y'], repr.task['recon_y'],
                              predict_y=True, use_x=True, use_fair=True)
-    evaluate_representations(args, experiment, task_train_repr['recon_s'], task_repr['recon_s'],
+    evaluate_representations(args, experiment, repr.task_train['recon_s'], repr.task['recon_s'],
                              predict_y=True, use_x=True, use_unfair=True)
 
     # ===========================================================================
@@ -76,8 +76,8 @@ def log_metrics(args, experiment, model, discs, data):
         evaluate_representations(args, experiment, data.task_train, data.task, use_s=True, use_x=True)
 
     # ===========================================================================
-    evaluate_representations(args, experiment, meta_train_repr['zy'], task_repr['zy'], use_fair=True)
-    evaluate_representations(args, experiment, meta_train_repr['zs'], task_repr['zs'], use_unfair=True)
+    evaluate_representations(args, experiment, repr.meta_train['zy'], repr.task['zy'], use_fair=True)
+    evaluate_representations(args, experiment, repr.meta_train['zs'], repr.task['zs'], use_unfair=True)
 
 
 if __name__ == "__main__":
