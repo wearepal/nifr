@@ -363,15 +363,15 @@ def encode_dataset(args, data, model):
 
             z = model(x)
 
-            if args.dataset == 'cmnist':
-                recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
-                                                                                           model, False)
-                representations['recon_all'].append(recon_all)
-                representations['recon_y'].append(recon_y)
-                representations['recon_s'].append(recon_s)
-                representations['recon_n'].append(recon_n)
-                representations['recon_ys'].append(recon_ys)
-                representations['recon_yn'].append(recon_yn)
+            # if args.dataset == 'cmnist':
+            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
+                                                                                       model, False)
+            representations['recon_all'].append(recon_all)
+            representations['recon_y'].append(recon_y)
+            representations['recon_s'].append(recon_s)
+            representations['recon_n'].append(recon_n)
+            representations['recon_ys'].append(recon_ys)
+            representations['recon_yn'].append(recon_yn)
 
             representations['all_z'].append(z)
             all_s.append(s)
