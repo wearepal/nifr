@@ -121,4 +121,4 @@ class InvDisc(DiscBase):
         if return_z:
             return loss, z
 
-        return loss, -log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss
+        return loss, -log_px, pred_y_loss, self.args.pred_s_from_zy_weight * pred_s_from_zy_loss, pred_s_from_zs_loss
