@@ -53,17 +53,6 @@ def get_data_tuples(train_data, val_data, test_data):
     return train_tuple, val_tuple, test_tuple
 
 
-def make_reprs(args, train_data, val_data, test_data, model):
-    print('Encoding training set...')
-    train_repr = encode_dataset(args, train_data, model)
-    print('Encoding validation set...')
-    val_repr = encode_dataset(args, val_data, model)
-    print('Encoding test set...')
-    test_repr = encode_dataset(args, test_data, model)
-
-    return train_repr, val_repr, test_repr
-
-
 def compute_metrics(experiment, predictions, actual, name, run_all=False):
     """Compute accuracy and fairness metrics and log them"""
     metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
