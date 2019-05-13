@@ -8,9 +8,9 @@ from ethicml.metrics import Accuracy
 from torch.utils.data.dataset import random_split
 import pandas as pd
 
-from finn.utils.dataloading import pytorch_data_to_dataframe
 from finn.utils.eval_metrics import evaluate_with_classifier
-from finn.utils.training_utils import train_and_evaluate_classifier, encode_dataset
+from finn.utils.training_utils import (train_and_evaluate_classifier, encode_dataset,
+                                       pytorch_data_to_dataframe)
 
 
 def create_train_test_and_val(args, whole_train_data, whole_test_data):
