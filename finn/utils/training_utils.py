@@ -6,6 +6,7 @@ import torch
 
 import torch.nn.functional as F
 from ethicml.algorithms.utils import DataTuple
+from ethicml.data import Adult
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import random_split
 import torchvision
@@ -399,8 +400,6 @@ def encode_dataset(args, data, model):
         representations['recon_s'] = torch.utils.data.TensorDataset(
             representations['recon_s'], all_s, all_y)
 
-        return representations
-
     elif args.dataset == 'adult':
         representations['all_z'] = pd.DataFrame(representations['all_z'].numpy())
         columns = representations['all_z'].columns.astype(str)
@@ -415,7 +414,24 @@ def encode_dataset(args, data, model):
 
         representations['all_z'] = DataTuple(x=representations['all_z'], s=representations['s'], y=representations['y'])
 
-        return representations
+        recon_all = 'fff'
+
+        sens_attrs = Adult().feature_split['s']
+        recon_all_tuple = pytorch_data_to_dataframe(torch.utils.data.TensorDataset(representations['recon_all'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_y_tuple = pytorch_data_to_dataframe(torch.utils.data.TensorDataset(representations['recon_y'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_s_tuple = pytorch_data_to_dataframe(torch.utils.data.TensorDataset(representations['recon_s'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_n_tuple = pytorch_data_to_dataframe(torch.utils.data.TensorDataset(representations['recon_n'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_ys_tuple = pytorch_data_to_dataframe(torch.utils.data.TensorDataset(representations['recon_ys'], all_s, all_y), sens_attrs=sens_attrs)
+        recon_yn_tuple = pytorch_data_to_dataframe(torch.utils.data.TensorDataset(representations['recon_yn'], all_s, all_y), sens_attrs=sens_attrs)
+
+        representations['recon_all'] = recon_all_tuple
+        representations['recon_y'] = recon_y_tuple
+        representations['recon_s'] = recon_s_tuple
+        representations['recon_n'] = recon_n_tuple
+        representations['recon_ys'] = recon_ys_tuple
+        representations['recon_yn'] = recon_yn_tuple
+
+    return representations
 
 
 def encode_dataset_no_recon(args, data, model):
