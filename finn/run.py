@@ -10,7 +10,7 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 from finn.train import main as training_loop
 from finn.data import load_dataset
 from finn.utils.evaluate_utils import (create_train_test_and_val, metrics_for_meta_learn,
-                                       get_data_tuples, evaluate_representations)
+                                       get_data_tuples, evaluate_representations, MetaDataset)
 from finn.utils.training_utils import parse_arguments, encode_dataset
 from finn.utils.eval_metrics import train_zy_head
 
@@ -18,42 +18,38 @@ from finn.utils.eval_metrics import train_zy_head
 def main(raw_args=None):
     args = parse_arguments(raw_args)
     whole_train_data, whole_test_data, _, _ = load_dataset(args)
-    train_data, val_data, test_data = create_train_test_and_val(args, whole_train_data, whole_test_data)
-    training_loop(args, train_data, val_data, test_data, log_metrics)
+    datasets = create_train_test_and_val(args, whole_train_data, whole_test_data)
+    training_loop(args, datasets, log_metrics)
 
 
-def log_metrics(args, experiment, model, discs, train_data, val_data, test_data):
+def log_metrics(args, experiment, model, discs, data):
     """Compute and log a variety of metrics"""
+    assert args.meta_learn
     ethicml_model = LR()
 
     # This should be done before computing the representations because computing the representations
     # takes very long and is not needed for this!
     if args.meta_learn and args.inv_disc:
-        acc = train_zy_head(args, model, discs, test_data, val_data)
+        assert isinstance(data, MetaDataset)
+        acc = train_zy_head(args, model, discs, data.task_train, data.task)
         experiment.log_metric("Accuracy on Ddagger", acc)
         print(f"Accuracy on Ddagger: {acc:.4f}")
         return
 
     print('Encoding training set...')
-    train_repr = encode_dataset(args, train_data, model)
+    meta_train_repr = encode_dataset(args, data.meta_train, model)
     print('Encoding validation set...')
-    val_repr = encode_dataset(args, val_data, model)
+    task_repr = encode_dataset(args, data.task, model)
     print('Encoding test set...')
-    test_repr = encode_dataset(args, test_data, model)
+    task_train_repr = encode_dataset(args, data.task_train, model)
 
     reprs = (train_repr, val_repr, test_repr)
     datasets = (train_data, val_data, test_data)
 
     if args.meta_learn and not args.inv_disc:
         metrics_for_meta_learn(args, experiment, ethicml_model, reprs, datasets)
-    else:
-        if args.inv_disc:
-            raise NotImplementedError()
-        else:
-            pass
 
     if args.dataset == 'adult':
-
         train_data, val_data, test_data = get_data_tuples(train_data, val_data, test_data)
 
     experiment.log_other("evaluation model", ethicml_model.name)

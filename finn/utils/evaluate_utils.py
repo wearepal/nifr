@@ -1,3 +1,5 @@
+from typing import NamedTuple
+
 from ethicml.algorithms.inprocess import LR
 from ethicml.algorithms.utils import DataTuple
 from ethicml.data import Adult
@@ -5,7 +7,7 @@ from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
-from torch.utils.data.dataset import random_split
+from torch.utils.data.dataset import random_split, Dataset
 import pandas as pd
 
 from finn.utils.eval_metrics import evaluate_with_classifier
@@ -13,33 +15,39 @@ from finn.utils.training_utils import (train_and_evaluate_classifier, encode_dat
                                        pytorch_data_to_dataframe)
 
 
+class MetaDataset(NamedTuple):
+    meta_train: Dataset
+    task: Dataset
+    task_train: Dataset
+
+
 def create_train_test_and_val(args, whole_train_data, whole_test_data):
-    # shrink test set according to args.data_pcnt
-    test_len = int(args.data_pcnt * len(whole_test_data))
-    test_data, _ = random_split(whole_test_data, lengths=(test_len, len(whole_test_data) - test_len))
-
-    if args.meta_learn:
-        # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
-        if args.dataset == 'cmnist':
-            whole_train_data.swap_train_test_colorization()
-            whole_test_data.swap_train_test_colorization()
-            # split the training set to get training and validation sets
-            whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
-        else:
-            val_len = round(0.1 / 0.75 * len(whole_train_data))
-            train_len = len(whole_train_data) - val_len
-            whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(train_len, val_len))
-        # shrink validation set according to args.data_pcnt
-        val_len = int(args.data_pcnt * len(whole_val_data))
-        val_data, _ = random_split(whole_val_data, lengths=(val_len, len(whole_val_data) - val_len))
+    assert args.meta_learn
+    # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
+    if args.dataset == 'cmnist':
+        whole_train_data.swap_train_test_colorization()
+        whole_test_data.swap_train_test_colorization()
+        # split the training set to get training and validation sets
+        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
     else:
-        val_data = test_data  # just use the test set as validation set
+        val_len = round(0.1 / 0.75 * len(whole_train_data))
+        train_len = len(whole_train_data) - val_len
+        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(train_len, val_len))
 
-    # shrink train set according to args.data_pcnt
-    train_len = int(args.data_pcnt * len(whole_train_data))
-    train_data, _ = random_split(whole_train_data, lengths=(train_len, len(whole_train_data) - train_len))
+    # shrink meta train set according to args.data_pcnt
+    meta_train_len = int(args.data_pcnt * len(whole_train_data))
+    meta_train_data, _ = random_split(
+        whole_train_data, lengths=(meta_train_len, len(whole_train_data) - meta_train_len))
 
-    return train_data, val_data, test_data
+    # shrink task set according to args.data_pcnt
+    task_len = int(args.data_pcnt * len(whole_val_data))
+    task_data, _ = random_split(whole_val_data, lengths=(task_len, len(whole_val_data) - task_len))
+
+    # shrink task train set according to args.data_pcnt
+    task_train_len = int(args.data_pcnt * len(whole_test_data))
+    task_train_data, _ = random_split(
+        whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len))
+    return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data)
 
 
 def get_data_tuples(train_data, val_data, test_data):
