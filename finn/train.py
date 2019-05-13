@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
+from finn.utils.evaluate_utils import MetaDataset
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
 from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam
@@ -164,19 +165,18 @@ def cvt(*tensors):
     return tuple(moved)
 
 
-def main(args, train_data, val_data, test_data, metric_callback):
+def main(args, datasets, metric_callback):
     """Main function
 
     Args:
         args: commandline arguments
-        train_data: training data
-        val_data: validation data
-        test_data: test data
+        datasets: a Dataset object
         metric_callback: a function that computes metrics
 
     Returns:
         the trained model
     """
+    assert isinstance(datasets, MetaDataset)
     # ==== initialize globals ====
     global ARGS, LOGGER, SUMMARY
     ARGS = args
@@ -205,8 +205,8 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
     # ==== construct dataset ====
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=ARGS.batch_size)
-    val_loader = DataLoader(val_data, shuffle=False, batch_size=ARGS.test_batch_size)
+    train_loader = DataLoader(datasets.meta_train, shuffle=True, batch_size=ARGS.batch_size)
+    val_loader = DataLoader(datasets.task, shuffle=False, batch_size=ARGS.test_batch_size)
 
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
@@ -250,7 +250,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
                 val_loss = validate(model, discs, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, SUMMARY, model, discs, train_data, val_data, test_data)
+                    metric_callback(ARGS, SUMMARY, model, discs, datasets)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
@@ -267,7 +267,7 @@ def main(args, train_data, val_data, test_data, metric_callback):
 
     LOGGER.info('Training has finished.')
     model = restore_model(save_dir / 'checkpt.pth', model).to(ARGS.device)
-    metric_callback(ARGS, SUMMARY, model, discs, train_data, val_data, test_data)
+    metric_callback(ARGS, SUMMARY, model, discs, datasets)
     save_model(save_dir=save_dir, model=model, discs=discs)
     model.eval()
     return model, discs
