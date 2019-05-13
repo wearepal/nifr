@@ -6,7 +6,7 @@ from pathlib import Path
 from comet_ml import Experiment
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
@@ -231,8 +231,9 @@ def main(args, datasets, metric_callback):
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
-    scheduler = ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
-                                  min_lr=1.e-7, cooldown=1)
+    scheduler =  ExponentialLR(optimizer, gamma=0.95)
+                #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
+                #                  min_lr=1.e-7, cooldown=1)
 
     best_loss = float('inf')
 
@@ -259,11 +260,13 @@ def main(args, datasets, metric_callback):
                 else:
                     n_vals_without_improvement += 1
 
-                scheduler.step(val_loss)
+                # scheduler.step(val_loss)
 
                 LOGGER.info('[VAL] Epoch {:04d} | Val Loss {:.6f} | '
                             'No improvement during validation: {:02d}', epoch, val_loss,
                             n_vals_without_improvement)
+
+        scheduler.step(epoch)
 
     LOGGER.info('Training has finished.')
     model = restore_model(save_dir / 'checkpt.pth', model).to(ARGS.device)
