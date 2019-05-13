@@ -348,7 +348,6 @@ def encode_dataset(args, data, model):
     all_y = []
 
     representations = ['all_z']
-    # if args.dataset == 'cmnist':
     representations.extend(['recon_all', 'recon_y', 'recon_s',
                             'recon_n', 'recon_yn', 'recon_ys'])
     representations = {key: [] for key in representations}
@@ -364,7 +363,6 @@ def encode_dataset(args, data, model):
 
             z = model(x)
 
-            # if args.dataset == 'cmnist':
             recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(args, z,
                                                                                        model, False)
             representations['recon_all'].append(recon_all)
