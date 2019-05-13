@@ -32,8 +32,8 @@ def log_metrics(args, experiment, model, discs, data):
     if args.meta_learn and args.inv_disc:
         assert isinstance(data, MetaDataset)
         acc = train_zy_head(args, model, discs, data.task_train, data.task)
-        experiment.log_metric("Accuracy on Ddagger", acc)
-        print(f"Accuracy on Ddagger: {acc:.4f}")
+        experiment.log_metric("Meta Accuracy", acc)
+        print(f"Meta Accuracy: {acc:.4f}")
         return
 
     print('Encoding training set...')
