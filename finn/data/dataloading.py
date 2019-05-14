@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import TensorDataset, DataLoader
 
 from ethicml.data.load import load_data
-from ethicml.algorithms.utils import DataTuple, apply_to_joined_tuple
+from ethicml.algorithms.utils import DataTuple, apply_to_joined_tuple, concat_dt
 from ethicml.data import Adult
 from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.preprocessing.domain_adaptation import domain_split, dataset_from_cond
@@ -37,9 +37,7 @@ def load_adult_data(args):
 
         test_tuple, remaining = train_test_split(selected_sy_equal, train_percentage=0.5,
                                                  random_seed=888)
-        train_tuple = DataTuple(x=pd.concat([selected_sy_opposite.x, remaining.x], axis='index'),
-                                s=pd.concat([selected_sy_opposite.s, remaining.s], axis='index'),
-                                y=pd.concat([selected_sy_opposite.y, remaining.y], axis='index'))
+        train_tuple = concat_dt([selected_sy_opposite, remaining], axis='index', ignore_index=True)
 
         # s and y should not be overly correlated in the training set
         assert train_tuple.s['sex_Male'].corr(train_tuple.y['salary_>50K']) < 0.1
