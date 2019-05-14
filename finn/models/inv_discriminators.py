@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch import distributions
 import torch.nn.functional as F
 
 from finn import layers
@@ -16,8 +17,8 @@ class InvDisc(DiscBase):
             args.zs_dim = round(args.zs_frac * z_dim_flat)
             args.zy_dim = z_dim_flat - args.zs_dim
             args.zn_dim = 0
-            s_dim = 1
-            x_dim += s_dim
+            in_dim = x_dim + args.s_dim
+            wh = 1
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
                                            depth=2, batch_norm=False)
@@ -32,6 +33,7 @@ class InvDisc(DiscBase):
             args.zs_dim = round(args.zs_frac * z_channels)
             args.zy_dim = z_channels - args.zs_dim
             args.zn_dim = 0
+            in_dim = x_dim
 
             disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim),
                                            depth=2, batch_norm=False)
@@ -39,7 +41,7 @@ class InvDisc(DiscBase):
                                            depth=2, batch_norm=False)
             disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [1024, 1024] + [10],
                                         activation=nn.ReLU,
-                                        output_activation=torch.nn.LogSoftmax)
+                                        output_activation=nn.LogSoftmax)
 
         disc_y_from_zy.to(args.device)
         disc_s_from_zy.to(args.device)
@@ -51,13 +53,17 @@ class InvDisc(DiscBase):
         self.disc_name_list = ['s_from_zs', 'y_from_zy', 's_from_zy']  # for generating discs_dict
         self.args = args
         self.x_dim = x_dim
+        self.in_dim = in_dim
+        self.z_dim_flat = z_dim_flat
+        self.wh = wh
+
 
     @property
     def discs_dict(self):
         return {disc_name: getattr(self, disc_name) for disc_name in self.disc_name_list}
 
     def create_model(self):
-        return fetch_model(self.args, self.x_dim)
+        return fetch_model(self.args, self.in_dim)
 
     def assemble_whole_model(self, trunk):
         chain = [trunk]
@@ -67,6 +73,8 @@ class InvDisc(DiscBase):
 
     @staticmethod
     def multi_class_loss(_logits, _target):
+        # sample = distributions.Normal(_logits[:, :10], _logits[:, 10:20]).rsample()
+        # _preds = F.log_softmax(sample, dim=1)
         _preds = F.log_softmax(_logits[:, :10], dim=1)
         return F.nll_loss(_preds, _target, reduction='mean')
 
