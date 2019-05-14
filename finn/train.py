@@ -1,12 +1,10 @@
 """Main training file"""
 import time
-import random
 from pathlib import Path
 
 from comet_ml import Experiment
-import numpy as np
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau, ExponentialLR
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
@@ -180,11 +178,6 @@ def main(args, datasets, metric_callback):
     # ==== initialize globals ====
     global ARGS, LOGGER, SUMMARY
     ARGS = args
-
-    random.seed(ARGS.seed)
-    np.random.seed(ARGS.seed)
-    torch.manual_seed(ARGS.seed)
-    torch.cuda.manual_seed(ARGS.seed)
 
     SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
                          workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)

@@ -3,6 +3,9 @@
 # from pathlib import Path
 import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 
+import random
+import numpy as np
+import torch
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
@@ -17,6 +20,10 @@ from finn.utils.eval_metrics import train_zy_head
 
 def main(raw_args=None):
     args = parse_arguments(raw_args)
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    torch.cuda.manual_seed(args.seed)
     whole_train_data, whole_test_data, _, _ = load_dataset(args)
     datasets = create_train_test_and_val(args, whole_train_data, whole_test_data)
     training_loop(args, datasets, log_metrics)
