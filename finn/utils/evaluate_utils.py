@@ -4,7 +4,7 @@ from ethicml.algorithms.inprocess import LR
 from ethicml.algorithms.utils import DataTuple
 from ethicml.data import Adult
 from ethicml.evaluators.evaluate_models import run_metrics
-from ethicml.metrics import Accuracy
+from ethicml.metrics import Accuracy, Theil, ProbPos, TPR
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from torch.utils.data.dataset import random_split, Dataset
@@ -63,16 +63,29 @@ def get_data_tuples(train_data, val_data, test_data):
 
 def compute_metrics(experiment, predictions, actual, name, run_all=False):
     """Compute accuracy and fairness metrics and log them"""
-    metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
-    experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
+
     if run_all:
+        metrics = run_metrics(predictions, actual,
+                              metrics=[Accuracy(), Theil()],
+                              per_sens_metrics=[Theil(), ProbPos(), TPR()])
+        experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
+        # experiment.log_metric(f"{name} TPR, metrics['Theil_Index'])
+        experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1.0'])
         experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
-        experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0'])
-        experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1'])
-        experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1'])
-        experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0'])
-        experiment.log_metric(f"{name} Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1'])
-        experiment.log_metric(f"{name} Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1'])
+        experiment.log_metric(f"{name} P(Y=1|s=0)", metrics['prob_pos_sex_Male_0.0'])
+        experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1.0'])
+        experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1.0'])
+        experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0.0'])
+        experiment.log_metric(f"{name} P(Y=1|s=0) Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1.0'])
+        experiment.log_metric(f"{name} P(Y=1|s=0) Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1.0'])
+
+        experiment.log_metric(f"{name} TPR|s=1", metrics['TPR_sex_Male_1.0'])
+        experiment.log_metric(f"{name} TPR|s=0", metrics['TPR_sex_Male_0.0'])
+        experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics['TPR_sex_Male_0/sex_Male_1.0'])
+        experiment.log_metric(f"{name} TPR Diff s0-s1", metrics['TPR_sex_Male_0-sex_Male_1.0'])
+    else:
+        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
+        experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
     for key, value in metrics.items():
         print(f"\t\t{key}: {value:.4f}")
     print()  # empty line
