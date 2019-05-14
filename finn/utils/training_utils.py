@@ -108,9 +108,9 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         x = x.to(args.device)
         target = target.to(args.device).long()
 
-        if args.dataset == 'adult' and use_s:
-            x = torch.cat((x, s), dim=1)
-        elif args.dataset == 'cmnist' and not use_s:
+        # if args.dataset == 'adult' and use_s:
+        #     x = torch.cat((x, s), dim=1)
+        if args.dataset == 'cmnist' and not use_s:
             x = x.mean(dim=1, keepdim=True)
 
         optimizer.zero_grad()
@@ -144,9 +144,9 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
             x = x.to(args.device)
             target = target.to(args.device)
 
-            if args.dataset == 'adult' and use_s:
-                x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'cmnist' and not use_s:
+            # if args.dataset == 'adult' and use_s:
+            #     x = torch.cat((x, s), dim=1)
+            if args.dataset == 'cmnist' and not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
@@ -253,9 +253,9 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
             x = x.to(device)
             target = target.to(device)
 
-            if args.dataset == 'adult' and use_s:
-                x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'cmnist' and not use_s and using_x:
+            # if args.dataset == 'adult' and use_s:
+            #     x = torch.cat((x, s), dim=1)
+            if args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
             if experiment is not None and args.dataset == 'cmnist' and i == 0:
                 log_images(experiment, x, f"evaluation on {name}", prefix='eval')
@@ -363,8 +363,8 @@ def encode_dataset(args, data, model):
             x = x.to(args.device)
             s = s.to(args.device)
 
-            if args.dataset == 'adult':
-                x = torch.cat((x, s), dim=1)
+            # if args.dataset == 'adult':
+            #     x = torch.cat((x, s), dim=1)
 
             z = model(x)
 
@@ -442,8 +442,8 @@ def encode_dataset_no_recon(args, data, model):
             x = x.to(args.device)
             s = s.to(args.device)
 
-            if args.dataset == 'adult':
-                x = torch.cat((x, s), dim=1)
+            # if args.dataset == 'adult':
+            #     x = torch.cat((x, s), dim=1)
             z = model(x)
 
             encodings['all_z'].append(z)

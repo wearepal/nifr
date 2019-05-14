@@ -9,15 +9,15 @@ from .tabular import tabular_model
 
 class InvDisc(DiscBase):
     def __init__(self, args, x_dim, z_dim_flat):
-        """Create the discriminators that enfoce the partition on z"""
+        """Create the discriminators that enforce the partition on z"""
 
         if args.dataset == 'adult':
-            z_dim_flat += 1
+            # z_dim_flat += 1
             args.zs_dim = round(args.zs_frac * z_dim_flat)
             args.zy_dim = z_dim_flat - args.zs_dim
             args.zn_dim = 0
-            s_dim = 1
-            x_dim += s_dim
+            # s_dim = 1
+            # x_dim += s_dim
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
                                            depth=2, batch_norm=False)
@@ -91,7 +91,7 @@ class InvDisc(DiscBase):
         else:
             class_loss = self.binary_class_loss
             indie_loss = F.binary_cross_entropy_with_logits
-            x = torch.cat((x, s.float()), dim=1)
+            # x = torch.cat((x, s.float()), dim=1)
 
         z, delta_log_p = whole_model(x, zero)  # run model forward
 
