@@ -192,7 +192,7 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
     return model
 
 
-def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
+def train_and_evaluate_classifier(args, experiment, data, pred_s, use_s, model=None, name=None):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -217,10 +217,10 @@ def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
                                      pred_s=pred_s)
 
     return partial(evaluate, args=args, model=model, batch_size=args.test_batch_size,
-                   device=args.device, pred_s=pred_s, use_s=use_s)
+                   device=args.device, pred_s=pred_s, use_s=use_s, experiment=experiment, name=name)
 
 
-def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True):
+def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True, experiment=None, name=None):
     """
     Evaluate a model on a given test set and return the predictions
 
@@ -257,6 +257,9 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
                 x = torch.cat((x, s), dim=1)
             elif args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
+            if experiment is not None and args.dataset == 'cmnist':
+                log_images(experiment, x, f"evaluation on {name}")
+
 
             preds = model(x).argmax(dim=1)
             all_preds.extend(preds.detach().cpu().numpy())

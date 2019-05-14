@@ -66,9 +66,13 @@ def log_metrics(args, experiment, model, discs, data):
     evaluate_representations(args, experiment, task_train_repr['all_z'], task_repr['all_z'],
                              predict_y=True, use_fair=True, use_unfair=True)
     evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
-                             predict_y=True, use_x=True, use_fair=True)
+                             predict_y=True, use_x=True, use_fair=True, use_s=True)
     evaluate_representations(args, experiment, task_train_repr['recon_s'], task_repr['recon_s'],
-                             predict_y=True, use_x=True, use_unfair=True)
+                             predict_y=True, use_x=True, use_unfair=True, use_s=True)
+
+    # Grayscale the fair representation
+    evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
+                             predict_y=True, use_x=True, use_fair=True)
 
     # ===========================================================================
     if check_originals:
