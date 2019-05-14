@@ -34,11 +34,11 @@ class NNDisc(DiscBase):
         if args.dataset == 'adult':
             # ==== MLP models ====
             output_activation = nn.Sigmoid
-            hidden_sizes = [200, 200]
+            hidden_sizes = [400, 400]
             disc_s_from_zs = layers.Mlp([args.zs_dim] + hidden_sizes + [s_dim],
                                         activation=nn.ReLU, output_activation=output_activation)
 
-            hidden_sizes = [200, 200]
+            hidden_sizes = [400, 400]
             disc_s_from_zy = layers.Mlp([args.zy_dim] + hidden_sizes + [s_dim],
                                         activation=nn.ReLU, output_activation=output_activation)
 
