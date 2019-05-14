@@ -26,8 +26,8 @@ def parse_arguments(raw_args=None):
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)
     parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
-    parser.add_argument('-bg', '--background', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--black', type=eval, default=False, choices=[True, False])
+    parser.add_argument('-bg', '--background', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--black', type=eval, default=True, choices=[True, False])
     parser.add_argument('--root', type=str, default="data")
 
     parser.add_argument('--depth', type=int, default=4)
@@ -64,8 +64,9 @@ def parse_arguments(raw_args=None):
 
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
-    parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=10)
+    parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=20)
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
+    parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.e-7)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
