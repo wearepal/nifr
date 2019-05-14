@@ -41,6 +41,7 @@ def log_metrics(args, experiment, model, discs, data):
         acc = train_zy_head(args, model, discs, data.task_train, data.task)
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
+        return
 
     print('Encoding training set...')
     meta_train_repr_ = encode_dataset(args, data.meta_train, model)
