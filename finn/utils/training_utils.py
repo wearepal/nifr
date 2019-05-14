@@ -192,7 +192,7 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
     return model
 
 
-def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
+def train_and_evaluate_classifier(args, experiment, data, pred_s, use_s, model=None, name=None):
 
     # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     #
@@ -217,10 +217,10 @@ def train_and_evaluate_classifier(args, data, pred_s, use_s, model=None):
                                      pred_s=pred_s)
 
     return partial(evaluate, args=args, model=model, batch_size=args.test_batch_size,
-                   device=args.device, pred_s=pred_s, use_s=use_s)
+                   device=args.device, pred_s=pred_s, use_s=use_s, experiment=experiment, name=name)
 
 
-def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True):
+def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True, experiment=None, name=None):
     """
     Evaluate a model on a given test set and return the predictions
 
@@ -246,7 +246,7 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
         # generate predictions
         all_preds = []
         all_targets = []
-        for x, s, y in test_loader:
+        for i, (x, s, y) in enumerate(test_loader):
 
             target = s if pred_s else y
 
@@ -257,6 +257,9 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
                 x = torch.cat((x, s), dim=1)
             elif args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
+            if experiment is not None and args.dataset == 'cmnist' and i == 0:
+                log_images(experiment, x, f"evaluation on {name}", prefix='eval')
+
 
             preds = model(x).argmax(dim=1)
             all_preds.extend(preds.detach().cpu().numpy())
@@ -290,9 +293,9 @@ def metameric_sampling(model, xzx, xzs, zs_dim):
     return xm
 
 
-def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=False, train=True):
+def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=False, prefix=None):
     """Make a grid of the given images, save them in a file and log them with Comet"""
-    prefix = "train_" if train else "test_"
+    prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
     if monochrome:
         images = images.mean(dim=1, keepdim=True)
@@ -301,10 +304,11 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
     experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
 
 
-def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False, merge_n=True):
+def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zero_yn=False):
     """Reconstruct the input from the representation in various different ways"""
     z_ = z.clone()
     wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
+
 
     if zero_zy:
         if args.inv_disc:
@@ -316,29 +320,30 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_zn=False, mer
             z_[:, (args.zn_dim * wh): (z_.size(1) - (args.zy_dim * wh))][:, :args.s_dim].zero_()
         else:
             z_[:, args.zn_dim: (z_.size(1) - args.zy_dim)].zero_()
-    if zero_zn:
-        if args.inv_disc:
-            if not merge_n:
-                z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
+    if args.inv_disc:
+        if zero_yn:
+            z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
+        if zero_sn:
             z_[:, args.zn_dim: (z_.size(1) - args.zy_dim * wh)][:, args.s_dim:].zero_()
-        else:
-            z_[:, :args.zn_dim].zero_()
+    elif zero_sn or zero_yn:
+        z_[:, :args.zn_dim].zero_()
 
     recon = model(z_, reverse=True)
 
     return recon
 
 
-def reconstruct_all(args, z, model, merge_n):
-    recon_all = reconstruct(args, z, model)
+def reconstruct_all(args, z, model):
+    recon_all = reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zero_yn=False)
 
-    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_zn=True, merge_n=merge_n)
-    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_zn=True, merge_n=merge_n)
-    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True, zero_zn=False, merge_n=merge_n)
+    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=True)
+    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_sn=True, zero_yn=True)
+    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True, zero_sn=False, zero_yn=False)
 
-    recon_ys = reconstruct(args, z, model, zero_zn=True, merge_n=merge_n)
-    recon_yn = reconstruct(args, z, model, zero_zs=True, merge_n=merge_n)
-    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn
+    recon_ys = reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=True, zero_yn=True)
+    recon_yn = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=False)
+    recon_sn = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_sn=False, zero_yn=True)
+    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn
 
 
 def encode_dataset(args, data, model):

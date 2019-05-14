@@ -31,9 +31,10 @@ def log_metrics(args, experiment, model, discs, data):
     # takes very long and is not needed for this!
     if args.meta_learn and args.inv_disc:
         assert isinstance(data, MetaDataset)
-        acc = train_zy_head(args, model, discs, data.task_train, data.task)
+        acc = train_zy_head(args, experiment, model, discs, data.task_train, data.task)
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
+        return
 
     print('Encoding training set...')
     meta_train_repr = encode_dataset(args, data.meta_train, model)
@@ -66,9 +67,13 @@ def log_metrics(args, experiment, model, discs, data):
     evaluate_representations(args, experiment, task_train_repr['all_z'], task_repr['all_z'],
                              predict_y=True, use_fair=True, use_unfair=True)
     evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
-                             predict_y=True, use_x=True, use_fair=True)
+                             predict_y=True, use_x=True, use_fair=True, use_s=True)
     evaluate_representations(args, experiment, task_train_repr['recon_s'], task_repr['recon_s'],
-                             predict_y=True, use_x=True, use_unfair=True)
+                             predict_y=True, use_x=True, use_unfair=True, use_s=True)
+
+    # Grayscale the fair representation
+    evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
+                             predict_y=True, use_x=True, use_fair=True)
 
     # ===========================================================================
     if check_originals:

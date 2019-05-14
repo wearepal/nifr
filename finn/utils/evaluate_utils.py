@@ -12,7 +12,7 @@ import pandas as pd
 
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.training_utils import (train_and_evaluate_classifier, encode_dataset,
-                                       pytorch_data_to_dataframe)
+                                       pytorch_data_to_dataframe, log_images)
 
 
 class MetaDataset(NamedTuple):
@@ -173,7 +173,7 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
 
     if args.dataset == 'cmnist':
         if use_x:
-            clf = train_and_evaluate_classifier(args, train_data, pred_s=not predict_y, use_s=use_s)
+            clf = train_and_evaluate_classifier(args, experiment, train_data, pred_s=not predict_y, use_s=use_s, name=name)
         else:
             clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s= not predict_y, use_s=use_s, applicative=True)
         preds_x, test_x = clf(test_data=train_data)
