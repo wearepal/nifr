@@ -91,24 +91,16 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
     print()  # empty line
 
 
-def metrics_for_meta_learn(args, experiment, clf, repr_tuple, dataset_tuple):
-    train_repr, val_repr, test_repr = repr_tuple
-    train_data, val_data, test_data = dataset_tuple
-
+def metrics_for_meta_learn(args, experiment, clf, repr, data):
+    assert isinstance(repr, MetaDataset)
     print('Meta Learn Results...')
     if args.dataset == 'cmnist':
-        ddagger_repr = test_repr['zy']  # s = y
-        d_repr = val_repr['zy']  # s independent y
-        acc = evaluate_with_classifier(args, ddagger_repr, d_repr, args.zy_dim)
+        acc = evaluate_with_classifier(args, repr.task_train['zy'], repr.task['zy'], args.zy_dim)
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
     else:
-        val_tuple = pytorch_data_to_dataframe(val_data)
-        test_tuple = pytorch_data_to_dataframe(test_data)
-        ddagger_repr = test_repr['zy']
-        d_repr = val_repr['zy']
-        preds_meta = clf.run(ddagger_repr, d_repr)
-        compute_metrics(experiment, preds_meta, d_repr, "Meta")
+        preds_meta = clf.run(repr.task_train['zy'], repr.task['zy'])
+        compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta")
 
 
 def make_tuple_from_data(train, test, pred_s, use_s):
