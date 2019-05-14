@@ -104,7 +104,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         whole_model = discs.assemble_whole_model(model)
         z = whole_model(x[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model, True)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -112,6 +112,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         log_images(SUMMARY, recon_n, 'reconstruction_n')
         log_images(SUMMARY, recon_ys, 'reconstruction_ys')
         log_images(SUMMARY, recon_yn, 'reconstruction_yn')
+        log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
@@ -143,14 +144,15 @@ def validate(model, discs, val_loader):
         whole_model = discs.assemble_whole_model(model)
         z = whole_model(x_val[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn = reconstruct_all(ARGS, z, whole_model, True)
-        log_images(SUMMARY, x_val, 'original_x', train=False)
-        log_images(SUMMARY, recon_all, 'reconstruction_all', train=False)
-        log_images(SUMMARY, recon_y, 'reconstruction_y', train=False)
-        log_images(SUMMARY, recon_s, 'reconstruction_s', train=False)
-        log_images(SUMMARY, recon_n, 'reconstruction_n', train=False)
-        log_images(SUMMARY, recon_ys, 'reconstruction_ys', train=False)
-        log_images(SUMMARY, recon_yn, 'reconstruction_yn', train=False)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+        log_images(SUMMARY, x_val, 'original_x', prefix='test')
+        log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
+        log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
+        log_images(SUMMARY, recon_s, 'reconstruction_s', prefix='test')
+        log_images(SUMMARY, recon_n, 'reconstruction_n', prefix='test')
+        log_images(SUMMARY, recon_ys, 'reconstruction_ys', prefix='test')
+        log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
+        log_images(SUMMARY, recon_yn, 'reconstruction_sn', prefix='test')
 
     return loss_meter.avg
 
@@ -224,7 +226,7 @@ def main(args, datasets, metric_callback):
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
-    scheduler =  ExponentialLR(optimizer, gamma=args.gamma)
+    scheduler = ExponentialLR(optimizer, gamma=args.gamma)
                 #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                 #                  min_lr=1.e-7, cooldown=1)
 

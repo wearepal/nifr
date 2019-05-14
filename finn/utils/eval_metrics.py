@@ -10,7 +10,8 @@ from tqdm import tqdm
 
 from finn.models import MnistConvNet, InvDisc, compute_log_pz, tabular_model
 from finn.utils import utils
-from finn.utils.training_utils import validate_classifier, classifier_training_loop, evaluate
+from finn.utils.training_utils import validate_classifier, classifier_training_loop, evaluate, reconstruct_all, \
+    log_images
 
 
 def evaluate_with_classifier(args, train_data, test_data, in_channels, pred_s=False, use_s=False, applicative=False):
@@ -31,7 +32,7 @@ def evaluate_with_classifier(args, train_data, test_data, in_channels, pred_s=Fa
         return acc
 
 
-def train_zy_head(args, trunk, discs, train_data, val_data):
+def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
     assert isinstance(discs, InvDisc)
     assert isinstance(train_data, Dataset)
     assert isinstance(val_data, Dataset)
@@ -139,6 +140,16 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
                     acc_meter.update(acc / x.size(0), n=x.size(0))
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
+
+                    if args.dataset == 'cmnist' and i % (int(args.clf_epochs/4)) == 0:
+                        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(args, z, whole_model)
+                        log_images(experiment, recon_all, f'reconstruction_all_{epoch}', prefix="eval")
+                        log_images(experiment, recon_y, f'reconstruction_y_{epoch}', prefix="eval")
+                        log_images(experiment, recon_s, f'reconstruction_s_{epoch}', prefix="eval")
+                        log_images(experiment, recon_n, f'reconstruction_n_{epoch}', prefix="eval")
+                        log_images(experiment, recon_ys, f'reconstruction_ys_{epoch}', prefix="eval")
+                        log_images(experiment, recon_yn, f'reconstruction_yn_{epoch}', prefix="eval")
+                        log_images(experiment, recon_sn, f'reconstruction_sn_{epoch}', prefix="eval")
 
                     pbar.set_postfix(total_loss=val_loss.item(), acc=acc / x.size(0))
                     pbar.update()
