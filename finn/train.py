@@ -137,7 +137,7 @@ def validate(model, discs, val_loader):
 
     SUMMARY.log_metric("Loss", loss_meter.avg)
 
-    x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
+    # x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
 
     if ARGS.dataset == 'cmnist':
 
