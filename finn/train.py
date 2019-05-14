@@ -138,10 +138,10 @@ def validate(model, discs, val_loader):
     SUMMARY.log_metric("Loss", loss_meter.avg)
 
     x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' else x_val
+    whole_model = discs.assemble_whole_model(model)
 
     if ARGS.dataset == 'cmnist':
 
-        whole_model = discs.assemble_whole_model(model)
         z = whole_model(x_val[:64])
 
         recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
@@ -153,6 +153,10 @@ def validate(model, discs, val_loader):
         log_images(SUMMARY, recon_ys, 'reconstruction_ys', prefix='test')
         log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
         log_images(SUMMARY, recon_yn, 'reconstruction_sn', prefix='test')
+    else:
+        x_recon = whole_model(whole_model(x_val), reverse=True)
+        x_diff = (x_recon - x_val).abs().mean().item()
+        print(f"MAE of x and reconstructed x: {x_diff}")
 
     return loss_meter.avg
 
