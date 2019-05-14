@@ -127,6 +127,7 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                     log_pz_new = compute_log_pz(zy_new)
 
                     zy_old, delta_log_p_old = discs.y_from_zy(zy_trunk, delta_log_p)
+                    log_pz_old = compute_log_pz(zy_old)
 
                     log_px_new = (log_pz_new - delta_log_p_new)
                     log_px_old = (log_pz_old - delta_log_p_old)
