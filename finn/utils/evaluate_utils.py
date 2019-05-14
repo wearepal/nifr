@@ -172,6 +172,7 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
     print(f"{name}:")
 
     if args.dataset == 'cmnist':
+        run_all = False
         if use_x:
             clf = train_and_evaluate_classifier(args, train_data, pred_s=not predict_y, use_s=use_s)
         else:
@@ -182,8 +183,9 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         print("\tTraining performance")
 
     else:
+        run_all = True
         train_x, test_x = make_tuple_from_data(train_data, test_data, pred_s=not predict_y, use_s=use_s)
         preds_x = LR().run(train_x, test_x)
 
     print("\tTest performance")
-    compute_metrics(experiment, preds_x, test_x, name)
+    compute_metrics(experiment, preds_x, test_x, name, run_all=run_all)
