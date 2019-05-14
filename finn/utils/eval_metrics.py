@@ -49,8 +49,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
     val_loader = DataLoader(val_data, batch_size=args.test_batch_size)
 
     head_optimizer = Adam(disc_y_from_zy_copy.parameters(), lr=args.lr,
-                          weight_decay=0)
-    standard_normal = torch.distributions.Normal(0, 1)
+                          weight_decay=args.weight_decay)
 
     n_vals_without_improvement = 0
 
@@ -62,9 +61,6 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
         class_loss = discs.binary_class_loss
 
     for epoch in range(args.clf_epochs):
-
-        # if n_vals_without_improvement > args.clf_early_stopping > 0:
-        #     break
 
         print(f'====> Epoch {epoch} of z_y head training')
 
@@ -128,12 +124,6 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     log_pz_new = compute_log_pz(zy_new)
 
                     zy_old, delta_log_p_old = discs.y_from_zy(zy_trunk, delta_log_p)
-                    log_pz_old = compute_log_pz(zy_old)
-                    # zy_new_spliced = zy_old
-                    # zy_new_spliced[:, args.y_dim:] = zy_new[:, args.y_dim:].detach()
-                    # zy_trunk_new = discs.y_from_zy(zy_new, reverse=True)
-                    # regularization = F.mse_loss(discs.y_from_zy(zy_new, reverse=True),
-                    #                             zy_trunk, reduction='mean')
 
                     log_px_new = (log_pz_new - delta_log_p_new)
                     log_px_old = (log_pz_old - delta_log_p_old)
