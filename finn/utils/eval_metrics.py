@@ -53,7 +53,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
     n_vals_without_improvement = 0
 
-    best_acc = float('inf')
+    best_acc = float('-inf')
 
     if args.dataset == 'cmnist':
         class_loss = discs.multi_class_loss
