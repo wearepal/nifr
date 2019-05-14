@@ -81,8 +81,8 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
 
         experiment.log_metric(f"{name} TPR|s=1", metrics['TPR_sex_Male_1.0'])
         experiment.log_metric(f"{name} TPR|s=0", metrics['TPR_sex_Male_0.0'])
-        experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics['TPR_sex_Male_0/sex_Male_1.0'])
-        experiment.log_metric(f"{name} TPR Diff s0-s1", metrics['TPR_sex_Male_0-sex_Male_1.0'])
+        experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics['TPR_sex_Male_0.0/sex_Male_1.0'])
+        experiment.log_metric(f"{name} TPR Diff s0-s1", metrics['TPR_sex_Male_0.0/sex_Male_1.0'])
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
