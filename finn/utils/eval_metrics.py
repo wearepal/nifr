@@ -53,7 +53,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
 
     n_vals_without_improvement = 0
 
-    best_acc = float('-inf')
+    best_acc = 0
 
     if args.dataset == 'cmnist':
         class_loss = discs.multi_class_loss
@@ -61,6 +61,8 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
         class_loss = discs.binary_class_loss
 
     for epoch in range(args.clf_epochs):
+        if n_vals_without_improvement > args.clf_early_stopping > 0:
+            break
 
         print(f'====> Epoch {epoch} of z_y head training')
 
@@ -142,7 +144,7 @@ def train_zy_head(args, trunk, discs, train_data, val_data):
                     pbar.update()
 
                 val_acc = acc_meter.avg
-                if val_acc < best_acc:
+                if val_acc > best_acc:
                     best_acc = val_acc
                     n_vals_without_improvement = 0
                 else:
