@@ -76,8 +76,8 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
         experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1.0'])
         experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1.0'])
         experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0.0'])
-        experiment.log_metric(f"{name} P(Y=1|s=0) Ratio s0/s1", metrics['prob_pos_sex_Male_0/sex_Male_1.0'])
-        experiment.log_metric(f"{name} P(Y=1|s=0) Diff s0-s1", metrics['prob_pos_sex_Male_0-sex_Male_1.0'])
+        experiment.log_metric(f"{name} P(Y=1|s=0) Ratio s0/s1", metrics['prob_pos_sex_Male_0.0/sex_Male_1.0'])
+        experiment.log_metric(f"{name} P(Y=1|s=0) Diff s0-s1", metrics['prob_pos_sex_Male_0.0-sex_Male_1.0'])
 
         experiment.log_metric(f"{name} TPR|s=1", metrics['TPR_sex_Male_1.0'])
         experiment.log_metric(f"{name} TPR|s=0", metrics['TPR_sex_Male_0.0'])
