@@ -246,7 +246,7 @@ def main(args, datasets, metric_callback):
         with SUMMARY.train():
             train(model, discs, optimizer, disc_optimizer, train_loader, epoch)
 
-        if epoch % ARGS.val_freq == 0:
+        if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
                 val_loss = validate(model, discs, val_loader)
