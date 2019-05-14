@@ -354,7 +354,7 @@ def encode_dataset(args, data, model):
 
     representations = ['all_z']
     representations.extend(['recon_all', 'recon_y', 'recon_s',
-                            'recon_n', 'recon_yn', 'recon_ys'])
+                            'recon_n', 'recon_yn', 'recon_ys', 'recon_sn'])
     representations = {key: [] for key in representations}
 
     with torch.no_grad():
