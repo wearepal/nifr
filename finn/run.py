@@ -43,26 +43,24 @@ def log_metrics(args, experiment, model, discs, data):
         print(f"Meta Accuracy: {acc:.4f}")
         return
 
-    print('Encoding training set...')
-    meta_train_repr_ = encode_dataset(args, data.meta_train, model)
     print('Encoding validation set...')
     task_repr_ = encode_dataset(args, data.task, model)
     print('Encoding test set...')
     task_train_repr_ = encode_dataset(args, data.task_train, model)
 
-    repr = MetaDataset(meta_train=meta_train_repr_, task=task_repr_, task_train=task_train_repr_)
+    repr = MetaDataset(meta_train=None, task=task_repr_, task_train=task_train_repr_)
 
     if args.meta_learn and not args.inv_disc:
         metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
-        meta_train_data, task_data, task_train_data = get_data_tuples(data.meta_train, data.task, data.task_train)
-        data = MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data)
+        _, task_data, task_train_data = get_data_tuples(data.task, data.task, data.task_train)
+        data = MetaDataset(meta_train=None, task=task_data, task_train=task_train_data)
 
     experiment.log_other("evaluation model", ethicml_model.name)
 
     # ===========================================================================
-    check_originals = True
+    check_originals = False
     if check_originals:
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
@@ -88,8 +86,12 @@ def log_metrics(args, experiment, model, discs, data):
         evaluate_representations(args, experiment, data.task_train, data.task, use_s=True, use_x=True)
 
     # ===========================================================================
-    evaluate_representations(args, experiment, repr.meta_train['zy'], repr.task['zy'], use_fair=True)
-    evaluate_representations(args, experiment, repr.meta_train['zs'], repr.task['zs'], use_unfair=True)
+    check_meta_train = False
+    if check_meta_train:
+        print('Encoding training set...')
+        meta_train_repr = encode_dataset(args, data.meta_train, model)
+        evaluate_representations(args, experiment, meta_train_repr['zy'], repr.task['zy'], use_fair=True)
+        evaluate_representations(args, experiment, meta_train_repr['zs'], repr.task['zs'], use_unfair=True)
 
 
 if __name__ == "__main__":
