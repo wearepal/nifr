@@ -36,6 +36,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=float, default=0)
     parser.add_argument('--inv-disc', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--inv-disc-depth', type=int, default=2)
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=200)
