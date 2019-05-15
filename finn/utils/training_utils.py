@@ -189,7 +189,6 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
             n_vals_without_improvement = 0
         else:
             n_vals_without_improvement += 1
-    print(f"Best accuracy: {best_acc}")
 
     return model
 
