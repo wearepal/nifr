@@ -4,6 +4,8 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import linalg
 
+from finn.layers.coupling import InvertibleLayer
+
 
 class Invertible1x1Conv(nn.Module):
     """Invertible 1x1 convolution"""
@@ -131,17 +133,16 @@ class BruteForceLayer(nn.Module):
 
 
 # ActNorm Layer with data-dependant init
-class ActNorm(nn.Module):
+class ActNorm(InvertibleLayer):
     def __init__(self, num_features, logscale_factor=1., scale=1.):
         super(ActNorm, self).__init__()
-
         self.initialized = False
         self.logscale_factor = logscale_factor
         self.scale = scale
         self.register_parameter('b', nn.Parameter(torch.zeros(1, num_features, 1)))
         self.register_parameter('logs', nn.Parameter(torch.zeros(1, num_features, 1)))
 
-    def forward_(self, input, objective):
+    def _forward(self, x, logpx=None):
         input_shape = input.size()
         input = input.view(input_shape[0], input_shape[1], -1)
 
@@ -164,7 +165,18 @@ class ActNorm(nn.Module):
         output = (input + b) * torch.exp(logs)
         dlogdet = torch.sum(logs) * input.size(-1)  # c x h
 
-        return output.view(input_shape), objective - dlogdet
+        return output.view(input_shape), logpx - dlogdet
+
+    def _reverse(self, x, logpx=None):
+        assert self.initialized
+        input_shape = input.size()
+        input = input.view(input_shape[0], input_shape[1], -1)
+        logs = self.logs * self.logscale_factor
+        b = self.b
+        output = input * torch.exp(-logs) - b
+        dlogdet = torch.sum(logs) * input.size(-1)  # c x h
+
+        return output.view(input_shape), logpx - dlogdet
 
 
 def _test():
