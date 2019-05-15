@@ -142,7 +142,7 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                     acc_meter.update(acc / x.size(0), n=x.size(0))
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
 
-                    if args.dataset == 'cmnist' and i % (int(args.clf_epochs/4)) == 0:
+                    if args.dataset == 'cmnist' and epoch % (int(args.clf_epochs/4)) == 0 and i == 0:
 
                         disc_original = discs.y_from_zy
                         discs.y_from_zy = disc_y_from_zy_copy
