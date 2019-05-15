@@ -39,7 +39,7 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
     disc_y_from_zy_copy = tabular_model(discs.args,
                                         input_dim=discs.wh * args.zy_dim,
                                         depth=2,
-                                        batch_norm=True)
+                                        batch_norm=args.dataset != 'cmnist')
     disc_y_from_zy_copy.load_state_dict(discs.y_from_zy.state_dict())
     disc_y_from_zy_copy.to(args.device)
     disc_y_from_zy_copy.train()
@@ -143,7 +143,13 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                     val_loss_meter.update(val_loss.item(), n=x.size(0))
 
                     if args.dataset == 'cmnist' and i % (int(args.clf_epochs/4)) == 0:
+
+                        disc_original = discs.y_from_zy
+                        discs.y_from_zy = disc_y_from_zy_copy
+                        whole_model = discs.assemble_whole_model(trunk)
                         recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(args, z, whole_model)
+                        discs.y_from_zy = disc_original
+
                         log_images(experiment, recon_all, f'reconstruction_all_{epoch}', prefix="eval")
                         log_images(experiment, recon_y, f'reconstruction_y_{epoch}', prefix="eval")
                         log_images(experiment, recon_s, f'reconstruction_s_{epoch}', prefix="eval")

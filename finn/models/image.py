@@ -21,6 +21,9 @@ def glow(args, input_dim):
     for _ in range(args.depth):
         chain += [inv_block(args, input_dim, hidden_dims)]
 
-    chain += [layers.Invertible1x1Conv(input_dim)]
+    if args.glow:
+        chain += [layers.Invertible1x1Conv(input_dim)]
+    else:
+        chain += [layers.AffineCouplingLayer(input_dim, hidden_dims)]
 
     return layers.SequentialFlow(chain)
