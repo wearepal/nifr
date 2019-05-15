@@ -74,7 +74,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--gamma', type=float, default=0.95,
                         help='Gamma value for Exponential Learning Rate scheduler. '
                              'Value of 0.95 arbitrarily chosen.')
-    parser.add_argument('--meta-learn', type=eval, default=False, choices=[True, False],
+    parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
 
     return parser.parse_args(raw_args)
