@@ -173,7 +173,7 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
 
     n_vals_without_improvement = 0
 
-    best_loss = float('inf')
+    best_acc = 0
 
     print("Training classifier...")
     for _ in tqdm(range(args.clf_epochs)):
@@ -182,13 +182,14 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
             break
 
         train_classifier(args, model, optimizer, train_loader, use_s, pred_s)
-        val_loss, _ = validate_classifier(args, model, val_loader, use_s, pred_s)
+        _, acc = validate_classifier(args, model, val_loader, use_s, pred_s)
 
-        if val_loss < best_loss:
-            best_loss = val_loss
+        if acc > best_acc:
+            best_acc = acc
             n_vals_without_improvement = 0
         else:
             n_vals_without_improvement += 1
+    print(f"Best accuracy: {best_acc}")
 
     return model
 
