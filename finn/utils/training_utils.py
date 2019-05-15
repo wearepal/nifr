@@ -57,8 +57,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--zs-frac', type=float, default=0.33)
     parser.add_argument('--zy-frac', type=float, default=0.33)
 
-    parser.add_argument('--log-px-weight', type=float, default=1.)
-    parser.add_argument('--pred-y-weight', type=float, default=1.)
+    parser.add_argument('--log-px-weight', type=float, default=1.e-3)
+    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=1.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
     parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
 
