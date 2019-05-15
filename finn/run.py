@@ -43,9 +43,9 @@ def log_metrics(args, experiment, model, discs, data):
         print(f"Meta Accuracy: {acc:.4f}")
         return
 
-    print('Encoding validation set...')
+    print('Encoding task dataset...')
     task_repr_ = encode_dataset(args, data.task, model)
-    print('Encoding test set...')
+    print('Encoding task train dataset...')
     task_train_repr_ = encode_dataset(args, data.task_train, model)
 
     repr = MetaDataset(meta_train=None, task=task_repr_, task_train=task_train_repr_)
@@ -76,9 +76,11 @@ def log_metrics(args, experiment, model, discs, data):
     evaluate_representations(args, experiment, repr.task_train['recon_s'], repr.task['recon_s'],
                              predict_y=True, use_x=True, use_unfair=True, use_s=True)
 
-    # Grayscale the fair representation
-    evaluate_representations(args, experiment, repr.task_train['recon_y'], repr.task['recon_y'],
-                             predict_y=True, use_x=True, use_fair=True)
+    check_grayscale = False
+    if check_grayscale:
+        # Grayscale the fair representation
+        evaluate_representations(args, experiment, repr.task_train['recon_y'], repr.task['recon_y'],
+                                 predict_y=True, use_x=True, use_fair=True)
 
     # ===========================================================================
     if check_originals:
