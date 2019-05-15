@@ -139,8 +139,8 @@ class ActNorm(InvertibleLayer):
         self.initialized = False
         self.logscale_factor = logscale_factor
         self.scale = scale
-        self.register_parameter('b', nn.Parameter(torch.zeros(1, num_features, 1)))
-        self.register_parameter('logs', nn.Parameter(torch.zeros(1, num_features, 1)))
+        self.register_buffer('b', torch.zeros(1, num_features, 1))
+        self.register_buffer('logs', torch.zeros(1, num_features, 1))
 
     def _forward(self, x, logpx=None):
         input_shape = x.size()
@@ -163,9 +163,12 @@ class ActNorm(InvertibleLayer):
         b = self.b
 
         output = (x + b) * torch.exp(logs)
-        dlogdet = torch.sum(logs) * x.size(-1)  # c x h
-
-        return output.view(input_shape), logpx - dlogdet
+        output = output.view(input_shape)
+        if logpx is None:
+            return output
+        else:
+            dlogdet = torch.sum(logs) * x.size(-1)  # c x h
+            return output, logpx - dlogdet
 
     def _reverse(self, x, logpx=None):
         assert self.initialized
@@ -174,9 +177,13 @@ class ActNorm(InvertibleLayer):
         logs = self.logs * self.logscale_factor
         b = self.b
         output = x * torch.exp(-logs) - b
-        dlogdet = torch.sum(logs) * x.size(-1)  # c x h
 
-        return output.view(input_shape), logpx + dlogdet
+        output = output.view(input_shape)
+        if logpx is None:
+            return output
+        else:
+            dlogdet = torch.sum(logs) * x.size(-1)  # c x h
+            return output, logpx + dlogdet
 
 
 def _test():
