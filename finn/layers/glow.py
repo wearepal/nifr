@@ -176,7 +176,7 @@ class ActNorm(InvertibleLayer):
         output = input * torch.exp(-logs) - b
         dlogdet = torch.sum(logs) * input.size(-1)  # c x h
 
-        return output.view(input_shape), logpx - dlogdet
+        return output.view(input_shape), logpx + dlogdet
 
 
 def _test():
