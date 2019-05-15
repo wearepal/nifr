@@ -12,10 +12,7 @@ def tabular_model(args, input_dim, depth: int=None, batch_norm: bool=None):
     hidden_dims = tuple(map(int, args.dims.split("-")))
     chain = [layers.InvFlatten()]
     for i in range(_depth):
-        if _batch_norm:
-            chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
-        else:
-            chain += [layers.ActNorm(input_dim)]
+        chain += [layers.ActNorm(input_dim)]
         if args.glow and args.dataset == 'adult':
             chain += [layers.BruteForceLayer(input_dim)]
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
