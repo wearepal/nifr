@@ -143,17 +143,17 @@ class ActNorm(InvertibleLayer):
         self.register_parameter('logs', nn.Parameter(torch.zeros(1, num_features, 1)))
 
     def _forward(self, x, logpx=None):
-        input_shape = input.size()
-        input = input.view(input_shape[0], input_shape[1], -1)
+        input_shape = x.size()
+        x = x.view(input_shape[0], input_shape[1], -1)
 
         if not self.initialized:
             self.initialized = True
             unsqueeze = lambda x: x.unsqueeze(0).unsqueeze(-1).detach()
 
             # Compute the mean and variance
-            sum_size = input.size(0) * input.size(-1)
-            b = -torch.sum(input, dim=(0, -1)) / sum_size
-            vars = unsqueeze(torch.sum((input + unsqueeze(b)) ** 2, dim=(0, -1)) / sum_size)
+            sum_size = x.size(0) * x.size(-1)
+            b = -torch.sum(x, dim=(0, -1)) / sum_size
+            vars = unsqueeze(torch.sum((x + unsqueeze(b)) ** 2, dim=(0, -1)) / sum_size)
             logs = torch.log(self.scale / (torch.sqrt(vars) + 1e-6)) / self.logscale_factor
 
             self.b.data.copy_(unsqueeze(b).data)
@@ -162,19 +162,19 @@ class ActNorm(InvertibleLayer):
         logs = self.logs * self.logscale_factor
         b = self.b
 
-        output = (input + b) * torch.exp(logs)
-        dlogdet = torch.sum(logs) * input.size(-1)  # c x h
+        output = (x + b) * torch.exp(logs)
+        dlogdet = torch.sum(logs) * x.size(-1)  # c x h
 
         return output.view(input_shape), logpx - dlogdet
 
     def _reverse(self, x, logpx=None):
         assert self.initialized
-        input_shape = input.size()
-        input = input.view(input_shape[0], input_shape[1], -1)
+        input_shape = x.size()
+        x = x.view(input_shape[0], input_shape[1], -1)
         logs = self.logs * self.logscale_factor
         b = self.b
-        output = input * torch.exp(-logs) - b
-        dlogdet = torch.sum(logs) * input.size(-1)  # c x h
+        output = x * torch.exp(-logs) - b
+        dlogdet = torch.sum(logs) * x.size(-1)  # c x h
 
         return output.view(input_shape), logpx + dlogdet
 
