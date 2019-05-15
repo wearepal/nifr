@@ -60,7 +60,7 @@ def log_metrics(args, experiment, model, discs, data):
     experiment.log_other("evaluation model", ethicml_model.name)
 
     # ===========================================================================
-    check_originals = True
+    check_originals = False
     if check_originals:
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
