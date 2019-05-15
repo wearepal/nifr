@@ -80,8 +80,8 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                 head_optimizer.zero_grad()
 
                 zero = x.new_zeros(x.size(0), 1)
-                z, delta_log_p = trunk(x, zero)
-                _, zy_trunk = discs.split_zs_zy(z)
+                z_trunk, delta_log_p = trunk(x, zero)
+                _, zy_trunk = discs.split_zs_zy(z_trunk)
                 zy_new, delta_log_p_new = disc_y_from_zy_copy(zy_trunk, delta_log_p)
 
                 pred_y_loss = args.pred_y_weight * class_loss(zy_new, y)
@@ -119,8 +119,8 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                         x = torch.cat((x, s.float()), dim=1)
 
                     zero = x.new_zeros(x.size(0), 1)
-                    z, delta_log_p = trunk(x, zero)
-                    zs_trunk, zy_trunk = discs.split_zs_zy(z)
+                    z_trunk, delta_log_p = trunk(x, zero)
+                    zs_trunk, zy_trunk = discs.split_zs_zy(z_trunk)
                     zy_new, delta_log_p_new = disc_y_from_zy_copy(zy_trunk, delta_log_p)
 
                     pred_y_loss = args.pred_y_weight * class_loss(zy_new, y)
