@@ -132,12 +132,12 @@ class MnistColorizer:
 class ColorizedMNIST(datasets.MNIST):
 
     def __init__(self, root, train, transform, scale, background=True, black=True, cspace='rgb',
-                 download=True):
+                 binarize=True, download=True):
         super(ColorizedMNIST, self).__init__(root, train=train,
                                              download=download,
                                              transform=transform)
         self.colorizer = MnistColorizer(train=train, scale=scale, background=background,
-                                        black=black, color_space=cspace)
+                                        black=black, color_space=cspace, binarize=binarize)
         self.palette = self.colorizer.palette
 
     def swap_train_test_colorization(self):

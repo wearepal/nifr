@@ -135,13 +135,15 @@ def load_dataset(args):
                                     scale=args.scale,
                                     cspace=args.cspace,
                                     background=args.background,
-                                    black=args.black)
+                                    black=args.black,
+                                    binarize=args.binarize)
         test_data = ColorizedMNIST(args.root, train=False,
                                    download=True, transform=transforms.ToTensor(),
                                    scale=args.scale,
                                    cspace=args.cspace,
                                    background=args.background,
-                                   black=args.black)
+                                   black=args.black,
+                                   binarize=args.binarize)
 
         # train_data, test_data = load_cmnist_from_file(args)
         args.y_dim = 10
