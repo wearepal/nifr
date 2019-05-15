@@ -170,7 +170,7 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                 else:
                     n_vals_without_improvement += 1
 
-            average_val_acc = acc_meter.avg
-            print(f'===> Average validation accuracy {average_val_acc:.4f}')
+        average_val_acc = acc_meter.avg
+        print(f'===> Average validation accuracy {average_val_acc:.4f}')
 
     return average_val_acc
