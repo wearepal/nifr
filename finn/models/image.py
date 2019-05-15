@@ -16,11 +16,11 @@ def glow(args, input_dim):
     hidden_dims = tuple(map(int, args.dims.split("-")))
     squeeze_factor = 4
     chain = [layers.SqueezeLayer(squeeze_factor)]
-
+    # chain += [layers.SqueezeLayer(2)]
     input_dim = input_dim * squeeze_factor**2
-    for _ in range(args.depth):
+    for _ in range(args.depth-1):
         chain += [inv_block(args, input_dim, hidden_dims)]
 
-    chain += [layers.Invertible1x1Conv(input_dim)]
+    chain += [inv_block(args, input_dim, hidden_dims)]
 
     return layers.SequentialFlow(chain)
