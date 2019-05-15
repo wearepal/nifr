@@ -49,6 +49,7 @@ class InvDisc(DiscBase):
 
         self.wh = wh
         self.s_from_zs = disc_s_from_zs
+
         self.y_from_zy = disc_y_from_zy
         self.s_from_zy = disc_s_from_zy
         self.disc_name_list = ['s_from_zs', 'y_from_zy', 's_from_zy']  # for generating discs_dict

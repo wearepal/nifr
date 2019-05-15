@@ -94,8 +94,8 @@ def main():
 
     parser.add_argument('--scale', type=float, default=0.02)
     parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
-    parser.add_argument('-bg', '--background', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--black', type=eval, default=True, choices=[True, False])
+    parser.add_argument('-bg', '--background', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--black', type=eval, default=False, choices=[True, False])
 
     args = parser.parse_args()
 
