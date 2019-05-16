@@ -118,9 +118,9 @@ class InvDisc(DiscBase):
             if not self.args.meta_learn:
                 pred_y_loss = self.args.pred_y_weight * class_loss(z_yn, y)
 
-            if self.args.entropy_loss:
+            if self.args.entropy_loss_weight != 0:
                 pred_s_from_zy = self.s_from_zy(
-                    layers.grad_reverse(z_yn, lambda_=self.args.pred_s_from_zy_weight))
+                    layers.grad_reverse(z_yn, lambda_=self.args.entropy_loss_weight))
                 # the adversarial discriminator will try to minimize the entropy
                 entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
                 pred_s_from_zy_loss += entropy
