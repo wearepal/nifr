@@ -11,7 +11,7 @@ from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.evaluate_utils import MetaDataset
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
-from finn.models import NNDisc, InvDisc
+from finn.models import NNDisc, InvDisc, ReconDisc
 from finn.optimisation import CustomAdam
 
 NDECS = 0
@@ -210,10 +210,14 @@ def main(args, datasets, metric_callback):
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)
 
-    if ARGS.inv_disc:
+    if ARGS.disc == 'inv':
         discs = InvDisc(ARGS, x_dim, z_dim_flat)
-    else:
+    elif ARGS.disc == 'nn':
         discs = NNDisc(ARGS, x_dim, z_dim_flat)
+    elif ARGS.disc == 'recon':
+        discs = ReconDisc(ARGS, x_dim, z_dim_flat)
+    else:
+        raise RuntimeError("Unknown discriminator")
     model = discs.create_model()
     LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
@@ -226,7 +230,7 @@ def main(args, datasets, metric_callback):
 
     optimizer = CustomAdam(model.parameters(), lr=ARGS.lr, weight_decay=ARGS.weight_decay)
 
-    if args.inv_disc:
+    if args.disc == 'inv':
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)

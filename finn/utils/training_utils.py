@@ -36,7 +36,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=float, default=0)
-    parser.add_argument('--inv-disc', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--disc', default='inv', choices=['inv', 'nn', 'recon'])
     parser.add_argument('--inv-disc-depth', type=int, default=2)
 
     parser.add_argument('--early-stopping', type=int, default=30)
@@ -314,18 +314,17 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     z_ = z.clone()
     wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
 
-
     if zero_zy:
-        if args.inv_disc:
+        if args.disc == 'inv':
             z_[:, (z_.size(1) - args.zy_dim * wh):][:, :args.y_dim].zero_()
         else:
             z_[:, (z_.size(1) - args.zy_dim):].zero_()
     if zero_zs:
-        if args.inv_disc:
+        if args.disc == 'inv':
             z_[:, (args.zn_dim * wh): (z_.size(1) - (args.zy_dim * wh))][:, :args.s_dim].zero_()
         else:
             z_[:, args.zn_dim: (z_.size(1) - args.zy_dim)].zero_()
-    if args.inv_disc:
+    if args.disc == 'inv':
         if zero_yn:
             z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
         if zero_sn:
