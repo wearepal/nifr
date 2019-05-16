@@ -178,9 +178,11 @@ def classifier_training_loop(args, model, train_data, val_data, use_s=True,
     best_acc = 0
 
     print("Training classifier...")
-    for _ in tqdm(range(args.clf_epochs)):
+    t = tqdm(range(args.clf_epochs))  # we do it like this so we can close in manually
+    for _ in t:
 
         if n_vals_without_improvement > args.clf_early_stopping > 0:
+            t.close()  # close it manually
             break
 
         train_classifier(args, model, optimizer, train_loader, use_s, pred_s)
