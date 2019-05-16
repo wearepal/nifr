@@ -14,7 +14,7 @@ from finn.train import main as training_loop
 from finn.data import load_dataset
 from finn.utils.evaluate_utils import (create_train_test_and_val, metrics_for_meta_learn,
                                        get_data_tuples, evaluate_representations, MetaDataset)
-from finn.utils.training_utils import parse_arguments, encode_dataset
+from finn.utils.training_utils import parse_arguments, encode_dataset, encode_dataset_no_recon
 from finn.utils.eval_metrics import train_zy_head
 
 
@@ -41,6 +41,15 @@ def log_metrics(args, experiment, model, discs, data):
         acc = train_zy_head(args, experiment, model, discs, data.task_train, data.task)
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
+        return
+
+    quick_eval = True
+    if not args.inv_disc and quick_eval:
+        print("Quickly encode task and task train...")
+        task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
+        task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
+        evaluate_representations(args, experiment, task_train_repr['recon_yn'], task_repr['recon_yn'],
+                                 predict_y=True, use_x=True, use_fair=True, use_s=True)
         return
 
     print('Encoding task dataset...')

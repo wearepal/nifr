@@ -437,10 +437,12 @@ def encode_dataset(args, data, model):
     return representations
 
 
-def encode_dataset_no_recon(args, data, model):
+def encode_dataset_no_recon(args, data, model, recon_zyn=False):
     if not isinstance(data, DataLoader):
         data = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
     encodings = {'all_z': [], 'all_s': [], 'all_y': []}
+    if recon_zyn:
+        encodings['recon_yn'] = []
     with torch.no_grad():
         # test_loss = utils.AverageMeter()
         for x, s, y in tqdm(data):
@@ -450,6 +452,10 @@ def encode_dataset_no_recon(args, data, model):
             if args.dataset == 'adult':
                 x = torch.cat((x, s), dim=1)
             z = model(x)
+            if recon_zyn:
+                recon_yn = reconstruct(args, z, model,
+                                       zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=False)
+                encodings['recon_yn'].append(recon_yn)
 
             encodings['all_z'].append(z)
             encodings['all_s'].append(s)
@@ -461,8 +467,11 @@ def encode_dataset_no_recon(args, data, model):
             encodings[key] = torch.cat(entry, dim=0).detach().cpu()
 
     if args.dataset == 'cmnist':
-        encodings['zy'] = TensorDataset(encodings['all_z'][:, z.size(1) - args.zy_dim:], encodings['all_s'], encodings['all_y'])
-        encodings['all_z'] = TensorDataset(encodings['all_z'], encodings['all_s'], encodings['all_y'])
+        all_s, all_y = encodings['all_s'], encodings['all_y']
+        encodings['zy'] = TensorDataset(encodings['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
+        encodings['all_z'] = TensorDataset(encodings['all_z'], all_s, all_y)
+        if recon_zyn:
+            encodings['recon_yn'] = TensorDataset(encodings['recon_yn'], all_s, all_y)
         return encodings
 
     elif args.dataset == 'adult':
