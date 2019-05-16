@@ -244,6 +244,7 @@ def main(args, datasets, metric_callback):
 
         with SUMMARY.train():
             train(model, discs, optimizer, disc_optimizer, train_loader, epoch)
+            SUMMARY.log_metric("lr", scheduler.get_lr()[0])
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
