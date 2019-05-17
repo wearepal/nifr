@@ -41,10 +41,10 @@ def log_metrics(args, experiment, model, discs, data):
         acc = train_zy_head(args, experiment, model, discs, data.task_train, data.task)
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
-        return
+        # return
 
     quick_eval = True
-    if not args.inv_disc and quick_eval:
+    if args.meta_learn and quick_eval:
         print("Quickly encode task and task train...")
         task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
