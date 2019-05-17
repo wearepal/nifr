@@ -111,15 +111,25 @@ class InvDisc(DiscBase):
 
         pred_y_loss = z.new_zeros(1)
         pred_s_from_zs_loss = z.new_zeros(1)
+        pred_s_from_zy_loss = z.new_zeros(1)
 
         if z_yn.size(1) > 0:
             log_pz += compute_log_pz(z_yn)
             if not self.args.meta_learn:
                 pred_y_loss = self.args.pred_y_weight * class_loss(z_yn, y)
 
-            pred_s_from_zy = self.s_from_zy(
-                layers.grad_reverse(z_yn, lambda_=self.args.pred_s_from_zy_weight))
-            pred_s_from_zy_loss = indie_loss(pred_s_from_zy, s, reduction='mean')
+            if self.args.entropy_loss_weight != 0:
+                pred_s_from_zy = self.s_from_zy(
+                    layers.grad_reverse(z_yn, lambda_=self.args.entropy_loss_weight))
+                # the adversarial discriminator will try to minimize the entropy
+                entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
+                pred_s_from_zy_loss += entropy
+                z_yn = z_yn.detach().clone()  # detach so that the NLL loss doesn't go through trunk
+            else:
+                # if we don't use the entropy loss, we don't detach and reverse the gradient on z_yn
+                z_yn = layers.grad_reverse(z_yn, lambda_=self.args.pred_s_from_zy_weight)
+
+            pred_s_from_zy_loss += indie_loss(self.s_from_zy(z_yn), s, reduction='mean')
 
         if z_sn.size(1) > 0:
             log_pz += compute_log_pz(z_sn)

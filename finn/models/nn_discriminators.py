@@ -110,9 +110,18 @@ class NNDisc(DiscBase):
             pred_y_loss = (self.args.pred_y_weight
                            * class_loss_fn(self.y_from_zys(torch.cat((zy, zs), dim=1)), y, reduction='mean'))
         if self.s_from_zy is not None and zy.size(1) > 0:
-            pred_s_from_zy_loss = loss_fn(
-                self.s_from_zy(layers.grad_reverse(zy, lambda_=self.args.pred_s_from_zy_weight)),
-                s, reduction='mean')
+            if self.args.entropy_loss_weight != 0:
+                pred_s_from_zy = self.s_from_zy(
+                    layers.grad_reverse(zy, lambda_=self.args.entropy_loss_weight))
+                # the adversarial discriminator will try to minimize the entropy
+                entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
+                pred_s_from_zy_loss += entropy
+                zy = zy.detach().clone()  # detach so that the NLL loss doesn't go through trunk
+            else:
+                # if we don't use the entropy loss, we don't detach and reverse the gradient on z_yn
+                zy = layers.grad_reverse(zy, lambda_=self.args.pred_s_from_zy_weight)
+
+            pred_s_from_zy_loss += loss_fn(self.s_from_zy(zy), s, reduction='mean')
         # Enforce independence between the fair, zy, and unfair, zs, partitions
 
         if self.s_from_zs is not None and zs.size(1) > 0:

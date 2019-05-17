@@ -66,6 +66,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=1.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
     parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
+    parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
+                        help='Weight of the entropy loss for the adversarial discriminator')
 
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
