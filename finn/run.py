@@ -42,6 +42,7 @@ def log_metrics(args, experiment, model, discs, data):
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
         # return
+        model = discs.assemble_whole_model(model).eval()
 
     quick_eval = True
     if args.meta_learn and quick_eval:
