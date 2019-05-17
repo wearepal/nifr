@@ -129,16 +129,24 @@ def load_cmnist_from_file(args):
 
 def load_dataset(args):
     if args.dataset == 'cmnist':
-        # make_cmnist_dataset(args)
+        cmnist_transforms = []
+        if args.rotate_data:
+            cmnist_transforms.append(transforms.RandomAffine(degrees=15))
+        if args.shift_data:
+            cmnist_transforms.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
+
+        cmnist_transforms.append(transforms.ToTensor())
+        cmnist_transforms = transforms.Compose(cmnist_transforms)
+
         train_data = ColorizedMNIST(args.root, train=True,
-                                    download=True, transform=transforms.ToTensor(),
+                                    download=True, transform=cmnist_transforms,
                                     scale=args.scale,
                                     cspace=args.cspace,
                                     background=args.background,
                                     black=args.black,
                                     binarize=args.binarize)
         test_data = ColorizedMNIST(args.root, train=False,
-                                   download=True, transform=transforms.ToTensor(),
+                                   download=True, transform=cmnist_transforms,
                                    scale=args.scale,
                                    cspace=args.cspace,
                                    background=args.background,

@@ -1,3 +1,4 @@
+from torchvision import transforms
 from typing import NamedTuple
 
 from ethicml.algorithms.inprocess import LR
@@ -42,7 +43,7 @@ def create_train_test_and_val(args, whole_train_data, whole_test_data):
     # shrink task set according to args.data_pcnt
     task_len = int(args.data_pcnt * len(whole_val_data))
     task_data, _ = random_split(whole_val_data, lengths=(task_len, len(whole_val_data) - task_len))
-
+    task_data.transform = transforms.ToTensor()
     # shrink task train set according to args.data_pcnt
     task_train_len = int(args.data_pcnt * len(whole_test_data))
     task_train_data, _ = random_split(
