@@ -9,7 +9,7 @@ def linear_classifier(in_channels, num_classes):
         nn.Linear(in_channels, 512),
         nn.LayerNorm(512),
         nn.ReLU(inplace=True),
-        nn.Linear(521, 512),
+        nn.Linear(512, 512),
         nn.LayerNorm(512),
         nn.ReLU(inplace=True),
         nn.Linear(512, num_classes),
