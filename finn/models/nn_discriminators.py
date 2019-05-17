@@ -59,7 +59,11 @@ class NNDisc(DiscBase):
             disc_s_from_zy = nn.Sequential(
                 Flatten(),
                 nn.Linear(args.zy_dim * 7 * 7, 512),
+                nn.LayerNorm(512),
+                nn.Softplus(),
                 nn.Linear(512, 512),
+                nn.LayerNorm(512),
+                nn.Softplus(),
                 nn.Linear(512, args.s_dim)
             )
             # hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
