@@ -29,6 +29,9 @@ def parse_arguments(raw_args=None):
     parser.add_argument('-bg', '--background', type=eval, default=False, choices=[True, False])
     parser.add_argument('--black', type=eval, default=True, choices=[True, False])
     parser.add_argument('--binarize', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--rotate-data', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--shift-data', type=eval, default=True, choices=[True, False])
+
     parser.add_argument('--root', type=str, default="data")
 
     parser.add_argument('--depth', type=int, default=4)
