@@ -152,7 +152,7 @@ def validate(model, discs, val_loader):
         log_images(SUMMARY, recon_n, 'reconstruction_n', prefix='test')
         log_images(SUMMARY, recon_ys, 'reconstruction_ys', prefix='test')
         log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
-        log_images(SUMMARY, recon_yn, 'reconstruction_sn', prefix='test')
+        log_images(SUMMARY, recon_sn, 'reconstruction_sn', prefix='test')
     else:
         x_recon = whole_model(whole_model(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
