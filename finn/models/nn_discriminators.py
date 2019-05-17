@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from finn import layers
-from finn.models.disc_models import linear_classifier
+from .disc_models import linear_classifier, conv_classifier
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model
 from .mnist import MnistConvNet
 
@@ -49,9 +49,12 @@ class NNDisc(DiscBase):
                                              activation=nn.ReLU, output_activation=None)
                 disc_y_from_zys.to(args.device)
         else:
-            disc_s_from_zs = linear_classifier(args.zs_dim * 7 * 7, args.s_dim)
-
-            disc_s_from_zy = linear_classifier(args.zy_dim * 7 * 7, args.s_dim)
+            if args.nn_disc == 'linear':
+                disc_s_from_zs = linear_classifier(args.zs_dim * 7 * 7, args.s_dim)
+                disc_s_from_zy = linear_classifier(args.zy_dim * 7 * 7, args.s_dim)
+            else:
+                disc_s_from_zs = conv_classifier(args.zs_dim, args.s_dim, 2)
+                disc_s_from_zy = conv_classifier(args.zy_dim, args.s_dim, 3)
 
             if not args.meta_learn:
                 hidden_sizes = [(args.zy_dim + args.zs_dim * 8), (args.zy_dim + args.zs_dim) * 8]
