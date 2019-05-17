@@ -16,11 +16,11 @@ class ResidualBlock(nn.Module):
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1)
         self.bn2 = norm_layer(planes)
         self.downsample = None
+        self.stride = stride
 
         if self.stride > 1:
             self.downsample = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, padding=1)
 
-        self.stride = stride
 
     def forward(self, x):
         identity = x
