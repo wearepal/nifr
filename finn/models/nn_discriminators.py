@@ -56,14 +56,12 @@ class NNDisc(DiscBase):
             disc_s_from_zs = MnistConvNet(args.zs_dim, s_dim, hidden_sizes=hidden_sizes,
                                           output_activation=output_activation)
 
-
             disc_s_from_zy = nn.Sequential(
                 ResidualBlock(args.zy_dim, 512),
                 ResidualBlock(512, 512),
                 ResidualBlock(512, 512),
-                Flatten(),
-                nn.Linear(7 * 7 * 512, 1024),
-                nn.Linear(1024, args.s_dim)
+                nn.AdaptiveAvgPool2d(1),
+                nn.Linear(512, args.s_dim)
             )
             # hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
             # disc_s_from_zy = MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
