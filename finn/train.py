@@ -75,8 +75,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         x, s, y = cvt(x, s, y)
 
         discs.pred_s_from_zy_weight = min(
-            (ARGS.pred_s_from_zy_weight / (ARGS.warmup_steps + 1)) * epoch,
-            ARGS.pred_s_from_zy_weight)
+            (ARGS.pred_s_from_zy_weight ** (epoch - ARGS.warmup_steps),
+             ARGS.pred_s_from_zy_weight))
 
         loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(
             x, s, y, model, return_z=False)
