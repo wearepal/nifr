@@ -100,22 +100,28 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
 
+        optimizer.zero_grad()
+        disc_optimizer.zero_grad()
+
     if ARGS.dataset == 'cmnist':
 
-        log_images(SUMMARY, x, 'original_x')
+        model.eval()
+        with torch.no_grad():
 
-        whole_model = discs.assemble_whole_model(model)
-        z = whole_model(x[:64])
+            log_images(SUMMARY, x, 'original_x')
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+            whole_model = discs.assemble_whole_model(model)
+            z = whole_model(x[:64])
 
-        log_images(SUMMARY, recon_all, 'reconstruction_all')
-        log_images(SUMMARY, recon_y, 'reconstruction_y')
-        log_images(SUMMARY, recon_s, 'reconstruction_s')
-        log_images(SUMMARY, recon_n, 'reconstruction_n')
-        log_images(SUMMARY, recon_ys, 'reconstruction_ys')
-        log_images(SUMMARY, recon_yn, 'reconstruction_yn')
-        log_images(SUMMARY, recon_sn, 'reconstruction_sn')
+            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+
+            log_images(SUMMARY, recon_all, 'reconstruction_all')
+            log_images(SUMMARY, recon_y, 'reconstruction_y')
+            log_images(SUMMARY, recon_s, 'reconstruction_s')
+            log_images(SUMMARY, recon_n, 'reconstruction_n')
+            log_images(SUMMARY, recon_ys, 'reconstruction_ys')
+            log_images(SUMMARY, recon_yn, 'reconstruction_yn')
+            log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
