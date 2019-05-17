@@ -11,7 +11,7 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 
 from finn.train import main as training_loop
-from finn.data import load_dataset, MetaDataset, get_data_tuples, create_train_test_and_val
+from finn.data import MetaDataset, get_data_tuples, load_dataset
 from finn.utils.evaluate_utils import metrics_for_meta_learn, evaluate_representations
 from finn.utils.training_utils import parse_arguments, encode_dataset, encode_dataset_no_recon
 from finn.utils.eval_metrics import train_zy_head
@@ -23,8 +23,7 @@ def main(raw_args=None):
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
-    whole_train_data, whole_test_data, _, _ = load_dataset(args)
-    datasets = create_train_test_and_val(args, whole_train_data, whole_test_data)
+    datasets = load_dataset(args)
     training_loop(args, datasets, log_metrics)
 
 
@@ -57,14 +56,16 @@ def log_metrics(args, experiment, model, discs, data):
     print('Encoding task train dataset...')
     task_train_repr_ = encode_dataset(args, data.task_train, model)
 
-    repr = MetaDataset(meta_train=None, task=task_repr_, task_train=task_train_repr_)
+    repr = MetaDataset(meta_train=None, task=task_repr_, task_train=task_train_repr_,
+                       input_dim=data.input_dim, output_dim=data.output_dim)
 
     if args.meta_learn and not args.inv_disc:
         metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
         _, task_data, task_train_data = get_data_tuples(data.task, data.task, data.task_train)
-        data = MetaDataset(meta_train=None, task=task_data, task_train=task_train_data)
+        data = MetaDataset(meta_train=None, task=task_data, task_train=task_train_data,
+                           input_dim=data.input_dim, output_dim=data.output_dim)
 
     experiment.log_other("evaluation model", ethicml_model.name)
 
