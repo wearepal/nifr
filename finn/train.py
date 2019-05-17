@@ -232,7 +232,7 @@ def main(args, datasets, metric_callback):
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
-    milestones = map(int, ARGS.lr_drop_epoch.split("-"))
+    milestones = list(map(int, ARGS.lr_drop_epoch.split("-")))
     scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=0.2)
     disc_scheduler = MultiStepLR(disc_optimizer, milestones=milestones, gamma=0.2)
     # scheduler = ExponentialLR(optimizer, gamma=args.gamma)
