@@ -1,39 +1,45 @@
 """Definition of the Adult dataset"""
-from functools import partial
-
 import pandas as pd
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 
 from ethicml.data.load import load_data
-from ethicml.algorithms.utils import DataTuple, apply_to_joined_tuple, concat_dt
+from ethicml.algorithms.utils import DataTuple, concat_dt
 from ethicml.data import Adult
 from ethicml.preprocessing.train_test_split import train_test_split
-from ethicml.preprocessing.domain_adaptation import domain_split, dataset_from_cond
+from ethicml.preprocessing.domain_adaptation import domain_split, query_dt
 
 
 def load_adult_data(args):
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
     data = load_data(Adult())
     if args.meta_learn:
-        select_sy_equal = partial(
-            dataset_from_cond,
-            cond="(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
-        select_sy_opposite = partial(
-            dataset_from_cond,
-            cond="(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
-        selected_sy_equal = apply_to_joined_tuple(select_sy_equal, data)
-        selected_sy_opposite = apply_to_joined_tuple(select_sy_opposite, data)
+        sy_equal = query_dt(
+            data, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
+        sy_opposite = query_dt(
+            data, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
 
-        test_tuple, remaining = train_test_split(selected_sy_equal, train_percentage=0.5,
-                                                 random_seed=888)
-        train_tuple = concat_dt([selected_sy_opposite, remaining], axis='index', ignore_index=True)
+        task_train_fraction = 0.5  # how much of sy_equal should be reserved for the task train set
+        mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
-        # s and y should not be overly correlated in the training set
-        assert train_tuple.s['sex_Male'].corr(train_tuple.y['salary_>50K']) < 0.1
-        # but they should be very correlated in the test set
-        assert test_tuple.s['sex_Male'].corr(test_tuple.y['salary_>50K']) > 0.99
+        sy_equal_task_train, sy_equal_meta_train = train_test_split(
+            sy_equal, train_percentage=task_train_fraction * (1 - mix_fact), random_seed=888)
+        sy_opp_task_train, sy_opp_meta_train = train_test_split(
+            sy_opposite, train_percentage=task_train_fraction * mix_fact, random_seed=888)
+
+        task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
+                                     axis='index', ignore_index=True)
+        meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
+                                     axis='index', ignore_index=True)
+
+        # s and y should not be overly correlated in the meta train set
+        assert meta_train_tuple.s['sex_Male'].corr(meta_train_tuple.y['salary_>50K']) < 0.1
+        # but they should be very correlated in the task train set
+        assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
+
+        # old nomenclature:
+        train_tuple, test_tuple = meta_train_tuple, task_train_tuple
     elif args.add_sampling_bias:
         train_tuple, test_tuple = domain_split(
             datatup=data,
