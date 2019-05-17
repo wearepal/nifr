@@ -47,7 +47,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--disc-lr', type=float, default=1e-4)
     parser.add_argument('--weight-decay', type=float, default=1e-6)
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--lr-drop-epoch', type=int, default=1)
+    parser.add_argument('--lr-drop-epoch', type=str, default='10000-10001')
 
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--save', type=str, default='experiments/finn')

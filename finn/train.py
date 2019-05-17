@@ -230,7 +230,9 @@ def main(args, datasets, metric_callback):
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
-    scheduler = MultiStepLR(optimizer, milestones=[ARGS.lr_drop_epoch], gamma=0.464)
+    milestones = map(int, ARGS.lr_drop_epoch.split("-"))
+    scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=0.464)
+    disc_scheduler = MultiStepLR(disc_optimizer, milestones=milestones, gamma=0.464)
     # scheduler = ExponentialLR(optimizer, gamma=args.gamma)
                 #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                 #                  min_lr=1.e-7, cooldown=1)
@@ -268,6 +270,7 @@ def main(args, datasets, metric_callback):
                             n_vals_without_improvement)
 
         scheduler.step(epoch)
+        disc_scheduler.step(epoch)
 
     LOGGER.info('Training has finished.')
     model = restore_model(save_dir / 'checkpt.pth', model).to(ARGS.device)
