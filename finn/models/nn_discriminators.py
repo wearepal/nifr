@@ -61,6 +61,7 @@ class NNDisc(DiscBase):
                 ResidualBlock(512, 512),
                 ResidualBlock(512, 512),
                 nn.AdaptiveAvgPool2d(1),
+                Flatten(),
                 nn.Linear(512, args.s_dim)
             )
             # hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
