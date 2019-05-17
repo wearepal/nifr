@@ -4,7 +4,7 @@ from pathlib import Path
 
 from comet_ml import Experiment
 import torch
-from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
@@ -69,11 +69,14 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
 
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
-
         disc_optimizer.zero_grad()
 
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
+
+        discs.args.s_from_zy_weight = min(
+            (ARGS.s_from_zy_weight / (ARGS.warmup_steps + 1)) * epoch,
+            ARGS.s_from_zy_weight)
 
         loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(
             x, s, y, model, return_z=False)
@@ -232,9 +235,9 @@ def main(args, datasets, metric_callback):
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
-    milestones = list(map(int, ARGS.lr_drop_epoch.split("-")))
-    scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=0.2)
-    disc_scheduler = MultiStepLR(disc_optimizer, milestones=milestones, gamma=0.2)
+
+    scheduler = ExponentialLR(optimizer, gamma=args.gamma)
+    disc_scheduler = ExponentialLR(disc_optimizer, gamma=args.gamma)
     # scheduler = ExponentialLR(optimizer, gamma=args.gamma)
                 #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                 #                  min_lr=1.e-7, cooldown=1)
