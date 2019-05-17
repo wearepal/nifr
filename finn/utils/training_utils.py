@@ -448,6 +448,7 @@ def encode_dataset(args, data, model):
 
 
 def encode_dataset_no_recon(args, data, model, recon_zyn=False):
+    model.eval()
     if not isinstance(data, DataLoader):
         data = DataLoader(data, shuffle=False, batch_size=args.test_batch_size)
     encodings = {'all_z': [], 'all_s': [], 'all_y': []}
