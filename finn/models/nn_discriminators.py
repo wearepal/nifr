@@ -50,6 +50,7 @@ class NNDisc(DiscBase):
         disc_s_from_zy.to(args.device)
         self.s_from_zs = disc_s_from_zs
         self.s_from_zy = disc_s_from_zy
+        self.pred_s_from_zy_weight = args.pred_s_from_zy_weight
         self.disc_name_list = ['s_from_zs', 's_from_zy']  # for generating discs_dict
         self.args = args
 
@@ -95,7 +96,7 @@ class NNDisc(DiscBase):
                 zy = zy.detach().clone()  # detach so that the NLL loss doesn't go through trunk
             else:
                 # if we don't use the entropy loss, we don't detach and reverse the gradient on z_yn
-                zy = layers.grad_reverse(zy, lambda_=self.args.pred_s_from_zy_weight)
+                zy = layers.grad_reverse(zy, lambda_=self.pred_s_from_zy_weight)
 
             pred_s_from_zy_loss += loss_fn(self.s_from_zy(zy), s, reduction='mean')
         # Enforce independence between the fair, zy, and unfair, zs, partitions
@@ -109,5 +110,5 @@ class NNDisc(DiscBase):
 
         if return_z:
             return loss, z
-        return (loss, -log_px, z.new_zeros(1), self.args.pred_s_from_zy_weight * pred_s_from_zy_loss,
+        return (loss, -log_px, z.new_zeros(1), self.pred_s_from_zy_weight * pred_s_from_zy_loss,
                 pred_s_from_zs_loss)

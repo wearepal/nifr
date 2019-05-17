@@ -37,12 +37,12 @@ def parse_arguments(raw_args=None):
 
     parser.add_argument('--root', type=str, default="data")
 
-    parser.add_argument('--depth', type=int, default=4)
+    parser.add_argument('--depth', type=int, default=10)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=float, default=0)
-    parser.add_argument('--inv-disc', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--inv-disc', type=eval, default=False, choices=[True, False])
     parser.add_argument('--inv-disc-depth', type=int, default=2)
     parser.add_argument('--nn-disc', default='conv', choices=['conv', 'linear'])
 
