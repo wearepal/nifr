@@ -4,7 +4,7 @@ from pathlib import Path
 
 from comet_ml import Experiment
 import torch
-from torch.optim.lr_scheduler import ExponentialLR, MultiStepLR
+from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
@@ -235,9 +235,9 @@ def main(args, datasets, metric_callback):
         args.disc_lr = args.lr
 
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
-    milestones = list(map(int, ARGS.lr_drop_epoch.split("-")))
-    scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=0.2)
-    disc_scheduler = MultiStepLR(disc_optimizer, milestones=milestones, gamma=0.2)
+
+    scheduler = ExponentialLR(optimizer, gamma=args.gamma)
+    disc_scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     # scheduler = ExponentialLR(optimizer, gamma=args.gamma)
                 #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                 #                  min_lr=1.e-7, cooldown=1)
