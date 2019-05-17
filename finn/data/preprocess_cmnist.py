@@ -7,8 +7,6 @@ from tqdm import tqdm
 
 from finn.data.colorized_mnist import ColorizedMNIST
 
-from finn.utils import utils
-
 
 def load_cmnist_data(args):
     train_data = ColorizedMNIST('./data', download=True, train=True, scale=args.scale,
@@ -53,37 +51,36 @@ def make_cmnist_dataset(args):
 
     save_dir = Path(args.save)
     save_dir.mkdir(parents=True, exist_ok=True)
-    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
     train_data, test_data = load_cmnist_data(args)
 
     # Save the dataset with class labels and sensnitive labels
     digit_col, bg_col = dataset_args_to_str(args)
     path = get_path_from_args(args)
-    LOGGER.info(f"checking if path {path} exists")
+    print(f"checking if path {path} exists")
 
     if not os.path.exists(path / "train"):
-        LOGGER.info(f"creating training set with params:\n"
-                    f"\t- scale: {args.scale}\n"
-                    f"\t- digit colour: {digit_col}\n"
-                    f"\t- background col: {bg_col}")
+        print(f"creating training set with params:\n"
+              f"\t- scale: {args.scale}\n"
+              f"\t- digit colour: {digit_col}\n"
+              f"\t- background col: {bg_col}")
         os.makedirs(path / "train")
         for i, set in enumerate(tqdm(train_data)):
             with open(os.path.join(path / "train", str(i)), 'wb') as f:
                 torch.save(set, f)
     else:
-        LOGGER.info("trainig set already exists")
+        print("trainig set already exists")
 
     if not os.path.exists(path / "test"):
-        LOGGER.info(f"creating test set with params:\n"
-                    f"\t- scale: {args.scale}\n"
-                    f"\t- digit colour: {digit_col}\n"
-                    f"\t- background col: {bg_col}")
+        print(f"creating test set with params:\n"
+              f"\t- scale: {args.scale}\n"
+              f"\t- digit colour: {digit_col}\n"
+              f"\t- background col: {bg_col}")
         os.makedirs(path / "test")
         for i, set in enumerate(tqdm(test_data)):
             with open(os.path.join(path / "test", str(i)), 'wb') as f:
                 torch.save(set, f)
     else:
-        LOGGER.info("test set already exists")
+        print("test set already exists")
 
-    LOGGER.info("finished preparing dataset")
+    print("finished preparing dataset")

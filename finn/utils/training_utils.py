@@ -13,6 +13,7 @@ import torchvision
 from tqdm import tqdm
 
 from finn.models import MnistConvClassifier
+from finn.data import pytorch_data_to_dataframe
 
 
 def parse_arguments(raw_args=None):
@@ -490,22 +491,3 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False):
         encodings['s'] = pd.DataFrame(encodings['all_s'].cpu().numpy())
         encodings['y'] = pd.DataFrame(encodings['all_y'].cpu().numpy())
         return encodings
-
-
-def pytorch_data_to_dataframe(dataset, sens_attrs=None):
-    """Load a pytorch dataset into a DataTuple consisting of Pandas DataFrames
-
-    Args:
-        dataset: PyTorch dataset
-        sens_attrs: (optional) list of names of the sensitive attributes
-    """
-    # create data loader with one giant batch
-    data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
-    # get the data
-    data = next(iter(data_loader))
-    # convert it to Pandas DataFrames
-    data = [pd.DataFrame(tensor.detach().cpu().numpy()) for tensor in data]
-    if sens_attrs:
-        data[1].columns = sens_attrs
-    # create a DataTuple
-    return DataTuple(x=data[0], s=data[1], y=data[2])
