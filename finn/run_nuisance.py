@@ -13,7 +13,7 @@ from ethicml.metrics import Accuracy, ProbPos, Theil
 
 from finn.train import main as training_loop
 from finn.utils.training_utils import parse_arguments, encode_dataset, pytorch_data_to_dataframe
-from finn.data.dataloading import load_adult_data
+from finn.data import load_adult_data
 
 
 # class ModelWrapper(BasicTPA):

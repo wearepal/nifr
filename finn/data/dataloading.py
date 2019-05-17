@@ -21,10 +21,48 @@ class MetaDataset(NamedTuple):
     meta_train: Dataset
     task: Dataset
     task_train: Dataset
+    input_dim: int
+    output_dim: int
 
 
-def create_train_test_and_val(args, whole_train_data, whole_test_data):
+def load_dataset(args):
     assert args.meta_learn
+
+    # =============== get whole dataset ===================
+    if args.dataset == 'cmnist':
+        cmnist_transforms = []
+        if args.rotate_data:
+            cmnist_transforms.append(transforms.RandomAffine(degrees=15))
+        if args.shift_data:
+            cmnist_transforms.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
+
+        cmnist_transforms.append(transforms.ToTensor())
+        cmnist_transforms = transforms.Compose(cmnist_transforms)
+
+        whole_train_data = ColorizedMNIST(args.root, train=True,
+                                          download=True, transform=cmnist_transforms,
+                                          scale=args.scale,
+                                          cspace=args.cspace,
+                                          background=args.background,
+                                          black=args.black,
+                                          binarize=args.binarize)
+        whole_test_data = ColorizedMNIST(args.root, train=False,
+                                         download=True, transform=cmnist_transforms,
+                                         scale=args.scale,
+                                         cspace=args.cspace,
+                                         background=args.background,
+                                         black=args.black,
+                                         binarize=args.binarize)
+
+        # train_data, test_data = load_cmnist_from_file(args)
+        args.y_dim = 10
+        args.s_dim = 10
+    else:
+        whole_train_data, whole_test_data, _, _ = load_adult_data(args)
+        args.y_dim = 1
+        args.s_dim = 1
+
+    # =============== process the datasets ===================
     # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
     if args.dataset == 'cmnist':
         whole_train_data.swap_train_test_colorization()
@@ -49,7 +87,8 @@ def create_train_test_and_val(args, whole_train_data, whole_test_data):
     task_train_len = int(args.data_pcnt * len(whole_test_data))
     task_train_data, _ = random_split(
         whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len))
-    return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data)
+    return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data,
+                       input_dim=None, output_dim=args.y_dim)
 
 
 def get_mnist_data_tuple(args, data, train=True):
@@ -96,43 +135,6 @@ def load_cmnist_from_file(args):
 
     return train_data, test_data
 
-
-def load_dataset(args):
-    if args.dataset == 'cmnist':
-        cmnist_transforms = []
-        if args.rotate_data:
-            cmnist_transforms.append(transforms.RandomAffine(degrees=15))
-        if args.shift_data:
-            cmnist_transforms.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
-
-        cmnist_transforms.append(transforms.ToTensor())
-        cmnist_transforms = transforms.Compose(cmnist_transforms)
-
-        train_data = ColorizedMNIST(args.root, train=True,
-                                    download=True, transform=cmnist_transforms,
-                                    scale=args.scale,
-                                    cspace=args.cspace,
-                                    background=args.background,
-                                    black=args.black,
-                                    binarize=args.binarize)
-        test_data = ColorizedMNIST(args.root, train=False,
-                                   download=True, transform=cmnist_transforms,
-                                   scale=args.scale,
-                                   cspace=args.cspace,
-                                   background=args.background,
-                                   black=args.black,
-                                   binarize=args.binarize)
-
-        # train_data, test_data = load_cmnist_from_file(args)
-        args.y_dim = 10
-        args.s_dim = 10
-        train_tuple, test_tuple = None, None
-    else:
-        train_data, test_data, train_tuple, test_tuple = load_adult_data(args)
-        args.y_dim = 1
-        args.s_dim = 1
-
-    return train_data, test_data, train_tuple, test_tuple
 
 # def save_date(args, root='../data'):
 #     from torchvision.transforms import ToPILImage
