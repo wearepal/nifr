@@ -57,11 +57,9 @@ class NNDisc(DiscBase):
                                           output_activation=output_activation)
 
             disc_s_from_zy = nn.Sequential(
-                ResidualBlock(args.zy_dim, 512),
-                ResidualBlock(512, 512),
-                ResidualBlock(512, 512),
-                nn.AdaptiveAvgPool2d(1),
                 Flatten(),
+                nn.Linear(args.zy_dim * 7 * 7, 512),
+                nn.Linear(512, 512),
                 nn.Linear(512, args.s_dim)
             )
             # hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
