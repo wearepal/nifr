@@ -7,7 +7,6 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 
 from finn.data.preprocess_cmnist import get_path_from_args
-from finn.utils import utils
 
 
 def update(existing_aggregate, new_value):
@@ -39,7 +38,6 @@ class CMNIST(Dataset):
 
         save_dir = Path(args.save)
         save_dir.mkdir(parents=True, exist_ok=True)
-        logger = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
         if normalize_transform is not None:
             self.normalize_transform = normalize_transform
@@ -49,9 +47,9 @@ class CMNIST(Dataset):
             with open(self.path / 'mean_and_std', 'rb') as fp:
                 itemlist = pickle.load(fp)
             mean_x, std_x = itemlist[0], itemlist[1]
-            logger.info("loaded mean and std from file")
+            print("loaded mean and std from file")
         elif train:
-            logger.info("computing mean and std over training set for normalization")
+            print("computing mean and std over training set for normalization")
 
             aggregator = (0, torch.zeros(3), torch.zeros(3))
             for i in tqdm(range(60000)):

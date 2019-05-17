@@ -1,85 +1,55 @@
 import os
 from pathlib import Path
-from functools import partial
+from typing import NamedTuple
 
 import pandas as pd
 import numpy as np
-import torch
 
-from torch.utils.data import TensorDataset, DataLoader
-
-from ethicml.data.load import load_data
-from ethicml.algorithms.utils import DataTuple, apply_to_joined_tuple, concat_dt
-from ethicml.data import Adult
-from ethicml.preprocessing.train_test_split import train_test_split
-from ethicml.preprocessing.domain_adaptation import domain_split, dataset_from_cond
-from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader, Dataset, random_split
 from torchvision import transforms
 from tqdm import tqdm
+
+from ethicml.algorithms.utils import DataTuple
 
 from .cmnist import CMNIST
 from .colorized_mnist import ColorizedMNIST
 from .preprocess_cmnist import get_path_from_args
+from .adult import load_adult_data
 
 
-def load_adult_data(args):
-    """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
-    data = load_data(Adult())
-    if args.meta_learn:
-        select_sy_equal = partial(
-            dataset_from_cond,
-            cond="(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
-        select_sy_opposite = partial(
-            dataset_from_cond,
-            cond="(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
-        selected_sy_equal = apply_to_joined_tuple(select_sy_equal, data)
-        selected_sy_opposite = apply_to_joined_tuple(select_sy_opposite, data)
+class MetaDataset(NamedTuple):
+    meta_train: Dataset
+    task: Dataset
+    task_train: Dataset
 
-        test_tuple, remaining = train_test_split(selected_sy_equal, train_percentage=0.5,
-                                                 random_seed=888)
-        train_tuple = concat_dt([selected_sy_opposite, remaining], axis='index', ignore_index=True)
 
-        # s and y should not be overly correlated in the training set
-        assert train_tuple.s['sex_Male'].corr(train_tuple.y['salary_>50K']) < 0.1
-        # but they should be very correlated in the test set
-        assert test_tuple.s['sex_Male'].corr(test_tuple.y['salary_>50K']) > 0.99
-    elif args.add_sampling_bias:
-        train_tuple, test_tuple = domain_split(
-            datatup=data,
-            tr_cond='education_Masters == 0. & education_Doctorate == 0.',
-            te_cond='education_Masters == 1. | education_Doctorate == 1.'
-        )
+def create_train_test_and_val(args, whole_train_data, whole_test_data):
+    assert args.meta_learn
+    # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
+    if args.dataset == 'cmnist':
+        whole_train_data.swap_train_test_colorization()
+        whole_test_data.swap_train_test_colorization()
+        # split the training set to get training and validation sets
+        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
     else:
-        train_tuple, test_tuple = train_test_split(data)
+        val_len = round(0.1 / 0.75 * len(whole_train_data))
+        train_len = len(whole_train_data) - val_len
+        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(train_len, val_len))
 
-    # def load_dataframe(path: Path) -> pd.DataFrame:
-    #     """Load dataframe from a parquet file"""
-    #     with path.open('rb') as f:
-    #         df = pd.read_feather(f)
-    #     return torch.tensor(df.values, dtype=torch.float32)
-    #
-    # train_x = load_dataframe(Path(args.train_x))
-    # train_s = load_dataframe(Path(args.train_s))
-    # train_y = load_dataframe(Path(args.train_y))
-    # test_x = load_dataframe(Path(args.test_x))
-    # test_s = load_dataframe(Path(args.test_s))
-    # test_y = load_dataframe(Path(args.test_y))
+    # shrink meta train set according to args.data_pcnt
+    meta_train_len = int(args.data_pcnt * len(whole_train_data))
+    meta_train_data, _ = random_split(
+        whole_train_data, lengths=(meta_train_len, len(whole_train_data) - meta_train_len))
 
-    # train_test_split()
-    # train_data = TensorDataset(train_x, train_s, train_y)
-    # test_data = TensorDataset(test_x, test_s, test_y)
-
-    scaler = StandardScaler()
-
-    train_scaled = pd.DataFrame(scaler.fit_transform(train_tuple.x), columns=train_tuple.x.columns)
-    train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
-    test_scaled = pd.DataFrame(scaler.transform(test_tuple.x), columns=test_tuple.x.columns)
-    test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
-
-    train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in train_tuple])
-    test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in test_tuple])
-
-    return train_data, test_data, train_tuple, test_tuple,
+    # shrink task set according to args.data_pcnt
+    task_len = int(args.data_pcnt * len(whole_val_data))
+    task_data, _ = random_split(whole_val_data, lengths=(task_len, len(whole_val_data) - task_len))
+    task_data.transform = transforms.ToTensor()
+    # shrink task train set according to args.data_pcnt
+    task_train_len = int(args.data_pcnt * len(whole_test_data))
+    task_train_data, _ = random_split(
+        whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len))
+    return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data)
 
 
 def get_mnist_data_tuple(args, data, train=True):

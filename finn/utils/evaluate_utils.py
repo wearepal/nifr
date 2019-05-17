@@ -8,58 +8,11 @@ from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
-from torch.utils.data.dataset import random_split, Dataset
 import pandas as pd
 
 from finn.utils.eval_metrics import evaluate_with_classifier
-from finn.utils.training_utils import (train_and_evaluate_classifier, encode_dataset,
-                                       pytorch_data_to_dataframe, log_images)
-
-
-class MetaDataset(NamedTuple):
-    meta_train: Dataset
-    task: Dataset
-    task_train: Dataset
-
-
-def create_train_test_and_val(args, whole_train_data, whole_test_data):
-    assert args.meta_learn
-    # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
-    if args.dataset == 'cmnist':
-        whole_train_data.swap_train_test_colorization()
-        whole_test_data.swap_train_test_colorization()
-        # split the training set to get training and validation sets
-        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
-    else:
-        val_len = round(0.1 / 0.75 * len(whole_train_data))
-        train_len = len(whole_train_data) - val_len
-        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(train_len, val_len))
-
-    # shrink meta train set according to args.data_pcnt
-    meta_train_len = int(args.data_pcnt * len(whole_train_data))
-    meta_train_data, _ = random_split(
-        whole_train_data, lengths=(meta_train_len, len(whole_train_data) - meta_train_len))
-
-    # shrink task set according to args.data_pcnt
-    task_len = int(args.data_pcnt * len(whole_val_data))
-    task_data, _ = random_split(whole_val_data, lengths=(task_len, len(whole_val_data) - task_len))
-    task_data.transform = transforms.ToTensor()
-    # shrink task train set according to args.data_pcnt
-    task_train_len = int(args.data_pcnt * len(whole_test_data))
-    task_train_data, _ = random_split(
-        whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len))
-    return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data)
-
-
-def get_data_tuples(train_data, val_data, test_data):
-
-    # FIXME: this is needed because the information about feature names got lost
-    sens_attrs = Adult().feature_split['s']
-    train_tuple = pytorch_data_to_dataframe(train_data, sens_attrs=sens_attrs)
-    val_tuple = pytorch_data_to_dataframe(val_data, sens_attrs=sens_attrs)
-    test_tuple = pytorch_data_to_dataframe(test_data, sens_attrs=sens_attrs)
-
-    return train_tuple, val_tuple, test_tuple
+from finn.utils.training_utils import train_and_evaluate_classifier
+from finn.data import MetaDataset
 
 
 def compute_metrics(experiment, predictions, actual, name, run_all=False):

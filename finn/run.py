@@ -11,9 +11,8 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 
 from finn.train import main as training_loop
-from finn.data import load_dataset
-from finn.utils.evaluate_utils import (create_train_test_and_val, metrics_for_meta_learn,
-                                       get_data_tuples, evaluate_representations, MetaDataset)
+from finn.data import load_dataset, MetaDataset, get_data_tuples, create_train_test_and_val
+from finn.utils.evaluate_utils import metrics_for_meta_learn, evaluate_representations
 from finn.utils.training_utils import parse_arguments, encode_dataset, encode_dataset_no_recon
 from finn.utils.eval_metrics import train_zy_head
 
