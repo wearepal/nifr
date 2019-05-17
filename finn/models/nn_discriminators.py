@@ -3,9 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from finn import layers
-from finn.layers import Flatten
-from finn.models.gated_cnn import ResidualBlock
-
 from finn.models.disc_models import linear_classifier
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model
 from .mnist import MnistConvNet
