@@ -64,7 +64,8 @@ class NNDisc(DiscBase):
                 nn.Linear(512, 512),
                 nn.LayerNorm(512),
                 nn.Softplus(),
-                nn.Linear(512, args.s_dim)
+                nn.Linear(512, args.s_dim),
+                nn.LogSoftmax(dim=1)
             )
             # hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
             # disc_s_from_zy = MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
