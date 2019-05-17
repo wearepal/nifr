@@ -74,7 +74,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
-        discs.args.pred_s_from_zy_weight = min(
+        discs.pred_s_from_zy_weight = min(
             (ARGS.pred_s_from_zy_weight / (ARGS.warmup_steps + 1)) * epoch,
             ARGS.pred_s_from_zy_weight)
 
