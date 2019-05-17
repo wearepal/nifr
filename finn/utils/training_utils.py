@@ -23,6 +23,8 @@ def parse_arguments(raw_args=None):
                         help="data %% should be a real value > 0, and up to 1")
     parser.add_argument('--add-sampling-bias', type=eval, default=False, choices=[True, False],
                         help='if True, a sampling bias is added to the data')
+    parser.add_argument('--task-mixing-factor', type=float, metavar='P', default=0.0,
+                        help='How much of meta train should be mixed into task train?')
 
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)
