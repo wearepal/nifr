@@ -6,11 +6,11 @@ from finn.layers import Flatten
 def linear_classifier(in_channels, num_classes):
     return nn.Sequential(
         Flatten(),
-        nn.Linear(in_channels, 1024),
-        nn.LayerNorm(1024),
+        nn.Linear(in_channels, 512),
+        nn.LayerNorm(512),
         nn.ReLU(inplace=True),
-        nn.Linear(1024, 1024),
-        nn.LayerNorm(1024),
+        nn.Linear(521, 512),
+        nn.LayerNorm(512),
         nn.ReLU(inplace=True),
-        nn.Linear(1024, num_classes),
+        nn.Linear(512, num_classes),
         nn.LogSoftmax(dim=1))
