@@ -5,6 +5,8 @@ import torch.nn.functional as F
 from finn import layers
 from finn.layers import Flatten
 from finn.models.gated_cnn import ResidualBlock
+
+from finn.models.disc_models import linear_classifier
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model
 from .mnist import MnistConvNet
 
@@ -50,26 +52,10 @@ class NNDisc(DiscBase):
                                              activation=nn.ReLU, output_activation=None)
                 disc_y_from_zys.to(args.device)
         else:
-            # ==== CNN models ====
-            output_activation = nn.LogSoftmax(dim=1)
-            hidden_sizes = [args.zs_dim * 16, args.zs_dim * 16]
-            disc_s_from_zs = MnistConvNet(args.zs_dim, s_dim, hidden_sizes=hidden_sizes,
-                                          output_activation=output_activation)
+            disc_s_from_zs = linear_classifier(args.zs_dim * 7 * 7, args.s_dim)
 
-            disc_s_from_zy = nn.Sequential(
-                Flatten(),
-                nn.Linear(args.zy_dim * 7 * 7, 512),
-                nn.LayerNorm(512),
-                nn.Softplus(),
-                nn.Linear(512, 512),
-                nn.LayerNorm(512),
-                nn.Softplus(),
-                nn.Linear(512, args.s_dim),
-                nn.LogSoftmax(dim=1)
-            )
-            # hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
-            # disc_s_from_zy = MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
-            #                               output_activation=output_activation)
+            disc_s_from_zy = linear_classifier(args.zy_dim * 7 * 7, args.s_dim)
+
             if not args.meta_learn:
                 hidden_sizes = [(args.zy_dim + args.zs_dim * 8), (args.zy_dim + args.zs_dim) * 8]
                 disc_y_from_zys = MnistConvNet(args.zy_dim + args.zs_dim, y_dim,
