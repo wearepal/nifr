@@ -4,32 +4,38 @@ from finn.layers import Flatten
 from finn.layers.conv import GatedConv2d
 
 
-class GatedConvClassifier(nn.Module):
-    def __init__(self, in_channels, out_dims, hidden_sizes=None, kernel_size=3,
-                 padding=1, activation=nn.Softplus(), output_activation=None):
-        super().__init__()
+class ResidualBlock(nn.Module):
+    def __init__(self, inplanes, planes, stride=1, norm_layer=None):
+        super(ResidualBlock, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        # Both self.conv1 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=1, padding=1)
+        self.bn1 = norm_layer(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1, padding=1)
+        self.bn2 = norm_layer(planes)
+        self.downsample = None
 
-        hidden_sizes = hidden_sizes or [512, 512, 512, 512]
-        layers = []
+        if self.stride > 1:
+            self.downsample = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, padding=1)
 
-        curr_channels = in_channels
-
-        for hsize in hidden_sizes:
-            layers.append(GatedConv2d(curr_channels, hsize, kernel_size=kernel_size, stride=1,
-                                      padding=padding, activation=activation))
-            curr_channels = hsize
-
-        layers.append(nn.AdaptiveAvgPool2d(1))
-        layers.append(Flatten())
-
-        layers.append(nn.Linear(curr_channels, 1024))
-        layers.append(activation)
-        layers.append(nn.LayerNorm(1024))
-        layers.append(nn.Linear(1024, out_dims))
-        if output_activation is not None:
-            layers.append(output_activation)
-
-        self.net = nn.Sequential(*layers)
+        self.stride = stride
 
     def forward(self, x):
-        return self.net(x)
+        identity = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out

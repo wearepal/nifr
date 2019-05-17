@@ -3,7 +3,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from finn import layers
-from finn.models.gated_cnn import GatedConvClassifier
+from finn.layers import Flatten
+from finn.models.gated_cnn import ResidualBlock
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model
 from .mnist import MnistConvNet
 
@@ -56,8 +57,18 @@ class NNDisc(DiscBase):
                                           output_activation=output_activation)
 
             hidden_sizes = [args.zy_dim * 16, args.zy_dim * 16, args.zy_dim * 16]
-            disc_s_from_zy = MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
-                                          output_activation=output_activation)
+
+            disc_s_from_zy = nn.Sequential(
+                ResidualBlock(args.zy_dim, 512),
+                ResidualBlock(512, 512),
+                ResidualBlock(512, 512),
+                ResidualBlock(512, 512),
+                Flatten(),
+                nn.Linear(7 * 7 * 512, 1024),
+                nn.Linear(1024, args.s_dim)
+            )
+            # disc_s_from_zy = MnistConvNet(args.zy_dim, s_dim, hidden_sizes=hidden_sizes,
+            #                               output_activation=output_activation)
             if not args.meta_learn:
                 hidden_sizes = [(args.zy_dim + args.zs_dim * 8), (args.zy_dim + args.zs_dim) * 8]
                 disc_y_from_zys = MnistConvNet(args.zy_dim + args.zs_dim, y_dim,
