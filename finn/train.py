@@ -234,7 +234,7 @@ def main(args, datasets, metric_callback):
     disc_optimizer = Adam(discs.parameters(), lr=ARGS.disc_lr, weight_decay=ARGS.weight_decay)
     milestones = map(int, ARGS.lr_drop_epoch.split("-"))
     scheduler = MultiStepLR(optimizer, milestones=milestones, gamma=0.2)
-    disc_scheduler = MultiStepLR(disc_optimizer, milestones=milestones, gamma=0.464)
+    disc_scheduler = MultiStepLR(disc_optimizer, milestones=milestones, gamma=0.2)
     # scheduler = ExponentialLR(optimizer, gamma=args.gamma)
                 #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
                 #                  min_lr=1.e-7, cooldown=1)
