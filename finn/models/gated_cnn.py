@@ -19,7 +19,7 @@ class ResidualBlock(nn.Module):
         self.stride = stride
 
         if inplanes != planes or stride > 1:
-            self.downsample = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, padding=1)
+            self.downsample = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, padding=0)
 
     def forward(self, x):
         identity = x
