@@ -9,11 +9,12 @@ import torch
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
+from torch.utils.data import DataLoader
 
 from finn.train import main as training_loop
 from finn.data import MetaDataset, get_data_tuples, load_dataset
 from finn.utils.evaluate_utils import metrics_for_meta_learn, evaluate_representations
-from finn.utils.training_utils import parse_arguments, encode_dataset, encode_dataset_no_recon
+from finn.utils.training_utils import parse_arguments, encode_dataset, encode_dataset_no_recon, log_images
 from finn.utils.eval_metrics import train_zy_head
 
 
@@ -25,6 +26,12 @@ def main(raw_args=None):
     torch.cuda.manual_seed(args.seed)
     datasets = load_dataset(args)
     training_loop(args, datasets, log_metrics)
+
+
+def log_sample_images(experiment, data, name):
+    data_loader = DataLoader(data, shuffle=False, batch_size=65)
+    x, s, y = next(iter(data_loader))
+    log_images(experiment, x, f"Samples from {name}", prefix='eval')
 
 
 def log_metrics(args, experiment, model, discs, data):
@@ -47,6 +54,7 @@ def log_metrics(args, experiment, model, discs, data):
         print("Quickly encode task and task train...")
         task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
+        log_sample_images(experiment, data.task_train, "task_train")
         evaluate_representations(args, experiment, task_train_repr['recon_yn'], task_repr['recon_yn'],
                                  predict_y=True, use_x=True, use_fair=True, use_s=True)
         return
