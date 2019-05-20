@@ -60,8 +60,9 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         print("Evaluating on original dataset...")
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
-        evaluate_representations(args, experiment, data.task_train, data.task,
-                                 predict_y=True, use_x=True, use_s=True)
+        if args.dataset == 'cmnist':
+            evaluate_representations(args, experiment, data.task_train, data.task,
+                                     predict_y=True, use_x=True, use_s=True)
 
     quick_eval = True  # `quick_eval` disables a lot of evaluations and only runs the most important
     if quick_eval:
@@ -70,7 +71,8 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
         log_sample_images(experiment, data.task_train, "task_train")
         evaluate_representations(args, experiment, task_train_repr['recon_yn'], task_repr['recon_yn'],
-                                 predict_y=True, use_x=True, use_fair=True, use_s=True)
+                                 predict_y=True, use_x=True, use_fair=True,
+                                 use_s=args.dataset == 'cmnist')
         if args.dataset == 'adult':
             repr_ = MetaDataset(meta_train=None, task=task_repr, task_train=task_train_repr,
                                 input_dim=data.input_dim, output_dim=data.output_dim)
@@ -100,16 +102,18 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
         evaluate_representations(args, experiment, data.task_train, data.task,
-                                 predict_y=True, use_x=True, use_s=True)
+                                 predict_y=True, use_x=True, use_s=args.dataset == 'cmnist')
 
     # ===========================================================================
 
     evaluate_representations(args, experiment, repr.task_train['all_z'], repr.task['all_z'],
                              predict_y=True, use_fair=True, use_unfair=True)
     evaluate_representations(args, experiment, repr.task_train['recon_y'], repr.task['recon_y'],
-                             predict_y=True, use_x=True, use_fair=True, use_s=True)
+                             predict_y=True, use_x=True, use_fair=True,
+                             use_s=args.dataset == 'cmnist')
     evaluate_representations(args, experiment, repr.task_train['recon_s'], repr.task['recon_s'],
-                             predict_y=True, use_x=True, use_unfair=True, use_s=True)
+                             predict_y=True, use_x=True, use_unfair=True,
+                             use_s=args.dataset == 'cmnist')
 
     check_grayscale = False
     if check_grayscale:
