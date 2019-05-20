@@ -232,7 +232,7 @@ def main(args, datasets, metric_callback):
 
     if ARGS.resume is not None:
         model, discs = restore_model(ARGS.resume, model, discs)
-        metric_callback(ARGS, SUMMARY, model, discs, datasets, check_originals=True)
+        metric_callback(ARGS, SUMMARY, model, discs, datasets, check_originals=False)
         return
 
     SUMMARY.set_model_graph(str(model))
