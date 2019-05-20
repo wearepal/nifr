@@ -62,8 +62,9 @@ def metrics_for_meta_learn(args, experiment, clf, repr, data):
 
 def make_tuple_from_data(train, test, pred_s, use_s):
     if use_s:
-        train_x = pd.concat([train.x, train.s], axis='columns')
-        test_x = pd.concat([test.x, test.s], axis='columns')
+        raise RuntimeError("This shouldn't be reached.")
+        # train_x = pd.concat([train.x, train.s], axis='columns')
+        # test_x = pd.concat([test.x, test.s], axis='columns')
     else:
         train_x = train.x
         test_x = test.x

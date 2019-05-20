@@ -12,8 +12,8 @@ class NNDisc(DiscBase):
         """Create the discriminators that enfoce the partition on z"""
         if args.dataset == 'adult':
             s_dim = 1
-            self.x_s_dim = x_dim + s_dim
-            z_channels = z_dim_flat + 1
+            self.x_s_dim = x_dim  # + s_dim
+            z_channels = z_dim_flat  # + 1
         elif args.dataset == 'cmnist':
             s_dim = 10
             self.x_s_dim = x_dim  # s is included in x
@@ -67,7 +67,7 @@ class NNDisc(DiscBase):
             loss_fn = F.nll_loss
         else:
             loss_fn = F.binary_cross_entropy
-            x = torch.cat((x, s.float()), dim=1)
+            # x = torch.cat((x, s.float()), dim=1)
 
         z, delta_logp = model(x, zero)  # run model forward
 
