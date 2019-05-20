@@ -193,8 +193,6 @@ def main(args, datasets, metric_callback):
     # ==== initialize globals ====
     global ARGS, LOGGER, SUMMARY
     ARGS = args
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
 
     SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
                          workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)

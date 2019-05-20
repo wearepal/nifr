@@ -17,12 +17,21 @@ from finn.utils.training_utils import parse_arguments, encode_dataset, encode_da
 from finn.utils.eval_metrics import train_zy_head
 
 
+def random_seed(seed_value, use_cuda):
+    np.random.seed(seed_value) # cpu vars
+    torch.manual_seed(seed_value) # cpu  vars
+    random.seed(seed_value) # Python
+    if use_cuda:
+        torch.cuda.manual_seed(seed_value)
+        torch.cuda.manual_seed_all(seed_value) # gpu vars
+        torch.backends.cudnn.deterministic = True  #needed
+        torch.backends.cudnn.benchmark = False
+
+
 def main(raw_args=None):
     args = parse_arguments(raw_args)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
+    use_gpu = torch.cuda.is_available() and not args.gpu < 0
+    random_seed(args.seed, use_gpu)
     datasets = load_dataset(args)
     training_loop(args, datasets, log_metrics)
 
