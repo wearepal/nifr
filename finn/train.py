@@ -207,9 +207,10 @@ def main(args, datasets, metric_callback):
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
+    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
+    LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if (
         torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu")
