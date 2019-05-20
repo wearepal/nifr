@@ -12,7 +12,7 @@ import pandas as pd
 
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.training_utils import train_and_evaluate_classifier
-from finn.data import MetaDataset
+from finn.data import MetaDataset, get_data_tuples
 
 
 def compute_metrics(experiment, predictions, actual, name, run_all=False):
@@ -107,7 +107,8 @@ def get_name(use_s, use_x, predict_y, use_fair, use_unfair):
     return name
 
 
-def evaluate_representations(args, experiment, train_data, test_data, predict_y=False, use_s=False, use_x=False, use_fair=False, use_unfair=False):
+def evaluate_representations(args, experiment, train_data, test_data, predict_y=False, use_s=False,
+                             use_x=False, use_fair=False, use_unfair=False):
 
     name = get_name(use_s, use_x, predict_y, use_fair, use_unfair)
 
@@ -142,6 +143,8 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         print("\tTraining performance")
 
     else:
+        if not isinstance(train_data, DataTuple):
+            train_data, test_data = get_data_tuples(train_data, test_data)
         run_all = True
         train_x, test_x = make_tuple_from_data(train_data, test_data, pred_s=not predict_y, use_s=use_s)
         preds_x = LR().run(train_x, test_x)

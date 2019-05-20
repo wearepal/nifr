@@ -63,7 +63,7 @@ def log_metrics(args, experiment, model, discs, data):
         metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
-        _, task_data, task_train_data = get_data_tuples(data.task, data.task, data.task_train)
+        task_data, task_train_data = get_data_tuples(data.task, data.task_train)
         data = MetaDataset(meta_train=None, task=task_data, task_train=task_train_data,
                            input_dim=data.input_dim, output_dim=data.output_dim)
 
