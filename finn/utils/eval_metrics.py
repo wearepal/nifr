@@ -74,8 +74,8 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                 s = s.to(args.device)
                 y = y.to(args.device)
 
-                # if args.dataset == 'adult':
-                #     x = torch.cat((x, s.float()), dim=1)
+                if args.dataset == 'adult' and args.use_s:
+                    x = torch.cat((x, s.float()), dim=1)
 
                 head_optimizer.zero_grad()
 
@@ -115,8 +115,8 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
                     s = s.to(args.device)
                     y = y.to(args.device)
 
-                    # if args.dataset == 'adult':
-                    #     x = torch.cat((x, s.float()), dim=1)
+                    if args.dataset == 'adult' and args.use_s:
+                        x = torch.cat((x, s.float()), dim=1)
 
                     zero = x.new_zeros(x.size(0), 1)
                     z_trunk, delta_log_p = trunk(x, zero)
