@@ -18,23 +18,30 @@ from finn.utils.training_utils import parse_arguments, encode_dataset, encode_da
 from finn.utils.eval_metrics import train_zy_head
 
 
+def random_seed(seed_value, use_cuda):
+    np.random.seed(seed_value) # cpu vars
+    torch.manual_seed(seed_value) # cpu  vars
+    random.seed(seed_value) # Python
+    if use_cuda:
+        torch.cuda.manual_seed(seed_value)
+        torch.cuda.manual_seed_all(seed_value) # gpu vars
+        torch.backends.cudnn.deterministic = True  #needed
+        torch.backends.cudnn.benchmark = False
+
+
 def main(raw_args=None):
     args = parse_arguments(raw_args)
-    random.seed(args.seed)
-    np.random.seed(args.seed)
-    torch.manual_seed(args.seed)
-    torch.cuda.manual_seed(args.seed)
+    use_gpu = torch.cuda.is_available() and not args.gpu < 0
+    random_seed(args.seed, use_gpu)
     datasets = load_dataset(args)
     training_loop(args, datasets, log_metrics)
-
 
 def log_sample_images(experiment, data, name):
     data_loader = DataLoader(data, shuffle=False, batch_size=65)
     x, s, y = next(iter(data_loader))
     log_images(experiment, x, f"Samples from {name}", prefix='eval')
 
-
-def log_metrics(args, experiment, model, discs, data):
+def log_metrics(args, experiment, model, discs, data, check_originals=False):
     """Compute and log a variety of metrics"""
     assert args.meta_learn
     ethicml_model = LR()
@@ -51,6 +58,13 @@ def log_metrics(args, experiment, model, discs, data):
 
     quick_eval = True
     if args.meta_learn and quick_eval:
+        if check_originals:
+            print("Evaluating on original dataset...")
+            evaluate_representations(args, experiment, data.task_train, data.task,
+                                     predict_y=True, use_x=True)
+            evaluate_representations(args, experiment, data.task_train, data.task,
+                                     predict_y=True, use_x=True, use_s=True)
+
         print("Quickly encode task and task train...")
         task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
@@ -78,7 +92,6 @@ def log_metrics(args, experiment, model, discs, data):
     experiment.log_other("evaluation model", ethicml_model.name)
 
     # ===========================================================================
-    check_originals = False
     if check_originals:
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
