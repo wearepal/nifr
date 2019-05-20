@@ -79,15 +79,11 @@ def load_adult_data(args):
     return train_data, test_data, train_tuple, test_tuple,
 
 
-def get_data_tuples(train_data, val_data, test_data):
-
+def get_data_tuples(*pytorch_datasets):
+    """Convert pytorch datasets to datatuples"""
     # FIXME: this is needed because the information about feature names got lost
     sens_attrs = Adult().feature_split['s']
-    train_tuple = pytorch_data_to_dataframe(train_data, sens_attrs=sens_attrs)
-    val_tuple = pytorch_data_to_dataframe(val_data, sens_attrs=sens_attrs)
-    test_tuple = pytorch_data_to_dataframe(test_data, sens_attrs=sens_attrs)
-
-    return train_tuple, val_tuple, test_tuple
+    return (pytorch_data_to_dataframe(data, sens_attrs=sens_attrs) for data in pytorch_datasets)
 
 
 def pytorch_data_to_dataframe(dataset, sens_attrs=None):
