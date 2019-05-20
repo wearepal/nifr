@@ -70,8 +70,11 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         log_sample_images(experiment, data.task_train, "task_train")
         evaluate_representations(args, experiment, task_train_repr['recon_yn'], task_repr['recon_yn'],
                                  predict_y=True, use_x=True, use_fair=True, use_s=True)
-        if args.dataset == 'cmnist':
-            return  # the metrics take too long to run on CMNIST
+        if args.dataset == 'adult':
+            repr_ = MetaDataset(meta_train=None, task=task_repr, task_train=task_train_repr,
+                                input_dim=data.input_dim, output_dim=data.output_dim)
+            metrics_for_meta_learn(args, experiment, ethicml_model, repr_, data)
+        return
 
     print('Encoding task dataset...')
     task_repr_ = encode_dataset(args, data.task, model)
@@ -83,7 +86,6 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
 
     if args.meta_learn and not args.inv_disc:
         metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
-        return
 
     if args.dataset == 'adult':
         task_data, task_train_data = get_data_tuples(data.task, data.task_train)
