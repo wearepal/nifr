@@ -49,10 +49,13 @@ def save_model(save_dir, model, discs):
     torch.save(save_dict, filename)
 
 
-def restore_model(filename, model):
+def restore_model(filename, model, discs):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpt['model'])
-    return model
+    for name, disc in discs.discs_dict.items():
+        if disc is not None:
+            disc.load_state_dict(checkpt[name])
+    return model, discs
 
 
 def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
@@ -228,8 +231,9 @@ def main(args, datasets, metric_callback):
     LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:
-        checkpt = torch.load(ARGS.resume)
-        model.load_state_dict(checkpt['state_dict'])
+        model, discs = restore_model(ARGS.resume, model, discs)
+        metric_callback(ARGS, SUMMARY, model, discs, datasets, check_originals=True)
+        return
 
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
@@ -282,7 +286,7 @@ def main(args, datasets, metric_callback):
         disc_scheduler.step(epoch)
 
     LOGGER.info('Training has finished.')
-    model = restore_model(save_dir / 'checkpt.pth', model).to(ARGS.device)
+    model, discs = restore_model(save_dir / 'checkpt.pth', model, discs)
     metric_callback(ARGS, SUMMARY, model, discs, datasets)
     save_model(save_dir=save_dir, model=model, discs=discs)
     model.eval()
