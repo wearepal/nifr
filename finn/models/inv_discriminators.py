@@ -13,11 +13,11 @@ class InvDisc(DiscBase):
         """Create the discriminators that enfoce the partition on z"""
 
         if args.dataset == 'adult':
-            z_dim_flat += 1
+            # z_dim_flat += 1
             args.zs_dim = round(args.zs_frac * z_dim_flat)
             args.zy_dim = z_dim_flat - args.zs_dim
             args.zn_dim = 0
-            in_dim = x_dim + args.s_dim
+            in_dim = x_dim  # + args.s_dim
             wh = 1
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
@@ -58,7 +58,6 @@ class InvDisc(DiscBase):
         self.in_dim = in_dim
         self.z_dim_flat = z_dim_flat
         self.wh = wh
-
 
     @property
     def discs_dict(self):
@@ -101,7 +100,7 @@ class InvDisc(DiscBase):
         else:
             class_loss = self.binary_class_loss
             indie_loss = F.binary_cross_entropy_with_logits
-            x = torch.cat((x, s.float()), dim=1)
+            # x = torch.cat((x, s.float()), dim=1)
 
         z, delta_log_p = whole_model(x, zero)  # run model forward
 
