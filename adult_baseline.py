@@ -15,7 +15,7 @@ def main():
         meta_learn = True
 
     args = _Namespace()
-    _, _, D, D_dagger = load_adult_data(args)
+    D, D_dagger = load_adult_data(args)
     # D = apply_to_joined_tuple(pd.DataFrame.reset_index, D)
     D = DataTuple(x=D.x.reset_index(drop=True), s=D.s.reset_index(drop=True), y=D.y.reset_index(drop=True))
     D_star, D = train_test_split(D, train_percentage=0.1 / 0.75)

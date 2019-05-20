@@ -5,7 +5,8 @@ from typing import NamedTuple
 import pandas as pd
 import numpy as np
 
-from torch.utils.data import DataLoader, Dataset, random_split
+import torch
+from torch.utils.data import DataLoader, Dataset, random_split, TensorDataset
 from torchvision import transforms
 from tqdm import tqdm
 
@@ -58,7 +59,11 @@ def load_dataset(args):
         args.y_dim = 10
         args.s_dim = 10
     else:
-        whole_train_data, whole_test_data, _, _ = load_adult_data(args)
+        train_tuple, test_tuple = load_adult_data(args)
+        whole_train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                           for df in train_tuple])
+        whole_test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                          for df in test_tuple])
         args.y_dim = 1
         args.s_dim = 1
 

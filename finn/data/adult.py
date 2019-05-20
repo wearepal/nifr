@@ -1,7 +1,6 @@
 """Definition of the Adult dataset"""
 import pandas as pd
-import torch
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 
 from ethicml.data.load import load_data
@@ -33,10 +32,11 @@ def load_adult_data(args):
         meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
                                      axis='index', ignore_index=True)
 
-        # s and y should not be overly correlated in the meta train set
-        assert meta_train_tuple.s['sex_Male'].corr(meta_train_tuple.y['salary_>50K']) < 0.1
-        # but they should be very correlated in the task train set
-        assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
+        if mix_fact == 0:
+            # s and y should not be overly correlated in the meta train set
+            assert abs(meta_train_tuple.s['sex_Male'].corr(meta_train_tuple.y['salary_>50K'])) < 0.1
+            # but they should be very correlated in the task train set
+            assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
 
         # old nomenclature:
         train_tuple, test_tuple = meta_train_tuple, task_train_tuple
@@ -49,23 +49,6 @@ def load_adult_data(args):
     else:
         train_tuple, test_tuple = train_test_split(data)
 
-    # def load_dataframe(path: Path) -> pd.DataFrame:
-    #     """Load dataframe from a parquet file"""
-    #     with path.open('rb') as f:
-    #         df = pd.read_feather(f)
-    #     return torch.tensor(df.values, dtype=torch.float32)
-    #
-    # train_x = load_dataframe(Path(args.train_x))
-    # train_s = load_dataframe(Path(args.train_s))
-    # train_y = load_dataframe(Path(args.train_y))
-    # test_x = load_dataframe(Path(args.test_x))
-    # test_s = load_dataframe(Path(args.test_s))
-    # test_y = load_dataframe(Path(args.test_y))
-
-    # train_test_split()
-    # train_data = TensorDataset(train_x, train_s, train_y)
-    # test_data = TensorDataset(test_x, test_s, test_y)
-
     scaler = StandardScaler()
 
     train_scaled = pd.DataFrame(scaler.fit_transform(train_tuple.x), columns=train_tuple.x.columns)
@@ -73,10 +56,7 @@ def load_adult_data(args):
     test_scaled = pd.DataFrame(scaler.transform(test_tuple.x), columns=test_tuple.x.columns)
     test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
 
-    train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in train_tuple])
-    test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in test_tuple])
-
-    return train_data, test_data, train_tuple, test_tuple,
+    return train_tuple, test_tuple
 
 
 def get_data_tuples(*pytorch_datasets):
