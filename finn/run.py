@@ -55,23 +55,23 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         print(f"Meta Accuracy: {acc:.4f}")
         # return
         model = discs.assemble_whole_model(model).eval()
+    if check_originals:
+        print("Evaluating on original dataset...")
+        evaluate_representations(args, experiment, data.task_train, data.task,
+                                 predict_y=True, use_x=True)
+        evaluate_representations(args, experiment, data.task_train, data.task,
+                                 predict_y=True, use_x=True, use_s=True)
 
     quick_eval = True
     if args.meta_learn and quick_eval:
-        if check_originals:
-            print("Evaluating on original dataset...")
-            evaluate_representations(args, experiment, data.task_train, data.task,
-                                     predict_y=True, use_x=True)
-            evaluate_representations(args, experiment, data.task_train, data.task,
-                                     predict_y=True, use_x=True, use_s=True)
-
         print("Quickly encode task and task train...")
         task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
         log_sample_images(experiment, data.task_train, "task_train")
         evaluate_representations(args, experiment, task_train_repr['recon_yn'], task_repr['recon_yn'],
                                  predict_y=True, use_x=True, use_fair=True, use_s=True)
-        return
+        if args.dataset == 'cmnist':
+            return  # the metrics take too long to run on CMNIST
 
     print('Encoding task dataset...')
     task_repr_ = encode_dataset(args, data.task, model)
@@ -83,6 +83,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
 
     if args.meta_learn and not args.inv_disc:
         metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
+        return
 
     if args.dataset == 'adult':
         task_data, task_train_data = get_data_tuples(data.task, data.task_train)
