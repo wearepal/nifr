@@ -53,6 +53,9 @@ def metrics_for_meta_learn(args, experiment, clf, repr, data):
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
     else:
+        if not isinstance(repr.task_train['zy'], DataTuple):
+            repr.task_train['zy'], repr.task['zy'] = get_data_tuples(repr.task_train['zy'],
+                                                                     repr.task['zy'])
         preds_meta = clf.run(repr.task_train['zy'], repr.task['zy'])
         compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta")
 
