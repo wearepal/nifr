@@ -48,13 +48,14 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
 
     # This should be done before computing the representations because computing the representations
     # takes very long and is not needed for this!
-    if args.meta_learn and args.inv_disc:
+    if args.inv_disc:
         assert isinstance(data, MetaDataset)
         acc = train_zy_head(args, experiment, model, discs, data.task_train, data.task)
         experiment.log_metric("Meta Accuracy", acc)
         print(f"Meta Accuracy: {acc:.4f}")
         # return
         model = discs.assemble_whole_model(model).eval()
+
     if check_originals:
         print("Evaluating on original dataset...")
         evaluate_representations(args, experiment, data.task_train, data.task,
@@ -62,8 +63,8 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True, use_s=True)
 
-    quick_eval = True
-    if args.meta_learn and quick_eval:
+    quick_eval = True  # `quick_eval` disables a lot of evaluations and only runs the most important
+    if quick_eval:
         print("Quickly encode task and task train...")
         task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
@@ -84,7 +85,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
     repr = MetaDataset(meta_train=None, task=task_repr_, task_train=task_train_repr_,
                        input_dim=data.input_dim, output_dim=data.output_dim)
 
-    if args.meta_learn and not args.inv_disc:
+    if not args.inv_disc:
         metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
