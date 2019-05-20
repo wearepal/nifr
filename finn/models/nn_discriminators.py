@@ -30,14 +30,8 @@ class NNDisc(DiscBase):
         # =========== Define discriminator networks ============
         if args.dataset == 'adult':
             # ==== MLP models ====
-            output_activation = nn.Sigmoid
-            hidden_sizes = [400, 400]
-            disc_s_from_zs = layers.Mlp([args.zs_dim] + hidden_sizes + [s_dim],
-                                        activation=nn.ReLU, output_activation=output_activation)
-
-            hidden_sizes = [400, 400]
-            disc_s_from_zy = layers.Mlp([args.zy_dim] + hidden_sizes + [s_dim],
-                                        activation=nn.ReLU, output_activation=output_activation)
+            disc_s_from_zs = linear_classifier(args.zs_dim, 1, 512, nn.Sigmoid())
+            disc_s_from_zy = linear_classifier(args.zy_dim, 1, 512, nn.Sigmoid())
         else:
             if args.nn_disc == 'linear':
                 disc_s_from_zs = linear_classifier(args.zs_dim * 7 * 7, args.s_dim)

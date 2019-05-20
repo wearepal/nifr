@@ -4,17 +4,18 @@ from finn.layers import Flatten
 from finn.models import MnistConvNet
 
 
-def linear_classifier(in_channels, num_classes):
+def linear_classifier(in_channels, num_classes, hidden_channels=512,
+                      output_activation=nn.LogSoftmax(dim=1)):
     return nn.Sequential(
         Flatten(),
-        nn.Linear(in_channels, 512),
-        nn.LayerNorm(512),
+        nn.Linear(in_channels, hidden_channels),
+        nn.LayerNorm(hidden_channels),
         nn.ReLU(inplace=True),
-        nn.Linear(512, 512),
-        nn.LayerNorm(512),
+        nn.Linear(hidden_channels, hidden_channels),
+        nn.LayerNorm(hidden_channels),
         nn.ReLU(inplace=True),
-        nn.Linear(512, num_classes),
-        nn.LogSoftmax(dim=1))
+        nn.Linear(hidden_channels, num_classes),
+        output_activation)
 
 
 def conv_classifier(in_channels, num_classes, depth):
