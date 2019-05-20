@@ -244,14 +244,12 @@ def main(args, datasets, metric_callback):
 
     scheduler = ExponentialLR(optimizer, gamma=args.gamma)
     disc_scheduler = ExponentialLR(disc_optimizer, gamma=args.gamma)
-    # scheduler = ExponentialLR(optimizer, gamma=args.gamma)
-                #ReduceLROnPlateau(optimizer, factor=0.1, patience=ARGS.patience,
-                #                  min_lr=1.e-7, cooldown=1)
 
     best_loss = float('inf')
 
     n_vals_without_improvement = 0
 
+    check_originals = True
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
@@ -265,7 +263,8 @@ def main(args, datasets, metric_callback):
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
                 val_loss = validate(model, discs, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, SUMMARY, model, discs, datasets)
+                    metric_callback(ARGS, SUMMARY, model, discs, datasets, check_originals=check_originals)
+                    check_originals = False
 
                 if val_loss < best_loss:
                     best_loss = val_loss

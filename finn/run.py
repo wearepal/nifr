@@ -27,7 +27,7 @@ def main(raw_args=None):
     training_loop(args, datasets, log_metrics)
 
 
-def log_metrics(args, experiment, model, discs, data):
+def log_metrics(args, experiment, model, discs, data, check_originals=False):
     """Compute and log a variety of metrics"""
     assert args.meta_learn
     ethicml_model = LR()
@@ -44,6 +44,13 @@ def log_metrics(args, experiment, model, discs, data):
 
     quick_eval = True
     if args.meta_learn and quick_eval:
+        if check_originals:
+            print("Evaluating on original dataset...")
+            evaluate_representations(args, experiment, data.task_train, data.task,
+                                     predict_y=True, use_x=True)
+            evaluate_representations(args, experiment, data.task_train, data.task,
+                                     predict_y=True, use_x=True, use_s=True)
+
         print("Quickly encode task and task train...")
         task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
         task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
@@ -70,7 +77,6 @@ def log_metrics(args, experiment, model, discs, data):
     experiment.log_other("evaluation model", ethicml_model.name)
 
     # ===========================================================================
-    check_originals = False
     if check_originals:
         evaluate_representations(args, experiment, data.task_train, data.task,
                                  predict_y=True, use_x=True)
