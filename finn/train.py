@@ -210,7 +210,7 @@ def main(args, datasets, metric_callback):
     LOGGER.info(ARGS)
     LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
 
-    LOGGER.info("Save directory: {}", save_dir.resolve())
+    LOGGER.info("Save directory: {}", save_dir)
     # ==== check GPU ====
     ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if (
         torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu")
