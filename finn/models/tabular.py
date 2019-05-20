@@ -19,4 +19,6 @@ def tabular_model(args, input_dim, depth: int=None, batch_norm: bool=None):
         if args.glow and args.dataset == 'adult':
             chain += [layers.BruteForceLayer(input_dim)]
         chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
+    chain += [layers.BruteForceLayer(input_dim)]
+
     return layers.SequentialFlow(chain)
