@@ -74,6 +74,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
     parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
                         help='Weight of the entropy loss for the adversarial discriminator')
+    parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
+                        help='Use s as input (if s is a separate feature)')
 
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
@@ -122,8 +124,8 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         x = x.to(args.device)
         target = target.to(args.device).long()
 
-        # if args.dataset == 'adult' and use_s:
-        #     x = torch.cat((x, s), dim=1)
+        if args.dataset == 'adult' and use_s and args.use_s:
+            x = torch.cat((x, s), dim=1)
         if args.dataset == 'cmnist' and not use_s:
             x = x.mean(dim=1, keepdim=True)
 
@@ -158,8 +160,8 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
             x = x.to(args.device)
             target = target.to(args.device)
 
-            # if args.dataset == 'adult' and use_s:
-            #     x = torch.cat((x, s), dim=1)
+            if args.dataset == 'adult' and use_s and args.use_s:
+                x = torch.cat((x, s), dim=1)
             if args.dataset == 'cmnist' and not use_s:
                 x = x.mean(dim=1, keepdim=True)
 
@@ -269,8 +271,8 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
             x = x.to(device)
             target = target.to(device)
 
-            # if args.dataset == 'adult' and use_s:
-            #     x = torch.cat((x, s), dim=1)
+            if args.dataset == 'adult' and use_s and args.use_s:
+                x = torch.cat((x, s), dim=1)
             if args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
             if experiment is not None and args.dataset == 'cmnist' and i == 0:
@@ -379,8 +381,8 @@ def encode_dataset(args, data, model):
             x = x.to(args.device)
             s = s.to(args.device)
 
-            # if args.dataset == 'adult':
-            #     x = torch.cat((x, s), dim=1)
+            if args.dataset == 'adult' and args.use_s:
+                x = torch.cat((x, s), dim=1)
 
             z = model(x)
 
@@ -461,8 +463,8 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
             x = x.to(args.device)
             s = s.to(args.device)
 
-            # if args.dataset == 'adult':
-            #     x = torch.cat((x, s), dim=1)
+            if args.dataset == 'adult' and args.use_s:
+                x = torch.cat((x, s), dim=1)
             z = model(x)
             if recon_zyn:
                 recon_yn = reconstruct(args, z, model,
