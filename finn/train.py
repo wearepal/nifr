@@ -166,6 +166,7 @@ def validate(model, discs, val_loader):
         x_recon = whole_model(whole_model(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")
+        SUMMARY.log_metric("reconstruction MAE", x_diff)
 
     return loss_meter.avg
 
