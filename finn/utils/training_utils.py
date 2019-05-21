@@ -360,9 +360,9 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
                 0] not in dataset.continuous_features  # feature is categorical if it has more than 1 possible output
 
             if categorical:
-                layer = _OneHotEncoder(n_dims).to(args.device)
+                layer = _OneHotEncoder(n_dims)
             else:
-                layer = nn.Identity().to(args.device)
+                layer = nn.Identity()
 
             return layer
 
