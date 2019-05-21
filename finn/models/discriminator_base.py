@@ -3,7 +3,7 @@ from itertools import chain
 
 import torch
 
-from finn.utils.distributions import logistic_logprob
+from finn.utils.distributions import logistic_mixture_logprob
 from .image import glow
 from .tabular import tabular_model
 
@@ -37,7 +37,10 @@ class DiscBase(ABC):
 def compute_log_pz(args, z):
     """Log of the base probability: log(p(z))"""
     if args.prior_dist == 'logistic':
-        log_pz = logistic_logprob(z, 0, 1)
+        locs = (-4, -3, 0, 3, 4)
+        scales = (0.5, 0.5, 1, 0.5, 0.5)
+        weights = (2, 1, 2, 1, 2)
+        log_pz = logistic_mixture_logprob(z, locs, scales, weights)
     else:
         log_pz = torch.distributions.Normal(0, 1).log_prob(z)
 
