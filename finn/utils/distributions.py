@@ -9,7 +9,7 @@ MAX_EPSILON = 1.-1e-5
 def logistic_mixture_logprob(x, locs=(0), scales=(1), weights=(0)):
     assert len(locs) == len(scales) == len(weights)
 
-    weights = F.softmax(torch.Tensor(list(weights)))
+    weights = F.softmax(torch.Tensor(list(weights)), dim=0)
     log_prob = 0
     for mu, sigma, pi in zip(locs, scales, weights):
         exp = - (x - mu) / sigma
