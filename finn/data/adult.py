@@ -13,22 +13,25 @@ from ethicml.preprocessing.domain_adaptation import domain_split, query_dt
 def load_adult_data(args):
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
     data = load_data(Adult(), ordered=True)
+    assert data.x.shape[1] == 101
 
-    new_x = data.x.drop(
-        [col for col in data.x.columns if col.startswith('nat') and col != "native-country_United-States"], axis=1)
-    new_x["native-country_not_United-States"] = (1-new_x["native-country_United-States"])
+    if args.drop_native:
+        new_x = data.x.drop(
+            [col for col in data.x.columns if col.startswith('nat') and col != "native-country_United-States"], axis=1)
+        new_x["native-country_not_United-States"] = (1-new_x["native-country_United-States"])
 
-    disc_feats = Adult().discrete_features
-    cont_feats = Adult().continuous_features
+        disc_feats = Adult().discrete_features
+        cont_feats = Adult().continuous_features
 
-    countries = [col for col in disc_feats if (col.startswith('nat') and col != "native-country_United-States")]
-    disc_feats = [col for col in disc_feats if col not in countries]
-    disc_feats += ["native-country_not_United-States"]
-    disc_feats = sorted(disc_feats)
+        countries = [col for col in disc_feats if (col.startswith('nat') and col != "native-country_United-States")]
+        disc_feats = [col for col in disc_feats if col not in countries]
+        disc_feats += ["native-country_not_United-States"]
+        disc_feats = sorted(disc_feats)
 
-    feats = disc_feats + cont_feats
+        feats = disc_feats + cont_feats
 
-    data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
+        data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
+        assert data.x.shape[1] == 62
 
     if args.meta_learn:
         sy_equal = query_dt(
