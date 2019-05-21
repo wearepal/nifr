@@ -6,7 +6,7 @@ MIN_EPSILON = 1e-5
 MAX_EPSILON = 1.-1e-5
 
 
-def logistic_distribution(x, loc=0, scale=1):
+def logistic_logprob(x, loc=0, scale=1):
     exp = - (x - loc) / scale
     log_prob = exp - np.log(scale) - 2 * F.softplus(exp)
     return log_prob
