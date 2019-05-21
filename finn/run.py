@@ -6,6 +6,7 @@ import comet_ml  # this import is needed because comet_ml has to be imported bef
 import random
 import numpy as np
 import torch
+from ethicml.algorithms.inprocess import MLP
 
 from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
@@ -44,7 +45,7 @@ def log_sample_images(experiment, data, name):
 def log_metrics(args, experiment, model, discs, data, check_originals=False):
     """Compute and log a variety of metrics"""
     assert args.meta_learn
-    ethicml_model = LR()
+    ethicml_model =MLP() if args.mlp_clf else LR()
 
     # This should be done before computing the representations because computing the representations
     # takes very long and is not needed for this!

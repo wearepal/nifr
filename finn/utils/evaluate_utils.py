@@ -57,7 +57,7 @@ def metrics_for_meta_learn(args, experiment, clf, repr, data):
             repr.task_train['zy'], repr.task['zy'] = get_data_tuples(repr.task_train['zy'],
                                                                      repr.task['zy'])
         preds_meta = clf.run(repr.task_train['zy'], repr.task['zy'])
-        compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta")
+        compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta", run_all=True)
 
 
 def make_tuple_from_data(train, test, pred_s, use_s):
