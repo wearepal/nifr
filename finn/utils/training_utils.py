@@ -360,14 +360,14 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
                 0] not in dataset.continuous_features  # feature is categorical if it has more than 1 possible output
 
             if categorical:
-                layer = _OneHotEncoder(n_dims)
+                layer = _OneHotEncoder(n_dims).to(args.device)
             else:
-                layer = nn.Identity()
+                layer = nn.Identity().to(args.device)
 
             return layer
 
         grouped_features = [list(group) for key, group in groupby(disc_feats, lambda x: x.split('_')[0])]
-        output_layers = nn.ModuleList([_add_output_layer(feature, Adult()) for feature in grouped_features])
+        output_layers = nn.ModuleList([_add_output_layer(feature, Adult()) for feature in grouped_features]).to(args.device)
 
         _recon = []
         start_idx = 0
