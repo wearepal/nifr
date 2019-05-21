@@ -366,12 +366,19 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
 
             return layer
 
-
         grouped_features = [list(group) for key, group in groupby(disc_feats, lambda x: x.split('_')[0])]
         output_layers = nn.ModuleList([_add_output_layer(feature, Adult()) for feature in grouped_features])
 
+        _recon = []
+        start_idx = 0
+        for layer, group in zip(output_layers, grouped_features):
+            end_idx = len(group)
+            _recon.append(layer(recon[:, start_idx: end_idx]))
+            start_idx = end_idx
 
-        recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
+        recon = torch.cat(_recon, dim=1)
+
+        # recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
 
     return recon
 
