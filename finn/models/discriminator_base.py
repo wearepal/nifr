@@ -39,8 +39,10 @@ def compute_log_pz(args, z):
     if args.prior_dist == 'logistic':
         log_pz = logistic_distribution(z, 0, 1)
     else:
-        log_pz = torch.distributions.Normal(0, 1).log_prob(z).flatten(1).sum(1)
-    return log_pz.view(z.size(0), 1)
+        log_pz = torch.distributions.Normal(0, 1).log_prob(z)
+
+    log_pz = log_pz.flatten(1).sum(1).view(z.size(0), 1)
+    return log_pz
 
 
 def fetch_model(args, x_dim):
