@@ -39,7 +39,7 @@ def train_zy_head(args, experiment, trunk, discs, train_data, val_data):
     disc_y_from_zy_copy = tabular_model(discs.args,
                                         input_dim=discs.wh * args.zy_dim,
                                         depth=args.inv_disc_depth,
-                                        batch_norm=args.dataset != 'cmnist')
+                                        batch_norm=False)
     disc_y_from_zy_copy.load_state_dict(discs.y_from_zy.state_dict())
     disc_y_from_zy_copy.to(args.device)
     disc_y_from_zy_copy.train()

@@ -24,12 +24,12 @@ class InvDisc(DiscBase):
             wh = 1
 
             disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
-                                           depth=2, batch_norm=True)
+                                           depth=2, batch_norm=False)
             disc_s_from_zy = layers.Mlp([args.zy_dim] + [400, 400] + [1],
                                         activation=nn.ReLU,
                                         output_activation=None)
             disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim,
-                                           depth=2, batch_norm=True)
+                                           depth=2, batch_norm=False)
         else:
             z_channels = x_dim * 4 * 4
             wh = z_dim_flat // z_channels
