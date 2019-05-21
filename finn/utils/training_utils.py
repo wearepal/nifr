@@ -352,7 +352,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        disc_feats = Adult().features
+        disc_feats = Adult().feature_split['x']
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
@@ -373,8 +373,8 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
         start_idx = 0
         for layer, group in zip(output_layers, grouped_features):
             end_idx = len(group)
-            _recon.append(layer(recon[:, start_idx: end_idx]))
-            start_idx = end_idx
+            _recon.append(layer(recon[:, start_idx: start_idx+end_idx]))
+            start_idx += end_idx
 
         recon = torch.cat(_recon, dim=1)
 
@@ -394,7 +394,7 @@ class _OneHotEncoder(nn.Module):
         indexes = indexes.type(torch.int64).view(-1, 1)
         n_dims = self.n_dims #if self.n_dims is not None else int(torch.max(indexes)) + 1
         one_hots = torch.zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
-        one_hots = one_hots.view(*indexes.shape, -1)
+        one_hots = one_hots.view(x.size(0), -1)
         return one_hots
 
 
