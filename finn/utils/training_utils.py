@@ -7,10 +7,12 @@ import torch
 import torch.nn.functional as F
 from ethicml.algorithms.utils import DataTuple
 from ethicml.data import Adult
+from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
 import torchvision
 from tqdm import tqdm
+from itertools import groupby
 
 from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
@@ -349,7 +351,44 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
 
     recon = model(z_, reverse=True)
 
+    if args.dataset == 'adult':
+        disc_feats = Adult().features
+
+        def _add_output_layer(feature_group, dataset) -> nn.Sequential:
+            n_dims = len(feature_group)
+            categorical = n_dims > 1 or feature_group[
+                0] not in dataset.continuous_features  # feature is categorical if it has more than 1 possible output
+
+            if categorical:
+                layer = _OneHotEncoder(n_dims)
+            else:
+                layer = nn.Identity()
+
+            return layer
+
+
+        grouped_features = [list(group) for key, group in groupby(disc_feats, lambda x: x.split('_')[0])]
+        output_layers = nn.ModuleList([_add_output_layer(feature, Adult()) for feature in grouped_features])
+
+
+        recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
+
     return recon
+
+
+class _OneHotEncoder(nn.Module):
+    def __init__(self, n_dims, index_dim=1):
+        super().__init__()
+        self.n_dims = n_dims
+        self.index_dim = index_dim
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        indexes = x.argmax(dim=self.index_dim)
+        indexes = indexes.type(torch.int64).view(-1, 1)
+        n_dims = self.n_dims #if self.n_dims is not None else int(torch.max(indexes)) + 1
+        one_hots = torch.zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
+        one_hots = one_hots.view(*indexes.shape, -1)
+        return one_hots
 
 
 def reconstruct_all(args, z, model):
