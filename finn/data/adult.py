@@ -84,7 +84,7 @@ def load_adult_data(args):
         test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
 
         train_scaled = train_tuple.x
-        train_scaled[cont_feats] = scaler.fit_transform(train_tuple.x[cont_feats])
+        train_scaled[cont_feats] = scaler.transform(train_tuple.x[cont_feats])
         train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
 
     return train_tuple, test_tuple
