@@ -37,10 +37,9 @@ class DiscBase(ABC):
 def compute_log_pz(args, z):
     """Log of the base probability: log(p(z))"""
     if args.prior_dist == 'logistic':
-        dist = logistic_distribution(0, 1)
+        log_pz = logistic_distribution(z, 0, 1)
     else:
-        dist = torch.distributions.Normal(0, 1)
-    log_pz = dist.log_prob(z).flatten(1).sum(1)
+        log_pz = torch.distributions.Normal(0, 1).log_prob(z).flatten(1).sum(1)
     return log_pz.view(z.size(0), 1)
 
 

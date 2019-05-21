@@ -1,5 +1,4 @@
 import torch
-from torch import distributions as dist
 import torch.nn.functional as F
 import numpy as np
 
@@ -7,11 +6,10 @@ MIN_EPSILON = 1e-5
 MAX_EPSILON = 1.-1e-5
 
 
-def logistic_distribution(loc=0, scale=1):
-    base_distribution = dist.Uniform(0, 1)
-    transforms = [dist.SigmoidTransform().inv, dist.AffineTransform(loc=loc, scale=scale)]
-    logistic = dist.TransformedDistribution(base_distribution, transforms)
-    return logistic
+def logistic_distribution(x, loc=0, scale=1):
+    exp = - (x - loc) / scale
+    log_prob = exp - np.log(scale) - 2 * F.softplus(exp)
+    return log_prob
 
 
 def log_normal_log_sigma(x, mu, logsigma, average=False, reduce=True, dim=None):
