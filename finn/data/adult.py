@@ -14,9 +14,10 @@ def load_adult_data(args):
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
     data = load_data(Adult(), ordered=True)
 
-    # new_x = data.x.drop(
-    #     [col for col in data.x.columns if col.startswith('nat') and col != "native-country_United-States"], axis=1)
-    # data = DataTuple(x=new_x, s=data.s, y=data.y)
+    new_x = data.x.drop(
+        [col for col in data.x.columns if col.startswith('nat') and col != "native-country_United-States"], axis=1)
+    new_x["native-country_not_United-States"] = (1-new_x["native-country_United-States"])
+    data = DataTuple(x=new_x, s=data.s, y=data.y)
 
     if args.meta_learn:
         sy_equal = query_dt(

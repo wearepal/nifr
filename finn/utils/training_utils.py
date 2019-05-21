@@ -352,7 +352,15 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        feats = Adult().ordered_features['x']
+        disc_feats = Adult().discrete_features
+        cont_feats = Adult().continuous_features
+
+        countries = [col for col in disc_feats if (col.startswith('nat') and col != "native-country_United-States")]
+        disc_feats = [col for col in disc_feats if col not in countries]
+        disc_feats += ["native-country_not_United-States"]
+        disc_feats = sorted(disc_feats)
+
+        feats = disc_feats+cont_feats
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
