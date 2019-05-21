@@ -352,7 +352,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        feats = Adult().ordered_features
+        feats = Adult().ordered_features['x']
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
