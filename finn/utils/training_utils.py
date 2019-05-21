@@ -352,7 +352,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        disc_feats = Adult().feature_split['x']
+        feats = Adult().ordered_features
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
@@ -366,7 +366,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
 
             return layer
 
-        grouped_features = [list(group) for key, group in groupby(disc_feats, lambda x: x.split('_')[0])]
+        grouped_features = [list(group) for key, group in groupby(feats, lambda x: x.split('_')[0])]
         output_layers = nn.ModuleList([_add_output_layer(feature, Adult()) for feature in grouped_features]).to(args.device)
 
         _recon = []

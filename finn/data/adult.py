@@ -12,7 +12,12 @@ from ethicml.preprocessing.domain_adaptation import domain_split, query_dt
 
 def load_adult_data(args):
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
-    data = load_data(Adult())
+    data = load_data(Adult(), ordered=True)
+
+    new_x = data.x.drop(
+        [col for col in data.x.columns if col.startswith('nat') and col != "native-country_United-States"], axis=1)
+    data = DataTuple(x=new_x, s=data.s, y=data.y)
+
     if args.meta_learn:
         sy_equal = query_dt(
             data, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
@@ -51,10 +56,21 @@ def load_adult_data(args):
 
     scaler = StandardScaler()
 
-    test_scaled = pd.DataFrame(scaler.fit_transform(test_tuple.x), columns=test_tuple.x.columns)
-    test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
-    train_scaled = pd.DataFrame(scaler.transform(train_tuple.x), columns=train_tuple.x.columns)
-    train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
+    if args.dataset == 'cmnist':
+        test_scaled = pd.DataFrame(scaler.fit_transform(test_tuple.x), columns=test_tuple.x.columns)
+        test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
+        train_scaled = pd.DataFrame(scaler.transform(train_tuple.x), columns=train_tuple.x.columns)
+        train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
+    else:
+        cont_feats = Adult().continuous_features
+
+        test_scaled = test_tuple.x
+        test_scaled[cont_feats] = scaler.fit_transform(test_tuple.x[cont_feats])
+        test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
+
+        train_scaled = train_tuple.x
+        train_scaled[cont_feats] = scaler.fit_transform(train_tuple.x[cont_feats])
+        train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
 
     return train_tuple, test_tuple
 
