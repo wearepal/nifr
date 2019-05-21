@@ -330,7 +330,6 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     z_ = z.clone()
     wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
 
-
     if zero_zy:
         if args.inv_disc:
             z_[:, (z_.size(1) - args.zy_dim * wh):][:, :args.y_dim].zero_()
@@ -352,7 +351,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        disc_feats = Adult().features
+        disc_feats = Adult().feature_split['x']
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
@@ -372,13 +371,12 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
         _recon = []
         start_idx = 0
         for layer, group in zip(output_layers, grouped_features):
-            end_idx = len(group)
-            _recon.append(layer(recon[:, start_idx: end_idx]))
-            start_idx = end_idx
+            group_len = len(group)
+            _recon.append(layer(recon[:, start_idx: start_idx: start_idx + group_len]))
+            start_idx += group_len
 
         recon = torch.cat(_recon, dim=1)
-
-        # recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
+        print(recon.size())
 
     return recon
 
@@ -394,7 +392,7 @@ class _OneHotEncoder(nn.Module):
         indexes = indexes.type(torch.int64).view(-1, 1)
         n_dims = self.n_dims #if self.n_dims is not None else int(torch.max(indexes)) + 1
         one_hots = torch.zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
-        one_hots = one_hots.view(*indexes.shape, -1)
+        one_hots = one_hots.flatten(start_dim=1)
         return one_hots
 
 

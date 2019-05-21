@@ -106,7 +106,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         optimizer.zero_grad()
         disc_optimizer.zero_grad()
 
-    if ARGS.dataset == 'cmnist':
+    if ARGS.dataset == 'cmnist' or ARGS.dataset == 'adult':
 
         model.eval()
         with torch.no_grad():
