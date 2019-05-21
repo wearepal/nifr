@@ -1,7 +1,7 @@
 from torchvision import transforms
 from typing import NamedTuple
 
-from ethicml.algorithms.inprocess import LR
+from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.algorithms.utils import DataTuple
 from ethicml.data import Adult
 from ethicml.evaluators.evaluate_models import run_metrics
@@ -140,7 +140,7 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         if use_x:
             clf = train_and_evaluate_classifier(args, experiment, train_data, pred_s=not predict_y, use_s=use_s, name=name)
         else:
-            clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s= not predict_y, use_s=use_s, applicative=True)
+            clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s=not predict_y, use_s=use_s, applicative=True)
         preds_x, test_x = clf(test_data=train_data)
         compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
         preds_x, test_x = clf(test_data=test_data)
@@ -151,7 +151,8 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
             train_data, test_data = get_data_tuples(train_data, test_data)
         run_all = True
         train_x, test_x = make_tuple_from_data(train_data, test_data, pred_s=not predict_y, use_s=use_s)
-        preds_x = LR().run(train_x, test_x)
+        clf = MLP() if args.mlp_clf else LR()
+        preds_x = clf.run(train_x, test_x)
 
     print("\tTest performance")
     compute_metrics(experiment, preds_x, test_x, name, run_all=run_all)
