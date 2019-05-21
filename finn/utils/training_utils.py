@@ -393,7 +393,7 @@ class _OneHotEncoder(nn.Module):
         indexes = x.argmax(dim=self.index_dim)
         indexes = indexes.type(torch.int64).view(-1, 1)
         n_dims = self.n_dims #if self.n_dims is not None else int(torch.max(indexes)) + 1
-        one_hots = torch.zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
+        one_hots = x.new_zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
         one_hots = one_hots.view(x.size(0), -1)
         return one_hots
 
