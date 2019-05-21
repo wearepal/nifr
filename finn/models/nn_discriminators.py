@@ -76,7 +76,7 @@ class NNDisc(DiscBase):
 
         z, delta_logp = model(x, zero)  # run model forward
 
-        log_pz = compute_log_pz(z)
+        log_pz = compute_log_pz(self.args, z)
         # zn = z[:, :self.args.zn_dim]
         zs = z[:, self.args.zn_dim: (z.size(1) - self.args.zy_dim)]
         zy = z[:, (z.size(1) - self.args.zy_dim):]

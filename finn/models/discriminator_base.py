@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from itertools import chain
 
 import torch
+
+from finn.utils.distributions import logistic_mixture_logprob
 from .image import glow
 from .tabular import tabular_model
 
@@ -32,10 +34,18 @@ class DiscBase(ABC):
         return chain(*[disc.parameters() for disc in self.discs_dict.values() if disc is not None])
 
 
-def compute_log_pz(z):
+def compute_log_pz(args, z):
     """Log of the base probability: log(p(z))"""
-    log_pz = torch.distributions.Normal(0, 1).log_prob(z).flatten(1).sum(1)
-    return log_pz.view(z.size(0), 1)
+    if args.prior_dist == 'logistic':
+        locs = (-7, -4, 0, 2, 5)
+        scales = (0.5, 0.5, 0.5, 0.5, 0.5)
+        weights = (2, 3, 2, 1, 4)
+        log_pz = logistic_mixture_logprob(z, locs, scales, weights)
+    else:
+        log_pz = torch.distributions.Normal(0, 1).log_prob(z)
+
+    log_pz = log_pz.flatten(1).sum(1).view(z.size(0), 1)
+    return log_pz
 
 
 def fetch_model(args, x_dim):

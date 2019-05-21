@@ -1,10 +1,20 @@
 import torch
-from torch import distributions
 import torch.nn.functional as F
 import numpy as np
 
 MIN_EPSILON = 1e-5
 MAX_EPSILON = 1.-1e-5
+
+
+def logistic_mixture_logprob(x, locs=(0), scales=(1), weights=(0)):
+    assert len(locs) == len(scales) == len(weights)
+
+    weights = F.softmax(torch.Tensor(list(weights)), dim=0)
+    log_prob = 0
+    for mu, sigma, pi in zip(locs, scales, weights):
+        exp = - (x - mu) / sigma
+        log_prob += pi * (exp - np.log(sigma) - 2 * F.softplus(exp))
+    return log_prob
 
 
 def log_normal_log_sigma(x, mu, logsigma, average=False, reduce=True, dim=None):
@@ -115,17 +125,3 @@ def gumbel_softmax(logits, temperature):
     y_hard = y_hard.view_as(y)
     y_hard = (y_hard - y).detach() + y
     return y_hard.view(logits.size(0), -1)
-
-
-class Categorical(distributions.Categorical):
-    """
-    Extension of the PyTorch's categorical distribution function
-    which adds reparameterization using the Gumbel-Softmax trick
-    """
-    def rsample(self, temperature=0.1, hard_max=False):
-
-        if hard_max:
-            z = one_hot(self.logits)
-        else:
-            z = sample_gumbel_softmax(self.logits, temperature)
-        return z
