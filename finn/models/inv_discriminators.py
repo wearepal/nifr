@@ -117,7 +117,7 @@ class InvDisc(DiscBase):
         pred_s_from_zy_loss = z.new_zeros(1)
 
         if z_yn.size(1) > 0:
-            log_pz += compute_log_pz(z_yn)
+            log_pz += compute_log_pz(self.args, z_yn)
             if not self.args.meta_learn:
                 pred_y_loss = self.args.pred_y_weight * class_loss(z_yn, y)
 
@@ -135,7 +135,7 @@ class InvDisc(DiscBase):
             pred_s_from_zy_loss += indie_loss(self.s_from_zy(z_yn), s, reduction='mean')
 
         if z_sn.size(1) > 0:
-            log_pz += compute_log_pz(z_sn)
+            log_pz += compute_log_pz(self.args, z_sn)
             pred_s_from_zs_loss = self.args.pred_s_from_zs_weight * class_loss(z_sn, s)
 
         log_px = self.args.log_px_weight * (log_pz - delta_log_p).mean()
