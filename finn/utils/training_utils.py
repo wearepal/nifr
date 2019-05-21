@@ -95,6 +95,7 @@ def parse_arguments(raw_args=None):
                              'Value of 0.95 arbitrarily chosen.')
     parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
+    parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
 
     return parser.parse_args(raw_args)
 
@@ -353,7 +354,18 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        feats = Adult().ordered_features['x']
+        disc_feats = Adult().discrete_features
+        cont_feats = Adult().continuous_features
+        assert len(disc_feats) + len(cont_feats) == 101
+
+        if args.drop_native:
+            countries = [col for col in disc_feats if (col.startswith('nat') and col != "native-country_United-States")]
+            disc_feats = [col for col in disc_feats if col not in countries]
+            disc_feats += ["native-country_not_United-States"]
+            disc_feats = sorted(disc_feats)
+            assert len(disc_feats) + len(cont_feats) == 62
+
+        feats = disc_feats+cont_feats
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
@@ -378,6 +390,10 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             start_idx += end_idx
 
         recon = torch.cat(_recon, dim=1)
+        if args.drop_native:
+            assert recon.size(1) == 62
+        else:
+            assert recon.size(1) == 101
 
         # recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
 
