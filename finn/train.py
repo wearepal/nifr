@@ -106,25 +106,23 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         optimizer.zero_grad()
         disc_optimizer.zero_grad()
 
-    if ARGS.dataset == 'cmnist':
+    model.eval()
+    with torch.no_grad():
 
-        model.eval()
-        with torch.no_grad():
+        log_images(SUMMARY, x, 'original_x')
 
-            log_images(SUMMARY, x, 'original_x')
+        whole_model = discs.assemble_whole_model(model)
+        z = whole_model(x[:64])
 
-            whole_model = discs.assemble_whole_model(model)
-            z = whole_model(x[:64])
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
 
-            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
-
-            log_images(SUMMARY, recon_all, 'reconstruction_all')
-            log_images(SUMMARY, recon_y, 'reconstruction_y')
-            log_images(SUMMARY, recon_s, 'reconstruction_s')
-            log_images(SUMMARY, recon_n, 'reconstruction_n')
-            log_images(SUMMARY, recon_ys, 'reconstruction_ys')
-            log_images(SUMMARY, recon_yn, 'reconstruction_yn')
-            log_images(SUMMARY, recon_sn, 'reconstruction_sn')
+        log_images(SUMMARY, recon_all, 'reconstruction_all')
+        log_images(SUMMARY, recon_y, 'reconstruction_y')
+        log_images(SUMMARY, recon_s, 'reconstruction_s')
+        log_images(SUMMARY, recon_n, 'reconstruction_n')
+        log_images(SUMMARY, recon_ys, 'reconstruction_ys')
+        log_images(SUMMARY, recon_yn, 'reconstruction_yn')
+        log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
@@ -166,6 +164,10 @@ def validate(model, discs, val_loader):
         log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
         log_images(SUMMARY, recon_sn, 'reconstruction_sn', prefix='test')
     else:
+        z = whole_model(x_val[:1000])
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+        log_images(SUMMARY, x_val, 'original_x', prefix='test')
+        log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
         x_recon = whole_model(whole_model(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")

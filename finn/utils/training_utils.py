@@ -278,7 +278,7 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
                 x = torch.cat((x, s), dim=1)
             if args.dataset == 'cmnist' and not use_s and using_x:
                 x = x.mean(dim=1, keepdim=True)
-            if experiment is not None and args.dataset == 'cmnist' and i == 0:
+            if experiment is not None and i == 0:
                 log_images(experiment, x, f"evaluation on {name}", prefix='eval')
 
 
