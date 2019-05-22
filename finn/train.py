@@ -130,7 +130,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         epoch_loss += meta_loss
 
         model.train()
-        discs.eval()
 
         epoch_loss.backward()
         optimizer.step()
