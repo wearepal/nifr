@@ -159,6 +159,7 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
             optimizer.zero_grad()
             optimizer.step()
 
+    meta_loss /= args.meta_epochs
     return meta_loss
 
 
