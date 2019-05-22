@@ -116,8 +116,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
 
     if ARGS.full_meta:
         task_train_enc = encode_dataset_no_recon(ARGS, task_train, model)['zy']
-        train_len = int(0.1 * len(task_train_enc))
-        test_len = int(0.1 * len(task_train_enc))
+        train_len = int(0.5 * len(task_train_enc))
+        test_len = int(0.25 * len(task_train_enc))
         val_len = int(len(task_train_enc) - train_len - test_len)
         lengths = [train_len, test_len, val_len]
         _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
