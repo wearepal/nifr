@@ -37,7 +37,7 @@ def load_adult_data(args):
 
         not_task, task = train_test_split(data, train_percentage=0.8, random_seed=888)
 
-        not_task_or_meta, meta = train_test_split(not_task, train_percentage=0.75, random_seed=888)
+        not_task_or_meta, meta = train_test_split(not_task, train_percentage=0.5, random_seed=888)
 
         sy_equal = query_dt(
             not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
