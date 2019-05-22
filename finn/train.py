@@ -102,7 +102,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             log_p_x.backward(retain_graph=True)
             optimizer.step()
             optimizer.zero_grad()
-            epoch_loss += loss
+            epoch_loss += (loss - log_p_x)
         else:
             loss.backward()
             optimizer.step()
