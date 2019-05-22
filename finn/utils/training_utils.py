@@ -129,6 +129,10 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
             # target = s
         else:
             target = y
+
+        if loss_fn == F.binary_cross_entropy:
+            target = target.float()
+
         x = x.to(args.device)
         target = target.to(args.device).long()
 
@@ -140,7 +144,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         optimizer.zero_grad()
         preds = model(x)
 
-        loss = loss_fn(preds.float(), target, reduction='mean')
+        loss = loss_fn(preds, target, reduction='mean')
 
         loss.backward()
         optimizer.step()
