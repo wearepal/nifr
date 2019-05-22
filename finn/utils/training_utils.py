@@ -101,6 +101,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--full-meta', type=eval, default=True, choices=[True, False])
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=20)
+    parser.add_argument('--meta-weight-decay', type=float, default=1e-1)
 
     return parser.parse_args(raw_args)
 
@@ -130,7 +131,7 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
 
     model.train()
     clf.train()
-    optimizer = torch.optim.Adam(clf.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(clf.parameters(), lr=1e-3, weight_decay=args.meta_weight_decay)
 
     meta_loss = torch.zeros(1).to(args.device)
 
