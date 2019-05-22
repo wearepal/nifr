@@ -5,7 +5,7 @@ from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.algorithms.utils import DataTuple
 from ethicml.data import Adult
 from ethicml.evaluators.evaluate_models import run_metrics
-from ethicml.metrics import Accuracy, Theil, ProbPos, TPR
+from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, NMI, PPV
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 import pandas as pd
@@ -20,9 +20,14 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
 
     if run_all:
         metrics = run_metrics(predictions, actual,
-                              metrics=[Accuracy(), Theil()],
-                              per_sens_metrics=[Theil(), ProbPos(), TPR()])
+                              metrics=[Accuracy(), Theil(), NMI(), TPR(), TNR(), PPV()],
+                              per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), NMI(), PPV()])
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
+        experiment.log_metric(f"{name} NMI", metrics['NMI'])
+        experiment.log_metric(f"{name} TPR", metrics['TPR'])
+        experiment.log_metric(f"{name} TNR", metrics['TNR'])
+        experiment.log_metric(f"{name} PPV", metrics['PPV'])
+        experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
         # experiment.log_metric(f"{name} TPR, metrics['Theil_Index'])
         experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1.0'])
         experiment.log_metric(f"{name} Theil_Index", metrics['Theil_Index'])
@@ -37,6 +42,10 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
         experiment.log_metric(f"{name} TPR|s=0", metrics['TPR_sex_Male_0.0'])
         experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics['TPR_sex_Male_0.0/sex_Male_1.0'])
         experiment.log_metric(f"{name} TPR Diff s0-s1", metrics['TPR_sex_Male_0.0/sex_Male_1.0'])
+
+        experiment.log_metric(f"{name} NMI Ratio s0/s1", metrics['NMI_sex_Male_0.0/sex_Male_1.0'])
+        experiment.log_metric(f"{name} PPV Ratio s0/s1", metrics['PPV_sex_Male_0.0/sex_Male_1.0'])
+        experiment.log_metric(f"{name} TNR Ratio s0/s1", metrics['TNR_sex_Male_0.0/sex_Male_1.0'])
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
