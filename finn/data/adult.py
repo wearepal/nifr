@@ -34,12 +34,17 @@ def load_adult_data(args):
         assert data.x.shape[1] == 62
 
     if args.meta_learn:
-        sy_equal = query_dt(
-            data, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
-        sy_opposite = query_dt(
-            data, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
 
-        task_train_fraction = 0.5  # how much of sy_equal should be reserved for the task train set
+        not_task, task = train_test_split(data, train_percentage=0.8, random_seed=888)
+
+        not_task_or_meta, meta = train_test_split(not_task, train_percentage=0.75, random_seed=888)
+
+        sy_equal = query_dt(
+            not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
+        sy_opposite = query_dt(
+            not_task_or_meta, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
+
+        task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
         mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
         sy_equal_task_train, sy_equal_meta_train = train_test_split(
@@ -49,45 +54,47 @@ def load_adult_data(args):
 
         task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
                                      axis='index', ignore_index=True)
-        meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
-                                     axis='index', ignore_index=True)
+        # meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
+        #                              axis='index', ignore_index=True)
 
         if mix_fact == 0:
-            # s and y should not be overly correlated in the meta train set
-            assert abs(meta_train_tuple.s['sex_Male'].corr(meta_train_tuple.y['salary_>50K'])) < 0.1
-            # but they should be very correlated in the task train set
+            # s & y should be very correlated in the task train set
             assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
 
         # old nomenclature:
-        train_tuple, test_tuple = meta_train_tuple, task_train_tuple
+        meta_train = meta
+        task = task
+        task_train = task_train_tuple
+
     elif args.add_sampling_bias:
-        train_tuple, test_tuple = domain_split(
+        meta_train = None
+        task_train, task = domain_split(
             datatup=data,
             tr_cond='education_Masters == 0. & education_Doctorate == 0.',
             te_cond='education_Masters == 1. | education_Doctorate == 1.'
         )
     else:
-        train_tuple, test_tuple = train_test_split(data)
+        task_train, task = train_test_split(data)
+        meta_train = None
 
     scaler = StandardScaler()
 
-    if args.dataset == 'cmnist':
-        test_scaled = pd.DataFrame(scaler.fit_transform(test_tuple.x), columns=test_tuple.x.columns)
-        test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
-        train_scaled = pd.DataFrame(scaler.transform(train_tuple.x), columns=train_tuple.x.columns)
-        train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
-    else:
-        cont_feats = Adult().continuous_features
+    cont_feats = Adult().continuous_features
 
-        test_scaled = test_tuple.x
-        test_scaled[cont_feats] = scaler.fit_transform(test_tuple.x[cont_feats])
-        test_tuple = DataTuple(x=test_scaled, s=test_tuple.s, y=test_tuple.y)
+    task_train_scaled = task_train.x
+    task_train_scaled[cont_feats] = scaler.fit_transform(task_train.x[cont_feats])
+    task_train = DataTuple(x=task_train_scaled, s=task_train.s, y=task_train.y)
 
-        train_scaled = train_tuple.x
-        train_scaled[cont_feats] = scaler.transform(train_tuple.x[cont_feats])
-        train_tuple = DataTuple(x=train_scaled, s=train_tuple.s, y=train_tuple.y)
+    task_scaled = task.x
+    task_scaled[cont_feats] = scaler.transform(task.x[cont_feats])
+    task = DataTuple(x=task_scaled, s=task.s, y=task.y)
 
-    return train_tuple, test_tuple
+    if args.meta_learn:
+        meta_train_scaled = meta_train.x
+        meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
+        meta_train = DataTuple(x=meta_train_scaled, s=meta_train.s, y=meta_train.y)
+
+    return meta_train, task, task_train
 
 
 def get_data_tuples(*pytorch_datasets):

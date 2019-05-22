@@ -58,26 +58,22 @@ def load_dataset(args):
         # train_data, test_data = load_cmnist_from_file(args)
         args.y_dim = 10
         args.s_dim = 10
-    else:
-        train_tuple, test_tuple = load_adult_data(args)
-        whole_train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                           for df in train_tuple])
-        whole_test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                          for df in test_tuple])
-        args.y_dim = 1
-        args.s_dim = 1
 
-    # =============== process the datasets ===================
-    # whole_train_data: D*, whole_val_data: D, whole_test_data: D†
-    if args.dataset == 'cmnist':
         whole_train_data.swap_train_test_colorization()
         whole_test_data.swap_train_test_colorization()
         # split the training set to get training and validation sets
         whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
+
     else:
-        val_len = round(0.1 / 0.75 * len(whole_train_data))
-        train_len = len(whole_train_data) - val_len
-        whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(train_len, val_len))
+        meta_tuple, task_tuple, task_train_tuple = load_adult_data(args)
+        whole_train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                           for df in meta_tuple])
+        whole_val_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                           for df in task_tuple])
+        whole_test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
+                                          for df in task_train_tuple])
+        args.y_dim = 1
+        args.s_dim = 1
 
     # shrink meta train set according to args.data_pcnt
     meta_train_len = int(args.data_pcnt * len(whole_train_data))
