@@ -162,7 +162,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
                 "pred_s_from_zy: {:.5g} | pred_s_from_zs {:.5g} ({:.5g})",
                 epoch, time_for_epoch, 1 / time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg,
-                epoch_loss if ARGS.full_meta else loss_meter.avg)
+                epoch_loss.item() if ARGS.full_meta else loss_meter.avg)
 
 
 def validate(model, discs, val_loader):
