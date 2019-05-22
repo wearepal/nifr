@@ -122,7 +122,7 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
         train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
 
     clf = nn.Sequential(nn.Linear(args.zy_dim, args.s_dim))
-    clf.add_module(nn.LogSoftmax(dim=1) if args.dataset == 'cmnist' else nn.Sigmoid())
+    clf.add_module('act', nn.LogSoftmax(dim=1) if args.dataset == 'cmnist' else nn.Sigmoid())
 
     loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy
 
