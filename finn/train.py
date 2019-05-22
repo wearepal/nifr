@@ -101,7 +101,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             test_len = int(0.1 * len(task_train_enc))
             val_len = int(len(task_train_enc) - train_len - test_len)
             lengths = [train_len, test_len, val_len]
-            _train_data, _test_data = random_split(task_train_enc, lengths=lengths)
+            _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
             meta_loss = evaluate_with_classifier(ARGS, _train_data, _test_data,
                                                  in_channels=ARGS.zy_dim)
             loss += meta_loss
