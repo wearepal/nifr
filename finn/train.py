@@ -126,12 +126,13 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
         meta_loss = evaluate_with_classifier(ARGS, _train_data, _test_data,
                                              in_channels=ARGS.zy_dim)
+        LOGGER.info("Meta loss {:.5g}", meta_loss)
 
         epoch_loss += meta_loss
-
+        loss = epoch_loss
         model.train()
 
-        epoch_loss.backward()
+        loss.backward()
         optimizer.step()
         # disc_optimizer.step()
 
