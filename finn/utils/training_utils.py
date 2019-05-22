@@ -130,11 +130,11 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         else:
             target = y
 
-        if loss_fn == F.binary_cross_entropy:
-            target = target.float()
+        if loss_fn == F.nll_loss:
+            target = target.long()
 
         x = x.to(args.device)
-        target = target.to(args.device).long()
+        target = target.to(args.device)
 
         if args.dataset == 'adult' and use_s and args.use_s:
             x = torch.cat((x, s), dim=1)
