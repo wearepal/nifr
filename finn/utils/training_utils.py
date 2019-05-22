@@ -16,6 +16,7 @@ from itertools import groupby
 
 from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
+from finn import layers
 
 
 def parse_arguments(raw_args=None):
@@ -121,7 +122,7 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
     if not isinstance(train_data, DataLoader):
         train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
 
-    clf = nn.Sequential(nn.Linear(args.zy_dim, args.s_dim))
+    clf = nn.Sequential(nn.Linear(args.zy_dim, args.s_dim if pred_s else args.y_dim))
     clf.add_module('act', nn.LogSoftmax(dim=1) if args.dataset == 'cmnist' else nn.Sigmoid())
     clf.to(args.device)
 
@@ -147,11 +148,13 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
             x = x.to(args.device)
 
             z = model(x)
-            zy = model(x)[:, (z.size(1) - args.zy_dim):]
+            z = z[:, (z.size(1) - args.zy_dim):]
 
+            if pred_s:
+                z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
             target = target.to(args.device)
 
-            preds = clf(zy)
+            preds = clf(z)
             loss = loss_fn(preds, target, reduction='mean')
 
             if epoch == args.meta_epochs - 1:

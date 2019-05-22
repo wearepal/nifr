@@ -123,7 +123,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         end = time.time()
 
     if ARGS.full_meta:
-        meta_loss = compute_meta_loss(ARGS, model, task_train)
+        meta_loss = compute_meta_loss(ARGS, model, task_train, pred_s=True)
         meta_loss *= ARGS.meta_weight
         LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
 
