@@ -126,6 +126,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
         meta_loss = evaluate_with_classifier(ARGS, _train_data, _test_data,
                                              in_channels=ARGS.zy_dim)
+        meta_loss *= ARGS.meta_weight
         LOGGER.info("Meta loss {:.5g}", meta_loss)
 
         epoch_loss += meta_loss
