@@ -134,7 +134,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
 
         epoch_loss += -meta_loss
         torch.nn.utils.clip_grad_norm(model.parameters(), 5)
-        torch.nn.utils.clip_grad_norm(disc_optimizer.state_dict(), 5)
+        torch.nn.utils.clip_grad_norm(discs.parameters(), 5)
 
         model.train()
 
