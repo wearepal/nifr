@@ -99,6 +99,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
     parser.add_argument('--full-meta', type=eval, default=True, choices=[True, False])
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
+    parser.add_argument('--meta_epochs', type=int, default=20)
 
     return parser.parse_args(raw_args)
 
@@ -113,6 +114,53 @@ def restricted_float(x):
 def find(value, value_list):
     result_list = [[i for i, val in enumerate(value.new_tensor(value_list)) if (s_i == val).all()] for s_i in value]
     return torch.tensor(result_list).flatten(start_dim=1)
+
+
+def compute_meta_loss(args, model, train_data, pred_s=False):
+
+    if not isinstance(train_data, DataLoader):
+        train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+
+    clf = nn.Sequential(nn.Linear(args.zy_dim, args.s_dim))
+    clf.add_module(nn.LogSoftmax(dim=1) if args.dataset == 'cmnist' else nn.Sigmoid())
+
+    loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy
+
+    model.train()
+    clf.train()
+    optimizer = torch.optim.Adam(clf.parameters(), lr=1e-3)
+
+    meta_loss = torch.zeros(1).to(args.device)
+
+    for epoch in range(args.meta_epochs):
+        for x, s, y in train_data:
+
+            if pred_s:
+                target = s
+                # target = s
+            else:
+                target = y
+
+            if loss_fn == F.nll_loss:
+                target = target.long()
+            x = x.to(args.device)
+
+            z = model(x)
+            zy = model(x)[:, (z.size(1) - args.zy_dim):]
+
+            target = target.to(args.device)
+
+            preds = clf(zy)
+            loss = loss_fn(preds, target, reduction='mean')
+            meta_loss += loss
+
+            loss.backward(retain_graph=True)
+            optimizer.zero_grad()
+            optimizer.step()
+
+    return meta_loss
+
+
 
 
 def train_classifier(args, model, optimizer, train_data, use_s, pred_s):

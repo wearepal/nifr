@@ -11,7 +11,8 @@ from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.evaluate_utils import MetaDataset
-from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, encode_dataset_no_recon
+from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, encode_dataset_no_recon, \
+    compute_meta_loss
 from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam
 
@@ -121,14 +122,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         end = time.time()
 
     if ARGS.full_meta:
-        task_train_enc = encode_dataset_no_recon(ARGS, task_train, model)['zy']
-        train_len = int(0.5 * len(task_train_enc))
-        test_len = int(0.25 * len(task_train_enc))
-        val_len = int(len(task_train_enc) - train_len - test_len)
-        lengths = [train_len, test_len, val_len]
-        _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
-        meta_loss = evaluate_with_classifier(ARGS, _train_data, _test_data,
-                                             in_channels=ARGS.zy_dim)
+        meta_loss = compute_meta_loss(ARGS, model, task_train)
         meta_loss *= ARGS.meta_weight
         LOGGER.info("Meta loss {:.5g}", meta_loss)
 
