@@ -111,7 +111,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
 
         disc_optimizer.step()
 
-
         time_meter.update(time.time() - end)
 
         SUMMARY.set_step(itr)
@@ -278,7 +277,7 @@ def main(args, datasets, metric_callback):
             break
 
         with SUMMARY.train():
-            train(model, discs, optimizer, disc_optimizer, train_loader, epoch)
+            train(model, discs, optimizer, disc_optimizer, train_loader, epoch, datasets.task_train)
             SUMMARY.log_metric("lr", scheduler.get_lr()[0])
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
