@@ -169,6 +169,9 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
             else:
                 target = y
 
+            if loss_fn == F.nll_loss:
+                target = target.long()
+
             x = x.to(args.device)
             target = target.to(args.device)
 
@@ -178,7 +181,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
-            val_loss += loss_fn(preds.float(), target.long(), reduction='sum').item()
+            val_loss += loss_fn(preds.float(), target, reduction='sum').item()
 
             if args.dataset == 'adult':
                 acc += torch.sum(preds.round().long() == target).item()
