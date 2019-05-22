@@ -52,6 +52,7 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
     for key, value in metrics.items():
         print(f"\t\t{key}: {value:.4f}")
     print()  # empty line
+    return metrics
 
 
 def metrics_for_meta_learn(args, experiment, clf, repr, data):
@@ -66,7 +67,9 @@ def metrics_for_meta_learn(args, experiment, clf, repr, data):
             repr.task_train['zy'], repr.task['zy'] = get_data_tuples(repr.task_train['zy'],
                                                                      repr.task['zy'])
         preds_meta = clf.run(repr.task_train['zy'], repr.task['zy'])
-        compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta", run_all=True)
+        metrics = compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta", run_all=True)
+        print(",".join(metrics.keys()))
+        print(",".join([str(val) for val in metrics.values()]))
 
 
 def make_tuple_from_data(train, test, pred_s, use_s):
@@ -151,7 +154,7 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         else:
             clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s=not predict_y, use_s=use_s, applicative=True)
         preds_x, test_x = clf(test_data=train_data)
-        compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
+        _ = compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
         preds_x, test_x = clf(test_data=test_data)
         print("\tTraining performance")
 
@@ -164,4 +167,4 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         preds_x = clf.run(train_x, test_x)
 
     print("\tTest performance")
-    compute_metrics(experiment, preds_x, test_x, name, run_all=run_all)
+    _ = compute_metrics(experiment, preds_x, test_x, name, run_all=run_all)

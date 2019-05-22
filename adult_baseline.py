@@ -17,7 +17,7 @@ def main():
         meta_lead = True
         data_split_seed = 888
 
-    for clf in [LR(), Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
+    for clf in [LR()]:#, Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
         df = pd.DataFrame(columns=[
             'mix_factor',
             'Accuracy',
@@ -65,6 +65,10 @@ def main():
             res_dict = run_metrics(preds, task, metrics=[Accuracy(), Theil(), NMI(), TPR(), TNR(), PPV()],
                                                 per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), NMI(), PPV()])
             res_dict['mix_factor'] = mix_fact
+
+            print(",".join(res_dict.keys()))
+            print(",".join([str(val) for val in res_dict.values()]))
+
             df = df.append(res_dict, ignore_index=True)
             print(f"mix: {mix_fact}\t acc: {res_dict['Accuracy']}")
             print("----------------------")
