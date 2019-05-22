@@ -34,23 +34,24 @@ def load_adult_data(args):
         assert data.x.shape[1] == 62
 
     if args.meta_learn:
+        def _random_split(data, first_pcnt):
+            return train_test_split(
+                data, train_percentage=first_pcnt, random_seed=args.data_split_seed)
 
-        not_task, task = train_test_split(data, train_percentage=0.8, random_seed=888)
+        not_task, task = _random_split(data, first_pcnt=0.8)
 
-        not_task_or_meta, meta = train_test_split(not_task, train_percentage=0.5, random_seed=888)
+        not_task_or_meta, meta = _random_split(not_task, first_pcnt=0.5)
 
         sy_equal = query_dt(
             not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
         sy_opposite = query_dt(
             not_task_or_meta, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
 
-        task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
+        # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
         mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
-        sy_equal_task_train, sy_equal_meta_train = train_test_split(
-            sy_equal, train_percentage=task_train_fraction * (1 - mix_fact), random_seed=888)
-        sy_opp_task_train, sy_opp_meta_train = train_test_split(
-            sy_opposite, train_percentage=task_train_fraction * mix_fact, random_seed=888)
+        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=(1 - mix_fact))
+        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=mix_fact)
 
         task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
                                      axis='index', ignore_index=True)
