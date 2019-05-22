@@ -153,16 +153,16 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
 
             preds = clf(zy)
             loss = loss_fn(preds, target, reduction='mean')
-            meta_loss += loss
+
+            if epoch == args.meta_epochs - 1:
+                meta_loss += loss
 
             loss.backward(retain_graph=True)
             optimizer.zero_grad()
             optimizer.step()
 
-    meta_loss /= args.meta_epochs
+    # meta_loss /= args.meta_epochs
     return meta_loss
-
-
 
 
 def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
