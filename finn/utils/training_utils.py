@@ -184,7 +184,7 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
             val_loss += loss_fn(preds.float(), target, reduction='sum').item()
 
             if args.dataset == 'adult':
-                acc += torch.sum(preds.round().long() == target).item()
+                acc += torch.sum(preds.round() == target).item()
             else:
                 acc += torch.sum(preds.argmax(dim=1) == target).item()
 
