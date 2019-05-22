@@ -74,7 +74,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     start_epoch_time = time.time()
     end = start_epoch_time
 
-    # total_loss = torch.zeros(1).to(ARGS.device)
+    epoch_loss = torch.zeros(1).to(ARGS.device)
     # for m in range(ARGS.meta_iters):
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
@@ -96,20 +96,14 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-            task_train_enc = encode_dataset_no_recon(ARGS, task_train, model)['zy']
-            train_len = int(0.1 * len(task_train_enc))
-            test_len = int(0.1 * len(task_train_enc))
-            val_len = int(len(task_train_enc) - train_len - test_len)
-            lengths = [train_len, test_len, val_len]
-            _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
-            meta_loss = evaluate_with_classifier(ARGS, _train_data, _test_data,
-                                                 in_channels=ARGS.zy_dim)
-            loss += meta_loss
+            epoch_loss += loss
+        else:
+            loss.backward()
+            optimizer.step()
+            disc_optimizer.step()
 
-        loss.backward()
-        optimizer.step()
-
-        disc_optimizer.step()
+            optimizer.zero_grad()
+            disc_optimizer.zero_grad()
 
         time_meter.update(time.time() - end)
 
@@ -119,6 +113,24 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         SUMMARY.log_metric('Loss pred_s_from_zy_loss', pred_s_from_zy_loss.item())
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
+
+    if ARGS.full_meta:
+        task_train_enc = encode_dataset_no_recon(ARGS, task_train, model)['zy']
+        train_len = int(0.1 * len(task_train_enc))
+        test_len = int(0.1 * len(task_train_enc))
+        val_len = int(len(task_train_enc) - train_len - test_len)
+        lengths = [train_len, test_len, val_len]
+        _train_data, _test_data, _ = random_split(task_train_enc, lengths=lengths)
+        meta_loss = evaluate_with_classifier(ARGS, _train_data, _test_data,
+                                             in_channels=ARGS.zy_dim)
+
+        epoch_loss += meta_loss
+
+        model.train()
+
+        epoch_loss.backward()
+        optimizer.step()
+        disc_optimizer.step()
 
         optimizer.zero_grad()
         disc_optimizer.zero_grad()
