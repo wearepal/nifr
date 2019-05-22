@@ -124,7 +124,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     if ARGS.full_meta:
         meta_loss = compute_meta_loss(ARGS, model, task_train)
         meta_loss *= ARGS.meta_weight
-        LOGGER.info("Meta loss {:.5g}", meta_loss)
+        LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
 
         epoch_loss += meta_loss
         torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
