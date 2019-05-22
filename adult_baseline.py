@@ -13,19 +13,10 @@ from finn.data.dataloading import load_adult_data
 def main():
     class _Namespace:
         meta_learn = True
+        drop_native = True
+        meta_lead = True
 
-    args = _Namespace()
-    args.drop_native = True
-    args.task_mixing_factor = 0
-    args.meta_lead = True
-    meta_train, task, task_train = load_adult_data(args)
-    ethicml_model = SVM(kernel='linear')
-    # ethicml_model = Majority()
-    predictions = ethicml_model.run(task_train, task)
-    metrics = run_metrics(predictions, task, metrics=[Accuracy()], per_sens_metrics=[])
-    print(f"Accuracy: {metrics['Accuracy']}")
-
-    for clf in [Agarwal(), LR(), Majority(), Kamiran()]:
+    for clf in [Agarwal(), LR(), Majority(), Kamiran(), SVM(kernel='linear')]:
         df = pd.DataFrame(columns=[
             'mix_factor', 'Accuracy', 'CV', 'Theil_Index', 'Accuracy_sex_Male_1', 'Accuracy_sex_Male_0',
             'Accuracy_sex_Male_0-sex_Male_1', 'Accuracy_sex_Male_0/sex_Male_1', 'TPR_sex_Male_1', 'TPR_sex_Male_0',
@@ -35,9 +26,7 @@ def main():
         ])
         for mix_fact in [k / 100 for k in range(0, 105, 5)]:
             args = _Namespace()
-            args.drop_native = True
             args.task_mixing_factor = mix_fact
-            args.meta_lead = True
             meta_train, task, task_train = load_adult_data(args)
             try:
                 preds = clf.run(task_train, task)
