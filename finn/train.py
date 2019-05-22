@@ -132,7 +132,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         meta_loss *= ARGS.meta_weight
         LOGGER.info("Meta loss {:.5g}", meta_loss)
 
-        epoch_loss += meta_loss
+        epoch_loss += -meta_loss
         model.train()
 
         epoch_loss.backward()
