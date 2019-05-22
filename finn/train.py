@@ -100,10 +100,10 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             # loss.backward(retain_graph=True)
             # disc_optimizer.step()
             # disc_optimizer.zero_grad()
-            log_p_x.backward(retain_graph=True)
-            optimizer.step()
-            optimizer.zero_grad()
-            epoch_loss += (loss - log_p_x)
+            # log_p_x.backward(retain_graph=True)
+            # optimizer.step()
+            # optimizer.zero_grad()
+            # epoch_loss += (loss - log_p_x)
             epoch_loss += loss
         else:
             loss.backward()
