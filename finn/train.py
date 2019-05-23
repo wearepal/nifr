@@ -175,6 +175,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         log_images(SUMMARY, recon_yn, 'reconstruction_yn')
         log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
+    epoch_loss = epoch_loss_d + epoch_loss_g
+
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
                 "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | "
