@@ -49,8 +49,15 @@ def load_adult_data(args):
         # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
         mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
-        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=(1 - mix_fact))
-        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=mix_fact)
+        if args.eff_comb:
+            sy_equal_fraction = min(1., 2 * (1 - mix_fact))
+            sy_opp_fraction = min(1., 2 * mix_fact)
+        else:
+            sy_equal_fraction = (1 - mix_fact)
+            sy_opp_fraction = mix_fact
+
+        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=sy_equal_fraction)
+        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=sy_opp_fraction)
 
         task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
                                      axis='index', ignore_index=True)
