@@ -106,8 +106,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
             meta_loss_meter.update(meta_loss.item())
 
-            u_loss += meta_loss
-            u_loss.backward()
+            u_loss.backward(retain_graph=True)
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             torch.nn.utils.clip_grad_norm_(discs.parameters(), 5)
@@ -116,6 +115,10 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             disc_optimizer.step()
             optimizer.zero_grad()
             disc_optimizer.zero_grad()
+
+            meta_loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
 
         else:
             loss.backward()
