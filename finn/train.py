@@ -97,7 +97,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-            epoch_loss.backward(retain_graph=True)
+            loss.backward(retain_graph=True)
             disc_optimizer.step()
             disc_optimizer.zero_grad()
             optimizer.step()
