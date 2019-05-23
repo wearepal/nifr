@@ -98,14 +98,14 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-            u_loss = pred_s_from_zy_loss
+            u_loss = pred_s_from_zy_loss + log_p_x
             u_loss.backward(retain_graph=True)
 
             optimizer.step()
             optimizer.zero_grad()
             # epoch_loss += (loss - log_p_x)
             epoch_loss_d += pred_s_from_zy_loss
-            epoch_loss_g += log_p_x
+            # epoch_loss_g += log_p_x
         else:
             loss.backward()
             optimizer.step()
@@ -155,7 +155,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
 
         disc_optimizer.zero_grad()
         optimizer.zero_grad()
-
 
     model.eval()
     with torch.no_grad():
