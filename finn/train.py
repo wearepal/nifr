@@ -99,15 +99,22 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
 
         if ARGS.full_meta:
             u_loss = pred_s_from_zy_loss + log_p_x
-            u_loss.backward(retain_graph=True)
 
-            # optimizer.step()
-            # optimizer.zero_grad()
-            # disc_optimizer.step()
-            # disc_optimizer.zero_grad()
-            # epoch_loss += (loss - log_p_x)
-            epoch_loss_d += pred_s_from_zy_loss
-            # epoch_loss_g += log_p_x
+            meta_loss = compute_meta_loss(ARGS, model, task_train, pred_s=True)
+            meta_loss *= ARGS.meta_weight
+            LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
+
+            u_loss += meta_loss
+            u_loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
+            torch.nn.utils.clip_grad_norm_(discs.parameters(), 5)
+
+            optimizer.step()
+            disc_optimizer.step()
+            optimizer.zero_grad()
+            disc_optimizer.zero_grad()
+
         else:
             loss.backward()
             optimizer.step()
@@ -125,38 +132,30 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
 
-    if ARGS.full_meta:
-
-        meta_loss = compute_meta_loss(ARGS, model, task_train, pred_s=True)
-        meta_loss *= ARGS.meta_weight
-        # epoch_loss += meta_loss
-
-        LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
-
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
-        torch.nn.utils.clip_grad_norm_(discs.parameters(), 5)
-
-        # epoch_loss.backward(retain_graph=True)
-        # optimizer.step()
-        # optimizer.zero_grad()
-
-        epoch_loss_d.backward(retain_graph=True)
-        disc_optimizer.step()
-
-        disc_optimizer.zero_grad()
-        optimizer.zero_grad()
-
-        # epoch_loss_g.backward(retain_graph=True)
-        # optimizer.step()
-        # optimizer.zero_grad()
-
-        meta_loss.backward(retain_graph=True)
-
-        disc_optimizer.step()
-        optimizer.step()
-
-        disc_optimizer.zero_grad()
-        optimizer.zero_grad()
+    # if ARGS.full_meta:
+    #
+    #
+    #     # epoch_loss.backward(retain_graph=True)
+    #     # optimizer.step()
+    #     # optimizer.zero_grad()
+    #
+    #     epoch_loss_d.backward(retain_graph=True)
+    #     disc_optimizer.step()
+    #
+    #     disc_optimizer.zero_grad()
+    #     optimizer.zero_grad()
+    #
+    #     # epoch_loss_g.backward(retain_graph=True)
+    #     # optimizer.step()
+    #     # optimizer.zero_grad()
+    #
+    #     meta_loss.backward(retain_graph=True)
+    #
+    #     disc_optimizer.step()
+    #     optimizer.step()
+    #
+    #     disc_optimizer.zero_grad()
+    #     optimizer.zero_grad()
 
     model.eval()
     with torch.no_grad():
