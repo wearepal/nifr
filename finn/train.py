@@ -156,7 +156,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         disc_optimizer.zero_grad()
         optimizer.zero_grad()
 
-
     model.eval()
     with torch.no_grad():
 
