@@ -53,12 +53,12 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--disc-hidden-dims', type=int, default=256)
 
     parser.add_argument('--early-stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch-size', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=250)
+    parser.add_argument('--batch-size', type=int, default=1000)
     parser.add_argument('--test-batch-size', type=int, default=None)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc-lr', type=float, default=1e-4)
-    parser.add_argument('--weight-decay', type=float, default=1e-6)
+    parser.add_argument('--lr', type=float, default=3e-4)
+    parser.add_argument('--disc-lr', type=float, default=3e-4)
+    parser.add_argument('--weight-decay', type=float, default=0)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--data-split-seed', type=int, default=888)
 
@@ -101,7 +101,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
     parser.add_argument('--full-meta', type=eval, default=True, choices=[True, False])
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
-    parser.add_argument('--meta-epochs', type=int, default=20)
+    parser.add_argument('--meta-epochs', type=int, default=5)
     parser.add_argument('--meta-weight-decay', type=float, default=1e-1)
 
     return parser.parse_args(raw_args)
