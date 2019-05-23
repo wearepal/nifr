@@ -103,6 +103,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=5)
     parser.add_argument('--meta-weight-decay', type=float, default=1e-1)
+    parser.add_argument('--corr-weight', type=float, default=1e2)
 
     return parser.parse_args(raw_args)
 
@@ -186,7 +187,7 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
         preds = clf(z)
         # class_loss = loss_fn(preds, target, reduction='mean')
         corr = pearsons_corr(preds, target_corr).abs().mean()
-        meta_loss += corr
+        meta_loss += args.corr_weight * corr
         # meta_loss += class_loss + corr
 
     model.train()
