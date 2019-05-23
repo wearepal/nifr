@@ -75,7 +75,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     start_epoch_time = time.time()
     end = start_epoch_time
 
-    epoch_loss = torch.zeros(1).to(ARGS.device)
+    epoch_loss_g = torch.zeros(1).to(ARGS.device)
+    epoch_loss_d = torch.zeros(1).to(ARGS.device)
     # for m in range(ARGS.meta_iters):
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
         optimizer.zero_grad()
@@ -97,13 +98,14 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-            u_loss = log_p_x + pred_s_from_zy_loss
+            u_loss = pred_s_from_zy_loss
             u_loss.backward(retain_graph=True)
 
             optimizer.step()
             optimizer.zero_grad()
             # epoch_loss += (loss - log_p_x)
-            epoch_loss += pred_s_from_zy_loss
+            epoch_loss_d += pred_s_from_zy_loss
+            epoch_loss_g += log_p_x
         else:
             loss.backward()
             optimizer.step()
@@ -136,10 +138,14 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         # optimizer.step()
         # optimizer.zero_grad()
 
-        epoch_loss.backward(retain_graph=True)
+        epoch_loss_d.backward(retain_graph=True)
         disc_optimizer.step()
 
         disc_optimizer.zero_grad()
+        optimizer.zero_grad()
+
+        epoch_loss_g.backward(retain_graph=True)
+        optimizer.step()
         optimizer.zero_grad()
 
         meta_loss.backward(retain_graph=True)
