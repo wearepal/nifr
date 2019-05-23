@@ -17,6 +17,7 @@ from itertools import groupby
 from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
 from finn import layers
+from finn.utils.metrics import pearsons_corr
 
 
 def parse_arguments(raw_args=None):
@@ -129,11 +130,9 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
 
     loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy
 
-    model.train()
+    model.eval()
     clf.train()
     optimizer = torch.optim.Adam(clf.parameters(), lr=1e-3, weight_decay=args.meta_weight_decay)
-
-    meta_loss = torch.zeros(1).to(args.device)
 
     for epoch in range(args.meta_epochs):
         for x, s, y in train_data:
@@ -147,24 +146,49 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
             if loss_fn == F.nll_loss:
                 target = target.long()
             x = x.to(args.device)
+            target = target.to(args.device)
 
             z = model(x)
             z = z[:, (z.size(1) - args.zy_dim):]
 
             if pred_s:
                 z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
-            target = target.to(args.device)
 
             preds = clf(z)
             loss = loss_fn(preds, target, reduction='mean')
 
-            if epoch == args.meta_epochs - 1:
-                meta_loss += loss
-
-            loss.backward(retain_graph=True)
+            loss.backward()
             optimizer.zero_grad()
             optimizer.step()
 
+    meta_loss = torch.zeros(1).to(args.device)
+
+    for x, s, y in train_data:
+
+        if pred_s:
+            target = s
+            target_corr = y
+            # target = s
+        else:
+            target = y
+            target_corr = s
+
+        if loss_fn == F.nll_loss:
+            target = target.long()
+
+        x = x.to(args.device)
+        target = target.to(args.device)
+        target_corr = target_corr.to(args.device)
+
+        z = model(x)
+        z = z[:, (z.size(1) - args.zy_dim):]
+
+        preds = clf(z)
+        class_loss = loss_fn(preds, target, reduction='mean')
+        corr = pearsons_corr(preds, target_corr).abs().mean()
+        meta_loss += class_loss + corr
+
+    model.train()
     # meta_loss /= args.meta_epochs
     return meta_loss
 
@@ -347,10 +371,10 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
             if experiment is not None and i == 0:
                 log_images(experiment, x, f"evaluation on {name}", prefix='eval')
 
-
             preds = model(x).argmax(dim=1)
             all_preds.extend(preds.detach().cpu().numpy())
             all_targets.extend(target.detach().cpu().numpy())
+
     return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
 
 
@@ -439,7 +463,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             if categorical:
                 layer = _OneHotEncoder(n_dims)
             else:
-                layer = nn.Identity()
+                layer = layers.Identity()
 
             return layer
 

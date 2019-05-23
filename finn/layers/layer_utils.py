@@ -6,6 +6,12 @@ from pyro.distributions.util import broadcast_shape
 from finn.layers.coupling import InvertibleLayer
 
 
+class Identity(nn.Module):
+
+    def forward(self, x):
+        return x
+
+
 class Flatten(nn.Module):
 
     def __init__(self):
