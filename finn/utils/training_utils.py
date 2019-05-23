@@ -184,9 +184,10 @@ def compute_meta_loss(args, model, train_data, pred_s=False):
         z = z[:, (z.size(1) - args.zy_dim):]
 
         preds = clf(z)
-        class_loss = loss_fn(preds, target, reduction='mean')
+        # class_loss = loss_fn(preds, target, reduction='mean')
         corr = pearsons_corr(preds, target_corr).abs().mean()
-        meta_loss += class_loss + corr
+        meta_loss += corr
+        # meta_loss += class_loss + corr
 
     model.train()
     # meta_loss /= args.meta_epochs
