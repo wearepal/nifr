@@ -97,6 +97,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--eff-comb', type=eval, default=True, choices=[True, False])
     parser.add_argument('--task-pcnt', type=float, default=0.2)
     parser.add_argument('--meta-pcnt', type=float, default=0.4)
 
