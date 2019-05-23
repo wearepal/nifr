@@ -101,12 +101,12 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             u_loss = pred_s_from_zy_loss + log_p_x
             u_loss.backward(retain_graph=True)
 
-            optimizer.step()
-            optimizer.zero_grad()
-            disc_optimizer.step()
-            disc_optimizer.zero_grad()
+            # optimizer.step()
+            # optimizer.zero_grad()
+            # disc_optimizer.step()
+            # disc_optimizer.zero_grad()
             # epoch_loss += (loss - log_p_x)
-            # epoch_loss_d += pred_s_from_zy_loss
+            epoch_loss_d += pred_s_from_zy_loss
             # epoch_loss_g += log_p_x
         else:
             loss.backward()
@@ -140,11 +140,11 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         # optimizer.step()
         # optimizer.zero_grad()
 
-        # epoch_loss_d.backward(retain_graph=True)
-        # disc_optimizer.step()
-        #
-        # disc_optimizer.zero_grad()
-        # optimizer.zero_grad()
+        epoch_loss_d.backward(retain_graph=True)
+        disc_optimizer.step()
+
+        disc_optimizer.zero_grad()
+        optimizer.zero_grad()
 
         # epoch_loss_g.backward(retain_graph=True)
         # optimizer.step()
@@ -153,7 +153,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         meta_loss.backward(retain_graph=True)
 
         disc_optimizer.step()
-        # optimizer.step()
+        optimizer.step()
 
         disc_optimizer.zero_grad()
         optimizer.zero_grad()
