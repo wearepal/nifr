@@ -38,9 +38,8 @@ def load_adult_data(args):
             return train_test_split(
                 data, train_percentage=first_pcnt, random_seed=args.data_split_seed)
 
-        not_task, task = _random_split(data, first_pcnt=0.8)
-
-        not_task_or_meta, meta = _random_split(not_task, first_pcnt=0.5)
+        not_task, task = _random_split(data, first_pcnt=(1-args.task_pcnt))
+        not_task_or_meta, meta = _random_split(not_task, first_pcnt=(1-(args.meta_pcnt/(1-args.task_pcnt))))
 
         sy_equal = query_dt(
             not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
