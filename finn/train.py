@@ -97,13 +97,13 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-            loss.backward(retain_graph=True)
-            disc_optimizer.step()
-            disc_optimizer.zero_grad()
+            u_loss = log_p_x + pred_s_from_zy_loss
+            u_loss.backward(retain_graph=True)
+
             optimizer.step()
             optimizer.zero_grad()
             # epoch_loss += (loss - log_p_x)
-            # epoch_loss += pred_s_from_zy_loss
+            epoch_loss += pred_s_from_zy_loss
         else:
             loss.backward()
             optimizer.step()
@@ -122,6 +122,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         end = time.time()
 
     if ARGS.full_meta:
+
         meta_loss = compute_meta_loss(ARGS, model, task_train, pred_s=True)
         meta_loss *= ARGS.meta_weight
         # epoch_loss += meta_loss
@@ -135,12 +136,20 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         # optimizer.step()
         # optimizer.zero_grad()
 
-        meta_loss.backward()
-        optimizer.step()
+        epoch_loss.backward(retain_graph=True)
         disc_optimizer.step()
 
-        optimizer.zero_grad()
         disc_optimizer.zero_grad()
+        optimizer.zero_grad()
+
+        meta_loss.backward(retain_graph=True)
+
+        disc_optimizer.step()
+        optimizer.step()
+
+        disc_optimizer.zero_grad()
+        optimizer.zero_grad()
+
 
     model.eval()
     with torch.no_grad():
