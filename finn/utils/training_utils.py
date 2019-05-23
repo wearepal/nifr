@@ -97,6 +97,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--fixed-test', type=eval, default=True, choices=[True, False])
 
     return parser.parse_args(raw_args)
 

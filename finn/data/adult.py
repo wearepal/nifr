@@ -1,6 +1,7 @@
 """Definition of the Adult dataset"""
 import pandas as pd
-from torch.utils.data import DataLoader
+import torch
+from torch.utils.data import DataLoader, random_split, TensorDataset
 from sklearn.preprocessing import StandardScaler
 
 from ethicml.data.load import load_data
@@ -34,33 +35,73 @@ def load_adult_data(args):
         assert data.x.shape[1] == 62
 
     if args.meta_learn:
-        def _random_split(data, first_pcnt):
-            return train_test_split(
-                data, train_percentage=first_pcnt, random_seed=args.data_split_seed)
 
-        not_task, task = _random_split(data, first_pcnt=0.8)
+        if args.fixed_test:
+            def _random_split(data, first_pcnt):
+                return train_test_split(
+                    data, train_percentage=first_pcnt, random_seed=args.data_split_seed)
 
-        not_task_or_meta, meta = _random_split(not_task, first_pcnt=0.5)
+            not_task, task = _random_split(data, first_pcnt=0.8)
 
-        sy_equal = query_dt(
-            not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
-        sy_opposite = query_dt(
-            not_task_or_meta, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
+            not_task_or_meta, meta = _random_split(not_task, first_pcnt=0.5)
 
-        # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
-        mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
+            sy_equal = query_dt(
+                not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
+            sy_opposite = query_dt(
+                not_task_or_meta, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
 
-        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=(1 - mix_fact))
-        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=mix_fact)
+            # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
+            mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
-        task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
-                                     axis='index', ignore_index=True)
-        # meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
-        #                              axis='index', ignore_index=True)
+            sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=(1 - mix_fact))
+            sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=mix_fact)
 
-        if mix_fact == 0:
-            # s & y should be very correlated in the task train set
-            assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
+            task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
+                                         axis='index', ignore_index=True)
+            # meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
+            #                              axis='index', ignore_index=True)
+
+            if mix_fact == 0:
+                # s & y should be very correlated in the task train set
+                assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
+
+        else:
+            sy_equal = query_dt(
+                data, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
+            sy_opposite = query_dt(
+                data, "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)")
+
+            task_train_fraction = 0.5  # how much of sy_equal should be reserved for the task train set
+            mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
+
+            sy_equal_task_train, sy_equal_meta_train = train_test_split(
+                sy_equal, train_percentage=task_train_fraction * (1 - mix_fact), random_seed=888)
+            sy_opp_task_train, sy_opp_meta_train = train_test_split(
+                sy_opposite, train_percentage=task_train_fraction * mix_fact, random_seed=888)
+
+            task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
+                                         axis='index', ignore_index=True)
+            meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
+                                         axis='index', ignore_index=True)
+
+            if mix_fact == 0:
+                # s and y should not be overly correlated in the meta train set
+                assert abs(meta_train_tuple.s['sex_Male'].corr(meta_train_tuple.y['salary_>50K'])) < 0.1
+                # but they should be very correlated in the task train set
+                assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
+
+            train_tuple, test_tuple = meta_train_tuple, task_train_tuple
+
+            args.y_dim = 1
+            args.s_dim = 1
+
+            val_len = round(0.1 / 0.75 * len(train_tuple.x))
+            train_len = len(train_tuple.x) - val_len
+            whole_train_data, whole_val_data = train_test_split(train_tuple, train_percentage=train_len/len(train_tuple.x))
+
+            meta = whole_train_data
+            task = whole_val_data
+            task_train_tuple = test_tuple
 
         # old nomenclature:
         meta_train = meta
