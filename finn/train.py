@@ -153,7 +153,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         meta_loss.backward(retain_graph=True)
 
         disc_optimizer.step()
-        optimizerr.step()
+        optimizer.step()
 
         disc_optimizer.zero_grad()
         optimizer.zero_grad()
