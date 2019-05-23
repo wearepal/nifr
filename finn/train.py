@@ -67,6 +67,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     model.train()
 
     loss_meter = utils.AverageMeter()
+    meta_loss_meter = utils.AverageMeter()
     log_p_x_meter = utils.AverageMeter()
     pred_y_loss_meter = utils.AverageMeter()
     pred_s_from_zy_loss_meter = utils.AverageMeter()
@@ -103,6 +104,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             meta_loss = compute_meta_loss(ARGS, model, task_train, pred_s=True)
             meta_loss *= ARGS.meta_weight
             LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
+            meta_loss_meter.update(meta_loss.item())
 
             u_loss += meta_loss
             u_loss.backward()
@@ -175,15 +177,13 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         log_images(SUMMARY, recon_yn, 'reconstruction_yn')
         log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
-    epoch_loss = epoch_loss_d + epoch_loss_g
-
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
                 "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | "
                 "pred_s_from_zy: {:.5g} | pred_s_from_zs {:.5g} ({:.5g})",
                 epoch, time_for_epoch, 1 / time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
                 pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg,
-                epoch_loss.detach().item() if ARGS.full_meta else loss_meter.avg)
+                loss_meter.avg)
 
 
 def validate(model, discs, val_loader):
