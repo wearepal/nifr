@@ -93,7 +93,7 @@ class NNDisc(DiscBase):
                 entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
                 pred_s_from_zy_loss += entropy
                 zy = zy.detach().clone()  # detach so that the NLL loss doesn't go through trunk
-            elif not self.args.proj_grad:
+            elif not self.args.proj_grads:
                 # if we don't use the entropy loss, we don't detach and reverse the gradient on z_yn
                 zy = layers.grad_reverse(zy, lambda_=self.pred_s_from_zy_weight)
 
