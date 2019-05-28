@@ -4,6 +4,7 @@ from pathlib import Path
 
 from comet_ml import Experiment
 import torch
+import torch.nn as nn
 from torch.optim.lr_scheduler import ExponentialLR
 from torch.utils.data import DataLoader, TensorDataset, random_split
 
@@ -13,7 +14,7 @@ from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.evaluate_utils import MetaDataset
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, encode_dataset_no_recon, \
     compute_meta_loss
-from finn.models import NNDisc, InvDisc
+from finn.models import NNDisc, InvDisc, tabular_model
 from finn.optimisation import CustomAdam
 
 NDECS = 0
@@ -67,7 +68,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     model.train()
 
     loss_meter = utils.AverageMeter()
-    meta_loss_meter = utils.AverageMeter()
     log_p_x_meter = utils.AverageMeter()
     pred_y_loss_meter = utils.AverageMeter()
     pred_s_from_zy_loss_meter = utils.AverageMeter()
@@ -76,10 +76,25 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     start_epoch_time = time.time()
     end = start_epoch_time
 
-    epoch_loss_g = torch.zeros(1).to(ARGS.device)
-    epoch_loss_d = torch.zeros(1).to(ARGS.device)
+    if ARGS.full_meta:
+        meta_len = int(0.5 * len(task_train))
+        meta_dataset, _ = random_split(
+            task_train, lengths=(meta_len, len(task_train) - meta_len))
+        meta_train_len = int(0.8 * len(meta_dataset))
+        meta_train, meta_test = random_split(
+            meta_dataset, lengths=(meta_train_len, len(meta_dataset) - meta_train_len))
+
     # for m in range(ARGS.meta_iters):
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
+
+        if ARGS.full_meta:
+            meta_clf = nn.Linear(ARGS.zy_dim, ARGS.y_dim)
+            if ARGS.dataset == 'cmnist':
+                meta_clf.add_module('act', nn.LogSoftmax(dim=1))
+            meta_clf.to(ARGS.device)
+            clf_optimizer = Adam(meta_clf.parameters(), lr=ARGS.fast_lr,
+                                 weight_decay=ARGS.meta_weight_decay)
+
         optimizer.zero_grad()
         disc_optimizer.zero_grad()
 
@@ -99,26 +114,34 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-            u_loss = pred_s_from_zy_loss + log_p_x
+            fast_model = discs.create_model()
+            fast_model.load_state_dict(model.state_dict())
+            fast_optimizer = Adam(fast_model.parameters(), lr=ARGS.fast_lr,
+                                  weight_decay=optimizer.param_groups[0]['weight_decay'])
 
-            meta_loss = compute_meta_loss(ARGS, model, task_train, pred_s=True)
-            meta_loss *= ARGS.meta_weight
-            LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
-            meta_loss_meter.update(meta_loss.item())
+            loss.backward()
+            fast_optimizer.step()
+            fast_optimizer.zero_grad()
 
-            u_loss.backward(retain_graph=True)
-
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
-            torch.nn.utils.clip_grad_norm_(discs.parameters(), 5)
-
-            optimizer.step()
             disc_optimizer.step()
-            optimizer.zero_grad()
             disc_optimizer.zero_grad()
+
+            meta_loss = compute_meta_loss(ARGS, model, fast_model, discs, fast_optimizer,\
+                                          meta_clf, clf_optimizer, meta_train, meta_test,
+                                          pred_s=False)
+            meta_loss *= ARGS.meta_weight
+
+            LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
+
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
+            # torch.nn.utils.clip_grad_norm_(discs.parameters(), 5)
 
             meta_loss.backward()
             optimizer.step()
             optimizer.zero_grad()
+
+            disc_optimizer.step()
+            disc_optimizer.zero_grad()
 
         else:
             loss.backward()
@@ -136,31 +159,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         SUMMARY.log_metric('Loss pred_s_from_zy_loss', pred_s_from_zy_loss.item())
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
-
-    # if ARGS.full_meta:
-    #
-    #
-    #     # epoch_loss.backward(retain_graph=True)
-    #     # optimizer.step()
-    #     # optimizer.zero_grad()
-    #
-    #     epoch_loss_d.backward(retain_graph=True)
-    #     disc_optimizer.step()
-    #
-    #     disc_optimizer.zero_grad()
-    #     optimizer.zero_grad()
-    #
-    #     # epoch_loss_g.backward(retain_graph=True)
-    #     # optimizer.step()
-    #     # optimizer.zero_grad()
-    #
-    #     meta_loss.backward(retain_graph=True)
-    #
-    #     disc_optimizer.step()
-    #     optimizer.step()
-    #
-    #     disc_optimizer.zero_grad()
-    #     optimizer.zero_grad()
 
     model.eval()
     with torch.no_grad():
