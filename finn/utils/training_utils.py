@@ -567,7 +567,7 @@ def compute_projection_gradients(model, loss_p, loss_a, alpha):
         result = b * torch.sum(a * b) / torch.sum(b * b)
         return result
 
-    grad_p = [p + proj(p, -a) + alpha * a for p, a in zip(grad_p, grad_a)]
+    grad_p = [p + proj(p, a) - alpha * a for p, a in zip(grad_p, grad_a)]
 
     for param, grad in zip(model.parameters(), grad_p):
         param.grad = grad
