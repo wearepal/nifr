@@ -230,6 +230,14 @@ def main(args, datasets, metric_callback):
     else:
         discs = NNDisc(ARGS, x_dim, z_dim_flat)
     model = discs.create_model()
+
+    if ARGS.spectral_norm:
+        def _spectral_norm(m):
+            if isinstance(m, (torch.nn.Conv2d, torch.nn.Linear)):
+                return torch.nn.utils.spectral_norm(m)
+
+        model.apply(_spectral_norm)
+        discs.s_from_zy.apply(_spectral_norm)
     LOGGER.info('zn_dim: {}, zs_dim: {}, zy_dim: {}', ARGS.zn_dim, ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:

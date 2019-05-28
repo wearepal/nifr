@@ -80,7 +80,7 @@ def parse_arguments(raw_args=None):
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
                         help='Use s as input (if s is a separate feature)')
-
+    parser.add_argument('--spectral-norm', type=eval, default=True, choices=[True, False])
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--mlp-clf', type=eval, default=False, choices=[True, False])
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
