@@ -570,4 +570,4 @@ def compute_projection_gradients(model, loss_p, loss_a, alpha):
     grad_p = [p + proj(p, a) - alpha * a for p, a in zip(grad_p, grad_a)]
 
     for param, grad in zip(model.parameters(), grad_p):
-        param.data.grad = grad
+        param.grad = grad
