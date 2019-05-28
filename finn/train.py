@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.evaluate_utils import MetaDataset
-from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all
+from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, compute_projection_gradients
 from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam
 
@@ -89,7 +89,11 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         pred_s_from_zy_loss_meter.update(pred_s_from_zy_loss.item())
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
-        loss.backward()
+        if ARGS.proj_grads:
+            compute_projection_gradients(model, log_p_x, pred_s_from_zy_loss,
+                                         alpha=ARGS.pred_s_from_zy_weight)
+        else:
+            loss.backward()
         optimizer.step()
 
         disc_optimizer.step()
