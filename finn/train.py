@@ -170,7 +170,8 @@ def validate(model, discs, val_loader):
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, neg_log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(x_val, s_val, y_val, model)
+            loss, neg_log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss =\
+                discs.compute_loss(x_val, s_val, y_val, model)
             # during validation we don't want to penalise being poor at predicting s from y
             loss = neg_log_px + pred_y_loss + pred_s_from_zs_loss - pred_s_from_zy_loss
 
