@@ -77,7 +77,7 @@ def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
         meta_train = DataLoader(meta_train, batch_size=args.meta_batch_size, shuffle=True)
 
     if not isinstance(meta_test, DataLoader):
-        meta_test = DataLoader(meta_test, batch_size=args.batch_size, shuffle=False)
+        meta_test = DataLoader(meta_test, batch_size=args.test_batch_size, shuffle=False)
 
     meta_clf = nn.Linear(args.zy_dim, args.y_dim)
     if args.dataset == 'cmnist':
