@@ -102,8 +102,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
         if ARGS.full_meta:
-
-
             disc_grads = torch.autograd.grad(loss, discs.s_from_zy.parameters(), create_graph=True)
             add_gradients(disc_grads, discs.s_from_zy)
             disc_optimizer.step()
