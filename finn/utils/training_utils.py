@@ -559,15 +559,17 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
     return encodings
 
 
+@torch.jit.script
+def _proj(a, b):
+    result = b * torch.sum(a * b) / torch.sum(b * b)
+    return result
+
+
 def compute_projection_gradients(model, loss_p, loss_a, alpha):
     grad_p = torch.autograd.grad(loss_p, model.parameters(), retain_graph=True)
     grad_a = torch.autograd.grad(loss_a, model.parameters(), retain_graph=True)
 
-    def proj(a, b):
-        result = b * torch.sum(a * b) / torch.sum(b * b)
-        return result
-
-    grad_p = [p + proj(p, a) - alpha * a for p, a in zip(grad_p, grad_a)]
+    grad_p = [p - _proj(p, a) - alpha * a for p, a in zip(grad_p, grad_a)]
 
     for param, grad in zip(model.parameters(), grad_p):
         param.grad = grad
