@@ -8,7 +8,6 @@ from collections import OrderedDict
 
 from finn import layers
 
-PY2 = sys.version_info[0] == 2
 _internal_attrs =\
     {'_backend', '_parameters', '_buffers', '_backward_hooks', '_forward_hooks',
      '_forward_pre_hooks', '_modules'}
@@ -25,7 +24,7 @@ def _make_functional(module, params_box, params_offset):
     self = Scope()
     num_params = len(module._parameters)
     param_names = list(module._parameters.keys())
-    forward = type(module).forward.__func__ if PY2 else type(module).forward
+    forward = type(module).forward
     for name, attr in module.__dict__.items():
         if name in _internal_attrs:
             continue
