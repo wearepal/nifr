@@ -77,7 +77,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     end = start_epoch_time
 
     if ARGS.full_meta:
-        meta_len = int(0.5 * len(task_train))
+        meta_len = int(ARGS.meta_data_pcnt * len(task_train))
         meta_dataset, _ = random_split(
             task_train, lengths=(meta_len, len(task_train) - meta_len))
         meta_train_len = int(0.8 * len(meta_dataset))
