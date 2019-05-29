@@ -381,10 +381,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             if categorical:
                 layer = _OneHotEncoder(n_dims)
             else:
-                class _Identity(nn.Module):
-                    def forward(self, x):
-                        return x
-                layer = _Identity()
+                layer = nn.Identity()
 
             return layer
 
