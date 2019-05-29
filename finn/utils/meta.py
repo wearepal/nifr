@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader
 from collections import OrderedDict
 
 from finn import layers
+from finn.layers import Flatten
 
 _internal_attrs =\
     {'_backend', '_parameters', '_buffers', '_backward_hooks', '_forward_hooks',
@@ -66,7 +67,7 @@ def _weight_update(weight, grad, lr, weight_decay):
 
 
 def meta_update(loss, parameters, lr, weight_decay=0):
-    grads = torch.autograd.grad(loss, parameters, create_graph=True)
+    grads = torch.autograd.grad(loss, parameters)   # create_graph=True)
     return (_weight_update(param, grad, lr, weight_decay)
             for param, grad in zip(grads, parameters))
 
@@ -79,9 +80,13 @@ def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
     if not isinstance(meta_test, DataLoader):
         meta_test = DataLoader(meta_test, batch_size=args.test_batch_size, shuffle=False)
 
-    meta_clf = nn.Linear(args.zy_dim, args.y_dim)
     if args.dataset == 'cmnist':
-        meta_clf.add_module('act', nn.LogSoftmax(dim=1))
+        meta_clf = nn.Sequential(Flatten(),
+                                 nn.Linear(args.zy_dim * 7 * 7, args.y_dim),
+                                 nn.LogSoftmax(dim=1))
+    else:
+        meta_clf = nn.Linear(args.zy_dim, args.y_dim)
+
     meta_clf.to(args.device)
 
     clf_optimizer = Adam(meta_clf.parameters(), lr=args.fast_lr,
@@ -115,14 +120,10 @@ def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
                 z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
 
             preds = meta_clf(z)
-            class_loss = loss_fn(preds, target, reduction='mean')
+            loss = loss_fn(preds, target, reduction='mean')
 
-            loss = class_loss
-
-            clf_optimizer.zero_grad()
-
-            loss.backward(retain_graph=True)
-
+            grads = torch.autograd.grad(loss, meta_clf.parameters(), retain_graph=True)
+            add_gradients(grads, meta_clf)
             clf_optimizer.step()
             fast_weights = meta_update(loss, fast_weights, args.fast_lr,
                                        args.weight_decay)
@@ -154,5 +155,6 @@ def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
         meta_loss += class_loss.sum()
 
     meta_loss /= len(meta_test.dataset)
+    meta_loss.backward(retain_graph=True)
 
     return meta_loss, fast_weights
