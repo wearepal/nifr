@@ -12,8 +12,8 @@ from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.evaluate_utils import MetaDataset
-from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, encode_dataset_no_recon, \
-    compute_meta_loss, add_gradients
+from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, encode_dataset_no_recon
+from finn.utils.meta import inner_meta_loop, add_gradients
 from finn.models import NNDisc, InvDisc, tabular_model
 from finn.optimisation import CustomAdam
 
@@ -95,7 +95,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             clf_optimizer = Adam(meta_clf.parameters(), lr=ARGS.fast_lr,
                                  weight_decay=ARGS.meta_weight_decay)
 
-        # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
         discs.pred_s_from_zy_weight = min(
@@ -116,8 +115,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             add_gradients(disc_grads, discs.s_from_zy)
             disc_optimizer.step()
 
-            meta_loss, fast_model, fast_weights =\
-                compute_meta_loss(ARGS, model, loss, discs,\
+            meta_loss, fast_weights =\
+                inner_meta_loop(ARGS, model, loss,\
                                   meta_clf, clf_optimizer, meta_train, meta_test,
                                   pred_s=False)
             meta_loss *= ARGS.meta_weight
@@ -126,17 +125,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             optimizer.zero_grad()
 
             grads = torch.autograd.grad(meta_loss, model.parameters())
-            print(grads)
-            # add_gradients(grads, model)
-
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
-            # torch.nn.utils.clip_grad_norm_(discs.parameters(), 5)
-
-            meta_loss.backward()
-            for param in model.parameters():
-                print(param.grad)
-            # for grad, param in zip(meta_grads, model.parameters()):
-            #     param.grad = grad
+            add_gradients(grads, model)
 
             optimizer.step()
 

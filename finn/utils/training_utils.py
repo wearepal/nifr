@@ -18,6 +18,7 @@ from itertools import groupby
 from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
 from finn import layers
+from finn.utils.meta import make_functional
 from finn.utils.metrics import pearsons_corr
 
 
@@ -121,107 +122,6 @@ def restricted_float(x):
 def find(value, value_list):
     result_list = [[i for i, val in enumerate(value.new_tensor(value_list)) if (s_i == val).all()] for s_i in value]
     return torch.tensor(result_list).flatten(start_dim=1)
-
-
-def compute_meta_loss(args, model, loss, discs,
-                      meta_clf, clf_optimizer, meta_train, meta_test,
-                      pred_s=False):
-
-    fast_model = discs.create_model()
-    fast_weights = model.state_dict()
-
-    def update_weights(loss, weights, state_dict):
-        grads = torch.autograd.grad(loss, (param for _, param in weights), create_graph=True)
-
-        for grad, (p_name, _) in zip(grads, weights):
-            state_dict[p_name] = weights[p_name] - args.fast_lr * grad
-
-    update_weights(loss, model.named_parameters(), fast_weights)
-
-    if not isinstance(meta_train, DataLoader):
-        meta_train = DataLoader(meta_train, batch_size=args.meta_batch_size, shuffle=True)
-
-    if not isinstance(meta_test, DataLoader):
-        meta_test = DataLoader(meta_test, batch_size=args.batch_size, shuffle=False)
-
-    loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy_with_logits
-
-    meta_clf.train()
-    # optimizer = torch.optim.Adam(meta_clf.parameters(), lr=1e-3, weight_decay=args.meta_weight_decay)
-
-    for epoch in range(args.meta_epochs):
-        for x, s, y in meta_train:
-            fast_model.load_state_dict(fast_weights)
-
-            if pred_s:
-                target = s
-            else:
-                target = y
-
-            if loss_fn == F.nll_loss:
-                target = target.long()
-
-            x = x.to(args.device)
-            target = target.to(args.device)
-
-            z = fast_model(x)[:, -args.zy_dim:]
-            # z = model(x)
-            # fast_model.chain[0z].orig_shape = model.chain[0].orig_shape
-            # z = fast_model(z, reverse=True)
-            # z = reconstruct(args, z, fast_model, zero_zs=False)
-
-            if pred_s:
-                z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
-
-            preds = meta_clf(z)
-            class_loss = loss_fn(preds, target, reduction='mean')
-
-            loss = class_loss
-
-            clf_optimizer.zero_grad()
-
-            loss.backward(retain_graph=True)
-
-            clf_optimizer.step()
-            update_weights(loss, fast_model.named_parameters(), fast_weights)
-            print(list(fast_weights.values())[2])
-
-    meta_clf.eval()
-
-    q_loss = torch.zeros(1).to(args.device)
-    for x, s, y in meta_train:
-        fast_model.load_state_dict(fast_weights)
-
-        if pred_s:
-            target = s
-        else:
-            target = y
-
-        if loss_fn == F.nll_loss:
-            target = target.long()
-
-        x = x.to(args.device)
-        target = target.to(args.device)
-
-        z = fast_model(x)[:, -args.zy_dim:]
-        # z = model(x)
-        # fast_model.chain[0].orig_shape = model.chain[0].orig_shape
-        # z = fast_model(z, reverse=True)
-
-        if pred_s:
-            z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
-
-        preds = meta_clf(z)
-        class_loss = loss_fn(preds, target, reduction='sum')
-
-        q_loss += class_loss.sum()
-
-    q_loss /= len(meta_test.dataset)
-
-    meta_clf.train()
-    model.train()
-
-    return q_loss, fast_model, fast_weights
 
 
 def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
