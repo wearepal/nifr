@@ -38,9 +38,8 @@ def load_adult_data(args):
             return train_test_split(
                 data, train_percentage=first_pcnt, random_seed=args.data_split_seed)
 
-        not_task, task = _random_split(data, first_pcnt=0.8)
-
-        not_task_or_meta, meta = _random_split(not_task, first_pcnt=0.5)
+        not_task, task = _random_split(data, first_pcnt=1 - args.task_pcnt)
+        meta, not_task_or_meta = _random_split(not_task, first_pcnt=args.meta_pcnt / (1 - args.task_pcnt))
 
         sy_equal = query_dt(
             not_task_or_meta, "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)")
@@ -50,8 +49,15 @@ def load_adult_data(args):
         # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
         mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
-        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=(1 - mix_fact))
-        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=mix_fact)
+        if args.eff_comb:
+            sy_equal_fraction = min(1., 2 * (1 - mix_fact))
+            sy_opp_fraction = min(1., 2 * mix_fact)
+        else:
+            sy_equal_fraction = (1 - mix_fact)
+            sy_opp_fraction = mix_fact
+
+        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=sy_equal_fraction)
+        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=sy_opp_fraction)
 
         task_train_tuple = concat_dt([sy_equal_task_train, sy_opp_task_train],
                                      axis='index', ignore_index=True)

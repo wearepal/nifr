@@ -41,7 +41,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--rotate-data', type=eval, default=False, choices=[True, False])
     parser.add_argument('--shift-data', type=eval, default=False, choices=[True, False])
 
-    parser.add_argument('--prior-dist', type=str, default='logistic', choices=['logistic', 'normal'])
+    parser.add_argument('--prior-dist', type=str, default='normal', choices=['logistic', 'normal'])
     parser.add_argument('--root', type=str, default="data")
 
     parser.add_argument('--depth', type=int, default=10)
@@ -84,7 +84,7 @@ def parse_arguments(raw_args=None):
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
                         help='Use s as input (if s is a separate feature)')
-
+    parser.add_argument('--spectral-norm', type=eval, default=True, choices=[True, False])
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--mlp-clf', type=eval, default=False, choices=[True, False])
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
@@ -101,12 +101,18 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
+
     parser.add_argument('--full-meta', type=eval, default=False, choices=[True, False])
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=3)
     parser.add_argument('--meta-batch-size', type=int, default=256)
     parser.add_argument('--meta-weight-decay', type=float, default=1e-1)
     parser.add_argument('--fast-lr', type=float, default=1.e-3)
+
+    parser.add_argument('--eff-comb', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--task-pcnt', type=float, default=0.2)
+    parser.add_argument('--meta-pcnt', type=float, default=0.4)
+
 
     return parser.parse_args(raw_args)
 
