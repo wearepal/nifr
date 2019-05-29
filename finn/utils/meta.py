@@ -7,6 +7,7 @@ from collections import OrderedDict
 
 from finn import layers
 from finn.layers import Flatten
+from finn.models.disc_models import conv_classifier
 
 _internal_attrs =\
     {'_backend', '_parameters', '_buffers', '_backward_hooks', '_forward_hooks',
@@ -81,9 +82,7 @@ def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
         meta_test = DataLoader(meta_test, batch_size=args.test_batch_size, shuffle=False)
 
     if args.dataset == 'cmnist':
-        meta_clf = nn.Sequential(Flatten(),
-                                 nn.Linear(args.zy_dim * 7 * 7, args.y_dim),
-                                 nn.LogSoftmax(dim=1))
+        meta_clf = conv_classifier(args.zy_dim, args.s_dim, depth=2)
     else:
         meta_clf = nn.Linear(args.zy_dim, args.y_dim)
 
