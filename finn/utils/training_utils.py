@@ -106,7 +106,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=3)
     parser.add_argument('--meta-batch-size', type=int, default=256)
-    parser.add_argument('--meta-weight-decay', type=float, default=1e-1)
+    parser.add_argument('--meta-weight-decay', type=float, default=1e-6)
     parser.add_argument('--fast-lr', type=float, default=1.e-3)
 
     parser.add_argument('--eff-comb', type=eval, default=True, choices=[True, False])
