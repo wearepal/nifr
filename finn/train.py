@@ -92,11 +92,13 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         if ARGS.proj_grads:
             compute_projection_gradients(model, log_p_x, pred_s_from_zy_loss,
                                          alpha=ARGS.pred_s_from_zy_weight)
+            optimizer.step()
+            pred_s_from_zy_loss.backward()
+            disc_optimizer.step()
         else:
             loss.backward()
-        optimizer.step()
-
-        disc_optimizer.step()
+            optimizer.step()
+            disc_optimizer.step()
 
         time_meter.update(time.time() - end)
 

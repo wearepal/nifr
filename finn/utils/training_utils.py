@@ -71,11 +71,11 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--zs-frac', type=float, default=0.33)
     parser.add_argument('--zy-frac', type=float, default=0.33)
 
-    parser.add_argument('--warmup-steps', type=int, default=10)
+    parser.add_argument('--warmup-steps', type=int, default=0)
     parser.add_argument('--log-px-weight', type=float, default=1.e-3)
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=1.)
+    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
-    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
+    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
     parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
@@ -381,7 +381,10 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             if categorical:
                 layer = _OneHotEncoder(n_dims)
             else:
-                layer = nn.Identity()
+                class _Identity(nn.Module):
+                    def forward(self, x):
+                        return x
+                layer = _Identity()
 
             return layer
 
@@ -561,7 +564,7 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
 
 def compute_projection_gradients(model, loss_p, loss_a, alpha):
     grad_p = torch.autograd.grad(loss_p, model.parameters(), retain_graph=True)
-    grad_a = torch.autograd.grad(loss_a, model.parameters())
+    grad_a = torch.autograd.grad(loss_a, model.parameters(), retain_graph=True)
 
     def proj(a, b):
         result = b * torch.sum(a * b) / torch.sum(b * b)

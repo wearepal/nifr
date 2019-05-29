@@ -100,7 +100,8 @@ class NNDisc(DiscBase):
             pred_s_from_zy_loss += loss_fn(self.s_from_zy(zy), s, reduction='mean')
         # Enforce independence between the fair, zy, and unfair, zs, partitions
 
-        if self.s_from_zs is not None and zs.size(1) > 0:
+        if self.args.pred_s_from_zs_weight != 0 and \
+            self.s_from_zs is not None and zs.size(1) > 0:
             pred_s_from_zs_loss = (self.args.pred_s_from_zs_weight
                                    * loss_fn(self.s_from_zs(zs), s, reduction='mean'))
 
