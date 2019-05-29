@@ -1,4 +1,5 @@
 import argparse
+from collections import OrderedDict
 from functools import partial
 import numpy as np
 import pandas as pd
@@ -73,11 +74,11 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--zs-frac', type=float, default=0.33)
     parser.add_argument('--zy-frac', type=float, default=0.33)
 
-    parser.add_argument('--warmup-steps', type=int, default=10)
+    parser.add_argument('--warmup-steps', type=int, default=0)
     parser.add_argument('--log-px-weight', type=float, default=1.e-3)
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=1.)
+    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
-    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
+    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
     parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
@@ -103,8 +104,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=5)
     parser.add_argument('--meta-batch-size', type=int, default=16)
-    parser.add_argument('--meta-corr-weight', type=float, metavar='R', default=100)
-    parser.add_argument('--meta-weight-decay', type=float, default=0)
+    parser.add_argument('--meta-corr-weight', type=float, metavar='R', default=0)
+    parser.add_argument('--meta-weight-decay', type=float, default=1e-1)
     parser.add_argument('--fast-lr', type=float, default=1.e-2)
 
     return parser.parse_args(raw_args)
@@ -122,9 +123,20 @@ def find(value, value_list):
     return torch.tensor(result_list).flatten(start_dim=1)
 
 
-def compute_meta_loss(args, model, fast_model, discs, fast_optimizer,
+def compute_meta_loss(args, model, loss, discs,
                       meta_clf, clf_optimizer, meta_train, meta_test,
                       pred_s=False):
+
+    fast_model = discs.create_model()
+    fast_weights = model.state_dict()
+
+    def update_weights(loss, weights, state_dict):
+        grads = torch.autograd.grad(loss, (param for _, param in weights), create_graph=True)
+
+        for grad, (p_name, _) in zip(grads, weights):
+            state_dict[p_name] = weights[p_name] - args.fast_lr * grad
+
+    update_weights(loss, model.named_parameters(), fast_weights)
 
     if not isinstance(meta_train, DataLoader):
         meta_train = DataLoader(meta_train, batch_size=args.meta_batch_size, shuffle=True)
@@ -134,94 +146,82 @@ def compute_meta_loss(args, model, fast_model, discs, fast_optimizer,
 
     loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy_with_logits
 
-    model.train()
-    fast_model.train()
     meta_clf.train()
     # optimizer = torch.optim.Adam(meta_clf.parameters(), lr=1e-3, weight_decay=args.meta_weight_decay)
 
     for epoch in range(args.meta_epochs):
         for x, s, y in meta_train:
+            fast_model.load_state_dict(fast_weights)
 
             if pred_s:
                 target = s
-                target_corr = y
-                # target = s
             else:
                 target = y
-                target_corr = s
 
             if loss_fn == F.nll_loss:
                 target = target.long()
 
             x = x.to(args.device)
             target = target.to(args.device)
-            target_corr = target_corr.to(args.device)
 
-            x_prime = fast_model(x)[:, -args.zy_dim:]
+            z = fast_model(x)[:, -args.zy_dim:]
             # z = model(x)
-            # fast_model.chain[0].orig_shape = model.chain[0].orig_shape
-            # x_prime = fast_model(z, reverse=True)
-            # x_prime = reconstruct(args, z, fast_model, zero_zs=False)
+            # fast_model.chain[0z].orig_shape = model.chain[0].orig_shape
+            # z = fast_model(z, reverse=True)
+            # z = reconstruct(args, z, fast_model, zero_zs=False)
 
             if pred_s:
-                x_prime = layers.grad_reverse(x_prime, lambda_=args.pred_s_from_zy_weight)
+                z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
 
-            preds = meta_clf(x_prime)
+            preds = meta_clf(z)
             class_loss = loss_fn(preds, target, reduction='mean')
-            # corr = pearsons_corr(preds, target_corr).abs().mean()
-            # corr *= args.meta_corr_weight
 
             loss = class_loss
-            loss.backward()
 
             clf_optimizer.zero_grad()
-            clf_optimizer.zero_grad()
-            fast_optimizer.zero_grad()
-            fast_optimizer.step()
 
-    fast_model.eval()
+            loss.backward(retain_graph=True)
+
+            clf_optimizer.step()
+            update_weights(loss, fast_model.named_parameters(), fast_weights)
+            print(list(fast_weights.values())[2])
+
     meta_clf.eval()
 
     q_loss = torch.zeros(1).to(args.device)
     for x, s, y in meta_train:
+        fast_model.load_state_dict(fast_weights)
 
         if pred_s:
             target = s
-            target_corr = y
-            # target = s
         else:
             target = y
-            target_corr = s
 
         if loss_fn == F.nll_loss:
             target = target.long()
 
         x = x.to(args.device)
         target = target.to(args.device)
-        target_corr = target_corr.to(args.device)
 
-        x_prime = fast_model(x)[:, -args.zy_dim:]
+        z = fast_model(x)[:, -args.zy_dim:]
         # z = model(x)
         # fast_model.chain[0].orig_shape = model.chain[0].orig_shape
-        # x_prime = fast_model(z, reverse=True)
+        # z = fast_model(z, reverse=True)
 
         if pred_s:
-            x_prime = layers.grad_reverse(x_prime, lambda_=args.pred_s_from_zy_weight)
+            z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
 
-        preds = meta_clf(x_prime)
+        preds = meta_clf(z)
         class_loss = loss_fn(preds, target, reduction='sum')
-        # corr = pearsons_corr(preds, target_corr).abs().sum()
-        # corr *= args.meta_corr_weight
 
         q_loss += class_loss.sum()
 
     q_loss /= len(meta_test.dataset)
 
     meta_clf.train()
-    fast_model.train()
     model.train()
 
-    return q_loss
+    return q_loss, fast_model, fast_weights
 
 
 def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
@@ -670,3 +670,8 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
     if recon_zyn:
         encodings['recon_yn'] = TensorDataset(raw_encodings['recon_yn'], s, y)
     return encodings
+
+
+def add_gradients(grads, model):
+    for grad, param in zip(grads, model.parameters()):
+        param.grad = grad
