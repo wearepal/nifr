@@ -87,14 +87,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     # for m in range(ARGS.meta_iters):
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
 
-        if ARGS.full_meta:
-            meta_clf = nn.Linear(ARGS.zy_dim, ARGS.y_dim)
-            if ARGS.dataset == 'cmnist':
-                meta_clf.add_module('act', nn.LogSoftmax(dim=1))
-            meta_clf.to(ARGS.device)
-            clf_optimizer = Adam(meta_clf.parameters(), lr=ARGS.fast_lr,
-                                 weight_decay=ARGS.meta_weight_decay)
-
         x, s, y = cvt(x, s, y)
 
         discs.pred_s_from_zy_weight = min(
@@ -111,14 +103,13 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
 
         if ARGS.full_meta:
 
+
             disc_grads = torch.autograd.grad(loss, discs.s_from_zy.parameters(), create_graph=True)
             add_gradients(disc_grads, discs.s_from_zy)
             disc_optimizer.step()
 
             meta_loss, fast_weights =\
-                inner_meta_loop(ARGS, model, loss,\
-                                  meta_clf, clf_optimizer, meta_train, meta_test,
-                                  pred_s=False)
+                inner_meta_loop(ARGS, model, loss, meta_train, meta_test)
             meta_loss *= ARGS.meta_weight
             LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
 
@@ -128,6 +119,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             add_gradients(grads, model)
 
             optimizer.step()
+            disc_optimizer.step()
 
         else:
             loss.backward()

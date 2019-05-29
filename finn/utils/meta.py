@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 import sys
 from collections import OrderedDict
@@ -59,6 +60,7 @@ def add_gradients(grads, model):
     for grad, param in zip(grads, model.parameters()):
         param.grad = grad
 
+
 @torch.jit.script
 def _weight_update(weight, grad, lr, weight_decay):
     l2 = 2 * weight_decay * weight
@@ -71,15 +73,20 @@ def meta_update(loss, parameters, lr, weight_decay=0):
             for param, grad in zip(grads, parameters))
 
 
-def inner_meta_loop(args, model, loss,
-                    meta_clf, clf_optimizer, meta_train, meta_test,
-                    pred_s=False):
+def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
+
+    meta_clf = nn.Linear(args.zy_dim, args.y_dim)
+    if args.dataset == 'cmnist':
+        meta_clf.add_module('act', nn.LogSoftmax(dim=1))
+    meta_clf.to(args.device)
+
+    clf_optimizer = Adam(meta_clf.parameters(), lr=args.fast_lr,
+                         weight_decay=args.meta_weight_decay)
 
     fast_model = make_functional(model)
     fast_weights = model.parameters()
 
-    fast_weights = meta_update(loss, fast_weights, args.fast_lr,
-                               args.meta_weight_decay)
+    fast_weights = meta_update(loss, fast_weights, args.fast_lr, args.weight_decay)
 
     if not isinstance(meta_train, DataLoader):
         meta_train = DataLoader(meta_train, batch_size=args.meta_batch_size, shuffle=True)
@@ -105,10 +112,6 @@ def inner_meta_loop(args, model, loss,
             target = target.to(args.device)
 
             z = fast_model(x, params=list(fast_weights))[:, -args.zy_dim:]
-            # z = model(x)
-            # fast_model.chain[0z].orig_shape = model.chain[0].orig_shape
-            # z = fast_model(z, reverse=True)
-            # z = reconstruct(args, z, fast_model, zero_zs=False)
 
             if pred_s:
                 z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
@@ -124,7 +127,7 @@ def inner_meta_loop(args, model, loss,
 
             clf_optimizer.step()
             fast_weights = meta_update(loss, fast_weights, args.fast_lr,
-                                       args.meta_weight_decay)
+                                       args.weight_decay)
 
     meta_clf.eval()
 
@@ -143,9 +146,6 @@ def inner_meta_loop(args, model, loss,
         target = target.to(args.device)
 
         z = fast_model(x, params=list(fast_weights))[:, -args.zy_dim:]
-        # z = model(x)
-        # fast_model.chain[0].orig_shape = model.chain[0].orig_shape
-        # z = fast_model(z, reverse=True)
 
         if pred_s:
             z = layers.grad_reverse(z, lambda_=args.pred_s_from_zy_weight)
