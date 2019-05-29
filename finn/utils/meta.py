@@ -73,6 +73,12 @@ def meta_update(loss, parameters, lr, weight_decay=0):
 
 def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
 
+    if not isinstance(meta_train, DataLoader):
+        meta_train = DataLoader(meta_train, batch_size=args.meta_batch_size, shuffle=True)
+
+    if not isinstance(meta_test, DataLoader):
+        meta_test = DataLoader(meta_test, batch_size=args.batch_size, shuffle=False)
+
     meta_clf = nn.Linear(args.zy_dim, args.y_dim)
     if args.dataset == 'cmnist':
         meta_clf.add_module('act', nn.LogSoftmax(dim=1))
@@ -85,12 +91,6 @@ def inner_meta_loop(args, model, loss, meta_train, meta_test, pred_s=False):
     fast_weights = model.parameters()
 
     fast_weights = meta_update(loss, fast_weights, args.fast_lr, args.weight_decay)
-
-    if not isinstance(meta_train, DataLoader):
-        meta_train = DataLoader(meta_train, batch_size=args.meta_batch_size, shuffle=True)
-
-    if not isinstance(meta_test, DataLoader):
-        meta_test = DataLoader(meta_test, batch_size=args.batch_size, shuffle=False)
 
     loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy_with_logits
 
