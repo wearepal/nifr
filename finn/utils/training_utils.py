@@ -103,7 +103,7 @@ def parse_arguments(raw_args=None):
                         help='Use meta learning procedure')
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
 
-    parser.add_argument('--full-meta', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--full-meta', type=eval, default=False, choices=[True, False])
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=3)
     parser.add_argument('--meta-batch-size', type=int, default=256)
