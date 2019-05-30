@@ -12,9 +12,10 @@ from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.evaluate_utils import MetaDataset
-from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, encode_dataset_no_recon
+from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, compute_projection_gradients
+from finn.models import NNDisc, InvDisc
 from finn.utils.meta import inner_meta_loop, add_gradients
-from finn.models import NNDisc, InvDisc, tabular_model
+from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam
 
 NDECS = 0
@@ -108,9 +109,16 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta
             disc_optimizer.step()
 
         else:
-            loss.backward()
-            optimizer.step()
-            disc_optimizer.step()
+            if ARGS.proj_grads:
+                compute_projection_gradients(model, log_p_x, pred_s_from_zy_loss,
+                                             alpha=ARGS.pred_s_from_zy_weight)
+                optimizer.step()
+                pred_s_from_zy_loss.backward()
+                disc_optimizer.step()
+            else:
+                loss.backward()
+                optimizer.step()
+                disc_optimizer.step()
 
             optimizer.zero_grad()
             disc_optimizer.zero_grad()

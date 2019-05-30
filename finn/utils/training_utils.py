@@ -84,7 +84,8 @@ def parse_arguments(raw_args=None):
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
                         help='Use s as input (if s is a separate feature)')
-    parser.add_argument('--spectral-norm', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--spectral-norm', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--proj-grads', type=eval, default=True, choices=[True, False])
     # classifier parameters (for computing fairness metrics)
     parser.add_argument('--mlp-clf', type=eval, default=False, choices=[True, False])
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
@@ -577,3 +578,19 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
     if recon_zyn:
         encodings['recon_yn'] = TensorDataset(raw_encodings['recon_yn'], s, y)
     return encodings
+
+
+@torch.jit.script
+def _proj(a, b):
+    result = b * torch.sum(a * b) / torch.sum(b * b)
+    return result
+
+
+def compute_projection_gradients(model, loss_p, loss_a, alpha):
+    grad_p = torch.autograd.grad(loss_p, model.parameters(), retain_graph=True)
+    grad_a = torch.autograd.grad(loss_a, model.parameters(), retain_graph=True)
+
+    grad_p = [p - _proj(p, a) - alpha * a for p, a in zip(grad_p, grad_a)]
+
+    for param, grad in zip(model.parameters(), grad_p):
+        param.grad = grad
