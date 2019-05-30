@@ -23,9 +23,9 @@ class MetaDataset(NamedTuple):
     meta_train: Dataset
     task: Dataset
     task_train: Dataset
-    inner_meta: Tuple[Dataset, Dataset]
     input_dim: int
     output_dim: int
+    inner_meta: Tuple[Dataset, Dataset] = ()
 
 
 def load_dataset(args):
