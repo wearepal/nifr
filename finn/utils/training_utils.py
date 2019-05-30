@@ -1,4 +1,5 @@
 import argparse
+from collections import OrderedDict
 from functools import partial
 import numpy as np
 import pandas as pd
@@ -16,6 +17,9 @@ from itertools import groupby
 
 from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
+from finn import layers
+from finn.utils.meta import make_functional
+from finn.utils.metrics import pearsons_corr
 
 
 def parse_arguments(raw_args=None):
@@ -51,12 +55,12 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--disc-hidden-dims', type=int, default=256)
 
     parser.add_argument('--early-stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=200)
-    parser.add_argument('--batch-size', type=int, default=100)
+    parser.add_argument('--epochs', type=int, default=250)
+    parser.add_argument('--batch-size', type=int, default=1000)
     parser.add_argument('--test-batch-size', type=int, default=None)
-    parser.add_argument('--lr', type=float, default=1e-4)
-    parser.add_argument('--disc-lr', type=float, default=1e-4)
-    parser.add_argument('--weight-decay', type=float, default=1e-6)
+    parser.add_argument('--lr', type=float, default=3e-4)
+    parser.add_argument('--disc-lr', type=float, default=3e-4)
+    parser.add_argument('--weight-decay', type=float, default=0)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--data-split-seed', type=int, default=888)
 
@@ -71,11 +75,11 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--zs-frac', type=float, default=0.33)
     parser.add_argument('--zy-frac', type=float, default=0.33)
 
-    parser.add_argument('--warmup-steps', type=int, default=10)
+    parser.add_argument('--warmup-steps', type=int, default=0)
     parser.add_argument('--log-px-weight', type=float, default=1.e-3)
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=1.)
+    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
-    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=1.)
+    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
     parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
@@ -97,6 +101,16 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
                         help='Use meta learning procedure')
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
+
+    parser.add_argument('--full-meta', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
+    parser.add_argument('--meta-epochs', type=int, default=3)
+    parser.add_argument('--meta-batch-size', type=int, default=256)
+    parser.add_argument('--meta-data-pcnt', type=restricted_float,
+                        metavar='P', default=0.5)
+    parser.add_argument('--meta-weight-decay', type=float, default=1e-6)
+    parser.add_argument('--fast-lr', type=float, default=1.e-3)
+
     parser.add_argument('--eff-comb', type=eval, default=True, choices=[True, False])
     parser.add_argument('--task-pcnt', type=float, default=0.2)
     parser.add_argument('--meta-pcnt', type=float, default=0.4)
@@ -131,8 +145,12 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
             # target = s
         else:
             target = y
+
+        if loss_fn == F.nll_loss:
+            target = target.long()
+
         x = x.to(args.device)
-        target = target.to(args.device).long()
+        target = target.to(args.device)
 
         if args.dataset == 'adult' and use_s and args.use_s:
             x = torch.cat((x, s), dim=1)
@@ -142,7 +160,7 @@ def train_classifier(args, model, optimizer, train_data, use_s, pred_s):
         optimizer.zero_grad()
         preds = model(x)
 
-        loss = loss_fn(preds.float(), target, reduction='mean')
+        loss = loss_fn(preds, target, reduction='mean')
 
         loss.backward()
         optimizer.step()
@@ -167,6 +185,9 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
             else:
                 target = y
 
+            if loss_fn == F.nll_loss:
+                target = target.long()
+
             x = x.to(args.device)
             target = target.to(args.device)
 
@@ -176,10 +197,10 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
                 x = x.mean(dim=1, keepdim=True)
 
             preds = model(x)
-            val_loss += loss_fn(preds.float(), target.long(), reduction='sum').item()
+            val_loss += loss_fn(preds.float(), target, reduction='sum').item()
 
             if args.dataset == 'adult':
-                acc += torch.sum(preds.round().long() == target).item()
+                acc += torch.sum(preds.round() == target).item()
             else:
                 acc += torch.sum(preds.argmax(dim=1) == target).item()
 
@@ -288,10 +309,10 @@ def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=Tru
             if experiment is not None and i == 0:
                 log_images(experiment, x, f"evaluation on {name}", prefix='eval')
 
-
             preds = model(x).argmax(dim=1)
             all_preds.extend(preds.detach().cpu().numpy())
             all_targets.extend(target.detach().cpu().numpy())
+
     return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
 
 
@@ -380,7 +401,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             if categorical:
                 layer = _OneHotEncoder(n_dims)
             else:
-                layer = nn.Identity()
+                layer = layers.Identity()
 
             return layer
 

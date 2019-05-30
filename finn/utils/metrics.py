@@ -1,6 +1,14 @@
 import torch
 
 
+def pearsons_corr(x, y):
+
+    vx = x - torch.mean(x)
+    vy = y - torch.mean(y)
+    cost = vx * vy * torch.rsqrt(torch.sum(vx ** 2) + 1.e-6) * torch.rsqrt(torch.sum(vy ** 2) + 1.e-6)
+    return cost
+
+
 def pdist(sample_1, sample_2, norm=2, eps=1e-5):
     r"""Compute the matrix of all squared pairwise distances.
     Arguments

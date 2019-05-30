@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import NamedTuple
 
+from typing import Tuple
 import pandas as pd
 import numpy as np
 
@@ -22,6 +23,7 @@ class MetaDataset(NamedTuple):
     meta_train: Dataset
     task: Dataset
     task_train: Dataset
+    inner_meta: Tuple[Dataset, Dataset]
     input_dim: int
     output_dim: int
 
@@ -88,7 +90,21 @@ def load_dataset(args):
     task_train_len = int(args.data_pcnt * len(whole_test_data))
     task_train_data, _ = random_split(
         whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len))
+
+    if args.full_meta:
+        meta_len = int(args.meta_data_pcnt * len(task_train_data))
+        inner_meta_data, _ = random_split(
+            task_train_data, lengths=(meta_len, len(task_train_data) - meta_len))
+        inner_meta_train_len = int(0.8 * len(inner_meta_data))
+        inner_meta_train, inner_meta_test = random_split(
+            inner_meta_data, lengths=(inner_meta_train_len,
+                                        len(inner_meta_data) - inner_meta_train_len))
+    else:
+        inner_meta_train = None
+        inner_meta_test = None
+
     return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data,
+                       inner_meta=(inner_meta_train, inner_meta_test),
                        input_dim=None, output_dim=args.y_dim)
 
 
