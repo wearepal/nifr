@@ -4,13 +4,17 @@ from pathlib import Path
 
 from comet_ml import Experiment
 import torch
+import torch.nn as nn
 from torch.optim.lr_scheduler import ExponentialLR
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, random_split
 
 from torch.optim import Adam
 from finn.utils import utils  # , unbiased_hsic
+from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.evaluate_utils import MetaDataset
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, compute_projection_gradients
+from finn.models import NNDisc, InvDisc
+from finn.utils.meta import inner_meta_loop, add_gradients
 from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam
 
@@ -58,7 +62,8 @@ def restore_model(filename, model, discs):
     return model, discs
 
 
-def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
+def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta_data):
+
     model.train()
 
     loss_meter = utils.AverageMeter()
@@ -70,11 +75,9 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
     start_epoch_time = time.time()
     end = start_epoch_time
 
+    # for m in range(ARGS.meta_iters):
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
-        optimizer.zero_grad()
-        disc_optimizer.zero_grad()
 
-        # if ARGS.dataset == 'adult':
         x, s, y = cvt(x, s, y)
 
         discs.pred_s_from_zy_weight = min(
@@ -89,16 +92,36 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         pred_s_from_zy_loss_meter.update(pred_s_from_zy_loss.item())
         pred_s_from_zs_loss_meter.update(pred_s_from_zs_loss.item())
 
-        if ARGS.proj_grads:
-            compute_projection_gradients(model, log_p_x, pred_s_from_zy_loss,
-                                         alpha=ARGS.pred_s_from_zy_weight)
-            optimizer.step()
-            pred_s_from_zy_loss.backward()
+        if ARGS.full_meta:
+            disc_grads = torch.autograd.grad(loss, discs.s_from_zy.parameters(), create_graph=True)
+            add_gradients(disc_grads, discs.s_from_zy)
             disc_optimizer.step()
+
+            meta_loss, fast_weights =\
+                inner_meta_loop(ARGS, model, loss, *inner_meta_data)
+            meta_loss *= ARGS.meta_weight
+            LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
+
+            grads = torch.autograd.grad(meta_loss, model.parameters())
+            add_gradients(grads, model)
+
+            optimizer.step()
+            disc_optimizer.step()
+
         else:
-            loss.backward()
-            optimizer.step()
-            disc_optimizer.step()
+            if ARGS.proj_grads:
+                compute_projection_gradients(model, log_p_x, pred_s_from_zy_loss,
+                                             alpha=ARGS.pred_s_from_zy_weight)
+                optimizer.step()
+                pred_s_from_zy_loss.backward()
+                disc_optimizer.step()
+            else:
+                loss.backward()
+                optimizer.step()
+                disc_optimizer.step()
+
+            optimizer.zero_grad()
+            disc_optimizer.zero_grad()
 
         time_meter.update(time.time() - end)
 
@@ -108,9 +131,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
         SUMMARY.log_metric('Loss pred_s_from_zy_loss', pred_s_from_zy_loss.item())
         SUMMARY.log_metric('Loss pred_s_from_zs_loss', pred_s_from_zs_loss.item())
         end = time.time()
-
-        optimizer.zero_grad()
-        disc_optimizer.zero_grad()
 
     model.eval()
     with torch.no_grad():
@@ -135,7 +155,8 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch):
                 "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | "
                 "pred_s_from_zy: {:.5g} | pred_s_from_zs {:.5g} ({:.5g})",
                 epoch, time_for_epoch, 1 / time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
-                pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg, loss_meter.avg)
+                pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg,
+                loss_meter.avg)
 
 
 def validate(model, discs, val_loader):
@@ -145,7 +166,8 @@ def validate(model, discs, val_loader):
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, neg_log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(x_val, s_val, y_val, model)
+            loss, neg_log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss =\
+                discs.compute_loss(x_val, s_val, y_val, model)
             # during validation we don't want to penalise being poor at predicting s from y
             loss = neg_log_px + pred_y_loss + pred_s_from_zs_loss - pred_s_from_zy_loss
 
@@ -274,7 +296,8 @@ def main(args, datasets, metric_callback):
             break
 
         with SUMMARY.train():
-            train(model, discs, optimizer, disc_optimizer, train_loader, epoch)
+            train(model, discs, optimizer, disc_optimizer, train_loader,
+                  epoch, inner_meta_data=datasets.inner_meta)
             SUMMARY.log_metric("lr", scheduler.get_lr()[0])
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:

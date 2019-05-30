@@ -37,10 +37,12 @@ def main(raw_args=None):
     datasets = load_dataset(args)
     training_loop(args, datasets, log_metrics)
 
+
 def log_sample_images(experiment, data, name):
     data_loader = DataLoader(data, shuffle=False, batch_size=65)
     x, s, y = next(iter(data_loader))
     log_images(experiment, x, f"Samples from {name}", prefix='eval')
+
 
 def log_metrics(args, experiment, model, discs, data, check_originals=False):
     """Compute and log a variety of metrics"""
