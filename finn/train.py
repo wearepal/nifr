@@ -4,16 +4,13 @@ from pathlib import Path
 
 from comet_ml import Experiment
 import torch
-import torch.nn as nn
 from torch.optim.lr_scheduler import ExponentialLR
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
-from finn.utils import utils  # , unbiased_hsic
-from finn.utils.eval_metrics import evaluate_with_classifier
+from finn.utils import utils
 from finn.utils.evaluate_utils import MetaDataset
 from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, compute_projection_gradients
-from finn.models import NNDisc, InvDisc
 from finn.utils.meta import inner_meta_loop, add_gradients
 from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam

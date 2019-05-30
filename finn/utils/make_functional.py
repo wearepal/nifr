@@ -1,3 +1,9 @@
+"""
+The code in this file is farly arcane; it's not necessary to understand it.
+All it does is converts all submodules in a module into their functional form -
+without doing so, we can't automatically order to track gradients through updates,
+which is required for meta-learning algorithms such as MAML.
+"""
 import torch.nn as nn
 from collections import OrderedDict
 
