@@ -577,8 +577,3 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
     if recon_zyn:
         encodings['recon_yn'] = TensorDataset(raw_encodings['recon_yn'], s, y)
     return encodings
-
-
-def add_gradients(grads, model):
-    for grad, param in zip(grads, model.parameters()):
-        param.grad = grad

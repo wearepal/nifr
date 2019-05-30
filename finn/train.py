@@ -61,9 +61,7 @@ def restore_model(filename, model, discs):
     return model, discs
 
 
-def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train=None):
-    if ARGS.full_meta:
-        assert task_train is not None
+def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta_data):
 
     model.train()
 
@@ -75,14 +73,6 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
     time_meter = utils.AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-
-    if ARGS.full_meta:
-        meta_len = int(ARGS.meta_data_pcnt * len(task_train))
-        meta_dataset, _ = random_split(
-            task_train, lengths=(meta_len, len(task_train) - meta_len))
-        meta_train_len = int(0.8 * len(meta_dataset))
-        meta_train, meta_test = random_split(
-            meta_dataset, lengths=(meta_train_len, len(meta_dataset) - meta_train_len))
 
     # for m in range(ARGS.meta_iters):
     for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
@@ -107,11 +97,9 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, task_train
             disc_optimizer.step()
 
             meta_loss, fast_weights =\
-                inner_meta_loop(ARGS, model, loss, meta_train, meta_test)
+                inner_meta_loop(ARGS, model, loss, *inner_meta_data)
             meta_loss *= ARGS.meta_weight
             LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
-
-            optimizer.zero_grad()
 
             grads = torch.autograd.grad(meta_loss, model.parameters())
             add_gradients(grads, model)
@@ -300,7 +288,8 @@ def main(args, datasets, metric_callback):
             break
 
         with SUMMARY.train():
-            train(model, discs, optimizer, disc_optimizer, train_loader, epoch, datasets.task_train)
+            train(model, discs, optimizer, disc_optimizer, train_loader,
+                  epoch, inner_meta_data=datasets.inner_meta)
             SUMMARY.log_metric("lr", scheduler.get_lr()[0])
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
