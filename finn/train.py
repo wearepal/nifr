@@ -323,7 +323,7 @@ def main(args, datasets, metric_callback):
 
     LOGGER.info('Training has finished.')
     model, discs = restore_model(save_dir / 'checkpt.pth', model, discs)
-    metric_callback(ARGS, SUMMARY, model, discs, datasets)
+    metric_callback(ARGS, SUMMARY, model, discs, datasets, save_to_csv=True)
     save_model(save_dir=save_dir, model=model, discs=discs)
     model.eval()
     return model, discs

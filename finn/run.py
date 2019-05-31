@@ -36,6 +36,7 @@ def main(raw_args=None):
     random_seed(args.seed, use_gpu)
     datasets = load_dataset(args)
     training_loop(args, datasets, log_metrics)
+    return
 
 
 def log_sample_images(experiment, data, name):
@@ -44,7 +45,7 @@ def log_sample_images(experiment, data, name):
     log_images(experiment, x, f"Samples from {name}", prefix='eval')
 
 
-def log_metrics(args, experiment, model, discs, data, check_originals=False):
+def log_metrics(args, experiment, model, discs, data, check_originals=False, save_to_csv=False):
     """Compute and log a variety of metrics"""
     assert args.meta_learn
     ethicml_model =MLP() if args.mlp_clf else LR()
@@ -79,7 +80,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False):
         if args.dataset == 'adult':
             repr_ = MetaDataset(meta_train=None, task=task_repr, task_train=task_train_repr,
                                 input_dim=data.input_dim, output_dim=data.output_dim)
-            metrics_for_meta_learn(args, experiment, ethicml_model, repr_, data)
+            metrics_for_meta_learn(args, experiment, ethicml_model, repr_, data, save_to_csv=save_to_csv)
         return
 
     print('Encoding task dataset...')

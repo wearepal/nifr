@@ -1,5 +1,8 @@
 from torchvision import transforms
 from typing import NamedTuple
+import pandas as pd
+import os
+import csv
 
 from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.algorithms.utils import DataTuple
@@ -20,10 +23,9 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
 
     if run_all:
         metrics = run_metrics(predictions, actual,
-                              metrics=[Accuracy(), Theil(), NMI(), TPR(), TNR(), PPV()],
-                              per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), NMI(), PPV()])
+                              metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV()],
+                              per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), PPV()])
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
-        experiment.log_metric(f"{name} NMI", metrics['NMI'])
         experiment.log_metric(f"{name} TPR", metrics['TPR'])
         experiment.log_metric(f"{name} TNR", metrics['TNR'])
         experiment.log_metric(f"{name} PPV", metrics['PPV'])
@@ -43,7 +45,6 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
         experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics['TPR_sex_Male_0.0/sex_Male_1.0'])
         experiment.log_metric(f"{name} TPR Diff s0-s1", metrics['TPR_sex_Male_0.0/sex_Male_1.0'])
 
-        experiment.log_metric(f"{name} NMI Ratio s0/s1", metrics['NMI_sex_Male_0.0/sex_Male_1.0'])
         experiment.log_metric(f"{name} PPV Ratio s0/s1", metrics['PPV_sex_Male_0.0/sex_Male_1.0'])
         experiment.log_metric(f"{name} TNR Ratio s0/s1", metrics['TNR_sex_Male_0.0/sex_Male_1.0'])
     else:
@@ -55,7 +56,7 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
     return metrics
 
 
-def metrics_for_meta_learn(args, experiment, clf, repr, data):
+def metrics_for_meta_learn(args, experiment, clf, repr, data, save_to_csv=False):
     assert isinstance(repr, MetaDataset)
     print('Meta Learn Results...')
     if args.dataset == 'cmnist':
@@ -70,6 +71,24 @@ def metrics_for_meta_learn(args, experiment, clf, repr, data):
         metrics = compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta", run_all=True)
         print(",".join(metrics.keys()))
         print(",".join([str(val) for val in metrics.values()]))
+
+        if save_to_csv:
+            if os.path.isfile('./adult_results.csv'):
+                with open('./adult_results.csv', 'a') as f:
+                    f.write("%s," % args.task_mixing_factor)
+                    for key in metrics.keys():
+                        f.write("%s," % metrics[key])
+                    f.write("\n")
+            else:
+                with open('./adult_results.csv', 'w') as f:
+                    f.write("Mix_fact,")
+                    for key in metrics.keys():
+                        f.write("%s," % key)
+                    f.write("\n")
+                    f.write("%s," % args.task_mixing_factor)
+                    for key in metrics.keys():
+                        f.write("%s," % metrics[key])
+                    f.write("\n")
 
 
 def make_tuple_from_data(train, test, pred_s, use_s):
