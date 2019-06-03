@@ -28,7 +28,7 @@ def load_adult_data(args):
         disc_feats += ["native-country_not_United-States"]
         disc_feats = sorted(disc_feats)
 
-        feats = disc_feats + cont_feats
+        feats = cont_feats if not args.drop_discrete else disc_feats + cont_feats
 
         data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
         assert data.x.shape[1] == 62

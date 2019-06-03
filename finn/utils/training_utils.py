@@ -116,6 +116,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--task-pcnt', type=float, default=0.2)
     parser.add_argument('--meta-pcnt', type=float, default=0.4)
 
+    parser.add_argument('--drop-discrete', type=eval, default=False)
     parser.add_argument('--save-to-csv', type=eval, default=False, choices=[True, False])
 
     return parser.parse_args(raw_args)
