@@ -394,7 +394,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             disc_feats = sorted(disc_feats)
             assert len(disc_feats) + len(cont_feats) == 62
 
-        feats = disc_feats+cont_feats
+        feats = cont_feats if args.drop_discrete else disc_feats+cont_feats
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
@@ -420,9 +420,9 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
 
         recon = torch.cat(_recon, dim=1)
         if args.drop_native:
-            assert recon.size(1) == 62
+            assert recon.size(1) == 5 if args.drop_discrete else 62
         else:
-            assert recon.size(1) == 101
+            assert recon.size(1) == 5 if args.drop_discrete else 101
 
         # recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
 

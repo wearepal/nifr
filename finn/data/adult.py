@@ -28,7 +28,7 @@ def load_adult_data(args):
         disc_feats += ["native-country_not_United-States"]
         disc_feats = sorted(disc_feats)
 
-        feats = cont_feats if not args.drop_discrete else disc_feats + cont_feats
+        feats = disc_feats + cont_feats
 
         data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
         assert data.x.shape[1] == 62
@@ -90,16 +90,26 @@ def load_adult_data(args):
 
     task_train_scaled = task_train.x
     task_train_scaled[cont_feats] = scaler.fit_transform(task_train.x[cont_feats])
-    task_train = DataTuple(x=task_train_scaled, s=task_train.s, y=task_train.y)
+    if args.drop_discrete:
+        task_train = DataTuple(x=task_train_scaled[cont_feats], s=task_train.s, y=task_train.y)
+    else:
+        task_train = DataTuple(x=task_train_scaled, s=task_train.s, y=task_train.y)
+
 
     task_scaled = task.x
     task_scaled[cont_feats] = scaler.transform(task.x[cont_feats])
-    task = DataTuple(x=task_scaled, s=task.s, y=task.y)
+    if args.drop_discrete:
+        task = DataTuple(x=task_scaled[cont_feats], s=task.s, y=task.y)
+    else:
+        task = DataTuple(x=task_scaled, s=task.s, y=task.y)
 
     if args.meta_learn:
         meta_train_scaled = meta_train.x
         meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
-        meta_train = DataTuple(x=meta_train_scaled, s=meta_train.s, y=meta_train.y)
+        if args.drop_discrete:
+            meta_train = DataTuple(x=meta_train_scaled[cont_feats], s=meta_train.s, y=meta_train.y)
+        else:
+            meta_train = DataTuple(x=meta_train_scaled, s=meta_train.s, y=meta_train.y)
 
     return meta_train, task, task_train
 
