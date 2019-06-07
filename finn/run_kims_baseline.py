@@ -620,7 +620,7 @@ class WholeDataLoader(Dataset):
     def __init__(self, option):
         self.data_split = option.data_split
         data_dic = np.load(os.path.join(option.data_dir, 'mnist_10color_jitter_var_%.03f.npy' % option.scale),
-                           encoding='latin1', allow_pickle=True).item()
+                           encoding='latin1').item()
         if self.data_split == 'train':
             self.image = data_dic['train_image']
             self.label = data_dic['train_label']
