@@ -83,6 +83,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--warmup-steps', type=int, default=0)
     parser.add_argument('--log-px-weight', type=float, default=1.e-3)
     parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
+    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
     parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
     parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
@@ -138,6 +139,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--use-pretrain', type=eval, default=False, choices=[False, True], help='whether it use pre-trained parameters if exists')
     parser.add_argument('--eval-only', type=eval, default=False, choices=[False, True], help='Skip the training step?')
     parser.add_argument('--use-kims-data', type=eval, default=True, choices=[False, True], help='use the kims data? if False, use ours')
+    parser.add_argument('--num-workers', type=int, default=4)
 
     return parser.parse_args(raw_args)
 
@@ -164,11 +166,11 @@ def main(raw_args=None):
         trainval_loader = torch.utils.data.DataLoader(custom_loader,
                                                       batch_size=args.batch_size,
                                                       shuffle=True,
-                                                      num_workers=1)
+                                                      num_workers=args.num_workers)
     else:
         our_datasets = load_dataset(args)
         trainval_loader = torch.utils.data.DataLoader(
-            our_datasets.task_train, batch_size=args.batch_size, shuffle=True, num_workers=1
+            our_datasets.task_train, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
         )
 
     trainer = Trainer(args)
@@ -190,10 +192,10 @@ def main(raw_args=None):
         testval_loader = torch.utils.data.DataLoader(custom_loader,
                                                       batch_size=args.batch_size,
                                                       shuffle=True,
-                                                      num_workers=1)
+                                                      num_workers=args.num_workers)
     else:
         testval_loader = torch.utils.data.DataLoader(
-            our_datasets.task, batch_size=args.batch_size, shuffle=True, num_workers=1
+            our_datasets.task, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
         )
 
 
