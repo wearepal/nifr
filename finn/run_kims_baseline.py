@@ -152,10 +152,8 @@ def main(raw_args=None):
 
     trainer = Trainer(args)
 
-    custom_loader = datasets.task_train
-
     trainval_loader = torch.utils.data.DataLoader(
-        custom_loader, batch_size=args.batch_size, shuffle=True, num_workers=1
+        datasets.task_train, batch_size=args.batch_size, shuffle=True, num_workers=1
     )
 
     trainer.option.is_train = True
@@ -163,7 +161,14 @@ def main(raw_args=None):
         trainer.train(trainval_loader)
     trainer.option.is_train = False
     trainer.option.checkpoint = pth / "checkpoint_step_0099.pth"
+    print("Performance on training set")
     trainer._validate(trainval_loader)
+
+    testval_loader = torch.utils.data.DataLoader(
+        datasets.task, batch_size=args.batch_size, shuffle=True, num_workers=1
+    )
+    print("Performance on the test set")
+    trainer._validate(testval_loader)
     return
 
 
