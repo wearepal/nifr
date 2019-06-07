@@ -83,7 +83,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--warmup-steps', type=int, default=0)
     parser.add_argument('--log-px-weight', type=float, default=1.e-3)
     parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
     parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
     parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
     parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
