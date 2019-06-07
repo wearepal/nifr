@@ -7,10 +7,17 @@ import torch
 import torch.nn.functional as F
 from torch import nn, optim
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset, DataLoader
 
 from finn.data import load_dataset
 from finn.run import random_seed
+
+import torchvision.transforms as transforms
+import numpy as np
+from PIL import Image
+
+import torch.utils.data as data
+import torchvision.datasets as datasets
 
 
 def restricted_float(x):
@@ -119,6 +126,7 @@ def parse_arguments(raw_args=None):
 
 
     parser.add_argument('--save-dir', type=str, default='./')
+    parser.add_argument('--data-dir', type=str, default='./data/5kimsdata/')
     parser.add_argument('--exp-name', type=str, default='experiments/5kims')
     parser.add_argument('--train-baseline', type=eval, default=False, choices=[True, False])
 
@@ -129,6 +137,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--checkpoint', default=None, help='checkpoint to resume')
     parser.add_argument('--use-pretrain', type=eval, default=False, choices=[False, True], help='whether it use pre-trained parameters if exists')
     parser.add_argument('--eval-only', type=eval, default=False, choices=[False, True], help='Skip the training step?')
+    parser.add_argument('--use-kims-data', type=eval, default=True, choices=[False, True], help='use the kims data? if False, use ours')
 
     return parser.parse_args(raw_args)
 
@@ -148,25 +157,46 @@ def main(raw_args=None):
 
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
-    datasets = load_dataset(args)
+
+    if args.use_kims_data:
+        args.data_split = 'train'
+        custom_loader = WholeDataLoader(args)
+        trainval_loader = torch.utils.data.DataLoader(custom_loader,
+                                                      batch_size=args.batch_size,
+                                                      shuffle=True,
+                                                      num_workers=1)
+    else:
+        our_datasets = load_dataset(args)
+        trainval_loader = torch.utils.data.DataLoader(
+            our_datasets.task_train, batch_size=args.batch_size, shuffle=True, num_workers=1
+        )
 
     trainer = Trainer(args)
 
-    trainval_loader = torch.utils.data.DataLoader(
-        datasets.task_train, batch_size=args.batch_size, shuffle=True, num_workers=1
-    )
 
     trainer.option.is_train = True
     if not args.eval_only:
         trainer.train(trainval_loader)
+
     trainer.option.is_train = False
     trainer.option.checkpoint = pth / "checkpoint_step_0099.pth"
+
     print("Performance on training set")
     trainer._validate(trainval_loader)
 
-    testval_loader = torch.utils.data.DataLoader(
-        datasets.task, batch_size=args.batch_size, shuffle=True, num_workers=1
-    )
+    if args.use_kims_data:
+        args.data_split = 'test'
+        custom_loader = WholeDataLoader(args)
+        testval_loader = torch.utils.data.DataLoader(custom_loader,
+                                                      batch_size=args.batch_size,
+                                                      shuffle=True,
+                                                      num_workers=1)
+    else:
+        testval_loader = torch.utils.data.DataLoader(
+            our_datasets.task, batch_size=args.batch_size, shuffle=True, num_workers=1
+        )
+
+
     print("Performance on the test set")
     trainer._validate(testval_loader)
     return
@@ -370,8 +400,9 @@ class Trainer(object):
     def _train_step(self, data_loader, step):
         _lambda = 0.01
 
-        for i, (images, _, labels) in enumerate(data_loader):
-            color_labels = self._get_color_labels(images)
+        for i, (images, color_labels, labels) in enumerate(data_loader):
+            if not self.option.use_kims_data:
+                color_labels = self._get_color_labels(images)
 
             images = self._get_variable(images)
             color_labels = self._get_variable(color_labels)
@@ -449,8 +480,9 @@ class Trainer(object):
                 print(msg)
 
     def _train_step_baseline(self, data_loader, step):
-        for i, (images, _, labels) in enumerate(data_loader):
-            color_labels = self._get_color_labels(images)
+        for i, (images, color_labels, labels) in enumerate(data_loader):
+            if not self.option.use_kims_data:
+                color_labels = self._get_color_labels(images)
 
             images = self._get_variable(images)
             labels = self._get_variable(labels)
@@ -488,8 +520,9 @@ class Trainer(object):
         total_num_correct = 0.0
         total_num_test = 0.0
         total_loss = 0.0
-        for i, (images, _, labels) in enumerate(data_loader):
-            color_labels = self._get_color_labels(images)
+        for i, (images, color_labels, labels) in enumerate(data_loader):
+            if not self.option.use_kims_data:
+                color_labels = self._get_color_labels(images)
 
             images = self._get_variable(images)
             color_labels = self._get_variable(color_labels)
@@ -581,6 +614,51 @@ class Trainer(object):
         if self.option.cuda:
             return Variable(inputs.cuda())
         return Variable(inputs)
+
+
+class WholeDataLoader(Dataset):
+    def __init__(self, option):
+        self.data_split = option.data_split
+        data_dic = np.load(os.path.join(option.data_dir, 'mnist_10color_jitter_var_%.03f.npy' % option.scale),
+                           encoding='latin1', allow_pickle=True).item()
+        if self.data_split == 'train':
+            self.image = data_dic['train_image']
+            self.label = data_dic['train_label']
+        elif self.data_split == 'test':
+            self.image = data_dic['test_image']
+            self.label = data_dic['test_label']
+
+        color_var = option.scale
+        self.color_std = color_var ** 0.5
+
+        self.T = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2023, 0.1994, 0.2010)),
+        ])
+
+        self.ToPIL = transforms.Compose([
+            transforms.ToPILImage(),
+        ])
+
+    def __getitem__(self, index):
+        label = self.label[index]
+        image = self.image[index]
+
+        image = self.ToPIL(image)
+
+        label_image = image.resize((14, 14), Image.NEAREST)
+
+        label_image = torch.from_numpy(np.transpose(label_image, (2, 0, 1)))
+        mask_image = torch.lt(label_image.float() - 0.00001, 0.) * 255
+        label_image = torch.div(label_image, 32)
+        label_image = label_image + mask_image
+        label_image = label_image.long()
+
+        return self.T(image), label_image, label.astype(np.long)
+
+    def __len__(self):
+        return self.image.shape[0]
 
 
 if __name__ == "__main__":
