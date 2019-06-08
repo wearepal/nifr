@@ -132,57 +132,35 @@ class BruteForceLayer(nn.Module):
         return torch.log(torch.abs(torch.det(self.weight.double()))).float()
 
 
-# ActNorm Layer with data-dependant init
+# ActNorm Layer without stupidity
 class ActNorm(InvertibleLayer):
-    def __init__(self, num_features, logscale_factor=1., scale=1.):
+    def __init__(self, num_features):
         super(ActNorm, self).__init__()
-        self.initialized = False
-        self.logscale_factor = logscale_factor
-        self.scale = scale
-        self.register_buffer('b', torch.zeros(1, num_features, 1))
-        self.register_buffer('logs', torch.zeros(1, num_features, 1))
+        self.b = nn.Parameter(torch.zeros(1, num_features, 1))
+        self.logs = nn.Parameter(torch.zeros(1, num_features, 1))
 
     def _forward(self, x, logpx=None):
         input_shape = x.size()
         x = x.view(input_shape[0], input_shape[1], -1)
 
-        if not self.initialized:
-            self.initialized = True
-            unsqueeze = lambda x: x.unsqueeze(0).unsqueeze(-1).detach()
-
-            # Compute the mean and variance
-            sum_size = x.size(0) * x.size(-1)
-            b = -torch.sum(x, dim=(0, -1)) / sum_size
-            vars = unsqueeze(torch.sum((x + unsqueeze(b)) ** 2, dim=(0, -1)) / sum_size)
-            logs = torch.log(self.scale / (torch.sqrt(vars) + 1e-6)) / self.logscale_factor
-
-            self.b.data.copy_(unsqueeze(b).data)
-            self.logs.data.copy_(logs.data)
-
-        logs = self.logs * self.logscale_factor
-        b = self.b
-
-        output = (x + b) * torch.exp(logs)
+        output = (x + self.b) * torch.exp(self.logs)
         output = output.view(input_shape)
         if logpx is None:
             return output
         else:
-            dlogdet = torch.sum(logs) * x.size(-1)  # c x h
+            dlogdet = torch.sum(self.logs) * x.size(-1)  # c x h
             return output, logpx - dlogdet
 
     def _reverse(self, x, logpx=None):
-        assert self.initialized
         input_shape = x.size()
         x = x.view(input_shape[0], input_shape[1], -1)
-        logs = self.logs * self.logscale_factor
-        b = self.b
-        output = x * torch.exp(-logs) - b
+        output = x * torch.exp(-self.logs) - self.b
 
         output = output.view(input_shape)
         if logpx is None:
             return output
         else:
-            dlogdet = torch.sum(logs) * x.size(-1)  # c x h
+            dlogdet = torch.sum(self.logs) * x.size(-1)  # c x h
             return output, logpx + dlogdet
 
 
