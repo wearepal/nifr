@@ -186,6 +186,37 @@ class ActNorm(InvertibleLayer):
             return output, logpx + dlogdet
 
 
+class ActNormNoData(InvertibleLayer):
+    def __init__(self, num_features):
+        super(ActNorm, self).__init__()
+        self.b = nn.Parameter(torch.zeros(1, num_features, 1))
+        self.logs = nn.Parameter(torch.zeros(1, num_features, 1))
+
+    def _forward(self, x, logpx=None):
+        input_shape = x.size()
+        x = x.view(input_shape[0], input_shape[1], -1)
+
+        output = (x + self.b) * torch.exp(self.logs)
+        output = output.view(input_shape)
+        if logpx is None:
+            return output
+        else:
+            dlogdet = torch.sum(self.logs) * x.size(-1)  # c x h
+            return output, logpx - dlogdet
+
+    def _reverse(self, x, logpx=None):
+        input_shape = x.size()
+        x = x.view(input_shape[0], input_shape[1], -1)
+        output = x * torch.exp(-self.logs) - self.b
+
+        output = output.view(input_shape)
+        if logpx is None:
+            return output
+        else:
+            dlogdet = torch.sum(self.logs) * x.size(-1)  # c x h
+        return output, logpx + dlogdet
+
+
 def _test():
     x = torch.randn(100, 3, 28, 28)
     conv = Invertible1x1Conv(3, use_lr_decomp=True)
