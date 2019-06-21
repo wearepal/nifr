@@ -395,9 +395,9 @@ class Trainer:
 
     def _train_step(self, data_loader, step):
         _lambda = 0.01
+        start_time = time.monotonic()
 
         for i, (images, color_labels, labels) in enumerate(data_loader):
-            start_time = time.monotonic()
             if not self.option.use_kims_data:
                 color_labels = self._get_color_labels(images)
 
@@ -465,21 +465,23 @@ class Trainer:
 
             if i % self.option.log_step == 0:
                 msg = (
-                    "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d, elapsed %.2fs)"
+                    "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d)"
                     % (
                         loss_pred,
                         loss_pred_color / 3.0,
                         loss_pred_ps_color,
                         step,
                         int(100 * i / len(data_loader)),
-                        time.monotonic() - start_time,
                     )
                 )
                 print(msg)
+        elapsed = time.monotonic() - start_time
+        print(f"[TRAIN] Epoch {step} done. Elapsed time: {elapsed:.1f}s. "
+              f"Batches per second: {len(data_loader) / elapsed:.1f}")
 
     def _train_step_baseline(self, data_loader, step):
+        start_time = time.monotonic()
         for i, (images, _, labels) in enumerate(data_loader):
-            start_time = time.monotonic()
 
             images = self._maybe_to_cuda(images)
             labels = self._maybe_to_cuda(labels)
@@ -493,13 +495,15 @@ class Trainer:
             self.optim.step()
 
             if i % self.option.log_step == 0:
-                msg = "[TRAIN] cls loss : %.6f (epoch %d.%02d, elapsed %.2fs)" % (
+                msg = "[TRAIN] cls loss : %.6f (epoch %d.%02d)" % (
                     loss_pred,
                     step,
                     int(100 * i / len(data_loader)),
-                    time.monotonic() - start_time,
                 )
                 print(msg)
+        elapsed = time.monotonic() - start_time
+        print(f"[TRAIN] Epoch {step} done. Elapsed time: {elapsed:.1f}s. "
+              f"Batches per second: {len(data_loader) / elapsed:.1f}")
 
     def _validate(self, data_loader):
         self._mode_setting(is_train=False)
