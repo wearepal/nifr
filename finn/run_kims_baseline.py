@@ -2,22 +2,21 @@ import argparse
 import math
 import os
 from pathlib import Path
+import time
+
+import numpy as np
+from PIL import Image
 
 import torch
 import torch.nn.functional as F
 from torch import nn, optim
 from torch.autograd import Variable
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
+
+import torchvision.transforms as transforms
 
 from finn.data import load_dataset
 from finn.run import random_seed
-
-import torchvision.transforms as transforms
-import numpy as np
-from PIL import Image
-
-import torch.utils.data as data
-import torchvision.datasets as datasets
 
 
 def restricted_float(x):
@@ -124,7 +123,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--drop-discrete', type=eval, default=False)
     parser.add_argument('--save-to-csv', type=eval, default=False, choices=[True, False])
 
-
     parser.add_argument('--save-dir', type=str, default='./')
     parser.add_argument('--data-dir', type=str, default='./data/5kimsdata/')
     parser.add_argument('--exp-name', type=str, default='experiments/5kims')
@@ -153,8 +151,7 @@ def main(raw_args=None):
     args = parse_arguments(raw_args)
     args.exp_name += "_baseline" if args.train_baseline else ""
     pth = Path(args.save_dir) / args.exp_name
-    if not os.path.exists(pth):
-        os.makedirs(pth)
+    pth.mkdir(exist_ok=True, parents=True)
 
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
@@ -173,7 +170,6 @@ def main(raw_args=None):
         )
 
     trainer = Trainer(args)
-
 
     trainer.option.is_train = True
     if not args.eval_only:
@@ -283,15 +279,13 @@ def grad_reverse(x):
     return GradReverse.apply(x)
 
 
-class Trainer(object):
+class Trainer:
     def __init__(self, option):
         self.option = option
         self.option.cuda = torch.cuda.is_available() and not option.gpu < 0
 
-        self._build_model()
-        self._set_optimizer()
-
-    def _build_model(self):
+        # ================================================================
+        # ======================= build model ============================
         self.n_color_cls = 8
 
         self.option.n_class = 2 if self.option.dataset == "adult" else 10
@@ -312,7 +306,8 @@ class Trainer(object):
             self.loss.cuda()
             self.color_loss.cuda()
 
-    def _set_optimizer(self):
+        # =================================================================
+        # ======================= set optimizer ===========================
         self.option.momentum = 0.9
         self.optim = optim.SGD(
             filter(lambda p: p.requires_grad, self.net.parameters()),
@@ -342,20 +337,20 @@ class Trainer(object):
         # TODO: last_epoch should be the last step of loaded model
         self.option.lr_decay_rate = 0.1
         self.option.lr_decay_period = 40
-        lr_lambda = lambda step: self.option.lr_decay_rate ** (
-            step // self.option.lr_decay_period
-        )
+
+        def _lr_lambda(step):
+            return self.option.lr_decay_rate ** (step // self.option.lr_decay_period)
         self.scheduler = optim.lr_scheduler.LambdaLR(
-            self.optim, lr_lambda=lr_lambda, last_epoch=-1
+            self.optim, lr_lambda=_lr_lambda, last_epoch=-1
         )
         self.scheduler_r = optim.lr_scheduler.LambdaLR(
-            self.optim_r, lr_lambda=lr_lambda, last_epoch=-1
+            self.optim_r, lr_lambda=_lr_lambda, last_epoch=-1
         )
         self.scheduler_g = optim.lr_scheduler.LambdaLR(
-            self.optim_g, lr_lambda=lr_lambda, last_epoch=-1
+            self.optim_g, lr_lambda=_lr_lambda, last_epoch=-1
         )
         self.scheduler_b = optim.lr_scheduler.LambdaLR(
-            self.optim_b, lr_lambda=lr_lambda, last_epoch=-1
+            self.optim_b, lr_lambda=_lr_lambda, last_epoch=-1
         )
 
     @staticmethod
@@ -402,12 +397,13 @@ class Trainer(object):
         _lambda = 0.01
 
         for i, (images, color_labels, labels) in enumerate(data_loader):
+            start_time = time.monotonic()
             if not self.option.use_kims_data:
                 color_labels = self._get_color_labels(images)
 
-            images = self._get_variable(images)
-            color_labels = self._get_variable(color_labels)
-            labels = self._get_variable(labels)
+            images = self._maybe_to_cuda(images)
+            color_labels = self._maybe_to_cuda(color_labels)
+            labels = self._maybe_to_cuda(labels)
 
             self.optim.zero_grad()
             self.optim_r.zero_grad()
@@ -469,24 +465,24 @@ class Trainer(object):
 
             if i % self.option.log_step == 0:
                 msg = (
-                    "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d)"
+                    "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d, elapsed %.2fs)"
                     % (
                         loss_pred,
                         loss_pred_color / 3.0,
                         loss_pred_ps_color,
                         step,
-                        int(100 * i / data_loader.__len__()),
+                        int(100 * i / len(data_loader)),
+                        time.monotonic() - start_time,
                     )
                 )
                 print(msg)
 
     def _train_step_baseline(self, data_loader, step):
-        for i, (images, color_labels, labels) in enumerate(data_loader):
-            if not self.option.use_kims_data:
-                color_labels = self._get_color_labels(images)
+        for i, (images, _, labels) in enumerate(data_loader):
+            start_time = time.monotonic()
 
-            images = self._get_variable(images)
-            labels = self._get_variable(labels)
+            images = self._maybe_to_cuda(images)
+            labels = self._maybe_to_cuda(labels)
 
             self.optim.zero_grad()
             feat_label, pred_label = self.net(images)
@@ -496,12 +492,12 @@ class Trainer(object):
             loss_pred.backward()
             self.optim.step()
 
-            # TODO: print elapsed time for iteration
             if i % self.option.log_step == 0:
-                msg = "[TRAIN] cls loss : %.6f (epoch %d.%02d)" % (
+                msg = "[TRAIN] cls loss : %.6f (epoch %d.%02d, elapsed %.2fs)" % (
                     loss_pred,
                     step,
-                    int(100 * i / data_loader.__len__()),
+                    int(100 * i / len(data_loader)),
+                    time.monotonic() - start_time,
                 )
                 print(msg)
 
@@ -525,9 +521,9 @@ class Trainer(object):
             if not self.option.use_kims_data:
                 color_labels = self._get_color_labels(images)
 
-            images = self._get_variable(images)
-            color_labels = self._get_variable(color_labels)
-            labels = self._get_variable(labels)
+            images = self._maybe_to_cuda(images)
+            color_labels = self._maybe_to_cuda(color_labels)
+            labels = self._maybe_to_cuda(labels)
 
             self.optim.zero_grad()
             _, pred_label = self.net(images)
@@ -608,20 +604,21 @@ class Trainer(object):
                 or step == (self.option.max_step - 1)
             ):
                 if val_loader is not None:
-                    self._validate(step, val_loader)
+                    self._validate(val_loader)
                 self._save_model(step)
 
-    def _get_variable(self, inputs):
+    def _maybe_to_cuda(self, inputs):
         if self.option.cuda:
-            return Variable(inputs.cuda())
-        return Variable(inputs)
+            return inputs.cuda()
+        return inputs
 
 
 class WholeDataLoader(Dataset):
     def __init__(self, option):
         self.data_split = option.data_split
-        data_dic = np.load(os.path.join(option.data_dir, 'mnist_10color_jitter_var_%.03f.npy' % option.scale),
-                           encoding='latin1', allow_pickle=True).item()
+        # data_dic = np.load(os.path.join(option.data_dir, 'mnist_10color_jitter_var_%.03f.npy' % option.scale),
+        #                    encoding='latin1', allow_pickle=True).item()
+        data_dic = np.load(Path(option.data_dir) / f"mnist_10color_jitter_var_{option.scale:.03f}.npz")
         if self.data_split == 'train':
             self.image = data_dic['train_image']
             self.label = data_dic['train_label']
