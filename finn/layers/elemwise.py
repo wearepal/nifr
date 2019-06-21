@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 _DEFAULT_ALPHA = 0  # 1e-6
-_DEFAULT_BETA = 1.
+_DEFAULT_BETA = 1.0
 
 
 class ZeroMeanTransform(nn.Module):
@@ -13,12 +13,12 @@ class ZeroMeanTransform(nn.Module):
 
     def forward(self, x, logpx=None, reverse=False):
         if reverse:
-            x = x + .5
+            x = x + 0.5
             if logpx is None:
                 return x
             return x, logpx
         else:
-            x = x - .5
+            x = x - 0.5
             if logpx is None:
                 return x
             return x, logpx
@@ -43,17 +43,16 @@ class LogitTransform(nn.Module):
 
 
 class SoftplusTransform(nn.Module):
-
     def __init__(self, beta=_DEFAULT_BETA):
         nn.Module.__init__(self)
         self.softplus = nn.Softplus(beta)
 
-    def forward(self, x ,logpx=None, reverse=False):
+    def forward(self, x, logpx=None, reverse=False):
         if reverse:
             x -= 1e-8
-            out = torch.log((x.exp() - 1) + 1.e-8)
+            out = torch.log((x.exp() - 1) + 1.0e-8)
             # out = x
-            log_det = ((1 / (1 - torch.exp(-x)) + 1.e-8).log()).sum(1, keepdim=True)
+            log_det = ((1 / (1 - torch.exp(-x)) + 1.0e-8).log()).sum(1, keepdim=True)
             # log_det = 0
             return out, logpx + log_det
         else:
@@ -76,11 +75,13 @@ class SigmoidTransform(nn.Module):
     def forward(self, x, logpx=None, reverse=False):
         x_copy = x.clone()
         if reverse:
-            x_copy[:, self.start_dim:self.end_dim], logpx = _logit(
-                x[:, self.start_dim:self.end_dim], logpx, self.alpha)
+            x_copy[:, self.start_dim : self.end_dim], logpx = _logit(
+                x[:, self.start_dim : self.end_dim], logpx, self.alpha
+            )
         else:
-            x_copy[:, self.start_dim:self.end_dim], logpx = _sigmoid(
-                x[:, self.start_dim:self.end_dim], logpx, self.alpha)
+            x_copy[:, self.start_dim : self.end_dim], logpx = _sigmoid(
+                x[:, self.start_dim : self.end_dim], logpx, self.alpha
+            )
         return x_copy, logpx
 
 

@@ -5,7 +5,12 @@ def pearsons_corr(x, y):
 
     vx = x - torch.mean(x)
     vy = y - torch.mean(y)
-    cost = vx * vy * torch.rsqrt(torch.sum(vx ** 2) + 1.e-6) * torch.rsqrt(torch.sum(vy ** 2) + 1.e-6)
+    cost = (
+        vx
+        * vy
+        * torch.rsqrt(torch.sum(vx ** 2) + 1.0e-6)
+        * torch.rsqrt(torch.sum(vy ** 2) + 1.0e-6)
+    )
     return cost
 
 
@@ -26,11 +31,10 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
         ``|| sample_1[i, :] - sample_2[j, :] ||_p``."""
     n_1, n_2 = sample_1.size(0), sample_2.size(0)
     norm = float(norm)
-    if norm == 2.:
-        norms_1 = torch.sum(sample_1**2, dim=1, keepdim=True)
-        norms_2 = torch.sum(sample_2**2, dim=1, keepdim=True)
-        norms = (norms_1.expand(n_1, n_2) +
-                 norms_2.transpose(0, 1).expand(n_1, n_2))
+    if norm == 2.0:
+        norms_1 = torch.sum(sample_1 ** 2, dim=1, keepdim=True)
+        norms_2 = torch.sum(sample_2 ** 2, dim=1, keepdim=True)
+        norms = norms_1.expand(n_1, n_2) + norms_2.transpose(0, 1).expand(n_1, n_2)
         distances_squared = norms - 2 * sample_1.mm(sample_2.t())
         return torch.sqrt(eps + torch.abs(distances_squared))
     else:
@@ -39,7 +43,7 @@ def pdist(sample_1, sample_2, norm=2, eps=1e-5):
         expanded_2 = sample_2.unsqueeze(0).expand(n_1, n_2, dim)
         differences = torch.abs(expanded_1 - expanded_2) ** norm
         inner = torch.sum(differences, dim=2, keepdim=False)
-        return (eps + inner) ** (1. / norm)
+        return (eps + inner) ** (1.0 / norm)
 
 
 class MMDStatistic:
@@ -64,9 +68,9 @@ class MMDStatistic:
         self.n_2 = n_2
 
         # The three constants used in the test.
-        self.a00 = 1. / (n_1 * (n_1 - 1))
-        self.a11 = 1. / (n_2 * (n_2 - 1))
-        self.a01 = - 1. / (n_1 * n_2)
+        self.a00 = 1.0 / (n_1 * (n_1 - 1))
+        self.a11 = 1.0 / (n_2 * (n_2 - 1))
+        self.a01 = -1.0 / (n_1 * n_2)
 
     def __call__(self, sample_1, sample_2, alphas, ret_matrix=False):
         r"""Evaluate the statistic.
@@ -104,19 +108,21 @@ class MMDStatistic:
 
         kernels = None
         for alpha in alphas:
-            kernels_a = torch.exp(- alpha * distances ** 2)
+            kernels_a = torch.exp(-alpha * distances ** 2)
             if kernels is None:
                 kernels = kernels_a
             else:
                 kernels = kernels + kernels_a
 
-        k_1 = kernels[:self.n_1, :self.n_1]
-        k_2 = kernels[self.n_1:, self.n_1:]
-        k_12 = kernels[:self.n_1, self.n_1:]
+        k_1 = kernels[: self.n_1, : self.n_1]
+        k_2 = kernels[self.n_1 :, self.n_1 :]
+        k_12 = kernels[: self.n_1, self.n_1 :]
 
-        mmd = (2 * self.a01 * k_12.sum() +
-               self.a00 * (k_1.sum() - torch.trace(k_1)) +
-               self.a11 * (k_2.sum() - torch.trace(k_2)))
+        mmd = (
+            2 * self.a01 * k_12.sum()
+            + self.a00 * (k_1.sum() - torch.trace(k_1))
+            + self.a11 * (k_2.sum() - torch.trace(k_2))
+        )
         if ret_matrix:
             return mmd, kernels
         else:

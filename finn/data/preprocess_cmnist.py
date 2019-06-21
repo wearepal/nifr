@@ -9,12 +9,26 @@ from finn.data.colorized_mnist import ColorizedMNIST
 
 
 def load_cmnist_data(args):
-    train_data = ColorizedMNIST('./data', download=True, train=True, scale=args.scale,
-                                transform=transforms.ToTensor(),
-                                cspace=args.cspace, background=args.background, black=args.black)
-    test_data = ColorizedMNIST('./data', download=True, train=False, scale=args.scale,
-                               transform=transforms.ToTensor(),
-                               cspace=args.cspace, background=args.background, black=args.black)
+    train_data = ColorizedMNIST(
+        './data',
+        download=True,
+        train=True,
+        scale=args.scale,
+        transform=transforms.ToTensor(),
+        cspace=args.cspace,
+        background=args.background,
+        black=args.black,
+    )
+    test_data = ColorizedMNIST(
+        './data',
+        download=True,
+        train=False,
+        scale=args.scale,
+        transform=transforms.ToTensor(),
+        cspace=args.cspace,
+        background=args.background,
+        black=args.black,
+    )
 
     return train_data, test_data
 
@@ -34,8 +48,9 @@ def dataset_args_to_str(args):
         bg_col = 'white'
 
     else:
-        raise NotImplementedError("How is it possible to select a digit and "
-                                  "bg color combo that got you here?")
+        raise NotImplementedError(
+            "How is it possible to select a digit and bg color combo that got you here?"
+        )
 
     return digit_col, bg_col
 
@@ -60,10 +75,12 @@ def make_cmnist_dataset(args):
     print(f"checking if path {path} exists")
 
     if not os.path.exists(path / "train"):
-        print(f"creating training set with params:\n"
-              f"\t- scale: {args.scale}\n"
-              f"\t- digit colour: {digit_col}\n"
-              f"\t- background col: {bg_col}")
+        print(
+            f"creating training set with params:\n"
+            f"\t- scale: {args.scale}\n"
+            f"\t- digit colour: {digit_col}\n"
+            f"\t- background col: {bg_col}"
+        )
         os.makedirs(path / "train")
         for i, set in enumerate(tqdm(train_data)):
             with open(os.path.join(path / "train", str(i)), 'wb') as f:
@@ -72,10 +89,12 @@ def make_cmnist_dataset(args):
         print("trainig set already exists")
 
     if not os.path.exists(path / "test"):
-        print(f"creating test set with params:\n"
-              f"\t- scale: {args.scale}\n"
-              f"\t- digit colour: {digit_col}\n"
-              f"\t- background col: {bg_col}")
+        print(
+            f"creating test set with params:\n"
+            f"\t- scale: {args.scale}\n"
+            f"\t- digit colour: {digit_col}\n"
+            f"\t- background col: {bg_col}"
+        )
         os.makedirs(path / "test")
         for i, set in enumerate(tqdm(test_data)):
             with open(os.path.join(path / "test", str(i)), 'wb') as f:

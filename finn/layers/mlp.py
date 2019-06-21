@@ -1,15 +1,20 @@
 from inspect import isclass
 
 import torch.nn as nn
-from finn.layers.layer_utils import ConcatModule, call_nn_op,ListOutModule
+from finn.layers.layer_utils import ConcatModule, call_nn_op, ListOutModule
 
 
 class Mlp(nn.Module):
-
-    def __init__(self, mlp_sizes, activation=nn.ReLU, output_activation=None,
-                 post_layer_fct=lambda layer_ix, total_layers, layer: None,
-                 post_act_fct=lambda layer_ix, total_layers, layer: None,
-                 allow_broadcast=False, use_cuda=False):
+    def __init__(
+        self,
+        mlp_sizes,
+        activation=nn.ReLU,
+        output_activation=None,
+        post_layer_fct=lambda layer_ix, total_layers, layer: None,
+        post_act_fct=lambda layer_ix, total_layers, layer: None,
+        allow_broadcast=False,
+        use_cuda=False,
+    ):
         # init the module object
         super(Mlp, self).__init__()
 
@@ -70,8 +75,11 @@ class Mlp(nn.Module):
         if type(output_size) == int:
             all_modules.append(nn.Linear(last_layer_size, output_size))
             if output_activation is not None:
-                all_modules.append(call_nn_op(output_activation)
-                                   if isclass(output_activation) else output_activation)
+                all_modules.append(
+                    call_nn_op(output_activation)
+                    if isclass(output_activation)
+                    else output_activation
+                )
         else:
 
             # we're going to have a bunch of separate layers we can spit out (a tuple of outputs)
@@ -87,14 +95,18 @@ class Mlp(nn.Module):
                 split_layer.append(nn.Linear(last_layer_size, out_size))
 
                 # then we get our output activation (either we repeat all or we index into a same sized array)
-                act_out_fct = output_activation if not isinstance(output_activation, (list, tuple)) \
+                act_out_fct = (
+                    output_activation
+                    if not isinstance(output_activation, (list, tuple))
                     else output_activation[out_ix]
+                )
 
                 if act_out_fct:
                     # we check if it's a class. if so, instantiate the object
                     # otherwise, use the object directly (e.g. pre-instantiated)
-                    split_layer.append(call_nn_op(act_out_fct)
-                                       if isclass(act_out_fct) else act_out_fct)
+                    split_layer.append(
+                        call_nn_op(act_out_fct) if isclass(act_out_fct) else act_out_fct
+                    )
 
                 # our outputs is just a sequential of the two
                 out_layers.append(nn.Sequential(*split_layer))

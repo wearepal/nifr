@@ -1,17 +1,11 @@
-from torchvision import transforms
-from typing import NamedTuple
-import pandas as pd
 import os
-import csv
 
 from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.algorithms.utils import DataTuple
-from ethicml.data import Adult
 from ethicml.evaluators.evaluate_models import run_metrics
-from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, NMI, PPV
+from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
-import pandas as pd
 
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.training_utils import train_and_evaluate_classifier
@@ -22,9 +16,12 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
-        metrics = run_metrics(predictions, actual,
-                              metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV()],
-                              per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), PPV()])
+        metrics = run_metrics(
+            predictions,
+            actual,
+            metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV()],
+            per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), PPV()],
+        )
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
         experiment.log_metric(f"{name} TPR", metrics['TPR'])
         experiment.log_metric(f"{name} TNR", metrics['TNR'])
@@ -37,8 +34,12 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
         experiment.log_metric(f"{name} P(Y=1|s=1)", metrics['prob_pos_sex_Male_1.0'])
         experiment.log_metric(f"{name} Theil|s=1", metrics['Theil_Index_sex_Male_1.0'])
         experiment.log_metric(f"{name} Theil|s=0", metrics['Theil_Index_sex_Male_0.0'])
-        experiment.log_metric(f"{name} P(Y=1|s=0) Ratio s0/s1", metrics['prob_pos_sex_Male_0.0/sex_Male_1.0'])
-        experiment.log_metric(f"{name} P(Y=1|s=0) Diff s0-s1", metrics['prob_pos_sex_Male_0.0-sex_Male_1.0'])
+        experiment.log_metric(
+            f"{name} P(Y=1|s=0) Ratio s0/s1", metrics['prob_pos_sex_Male_0.0/sex_Male_1.0']
+        )
+        experiment.log_metric(
+            f"{name} P(Y=1|s=0) Diff s0-s1", metrics['prob_pos_sex_Male_0.0-sex_Male_1.0']
+        )
 
         experiment.log_metric(f"{name} TPR|s=1", metrics['TPR_sex_Male_1.0'])
         experiment.log_metric(f"{name} TPR|s=0", metrics['TPR_sex_Male_0.0'])
@@ -65,8 +66,9 @@ def metrics_for_meta_learn(args, experiment, clf, repr, data, save_to_csv=False)
         print(f"Meta Accuracy: {acc:.4f}")
     else:
         if not isinstance(repr.task_train['zy'], DataTuple):
-            repr.task_train['zy'], repr.task['zy'] = get_data_tuples(repr.task_train['zy'],
-                                                                     repr.task['zy'])
+            repr.task_train['zy'], repr.task['zy'] = get_data_tuples(
+                repr.task_train['zy'], repr.task['zy']
+            )
         preds_meta = clf.run(repr.task_train['zy'], repr.task['zy'])
         metrics = compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta", run_all=True)
         print(",".join(metrics.keys()))
@@ -142,8 +144,17 @@ def get_name(use_s, use_x, predict_y, use_fair, use_unfair):
     return name
 
 
-def evaluate_representations(args, experiment, train_data, test_data, predict_y=False, use_s=False,
-                             use_x=False, use_fair=False, use_unfair=False):
+def evaluate_representations(
+    args,
+    experiment,
+    train_data,
+    test_data,
+    predict_y=False,
+    use_s=False,
+    use_x=False,
+    use_fair=False,
+    use_unfair=False,
+):
 
     name = get_name(use_s, use_x, predict_y, use_fair, use_unfair)
 
@@ -169,9 +180,19 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
     if args.dataset == 'cmnist':
         run_all = False
         if use_x:
-            clf = train_and_evaluate_classifier(args, experiment, train_data, pred_s=not predict_y, use_s=use_s, name=name)
+            clf = train_and_evaluate_classifier(
+                args, experiment, train_data, pred_s=not predict_y, use_s=use_s, name=name
+            )
         else:
-            clf = evaluate_with_classifier(args, train_data, test_data, in_channels=in_channels, pred_s=not predict_y, use_s=use_s, applicative=True)
+            clf = evaluate_with_classifier(
+                args,
+                train_data,
+                test_data,
+                in_channels=in_channels,
+                pred_s=not predict_y,
+                use_s=use_s,
+                applicative=True,
+            )
         preds_x, test_x = clf(test_data=train_data)
         _ = compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
         preds_x, test_x = clf(test_data=test_data)
@@ -181,7 +202,9 @@ def evaluate_representations(args, experiment, train_data, test_data, predict_y=
         if not isinstance(train_data, DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
         run_all = True
-        train_x, test_x = make_tuple_from_data(train_data, test_data, pred_s=not predict_y, use_s=use_s)
+        train_x, test_x = make_tuple_from_data(
+            train_data, test_data, pred_s=not predict_y, use_s=use_s
+        )
         clf = MLP() if args.mlp_clf else LR()
         preds_x = clf.run(train_x, test_x)
 

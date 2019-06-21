@@ -1,7 +1,7 @@
 from finn import layers
 
 
-def tabular_model(args, input_dim, depth: int=None, batch_norm: bool=None):
+def tabular_model(args, input_dim, depth: int = None, batch_norm: bool = None):
     """Build the model with ARGS.depth many layers
 
     If ARGS.glow is true, then each layer includes 1x1 convolutions.

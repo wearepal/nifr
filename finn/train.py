@@ -10,7 +10,12 @@ from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import Adam
 from finn.utils import utils
 from finn.utils.evaluate_utils import MetaDataset
-from finn.utils.training_utils import get_data_dim, log_images, reconstruct_all, compute_projection_gradients
+from finn.utils.training_utils import (
+    get_data_dim,
+    log_images,
+    reconstruct_all,
+    compute_projection_gradients,
+)
 from finn.utils.meta import inner_meta_loop, add_gradients
 from finn.models import NNDisc, InvDisc
 from finn.optimisation import CustomAdam
@@ -31,17 +36,16 @@ def convert_data(train_tuple, test_tuple):
     Returns:
         a dictionary with the pytorch datasets
     """
-    data = {'trn': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                   for df in train_tuple]),
-            'val': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                   for df in test_tuple])}
+    data = {
+        'trn': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in train_tuple]),
+        'val': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in test_tuple]),
+    }
     return data
 
 
 def save_model(save_dir, model, discs):
     filename = save_dir / 'checkpt.pth'
-    save_dict = {'ARGS': ARGS,
-                 'model': model.state_dict()}
+    save_dict = {'ARGS': ARGS, 'model': model.state_dict()}
 
     for name, disc in discs.discs_dict.items():
         if disc is not None:
@@ -78,11 +82,12 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta
         x, s, y = cvt(x, s, y)
 
         discs.pred_s_from_zy_weight = min(
-            (ARGS.pred_s_from_zy_weight ** (epoch - ARGS.warmup_steps),
-             ARGS.pred_s_from_zy_weight))
+            (ARGS.pred_s_from_zy_weight ** (epoch - ARGS.warmup_steps), ARGS.pred_s_from_zy_weight)
+        )
 
         loss, log_p_x, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(
-            x, s, y, model, return_z=False)
+            x, s, y, model, return_z=False
+        )
         loss_meter.update(loss.item())
         log_p_x_meter.update(log_p_x.item())
         pred_y_loss_meter.update(pred_y_loss.item())
@@ -94,8 +99,7 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta
             add_gradients(disc_grads, discs.s_from_zy)
             disc_optimizer.step()
 
-            meta_loss, fast_weights =\
-                inner_meta_loop(ARGS, model, loss, *inner_meta_data)
+            meta_loss, fast_weights = inner_meta_loop(ARGS, model, loss, *inner_meta_data)
             meta_loss *= ARGS.meta_weight
             LOGGER.info("Meta loss {:.5g}", meta_loss.detach().item())
 
@@ -107,8 +111,9 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta
 
         else:
             if ARGS.proj_grads:
-                compute_projection_gradients(model, log_p_x, pred_s_from_zy_loss,
-                                             alpha=ARGS.pred_s_from_zy_weight)
+                compute_projection_gradients(
+                    model, log_p_x, pred_s_from_zy_loss, alpha=ARGS.pred_s_from_zy_weight
+                )
                 optimizer.step()
                 pred_s_from_zy_loss.backward()
                 disc_optimizer.step()
@@ -137,7 +142,9 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta
         whole_model = discs.assemble_whole_model(model)
         z = whole_model(x[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
+            ARGS, z, whole_model
+        )
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -148,12 +155,19 @@ def train(model, discs, optimizer, disc_optimizer, dataloader, epoch, inner_meta
         log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
     time_for_epoch = time.time() - start_epoch_time
-    LOGGER.info("[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-                "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | "
-                "pred_s_from_zy: {:.5g} | pred_s_from_zs {:.5g} ({:.5g})",
-                epoch, time_for_epoch, 1 / time_meter.avg, log_p_x_meter.avg, pred_y_loss_meter.avg,
-                pred_s_from_zy_loss_meter.avg, pred_s_from_zs_loss_meter.avg,
-                loss_meter.avg)
+    LOGGER.info(
+        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
+        "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | pred_s_from_zy: {:.5g} | "
+        "pred_s_from_zs {:.5g} ({:.5g})",
+        epoch,
+        time_for_epoch,
+        1 / time_meter.avg,
+        log_p_x_meter.avg,
+        pred_y_loss_meter.avg,
+        pred_s_from_zy_loss_meter.avg,
+        pred_s_from_zs_loss_meter.avg,
+        loss_meter.avg,
+    )
 
 
 def validate(model, discs, val_loader):
@@ -163,8 +177,9 @@ def validate(model, discs, val_loader):
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = cvt(x_val, s_val, y_val)
-            loss, neg_log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss =\
-                discs.compute_loss(x_val, s_val, y_val, model)
+            loss, neg_log_px, pred_y_loss, pred_s_from_zy_loss, pred_s_from_zs_loss = discs.compute_loss(
+                x_val, s_val, y_val, model
+            )
             # during validation we don't want to penalise being poor at predicting s from y
             loss = neg_log_px + pred_y_loss + pred_s_from_zs_loss - pred_s_from_zy_loss
 
@@ -179,7 +194,9 @@ def validate(model, discs, val_loader):
 
         z = whole_model(x_val[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
+            ARGS, z, whole_model
+        )
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
@@ -190,7 +207,9 @@ def validate(model, discs, val_loader):
         log_images(SUMMARY, recon_sn, 'reconstruction_sn', prefix='test')
     else:
         z = whole_model(x_val[:1000])
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(ARGS, z, whole_model)
+        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
+            ARGS, z, whole_model
+        )
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
         x_recon = whole_model(whole_model(x_val), reverse=True)
@@ -225,8 +244,13 @@ def main(args, datasets, metric_callback):
     global ARGS, LOGGER, SUMMARY
     ARGS = args
 
-    SUMMARY = Experiment(api_key="Mf1iuvHn2IxBGWnBYbnOqG23h", project_name="finn",
-                         workspace="olliethomas", disabled=not ARGS.use_comet, parse_args=False)
+    SUMMARY = Experiment(
+        api_key="Mf1iuvHn2IxBGWnBYbnOqG23h",
+        project_name="finn",
+        workspace="olliethomas",
+        disabled=not ARGS.use_comet,
+        parse_args=False,
+    )
     SUMMARY.disable_mp()
     SUMMARY.log_parameters(vars(ARGS))
     SUMMARY.log_dataset_info(name=ARGS.dataset)
@@ -238,8 +262,9 @@ def main(args, datasets, metric_callback):
     LOGGER.info(ARGS)
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
-    ARGS.device = torch.device(f"cuda:{ARGS.gpu}" if (
-        torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu")
+    ARGS.device = torch.device(
+        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
+    )
     LOGGER.info('{} GPUs available. Using GPU {}', torch.cuda.device_count(), ARGS.gpu)
 
     # ==== construct dataset ====
@@ -257,6 +282,7 @@ def main(args, datasets, metric_callback):
     model = discs.create_model()
 
     if ARGS.spectral_norm:
+
         def _spectral_norm(m):
             if isinstance(m, (torch.nn.Conv2d, torch.nn.Linear)):
                 return torch.nn.utils.spectral_norm(m)
@@ -293,8 +319,15 @@ def main(args, datasets, metric_callback):
             break
 
         with SUMMARY.train():
-            train(model, discs, optimizer, disc_optimizer, train_loader,
-                  epoch, inner_meta_data=datasets.inner_meta)
+            train(
+                model,
+                discs,
+                optimizer,
+                disc_optimizer,
+                train_loader,
+                epoch,
+                inner_meta_data=datasets.inner_meta,
+            )
             SUMMARY.log_metric("lr", scheduler.get_lr()[0])
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
@@ -302,7 +335,9 @@ def main(args, datasets, metric_callback):
                 # SUMMARY.set_step((epoch + 1) * len(train_loader))
                 val_loss = validate(model, discs, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, SUMMARY, model, discs, datasets, check_originals=check_originals)
+                    metric_callback(
+                        ARGS, SUMMARY, model, discs, datasets, check_originals=check_originals
+                    )
                     check_originals = False
 
                 if val_loss < best_loss:
@@ -314,9 +349,13 @@ def main(args, datasets, metric_callback):
 
                 # scheduler.step(val_loss)
 
-                LOGGER.info('[VAL] Epoch {:04d} | Val Loss {:.6f} | '
-                            'No improvement during validation: {:02d}', epoch, val_loss,
-                            n_vals_without_improvement)
+                LOGGER.info(
+                    '[VAL] Epoch {:04d} | Val Loss {:.6f} | '
+                    'No improvement during validation: {:02d}',
+                    epoch,
+                    val_loss,
+                    n_vals_without_improvement,
+                )
 
         scheduler.step(epoch)
         disc_scheduler.step(epoch)

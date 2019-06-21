@@ -11,7 +11,7 @@ def _center_kern(K, m):
 def _compute_h_vec(Ks, Ls, m):
     e = Ks.new_ones(m, 1)
 
-    t1 = (m - 2)**2 * (Ks * Ls) @ e
+    t1 = (m - 2) ** 2 * (Ks * Ls) @ e
     t2 = (m - 2) * ((torch.sum(Ks * Ls) * e) - (Ks @ (Ls @ e)) - (Ls @ (Ks @ e)))
     t3 = m * (Ks @ e) * (Ls @ e)
     t4 = Ls.sum() * (Ks @ e)
@@ -46,13 +46,17 @@ def _rbf_kernel(x_gram, y_gram, sigma_1=1, sigma_2=0.5):
     gamma_first = sigma_1  # 1. / (2 * sigma_first**2) TODO
     gamma_second = sigma_2  # 1. / (2 * sigma_second**2) TODO
 
-    kernel_x = torch.exp(-gamma_first * (-2 * x_gram + x_sqnorms.unsqueeze(0) + x_sqnorms.unsqueeze(1)))
-    kernel_y = torch.exp(-gamma_second * (-2 * y_gram + y_sqnorms.unsqueeze(0) + y_sqnorms.unsqueeze(1)))
+    kernel_x = torch.exp(
+        -gamma_first * (-2 * x_gram + x_sqnorms.unsqueeze(0) + x_sqnorms.unsqueeze(1))
+    )
+    kernel_y = torch.exp(
+        -gamma_second * (-2 * y_gram + y_sqnorms.unsqueeze(0) + y_sqnorms.unsqueeze(1))
+    )
 
     return kernel_x, kernel_y
 
 
-def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1., sigma_2=0.5, use_rbf=False):
+def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1.0, sigma_2=0.5, use_rbf=False):
     x_gram = x @ x.t()
     y_gram = y @ y.t()
 
@@ -63,7 +67,7 @@ def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1., sigma_2=0.5, use_rbf=False
 
     m = x.size(0)
 
-    constant = (1 / (4 * m)) * (1 / ((m - 1) * (m - 2) * (m - 3))**2)
+    constant = (1 / (4 * m)) * (1 / ((m - 1) * (m - 2) * (m - 3)) ** 2)
 
     K = _center_kern(kernel_x, m)
     L = _center_kern(kernel_y, m)
@@ -77,7 +81,7 @@ def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1., sigma_2=0.5, use_rbf=False
 
     HSIC_xy = _HSIC_unbiased(K, L, m)
 
-    variance = (16 / m) * (R_xy - (HSIC_xy**2))
+    variance = (16 / m) * (R_xy - (HSIC_xy ** 2))
 
     variance_adjusted_HSIC = HSIC_xy / variance
 
@@ -86,12 +90,15 @@ def variance_adjusted_unbiased_HSIC(x, y, sigma_1=1., sigma_2=0.5, use_rbf=False
 
 def test():
     import pytest
+
     data_first = torch.FloatTensor([[1, 3], [2, 4], [1, 4], [10, 22], [113, 22]])
     data_second = torch.FloatTensor([[1], [98], [16], [98], [99]])
     sigma_first = torch.FloatTensor(1)
     sigma_second = torch.FloatTensor(1)
-    hsic = variance_adjusted_unbiased_HSIC(data_first, data_second, sigma_first, sigma_second, use_rbf=False).item()
-    assert pytest.approx(hsic, 1.e-6) == 4.05317e-6
+    hsic = variance_adjusted_unbiased_HSIC(
+        data_first, data_second, sigma_first, sigma_second, use_rbf=False
+    ).item()
+    assert pytest.approx(hsic, 1.0e-6) == 4.05317e-6
 
 
 if __name__ == "__main__":

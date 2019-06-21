@@ -32,8 +32,15 @@ class MnistConvClassifier(nn.Module):
 
 
 class MnistConvNet(nn.Module):
-    def __init__(self, in_channels, out_dims, hidden_sizes=(20, 50), kernel_size=3,
-                 padding=1, output_activation=None):
+    def __init__(
+        self,
+        in_channels,
+        out_dims,
+        hidden_sizes=(20, 50),
+        kernel_size=3,
+        padding=1,
+        output_activation=None,
+    ):
         super().__init__()
 
         layers = []

@@ -1,25 +1,24 @@
 import argparse
-from collections import OrderedDict
 from functools import partial
+from itertools import groupby
+
 import numpy as np
 import pandas as pd
-import torch
 
-import torch.nn.functional as F
-from ethicml.algorithms.utils import DataTuple
-from ethicml.data import Adult
+import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
+import torch.nn.functional as F
 import torchvision
 from tqdm import tqdm
-from itertools import groupby
+
+from ethicml.algorithms.utils import DataTuple
+from ethicml.data import Adult
 
 from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
 from finn import layers
-from finn.utils.meta import make_functional
-from finn.utils.metrics import pearsons_corr
 
 
 def parse_arguments(raw_args=None):
@@ -76,11 +75,11 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--zy-frac', type=float, default=0.33)
 
     parser.add_argument('--warmup-steps', type=int, default=0)
-    parser.add_argument('--log-px-weight', type=float, default=1.e-3)
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
-    parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
-    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
-    parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
+    parser.add_argument('--log-px-weight', type=float, default=1.0e-3)
+    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.0)
+    parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.0)
+    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.0)
+    parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.0,
                         help='Weight of the entropy loss for the adversarial discriminator')
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
                         help='Use s as input (if s is a separate feature)')
@@ -91,7 +90,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
     parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=20)
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
-    parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.e-7)
+    parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.0e-7)
 
     parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
     parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
@@ -107,10 +106,9 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
     parser.add_argument('--meta-epochs', type=int, default=3)
     parser.add_argument('--meta-batch-size', type=int, default=256)
-    parser.add_argument('--meta-data-pcnt', type=restricted_float,
-                        metavar='P', default=0.5)
+    parser.add_argument('--meta-data-pcnt', type=restricted_float, metavar='P', default=0.5)
     parser.add_argument('--meta-weight-decay', type=float, default=1e-6)
-    parser.add_argument('--fast-lr', type=float, default=1.e-3)
+    parser.add_argument('--fast-lr', type=float, default=1.0e-3)
 
     parser.add_argument('--eff-comb', type=eval, default=True, choices=[True, False])
     parser.add_argument('--task-pcnt', type=float, default=0.2)
@@ -125,12 +123,15 @@ def parse_arguments(raw_args=None):
 def restricted_float(x):
     x = float(x)
     if x <= 0.0 or x > 1.0:
-        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
     return x
 
 
 def find(value, value_list):
-    result_list = [[i for i, val in enumerate(value.new_tensor(value_list)) if (s_i == val).all()] for s_i in value]
+    result_list = [
+        [i for i, val in enumerate(value.new_tensor(value_list)) if (s_i == val).all()]
+        for s_i in value
+    ]
     return torch.tensor(result_list).flatten(start_dim=1)
 
 
@@ -213,12 +214,11 @@ def validate_classifier(args, model, val_data, use_s, pred_s):
         return val_loss, acc
 
 
-def classifier_training_loop(args, model, train_data, val_data, use_s=True,
-                             pred_s=False):
+def classifier_training_loop(args, model, train_data, val_data, use_s=True, pred_s=False):
     train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=1.e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1.0e-3)
 
     n_vals_without_improvement = 0
 
@@ -265,14 +265,33 @@ def train_and_evaluate_classifier(args, experiment, data, pred_s, use_s, model=N
     model = MnistConvClassifier(in_dim) if model is None else model
     model.to(args.device)
 
-    model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s,
-                                     pred_s=pred_s)
+    model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s, pred_s=pred_s)
 
-    return partial(evaluate, args=args, model=model, batch_size=args.test_batch_size,
-                   device=args.device, pred_s=pred_s, use_s=use_s, experiment=experiment, name=name)
+    return partial(
+        evaluate,
+        args=args,
+        model=model,
+        batch_size=args.test_batch_size,
+        device=args.device,
+        pred_s=pred_s,
+        use_s=use_s,
+        experiment=experiment,
+        name=name,
+    )
 
 
-def evaluate(args, test_data, model, batch_size, device, pred_s=False, use_s=True, using_x=True, experiment=None, name=None):
+def evaluate(
+    args,
+    test_data,
+    model,
+    batch_size,
+    device,
+    pred_s=False,
+    use_s=True,
+    using_x=True,
+    experiment=None,
+    name=None,
+):
     """
     Evaluate a model on a given test set and return the predictions
 
@@ -361,24 +380,23 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
     z_ = z.clone()
     wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
 
-
     if zero_zy:
         if args.inv_disc:
-            z_[:, (z_.size(1) - args.zy_dim * wh):][:, :args.y_dim].zero_()
+            z_[:, (z_.size(1) - args.zy_dim * wh) :][:, : args.y_dim].zero_()
         else:
-            z_[:, (z_.size(1) - args.zy_dim):].zero_()
+            z_[:, (z_.size(1) - args.zy_dim) :].zero_()
     if zero_zs:
         if args.inv_disc:
-            z_[:, (args.zn_dim * wh): (z_.size(1) - (args.zy_dim * wh))][:, :args.s_dim].zero_()
+            z_[:, (args.zn_dim * wh) : (z_.size(1) - (args.zy_dim * wh))][:, : args.s_dim].zero_()
         else:
-            z_[:, args.zn_dim: (z_.size(1) - args.zy_dim)].zero_()
+            z_[:, args.zn_dim : (z_.size(1) - args.zy_dim)].zero_()
     if args.inv_disc:
         if zero_yn:
-            z_[:, (z_.size(1) - args.zy_dim * wh):][:, args.y_dim:].zero_()
+            z_[:, (z_.size(1) - args.zy_dim * wh) :][:, args.y_dim :].zero_()
         if zero_sn:
-            z_[:, args.zn_dim: (z_.size(1) - args.zy_dim * wh)][:, args.s_dim:].zero_()
+            z_[:, args.zn_dim : (z_.size(1) - args.zy_dim * wh)][:, args.s_dim :].zero_()
     elif zero_sn or zero_yn:
-        z_[:, :args.zn_dim].zero_()
+        z_[:, : args.zn_dim].zero_()
 
     recon = model(z_, reverse=True)
 
@@ -388,18 +406,23 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
         assert len(disc_feats) + len(cont_feats) == 101
 
         if args.drop_native:
-            countries = [col for col in disc_feats if (col.startswith('nat') and col != "native-country_United-States")]
+            countries = [
+                col
+                for col in disc_feats
+                if (col.startswith('nat') and col != "native-country_United-States")
+            ]
             disc_feats = [col for col in disc_feats if col not in countries]
             disc_feats += ["native-country_not_United-States"]
             disc_feats = sorted(disc_feats)
             assert len(disc_feats) + len(cont_feats) == 62
 
-        feats = cont_feats if args.drop_discrete else disc_feats+cont_feats
+        feats = cont_feats if args.drop_discrete else disc_feats + cont_feats
 
         def _add_output_layer(feature_group, dataset) -> nn.Sequential:
             n_dims = len(feature_group)
-            categorical = n_dims > 1 or feature_group[
-                0] not in dataset.continuous_features  # feature is categorical if it has more than 1 possible output
+            categorical = (
+                n_dims > 1 or feature_group[0] not in dataset.continuous_features
+            )  # feature is categorical if it has more than 1 possible output
 
             if categorical:
                 layer = _OneHotEncoder(n_dims)
@@ -409,13 +432,15 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
             return layer
 
         grouped_features = [list(group) for key, group in groupby(feats, lambda x: x.split('_')[0])]
-        output_layers = nn.ModuleList([_add_output_layer(feature, Adult()) for feature in grouped_features]).to(args.device)
+        output_layers = nn.ModuleList(
+            [_add_output_layer(feature, Adult()) for feature in grouped_features]
+        ).to(args.device)
 
         _recon = []
         start_idx = 0
         for layer, group in zip(output_layers, grouped_features):
             end_idx = len(group)
-            _recon.append(layer(recon[:, start_idx: start_idx+end_idx]))
+            _recon.append(layer(recon[:, start_idx : start_idx + end_idx]))
             start_idx += end_idx
 
         recon = torch.cat(_recon, dim=1)
@@ -438,14 +463,16 @@ class _OneHotEncoder(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         indexes = x.argmax(dim=self.index_dim)
         indexes = indexes.type(torch.int64).view(-1, 1)
-        n_dims = self.n_dims #if self.n_dims is not None else int(torch.max(indexes)) + 1
+        n_dims = self.n_dims  # if self.n_dims is not None else int(torch.max(indexes)) + 1
         one_hots = x.new_zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
         one_hots = one_hots.view(x.size(0), -1)
         return one_hots
 
 
 def reconstruct_all(args, z, model):
-    recon_all = reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zero_yn=False)
+    recon_all = reconstruct(
+        args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zero_yn=False
+    )
 
     recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=True)
     recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_sn=True, zero_yn=True)
@@ -464,8 +491,9 @@ def encode_dataset(args, data, model):
     all_y = []
 
     representations = ['all_z']
-    representations.extend(['recon_all', 'recon_y', 'recon_s',
-                            'recon_n', 'recon_yn', 'recon_ys', 'recon_sn'])
+    representations.extend(
+        ['recon_all', 'recon_y', 'recon_s', 'recon_n', 'recon_yn', 'recon_ys', 'recon_sn']
+    )
     representations = {key: [] for key in representations}
 
     with torch.no_grad():
@@ -479,7 +507,9 @@ def encode_dataset(args, data, model):
 
             z = model(x)
 
-            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(args, z, model)
+            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
+                args, z, model
+            )
             representations['recon_all'].append(recon_all)
             representations['recon_y'].append(recon_y)
             representations['recon_s'].append(recon_s)
@@ -502,9 +532,14 @@ def encode_dataset(args, data, model):
 
     if args.dataset == 'cmnist':
         representations['zy'] = TensorDataset(
-            representations['all_z'][:, z.size(1) - args.zy_dim:], all_s, all_y)
-        representations['zs'] = TensorDataset(representations['all_z'][:, args.zn_dim:-args.zy_dim], all_s, all_y)
-        representations['zn'] = TensorDataset(representations['all_z'][:, :args.zn_dim], all_s, all_y)
+            representations['all_z'][:, z.size(1) - args.zy_dim :], all_s, all_y
+        )
+        representations['zs'] = TensorDataset(
+            representations['all_z'][:, args.zn_dim : -args.zy_dim], all_s, all_y
+        )
+        representations['zn'] = TensorDataset(
+            representations['all_z'][:, : args.zn_dim], all_s, all_y
+        )
         representations['all_z'] = TensorDataset(representations['all_z'], all_s, all_y)
         representations['recon_y'] = TensorDataset(representations['recon_y'], all_s, all_y)
         representations['recon_s'] = TensorDataset(representations['recon_s'], all_s, all_y)
@@ -517,28 +552,38 @@ def encode_dataset(args, data, model):
         representations['s'] = pd.DataFrame(all_s.float().cpu().numpy())
         representations['y'] = pd.DataFrame(all_y.float().cpu().numpy())
 
-        representations['zy'] = DataTuple(x=representations['all_z'][columns[z.size(1) - args.zy_dim:]], s=representations['s'], y=representations['y'])
-        representations['zs'] = DataTuple(x=representations['all_z'][columns[args.zn_dim:z.size(1) - args.zy_dim]], s=representations['s'], y=representations['y'])
-        representations['zn'] = DataTuple(x=representations['all_z'][columns[:args.zn_dim]], s=representations['s'], y=representations['y'])
+        representations['zy'] = DataTuple(
+            x=representations['all_z'][columns[z.size(1) - args.zy_dim :]],
+            s=representations['s'],
+            y=representations['y'],
+        )
+        representations['zs'] = DataTuple(
+            x=representations['all_z'][columns[args.zn_dim : z.size(1) - args.zy_dim]],
+            s=representations['s'],
+            y=representations['y'],
+        )
+        representations['zn'] = DataTuple(
+            x=representations['all_z'][columns[: args.zn_dim]],
+            s=representations['s'],
+            y=representations['y'],
+        )
 
-        representations['all_z'] = DataTuple(x=representations['all_z'], s=representations['s'], y=representations['y'])
+        representations['all_z'] = DataTuple(
+            x=representations['all_z'], s=representations['s'], y=representations['y']
+        )
 
         recon_all = 'fff'
 
         sens_attrs = Adult().feature_split['s']
-        recon_all_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_all'], all_s, all_y), sens_attrs=sens_attrs)
-        recon_y_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_y'], all_s, all_y), sens_attrs=sens_attrs)
-        recon_s_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_s'], all_s, all_y), sens_attrs=sens_attrs)
-        recon_n_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_n'], all_s, all_y), sens_attrs=sens_attrs)
-        recon_ys_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_ys'], all_s, all_y), sens_attrs=sens_attrs)
-        recon_yn_tuple = pytorch_data_to_dataframe(TensorDataset(representations['recon_yn'], all_s, all_y), sens_attrs=sens_attrs)
 
-        representations['recon_all'] = recon_all_tuple
-        representations['recon_y'] = recon_y_tuple
-        representations['recon_s'] = recon_s_tuple
-        representations['recon_n'] = recon_n_tuple
-        representations['recon_ys'] = recon_ys_tuple
-        representations['recon_yn'] = recon_yn_tuple
+        def _convert(*tensors):
+            for tensor in tensors:
+                yield pytorch_data_to_dataframe(
+                    TensorDataset(tensor, all_s, all_y), sens_attrs=sens_attrs
+                )
+
+        for key in ['recon_all', 'recon_y', 'recon_s', 'recon_n', 'recon_ys', 'recon_yn']:
+            representations[key] = _convert(representations[key])
 
     return representations
 
@@ -560,8 +605,9 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
                 x = torch.cat((x, s), dim=1)
             z = model(x)
             if recon_zyn:
-                recon_yn = reconstruct(args, z, model,
-                                       zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=False)
+                recon_yn = reconstruct(
+                    args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=False
+                )
                 raw_encodings['recon_yn'].append(recon_yn)
 
             raw_encodings['all_z'].append(z)
@@ -575,7 +621,7 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
 
     encodings = {}
     s, y = raw_encodings['all_s'], raw_encodings['all_y']
-    encodings['zy'] = TensorDataset(raw_encodings['all_z'][:, z.size(1) - args.zy_dim:], s, y)
+    encodings['zy'] = TensorDataset(raw_encodings['all_z'][:, z.size(1) - args.zy_dim :], s, y)
     encodings['all_z'] = TensorDataset(raw_encodings['all_z'], s, y)
     if recon_zyn:
         encodings['recon_yn'] = TensorDataset(raw_encodings['recon_yn'], s, y)

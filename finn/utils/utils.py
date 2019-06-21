@@ -125,7 +125,7 @@ def save_checkpoint(state, save, epoch):
 
 
 def isnan(tensor):
-    return (tensor != tensor)
+    return tensor != tensor
 
 
 def standard_normal_logprob(z):

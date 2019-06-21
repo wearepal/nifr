@@ -17,7 +17,7 @@ def glow(args, input_dim):
     squeeze_factor = 4
     chain = [layers.SqueezeLayer(squeeze_factor)]
     # chain += [layers.SqueezeLayer(2)]
-    input_dim = input_dim * squeeze_factor**2
+    input_dim = input_dim * squeeze_factor ** 2
     for _ in range(args.depth):
         chain += [inv_block(args, input_dim, hidden_dims)]
 

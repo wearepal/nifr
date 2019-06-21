@@ -73,7 +73,8 @@ class CMNIST(Dataset):
             x, s, y = torch.load(self.path / dataset / str(idx))
         elif isinstance(idx, torch.Tensor):
             x, s, y = torch.load(self.path / dataset / str(idx.item()))
-        else: raise NotImplementedError("index must be an int or a tensor")
+        else:
+            raise NotImplementedError("index must be an int or a tensor")
 
         if self.normalize:
             x = self.normalize_transform(x)

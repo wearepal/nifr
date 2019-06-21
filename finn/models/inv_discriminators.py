@@ -23,13 +23,15 @@ class InvDisc(DiscBase):
             args.zn_dim = 0
             wh = 1
 
-            disc_y_from_zy = tabular_model(args, input_dim=args.zy_dim,
-                                           depth=args.inv_disc_depth, batch_norm=False)
-            disc_s_from_zy = layers.Mlp([args.zy_dim] + [400, 400] + [1],
-                                        activation=nn.ReLU,
-                                        output_activation=None)
-            disc_s_from_zs = tabular_model(args, input_dim=args.zs_dim,
-                                           depth=args.inv_disc_depth, batch_norm=False)
+            disc_y_from_zy = tabular_model(
+                args, input_dim=args.zy_dim, depth=args.inv_disc_depth, batch_norm=False
+            )
+            disc_s_from_zy = layers.Mlp(
+                [args.zy_dim] + [400, 400] + [1], activation=nn.ReLU, output_activation=None
+            )
+            disc_s_from_zs = tabular_model(
+                args, input_dim=args.zs_dim, depth=args.inv_disc_depth, batch_norm=False
+            )
         else:
             z_channels = x_dim * 4 * 4
             wh = z_dim_flat // z_channels
@@ -38,13 +40,17 @@ class InvDisc(DiscBase):
             args.zn_dim = 0
             in_dim = x_dim
 
-            disc_y_from_zy = tabular_model(args, input_dim=(wh * args.zy_dim),
-                                           depth=args.inv_disc_depth, batch_norm=False)
-            disc_s_from_zs = tabular_model(args, input_dim=(wh * args.zs_dim),
-                                           depth=args.inv_disc_depth, batch_norm=False)
-            disc_s_from_zy = layers.Mlp([wh * args.zy_dim] + [1024, 1024] + [10],
-                                        activation=nn.ReLU,
-                                        output_activation=nn.LogSoftmax)
+            disc_y_from_zy = tabular_model(
+                args, input_dim=(wh * args.zy_dim), depth=args.inv_disc_depth, batch_norm=False
+            )
+            disc_s_from_zs = tabular_model(
+                args, input_dim=(wh * args.zs_dim), depth=args.inv_disc_depth, batch_norm=False
+            )
+            disc_s_from_zy = layers.Mlp(
+                [wh * args.zy_dim] + [1024, 1024] + [10],
+                activation=nn.ReLU,
+                output_activation=nn.LogSoftmax,
+            )
 
         disc_y_from_zy.to(args.device)
         disc_s_from_zy.to(args.device)
@@ -71,8 +77,11 @@ class InvDisc(DiscBase):
 
     def assemble_whole_model(self, trunk):
         chain = [trunk]
-        chain += [layers.MultiHead([self.s_from_zs, self.y_from_zy],
-                                   split_dim=[self.args.zs_dim, self.args.zy_dim])]
+        chain += [
+            layers.MultiHead(
+                [self.s_from_zs, self.y_from_zy], split_dim=[self.args.zs_dim, self.args.zy_dim]
+            )
+        ]
         return layers.SequentialFlow(chain)
 
     @staticmethod
@@ -90,8 +99,8 @@ class InvDisc(DiscBase):
         assert z.size(1) % (self.args.zs_dim + self.args.zy_dim) == 0
         width_x_height = z.size(1) // (self.args.zs_dim + self.args.zy_dim)
         return z.split(
-            split_size=[self.args.zs_dim * width_x_height, self.args.zy_dim * width_x_height],
-            dim=1)
+            split_size=[self.args.zs_dim * width_x_height, self.args.zy_dim * width_x_height], dim=1
+        )
 
     def compute_loss(self, x, s, y, model, return_z=False):
         whole_model = self.assemble_whole_model(model)
@@ -110,7 +119,7 @@ class InvDisc(DiscBase):
 
         log_pz = 0
         # zn = z[:, :self.args.zn_dim]
-        z_sn, z_yn = self.split_zs_zy(z)    # zsn, zyn
+        z_sn, z_yn = self.split_zs_zy(z)  # zsn, zyn
 
         pred_y_loss = z.new_zeros(1)
         pred_s_from_zs_loss = z.new_zeros(1)
@@ -123,7 +132,8 @@ class InvDisc(DiscBase):
 
             if self.args.entropy_loss_weight != 0:
                 pred_s_from_zy = self.s_from_zy(
-                    layers.grad_reverse(z_yn, lambda_=self.args.entropy_loss_weight))
+                    layers.grad_reverse(z_yn, lambda_=self.args.entropy_loss_weight)
+                )
                 # the adversarial discriminator will try to minimize the entropy
                 entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
                 pred_s_from_zy_loss += entropy
@@ -144,4 +154,10 @@ class InvDisc(DiscBase):
         if return_z:
             return loss, z
 
-        return loss, -log_px, pred_y_loss, self.args.pred_s_from_zy_weight * pred_s_from_zy_loss, pred_s_from_zs_loss
+        return (
+            loss,
+            -log_px,
+            pred_y_loss,
+            self.args.pred_s_from_zy_weight * pred_s_from_zy_loss,
+            pred_s_from_zs_loss,
+        )

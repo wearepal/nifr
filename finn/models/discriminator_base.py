@@ -54,6 +54,7 @@ def fetch_model(args, x_dim):
     elif args.dataset == 'adult':
         model = tabular_model(args, x_dim).to(args.device)
     else:
-        raise NotImplementedError("Only works for cmnist and adult - How have you even got"
-                                  "hererere?????")
+        raise NotImplementedError(
+            "Only works for cmnist and adult - How have you even got" "hererere?????"
+        )
     return model

@@ -8,8 +8,11 @@ from tqdm import tqdm
 import pandas as pd
 
 from ethicml.implementations.pytorch_common import CustomDataset
-from ethicml.evaluators.per_sensitive_attribute import metric_per_sensitive_attribute, \
-    diff_per_sensitive_attribute, ratio_per_sensitive_attribute
+from ethicml.evaluators.per_sensitive_attribute import (
+    metric_per_sensitive_attribute,
+    diff_per_sensitive_attribute,
+    ratio_per_sensitive_attribute,
+)
 from ethicml.metrics import Accuracy, ProbPos
 from ethicml.utility.heaviside import Heaviside
 
@@ -72,7 +75,9 @@ def main(train, test, zs_dim, gpu=0):
         per_sens_dict = metric_per_sensitive_attribute(preds, test, ProbPos())
         diff = diff_per_sensitive_attribute(per_sens_dict)
         ratio = ratio_per_sensitive_attribute(per_sens_dict)
-        print(f"{mul:3.1f} z(n-{zs_dim}) -> y {per_sens_dict} \t "
-              f"ratio: {list(ratio.values())[0]:.5f} \t "
-              f"diff: {list(diff.values())[0]:.5f} \t "
-              f"Acc: {Accuracy().score(preds['preds'], test):.5f}")
+        print(
+            f"{mul:3.1f} z(n-{zs_dim}) -> y {per_sens_dict} \t "
+            f"ratio: {list(ratio.values())[0]:.5f} \t "
+            f"diff: {list(diff.values())[0]:.5f} \t "
+            f"Acc: {Accuracy().score(preds['preds'], test):.5f}"
+        )

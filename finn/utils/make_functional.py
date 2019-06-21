@@ -8,9 +8,15 @@ import torch.nn as nn
 from collections import OrderedDict
 
 
-_internal_attrs =\
-    {'_backend', '_parameters', '_buffers', '_backward_hooks', '_forward_hooks',
-     '_forward_pre_hooks', '_modules'}
+_internal_attrs = {
+    '_backend',
+    '_parameters',
+    '_buffers',
+    '_backward_hooks',
+    '_forward_hooks',
+    '_forward_pre_hooks',
+    '_modules',
+}
 
 
 class Scope(object):
@@ -37,7 +43,9 @@ def _make_functional(module, params_box, params_offset):
         setattr(self, name, fchild)
 
     def fmodule(*args, **kwargs):
-        for name, param in zip(param_names, params_box[0][params_offset:params_offset + num_params]):
+        for name, param in zip(
+            param_names, params_box[0][params_offset : params_offset + num_params]
+        ):
             setattr(self, name, param)
         return forward(self, *args, **kwargs)
 

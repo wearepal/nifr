@@ -9,6 +9,7 @@ from finn.layers.coupling import InvertibleLayer
 
 class Invertible1x1Conv(nn.Module):
     """Invertible 1x1 convolution"""
+
     def __init__(self, num_channels, use_lr_decomp=True):
         super().__init__()
 
@@ -26,8 +27,7 @@ class Invertible1x1Conv(nn.Module):
             w_init = w_init.unsqueeze(-1).unsqueeze(-1)
             self.weight = nn.Parameter(w_init)
         else:
-            np_w = linalg.qr(np.random.randn(*w_shape))[
-                0].astype('float32')
+            np_w = linalg.qr(np.random.randn(*w_shape))[0].astype('float32')
             np_p, np_l, np_u = linalg.lu(np_w)
             np_s = np.diag(np_u)
             np_sign_s = np.sign(np_s)
@@ -106,7 +106,6 @@ class Invertible1x1Conv(nn.Module):
 
 
 class BruteForceLayer(nn.Module):
-
     def __init__(self, dim):
         super(BruteForceLayer, self).__init__()
         self.weight = nn.Parameter(torch.eye(dim))
@@ -134,7 +133,7 @@ class BruteForceLayer(nn.Module):
 
 # ActNorm Layer with data-dependant init
 class ActNorm(InvertibleLayer):
-    def __init__(self, num_features, logscale_factor=1., scale=1.):
+    def __init__(self, num_features, logscale_factor=1.0, scale=1.0):
         super(ActNorm, self).__init__()
         self.initialized = False
         self.logscale_factor = logscale_factor

@@ -78,8 +78,8 @@ class NNDisc(DiscBase):
 
         log_pz = compute_log_pz(self.args, z)
         # zn = z[:, :self.args.zn_dim]
-        zs = z[:, self.args.zn_dim: (z.size(1) - self.args.zy_dim)]
-        zy = z[:, (z.size(1) - self.args.zy_dim):]
+        zs = z[:, self.args.zn_dim : (z.size(1) - self.args.zy_dim)]
+        zy = z[:, (z.size(1) - self.args.zy_dim) :]
         # Enforce independence between the fair representation, zy,
         #  and the sensitive attribute, s
         pred_s_from_zy_loss = z.new_zeros(1)
@@ -88,7 +88,8 @@ class NNDisc(DiscBase):
         if self.s_from_zy is not None and zy.size(1) > 0:
             if self.args.entropy_loss_weight != 0:
                 pred_s_from_zy = self.s_from_zy(
-                    layers.grad_reverse(zy, lambda_=self.args.entropy_loss_weight))
+                    layers.grad_reverse(zy, lambda_=self.args.entropy_loss_weight)
+                )
                 # the adversarial discriminator will try to minimize the entropy
                 entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
                 pred_s_from_zy_loss += entropy
@@ -100,15 +101,20 @@ class NNDisc(DiscBase):
             pred_s_from_zy_loss += loss_fn(self.s_from_zy(zy), s, reduction='mean')
         # Enforce independence between the fair, zy, and unfair, zs, partitions
 
-        if self.args.pred_s_from_zs_weight != 0 and \
-            self.s_from_zs is not None and zs.size(1) > 0:
-            pred_s_from_zs_loss = (self.args.pred_s_from_zs_weight
-                                   * loss_fn(self.s_from_zs(zs), s, reduction='mean'))
+        if self.args.pred_s_from_zs_weight != 0 and self.s_from_zs is not None and zs.size(1) > 0:
+            pred_s_from_zs_loss = self.args.pred_s_from_zs_weight * loss_fn(
+                self.s_from_zs(zs), s, reduction='mean'
+            )
 
         log_px = self.args.log_px_weight * (log_pz - delta_logp).mean()
         loss = -log_px + pred_s_from_zs_loss + pred_s_from_zy_loss
 
         if return_z:
             return loss, z
-        return (loss, -log_px, z.new_zeros(1), self.pred_s_from_zy_weight * pred_s_from_zy_loss,
-                pred_s_from_zs_loss)
+        return (
+            loss,
+            -log_px,
+            z.new_zeros(1),
+            self.pred_s_from_zy_weight * pred_s_from_zy_loss,
+            pred_s_from_zs_loss,
+        )

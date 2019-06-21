@@ -32,7 +32,9 @@ class CustomAdam(Optimizer):
         it is applied to the weights instead of to the gradient.
     """
 
-    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, amsgrad=False):
+    def __init__(
+        self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0, amsgrad=False
+    ):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -66,7 +68,9 @@ class CustomAdam(Optimizer):
                     continue
                 grad = p.grad.data
                 if grad.is_sparse:
-                    raise RuntimeError('Adam does not support sparse gradients, please consider SparseAdam instead')
+                    raise RuntimeError(
+                        'Adam does not support sparse gradients, please consider SparseAdam instead'
+                    )
                 amsgrad = group['amsgrad']
 
                 state = self.state[p]
@@ -100,8 +104,8 @@ class CustomAdam(Optimizer):
                 else:
                     denom = exp_avg_sq.sqrt().add_(group['eps'])
 
-                bias_correction1 = 1 - beta1**state['step']
-                bias_correction2 = 1 - beta2**state['step']
+                bias_correction1 = 1 - beta1 ** state['step']
+                bias_correction2 = 1 - beta2 ** state['step']
                 step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
 
                 if group['weight_decay'] != 0:

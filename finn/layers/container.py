@@ -3,7 +3,6 @@ import torch.nn as nn
 
 
 class MultiHead(nn.Module):
-
     def __init__(self, head_list, split_dim):
         super(MultiHead, self).__init__()
 
@@ -11,8 +10,9 @@ class MultiHead(nn.Module):
         self.heads = nn.ModuleList(head_list)
         self.split_dim = split_dim
 
-        assert len(head_list) == len(split_dim), "Number of heads must" \
-                                                 " equal the number of specified splits"
+        assert len(head_list) == len(split_dim), (
+            "Number of heads must" " equal the number of specified splits"
+        )
 
         for i, head in enumerate(head_list):
             if not isinstance(head, SequentialFlow):
@@ -21,9 +21,7 @@ class MultiHead(nn.Module):
     def split_dims(self, z):
         assert z.size(1) % sum(self.split_dim) == 0
         width_x_height = z.size(1) // sum(self.split_dim)
-        return z.split(
-            split_size=[dim * width_x_height for dim in self.split_dim],
-            dim=1)
+        return z.split(split_size=[dim * width_x_height for dim in self.split_dim], dim=1)
 
     def forward(self, x, logpx=None, reverse=False, inds=None):
 

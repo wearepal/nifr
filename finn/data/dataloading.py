@@ -42,20 +42,28 @@ def load_dataset(args):
         cmnist_transforms.append(transforms.ToTensor())
         cmnist_transforms = transforms.Compose(cmnist_transforms)
 
-        whole_train_data = ColorizedMNIST(args.root, train=True,
-                                          download=True, transform=cmnist_transforms,
-                                          scale=args.scale,
-                                          cspace=args.cspace,
-                                          background=args.background,
-                                          black=args.black,
-                                          binarize=args.binarize)
-        whole_test_data = ColorizedMNIST(args.root, train=False,
-                                         download=True, transform=cmnist_transforms,
-                                         scale=args.scale,
-                                         cspace=args.cspace,
-                                         background=args.background,
-                                         black=args.black,
-                                         binarize=args.binarize)
+        whole_train_data = ColorizedMNIST(
+            args.root,
+            train=True,
+            download=True,
+            transform=cmnist_transforms,
+            scale=args.scale,
+            cspace=args.cspace,
+            background=args.background,
+            black=args.black,
+            binarize=args.binarize,
+        )
+        whole_test_data = ColorizedMNIST(
+            args.root,
+            train=False,
+            download=True,
+            transform=cmnist_transforms,
+            scale=args.scale,
+            cspace=args.cspace,
+            background=args.background,
+            black=args.black,
+            binarize=args.binarize,
+        )
 
         # train_data, test_data = load_cmnist_from_file(args)
         args.y_dim = 10
@@ -68,19 +76,23 @@ def load_dataset(args):
 
     else:
         meta_tuple, task_tuple, task_train_tuple = load_adult_data(args)
-        whole_train_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                           for df in meta_tuple])
-        whole_val_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                           for df in task_tuple])
-        whole_test_data = TensorDataset(*[torch.tensor(df.values, dtype=torch.float32)
-                                          for df in task_train_tuple])
+        whole_train_data = TensorDataset(
+            *[torch.tensor(df.values, dtype=torch.float32) for df in meta_tuple]
+        )
+        whole_val_data = TensorDataset(
+            *[torch.tensor(df.values, dtype=torch.float32) for df in task_tuple]
+        )
+        whole_test_data = TensorDataset(
+            *[torch.tensor(df.values, dtype=torch.float32) for df in task_train_tuple]
+        )
         args.y_dim = 1
         args.s_dim = 1
 
     # shrink meta train set according to args.data_pcnt
     meta_train_len = int(args.data_pcnt * len(whole_train_data))
     meta_train_data, _ = random_split(
-        whole_train_data, lengths=(meta_train_len, len(whole_train_data) - meta_train_len))
+        whole_train_data, lengths=(meta_train_len, len(whole_train_data) - meta_train_len)
+    )
 
     # shrink task set according to args.data_pcnt
     task_len = int(args.data_pcnt * len(whole_val_data))
@@ -89,23 +101,31 @@ def load_dataset(args):
     # shrink task train set according to args.data_pcnt
     task_train_len = int(args.data_pcnt * len(whole_test_data))
     task_train_data, _ = random_split(
-        whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len))
+        whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len)
+    )
 
     if args.full_meta:
         meta_len = int(args.meta_data_pcnt * len(task_train_data))
         inner_meta_data, _ = random_split(
-            task_train_data, lengths=(meta_len, len(task_train_data) - meta_len))
+            task_train_data, lengths=(meta_len, len(task_train_data) - meta_len)
+        )
         inner_meta_train_len = int(0.8 * len(inner_meta_data))
         inner_meta_train, inner_meta_test = random_split(
-            inner_meta_data, lengths=(inner_meta_train_len,
-                                        len(inner_meta_data) - inner_meta_train_len))
+            inner_meta_data,
+            lengths=(inner_meta_train_len, len(inner_meta_data) - inner_meta_train_len),
+        )
     else:
         inner_meta_train = None
         inner_meta_test = None
 
-    return MetaDataset(meta_train=meta_train_data, task=task_data, task_train=task_train_data,
-                       inner_meta=(inner_meta_train, inner_meta_test),
-                       input_dim=None, output_dim=args.y_dim)
+    return MetaDataset(
+        meta_train=meta_train_data,
+        task=task_data,
+        task_train=task_train_data,
+        inner_meta=(inner_meta_train, inner_meta_test),
+        input_dim=None,
+        output_dim=args.y_dim,
+    )
 
 
 def get_mnist_data_tuple(args, data, train=True):
@@ -118,8 +138,11 @@ def get_mnist_data_tuple(args, data, train=True):
 
     data_path = get_path_from_args(args) / dataset
 
-    if (os.path.exists(data_path / "x_values.npy") and os.path.exists(data_path / "s_values")
-            and os.path.exists(data_path / "y_values")):
+    if (
+        os.path.exists(data_path / "x_values.npy")
+        and os.path.exists(data_path / "s_values")
+        and os.path.exists(data_path / "y_values")
+    ):
         print("data tuples found on file")
         x_all = np.load(data_path / "x_values.npy")
         s_all = pd.read_csv(data_path / "s_values", index_col=0)

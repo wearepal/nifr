@@ -7,13 +7,11 @@ from finn.layers.coupling import InvertibleLayer
 
 
 class Identity(nn.Module):
-
     def forward(self, x):
         return x
 
 
 class Flatten(nn.Module):
-
     def __init__(self):
         super(Flatten, self).__init__()
 
@@ -22,7 +20,6 @@ class Flatten(nn.Module):
 
 
 class InvFlatten(InvertibleLayer):
-
     def __init__(self):
         super(InvFlatten, self).__init__()
         self.orig_shape = None
@@ -50,6 +47,7 @@ class Exp(nn.Module):
     """
     a custom module for exponentiation of tensors
     """
+
     def __init__(self):
         super(Exp, self).__init__()
 
@@ -61,6 +59,7 @@ class ConcatModule(nn.Module):
     """
     a custom module for concatenation of tensors
     """
+
     def __init__(self, allow_broadcast=False):
         self.allow_broadcast = allow_broadcast
         super(ConcatModule, self).__init__()
@@ -87,6 +86,7 @@ class ListOutModule(nn.ModuleList):
     """
     a custom module for outputting a list of tensors from a list of nn modules
     """
+
     def __init__(self, modules):
         super(ListOutModule, self).__init__(modules)
 
