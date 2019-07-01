@@ -1,10 +1,10 @@
 """Definition of the Adult dataset"""
 import pandas as pd
+from ethicml.utility.data_structures import DataTuple, concat_dt
 from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 
 from ethicml.data.load import load_data
-from ethicml.algorithms.utils import DataTuple, concat_dt
 from ethicml.data import Adult
 from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.preprocessing.domain_adaptation import domain_split, query_dt

@@ -1,11 +1,11 @@
 import os
 
 from ethicml.algorithms.inprocess import LR, MLP
-from ethicml.algorithms.utils import DataTuple
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
+from ethicml.utility.data_structures import DataTuple
 
 from finn.utils.eval_metrics import evaluate_with_classifier
 from finn.utils.training_utils import train_and_evaluate_classifier
