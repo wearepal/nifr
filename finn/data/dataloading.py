@@ -7,11 +7,11 @@ import pandas as pd
 import numpy as np
 
 import torch
+from ethicml.utility.data_structures import DataTuple
 from torch.utils.data import DataLoader, Dataset, random_split, TensorDataset
 from torchvision import transforms
 from tqdm import tqdm
 
-from ethicml.algorithms.utils import DataTuple
 
 from .cmnist import CMNIST
 from .colorized_mnist import ColorizedMNIST

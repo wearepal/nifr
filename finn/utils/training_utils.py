@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 import torch
+from ethicml.utility.data_structures import DataTuple
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.dataset import random_split
@@ -13,7 +14,6 @@ import torch.nn.functional as F
 import torchvision
 from tqdm import tqdm
 
-from ethicml.algorithms.utils import DataTuple
 from ethicml.data import Adult
 
 from finn.models import MnistConvClassifier
