@@ -1,2 +1,2 @@
-# Fair Invertible Networks
-Learning fair representations with invertible neural networks.
+# NoSINN
+Filtering out spuriously-correlations with invertible neural networks.
