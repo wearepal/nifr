@@ -22,16 +22,16 @@ class MnistColorizer:
         self.color_space = color_space
         if color_space == 'rgb':
             colors = [
-                (0, 255, 255),
-                (0, 0, 255),  # blue
-                (255, 0, 255),
-                (0, 128, 0),
-                (0, 255, 0),  # green
-                (128, 0, 0),
-                (0, 0, 128),
-                (128, 0, 128),
-                (255, 0, 0),  # red
-                (255, 255, 0),  # yellow
+                (220, 20, 60),  # crimson
+                (0, 128, 128),  # teal
+                (253, 233, 16),  # lemon
+                (0, 149, 182),  # bondi blue
+                (237, 145, 33),  # carrot orange
+                (145, 30, 188),  # strong violet
+                (70, 240, 240),  # cyan
+                (250, 197, 187),  # your pink
+                (210, 245, 60),  # lime
+                (128, 0, 0),  # maroon
             ]
 
             self.palette = [np.divide(color, 255) for color in colors]
@@ -110,25 +110,17 @@ class MnistColorizer:
             if background:
                 if black:
                     # colorful background, black digits
-                    colorized_data = (
-                        torch.Tensor(colors_per_sample).mul(1 - img).unsqueeze(-1).unsqueeze(-1)
-                    )
+                    colorized_data = (1 - img) * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
                 else:
                     # colorful background, white digits
-                    colorized_data = torch.clamp(
-                        img + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1
-                    )
+                    colorized_data = torch.clamp(img + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1)
             else:
                 if black:
                     # black background, colorful digits
-                    colorized_data = (
-                        torch.Tensor(colors_per_sample).mul(img).unsqueeze(-1).unsqueeze(-1)
-                    )
+                    colorized_data = img * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
                 else:
                     # white background, colorful digits
-                    colorized_data = 1 - img * (
-                        1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
-                    )
+                    colorized_data = 1 - img * (1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
 
         # return colorized_data, torch.Tensor(mean_values)
         return colorized_data, torch.LongTensor(target)
