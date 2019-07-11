@@ -2,7 +2,7 @@ import os
 
 from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.evaluators.evaluate_models import run_metrics
-from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV
+from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.utility.data_structures import DataTuple
@@ -19,8 +19,8 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
         metrics = run_metrics(
             predictions,
             actual,
-            metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV()],
-            per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), PPV()],
+            metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV(), NMI(base='y'), NMI(base='s')],
+            per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), PPV(), NMI(base='y'), NMI(base='s')],
         )
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
         experiment.log_metric(f"{name} TPR", metrics['TPR'])
