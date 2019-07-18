@@ -107,20 +107,21 @@ class MnistColorizer:
                 img, np.array(colors_per_sample), background=background, black=black
             )
         else:
+            colors = torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
             if background:
                 if black:
                     # colorful background, black digits
-                    colorized_data = (1 - img) * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = (1 - img) * colors
                 else:
                     # colorful background, white digits
-                    colorized_data = torch.clamp(img + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1)
+                    colorized_data = torch.clamp(img + colors, 0, 1)
             else:
                 if black:
                     # black background, colorful digits
-                    colorized_data = img * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = img * colors
                 else:
                     # white background, colorful digits
-                    colorized_data = 1 - img * (1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
+                    colorized_data = 1 - img * (1 - colors)
 
         # return colorized_data, torch.Tensor(mean_values)
         return colorized_data, torch.LongTensor(target)
