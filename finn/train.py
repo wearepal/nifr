@@ -270,7 +270,7 @@ def main(args, datasets, metric_callback):
     # ==== construct dataset ====
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     train_loader = DataLoader(datasets.meta_train, shuffle=True, batch_size=ARGS.batch_size)
-    val_loader = DataLoader(datasets.task, shuffle=False, batch_size=ARGS.test_batch_size)
+    val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
 
     # ==== construct networks ====
     x_dim, z_dim_flat = get_data_dim(train_loader)

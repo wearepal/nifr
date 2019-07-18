@@ -28,7 +28,7 @@ class MetaDataset(NamedTuple):
     inner_meta: Tuple[Dataset, Dataset] = ()
 
 
-def load_dataset(args):
+def load_dataset(args) -> MetaDataset:
     assert args.meta_learn
 
     # =============== get whole dataset ===================
@@ -44,7 +44,8 @@ def load_dataset(args):
 
         whole_train_data = ColorizedMNIST(
             args.root,
-            train=True,
+            use_train_split=True,
+            assign_color_randomly=True,
             download=True,
             transform=cmnist_transforms,
             scale=args.scale,
@@ -55,7 +56,8 @@ def load_dataset(args):
         )
         whole_test_data = ColorizedMNIST(
             args.root,
-            train=False,
+            use_train_split=False,
+            assign_color_randomly=False,
             download=True,
             transform=cmnist_transforms,
             scale=args.scale,
@@ -69,8 +71,6 @@ def load_dataset(args):
         args.y_dim = 10
         args.s_dim = 10
 
-        whole_train_data.swap_train_test_colorization()
-        whole_test_data.swap_train_test_colorization()
         # split the training set to get training and validation sets
         whole_train_data, whole_val_data = random_split(whole_train_data, lengths=(50000, 10000))
 

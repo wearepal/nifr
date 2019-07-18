@@ -20,7 +20,15 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
             predictions,
             actual,
             metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV(), NMI(base='y'), NMI(base='s')],
-            per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), PPV(), NMI(base='y'), NMI(base='s')],
+            per_sens_metrics=[
+                Theil(),
+                ProbPos(),
+                TPR(),
+                TNR(),
+                PPV(),
+                NMI(base='y'),
+                NMI(base='s'),
+            ],
         )
         experiment.log_metric(f"{name} Accuracy", metrics['Accuracy'])
         experiment.log_metric(f"{name} TPR", metrics['TPR'])

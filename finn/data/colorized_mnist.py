@@ -8,9 +8,16 @@ from skimage import color
 
 class MnistColorizer:
     def __init__(
-        self, train, scale, binarize=False, color_space='rgb', background=True, black=True, seed=42
+        self,
+        assign_color_randomly,
+        scale,
+        binarize=False,
+        color_space='rgb',
+        background=True,
+        black=True,
+        seed=42,
     ):
-        self.train = train
+        self.assign_color_randomly = assign_color_randomly
         self.scale = scale
         self.binarize = binarize
         self.background = background
@@ -83,11 +90,11 @@ class MnistColorizer:
                 self.random_state.multivariate_normal(mean_color_values, self.scale), 0, 1
             )
 
-    def _transform(self, img, target, train, background=True, black=True):
-        if train:
-            target = target.numpy()
-        else:
+    def _transform(self, img, target, assign_color_randomly, background=True, black=True):
+        if assign_color_randomly:
             target = self.random_state.randint(0, 10, target.shape)
+        else:
+            target = target.numpy()
 
         mean_values = []
         colors_per_sample = []
@@ -107,33 +114,35 @@ class MnistColorizer:
                 img, np.array(colors_per_sample), background=background, black=black
             )
         else:
+            colors = torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
             if background:
                 if black:
                     # colorful background, black digits
-                    colorized_data = (1 - img) * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = (1 - img) * colors
                 else:
                     # colorful background, white digits
-                    colorized_data = torch.clamp(img + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1)
+                    colorized_data = torch.clamp(img + colors, 0, 1)
             else:
                 if black:
                     # black background, colorful digits
-                    colorized_data = img * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = img * colors
                 else:
                     # white background, colorful digits
-                    colorized_data = 1 - img * (1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1))
+                    colorized_data = 1 - img * (1 - colors)
 
         # return colorized_data, torch.Tensor(mean_values)
         return colorized_data, torch.LongTensor(target)
 
     def __call__(self, img, target):
-        return self._transform(img, target, self.train, self.background, self.black)
+        return self._transform(img, target, self.assign_color_randomly, self.background, self.black)
 
 
 class ColorizedMNIST(datasets.MNIST):
     def __init__(
         self,
         root,
-        train,
+        use_train_split,
+        assign_color_randomly,
         transform,
         scale,
         background=True,
@@ -143,10 +152,10 @@ class ColorizedMNIST(datasets.MNIST):
         download=True,
     ):
         super(ColorizedMNIST, self).__init__(
-            root, train=train, download=download, transform=transform
+            root, train=use_train_split, download=download, transform=transform
         )
         self.colorizer = MnistColorizer(
-            train=train,
+            assign_color_randomly=assign_color_randomly,
             scale=scale,
             background=background,
             black=black,
@@ -154,9 +163,6 @@ class ColorizedMNIST(datasets.MNIST):
             binarize=binarize,
         )
         self.palette = self.colorizer.palette
-
-    def swap_train_test_colorization(self):
-        self.colorizer.train = not self.colorizer.train
 
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
@@ -189,7 +195,7 @@ def test():
     if args.dataset == 'mnist':
         train_dataset = ColorizedMNIST(
             './data/mnist',
-            train=True,
+            assign_color_randomly=False,
             download=True,
             transform=transforms.ToTensor(),
             scale=args.scale,
