@@ -55,7 +55,7 @@ def parse_arguments(raw_args=None):
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=250)
-    parser.add_argument('--batch-size', type=int, default=1000)
+    parser.add_argument('--batch-size', type=int, default=100)
     parser.add_argument('--test-batch-size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--disc-lr', type=float, default=3e-4)
