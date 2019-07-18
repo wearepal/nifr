@@ -45,7 +45,7 @@ def load_dataset(args) -> MetaDataset:
         whole_train_data = ColorizedMNIST(
             args.root,
             use_train_split=True,
-            color_randomly=True,
+            assign_color_randomly=True,
             download=True,
             transform=cmnist_transforms,
             scale=args.scale,
@@ -57,7 +57,7 @@ def load_dataset(args) -> MetaDataset:
         whole_test_data = ColorizedMNIST(
             args.root,
             use_train_split=False,
-            color_randomly=False,
+            assign_color_randomly=False,
             download=True,
             transform=cmnist_transforms,
             scale=args.scale,
