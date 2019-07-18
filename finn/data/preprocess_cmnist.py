@@ -12,7 +12,8 @@ def load_cmnist_data(args):
     train_data = ColorizedMNIST(
         './data',
         download=True,
-        train=True,
+        use_train_split=True,
+        color_randomly=False,
         scale=args.scale,
         transform=transforms.ToTensor(),
         cspace=args.cspace,
@@ -22,7 +23,8 @@ def load_cmnist_data(args):
     test_data = ColorizedMNIST(
         './data',
         download=True,
-        train=False,
+        use_train_split=False,
+        color_randomly=True,
         scale=args.scale,
         transform=transforms.ToTensor(),
         cspace=args.cspace,

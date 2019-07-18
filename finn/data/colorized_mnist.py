@@ -8,9 +8,9 @@ from skimage import color
 
 class MnistColorizer:
     def __init__(
-        self, train, scale, binarize=False, color_space='rgb', background=True, black=True, seed=42
+        self, color_randomly, scale, binarize=False, color_space='rgb', background=True, black=True, seed=42
     ):
-        self.train = train
+        self.color_randomly = color_randomly
         self.scale = scale
         self.binarize = binarize
         self.background = background
@@ -83,11 +83,11 @@ class MnistColorizer:
                 self.random_state.multivariate_normal(mean_color_values, self.scale), 0, 1
             )
 
-    def _transform(self, img, target, train, background=True, black=True):
-        if train:
-            target = target.numpy()
-        else:
+    def _transform(self, img, target, color_randomly, background=True, black=True):
+        if color_randomly:
             target = self.random_state.randint(0, 10, target.shape)
+        else:
+            target = target.numpy()
 
         mean_values = []
         colors_per_sample = []
@@ -126,14 +126,15 @@ class MnistColorizer:
         return colorized_data, torch.LongTensor(target)
 
     def __call__(self, img, target):
-        return self._transform(img, target, self.train, self.background, self.black)
+        return self._transform(img, target, self.color_randomly, self.background, self.black)
 
 
 class ColorizedMNIST(datasets.MNIST):
     def __init__(
         self,
         root,
-        train,
+        use_train_split,
+        color_randomly,
         transform,
         scale,
         background=True,
@@ -143,10 +144,10 @@ class ColorizedMNIST(datasets.MNIST):
         download=True,
     ):
         super(ColorizedMNIST, self).__init__(
-            root, train=train, download=download, transform=transform
+            root, train=use_train_split, download=download, transform=transform
         )
         self.colorizer = MnistColorizer(
-            train=train,
+            color_randomly=color_randomly,
             scale=scale,
             background=background,
             black=black,
@@ -154,9 +155,6 @@ class ColorizedMNIST(datasets.MNIST):
             binarize=binarize,
         )
         self.palette = self.colorizer.palette
-
-    def swap_train_test_colorization(self):
-        self.colorizer.train = not self.colorizer.train
 
     def __getitem__(self, idx):
         data, target = super().__getitem__(idx)
@@ -189,7 +187,7 @@ def test():
     if args.dataset == 'mnist':
         train_dataset = ColorizedMNIST(
             './data/mnist',
-            train=True,
+            color_randomly=False,
             download=True,
             transform=transforms.ToTensor(),
             scale=args.scale,
