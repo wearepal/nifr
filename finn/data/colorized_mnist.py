@@ -1,12 +1,63 @@
-import argparse
-
 import torch
 from torchvision import datasets, transforms
 import numpy as np
-from skimage import color
+from skimage import color as color_conversion
 
 
-class MnistColorizer:
+class ColorizedMNIST(datasets.MNIST):
+    def __init__(
+        self,
+        root,
+        use_train_split,
+        assign_color_randomly,
+        transform,
+        scale,
+        background=True,
+        black=True,
+        cspace='rgb',
+        binarize=True,
+        download=True,
+    ):
+        """PyTorch dataset for colorized MNIST
+
+        Args:
+            root: A string with the directory where to store the MNIST files
+            use_train_split (bool): if True, the official "train" split of MNIST is used
+            assign_color_randomly (bool): if True, colors are not assigned according to digit shape
+            transform: should always be "transform.ToTensor()"
+            scale (float): the scale of the Normal distribution that samples the color
+            background (bool): if True, the background is colored instead of the digits themselves
+            black (bool): if True, the non-colored parts of the images are black instead of white
+            cspace: either "rgb" to use the RGB color space or "hsv" to use HSV
+            binarize (bool): if True, make pixels either completely black or white before coloring
+            download (bool): if True, download the data if it hasn't been downloaded
+        """
+        super(ColorizedMNIST, self).__init__(
+            root, train=use_train_split, download=download, transform=transform
+        )
+        self.colorizer = _MnistColorizer(
+            assign_color_randomly=assign_color_randomly,
+            scale=scale,
+            background=background,
+            black=black,
+            color_space=cspace,
+            binarize=binarize,
+        )
+        self.palette = self.colorizer.palette
+
+    def __getitem__(self, idx):
+        data, target = super().__getitem__(idx)
+
+        if not isinstance(target, torch.Tensor):
+            target = torch.tensor(target)
+
+        data, color = self.colorizer(data, target.view(1))
+        return data.squeeze(0), color.squeeze(), target
+
+
+class _MnistColorizer:
+    """Class that takes care of coloring"""
+
     def __init__(
         self,
         assign_color_randomly,
@@ -28,6 +79,7 @@ class MnistColorizer:
 
         self.color_space = color_space
         if color_space == 'rgb':
+            # this is the color palette from Kim et al., "Learning not to learn"
             colors = [
                 (220, 20, 60),  # crimson
                 (0, 128, 128),  # teal
@@ -43,9 +95,11 @@ class MnistColorizer:
 
             self.palette = [np.divide(color, 255) for color in colors]
             self.scale *= np.eye(3)
-        else:
+        elif color_space == 'hsv':
             colors = [0, 35, 60, 78, 125, 165, 190, 235, 270, 300]
             self.palette = np.divide(colors, 360)
+        else:
+            raise RuntimeError("Unkown color space.")
 
     @staticmethod
     def _hsv_colorize(value, hue, saturation_value=1.0, background=True, black=True):
@@ -77,7 +131,7 @@ class MnistColorizer:
         hue = np.tile(hue[..., None, None], (1, *hw))
         hsv = np.stack([hue, saturation, value], axis=-1).reshape(-1, hw[0], 3)
 
-        rgb = color.hsv2rgb(hsv).reshape(-1, *hw, 3)
+        rgb = color_conversion.hsv2rgb(hsv).reshape(-1, *hw, 3)
         rgb = torch.Tensor(rgb).permute(0, 3, 1, 2).contiguous()
 
         return rgb
@@ -85,10 +139,7 @@ class MnistColorizer:
     def _sample_color(self, mean_color_values):
         if self.color_space == 'hsv':
             return np.clip(self.random_state.normal(mean_color_values, self.scale), 0, 1)
-        else:
-            return np.clip(
-                self.random_state.multivariate_normal(mean_color_values, self.scale), 0, 1
-            )
+        return np.clip(self.random_state.multivariate_normal(mean_color_values, self.scale), 0, 1)
 
     def _transform(self, img, target, assign_color_randomly, background=True, black=True):
         if assign_color_randomly:
@@ -137,52 +188,14 @@ class MnistColorizer:
         return self._transform(img, target, self.assign_color_randomly, self.background, self.black)
 
 
-class ColorizedMNIST(datasets.MNIST):
-    def __init__(
-        self,
-        root,
-        use_train_split,
-        assign_color_randomly,
-        transform,
-        scale,
-        background=True,
-        black=True,
-        cspace='rgb',
-        binarize=True,
-        download=True,
-    ):
-        super(ColorizedMNIST, self).__init__(
-            root, train=use_train_split, download=download, transform=transform
-        )
-        self.colorizer = MnistColorizer(
-            assign_color_randomly=assign_color_randomly,
-            scale=scale,
-            background=background,
-            black=black,
-            color_space=cspace,
-            binarize=binarize,
-        )
-        self.palette = self.colorizer.palette
-
-    def __getitem__(self, idx):
-        data, target = super().__getitem__(idx)
-
-        if not isinstance(target, torch.Tensor):
-            target = torch.tensor(target)
-
-        data, color = self.colorizer(data, target.view(1))
-        return data.squeeze(0), color.squeeze(), target
-
-
 def test():
+    import argparse
     from torch.utils.data import DataLoader
+    from torchvision.utils import save_image
 
     def parse_arguments():
         parser = argparse.ArgumentParser()
         parser.add_argument('-b', '--batch-size', type=int, default=64)
-        parser.add_argument(
-            '--dataset', type=str, choices=['mnist', 'fashion-mnist'], default='mnist'
-        )
         parser.add_argument('--scale', type=float, default=0.02)
         parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
         parser.add_argument('-bg', '--background', type=eval, default=True, choices=[True, False])
@@ -192,30 +205,22 @@ def test():
 
     args = parse_arguments()
 
-    if args.dataset == 'mnist':
-        train_dataset = ColorizedMNIST(
-            './data/mnist',
-            assign_color_randomly=False,
-            download=True,
-            transform=transforms.ToTensor(),
-            scale=args.scale,
-            cspace=args.cspace,
-            background=args.background,
-            black=args.black,
-        )
+    train_dataset = ColorizedMNIST(
+        './data/mnist',
+        use_train_split=True,
+        assign_color_randomly=False,
+        download=True,
+        transform=transforms.ToTensor(),
+        scale=args.scale,
+        cspace=args.cspace,
+        background=args.background,
+        black=args.black,
+    )
 
-        dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
-
-    else:
-        train_dataset = datasets.FashionMNIST(
-            './data/fashion-mnist', train=True, download=True, transform=transforms.ToTensor()
-        )
-
-        dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
+    dataloader = DataLoader(train_dataset, batch_size=args.batch_size)
 
     for data, color, labels in dataloader:
-        data = data
-        # save_image(data[:64], './colorized.png', nrow=8)
+        save_image(data[:64], './colorized.png', nrow=8)
         break
 
 
