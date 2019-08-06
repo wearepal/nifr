@@ -384,13 +384,13 @@ class Trainer:
             self.pred_net_g.eval()
             self.pred_net_b.eval()
 
-    def _get_color_labels(self, images):
+    def _get_color_labels(self, images: torch.Tensor):
         label_image = F.interpolate(images, (14, 14))
 
-        mask_image = torch.lt(label_image.float() - 0.00001, 0.0) * 255.0
-        label_image = torch.div(label_image, 32)
-        label_image = label_image + mask_image.float()
-        label_image = label_image.long()
+        label_image = label_image * 255
+        label_image = label_image.to(dtype=torch.int8)
+        label_image /= 255
+
         return label_image
 
     def _train_step(self, data_loader, step):
