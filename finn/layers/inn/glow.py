@@ -4,8 +4,6 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import linalg
 
-from finn.layers.coupling import InvertibleLayer
-
 
 class Invertible1x1Conv(nn.Module):
     """Invertible 1x1 convolution"""
@@ -72,13 +70,6 @@ class Invertible1x1Conv(nn.Module):
             dlogdet = self.log_s.sum() * (x.size(2) * x.size(3))
         return dlogdet
 
-    def forward(self, x, logpx=None, reverse=False):
-
-        if not reverse:
-            return self._forward(x, logpx)
-        else:
-            return self._reverse(x, logpx)
-
     def _forward(self, x, logpx):
 
         w = self.get_w(reverse=False)
@@ -104,10 +95,17 @@ class Invertible1x1Conv(nn.Module):
             logpx += dlogdet
             return output, logpx
 
+    def forward(self, x, logpx=None, reverse=False):
 
-class BruteForceLayer(nn.Module):
+        if not reverse:
+            return self._forward(x, logpx)
+        else:
+            return self._reverse(x, logpx)
+
+
+class InvertibleLinear(nn.Module):
     def __init__(self, dim):
-        super(BruteForceLayer, self).__init__()
+        super(InvertibleLinear, self).__init__()
         self.weight = nn.Parameter(torch.eye(dim))
 
     def forward(self, x, logpx=None, reverse=False):
@@ -129,94 +127,3 @@ class BruteForceLayer(nn.Module):
     @property
     def _logdetgrad(self):
         return torch.log(torch.abs(torch.det(self.weight.double()))).float()
-
-
-# ActNorm Layer with data-dependant init
-class ActNorm(InvertibleLayer):
-    def __init__(self, num_features, logscale_factor=1.0, scale=1.0):
-        super(ActNorm, self).__init__()
-        self.initialized = False
-        self.logscale_factor = logscale_factor
-        self.scale = scale
-        self.register_buffer('b', torch.zeros(1, num_features, 1))
-        self.register_buffer('logs', torch.zeros(1, num_features, 1))
-
-    def _forward(self, x, logpx=None):
-        input_shape = x.size()
-        x = x.view(input_shape[0], input_shape[1], -1)
-
-        if not self.initialized:
-            self.initialized = True
-            unsqueeze = lambda x: x.unsqueeze(0).unsqueeze(-1).detach()
-
-            # Compute the mean and variance
-            sum_size = x.size(0) * x.size(-1)
-            b = -torch.sum(x, dim=(0, -1)) / sum_size
-            vars = unsqueeze(torch.sum((x + unsqueeze(b)) ** 2, dim=(0, -1)) / sum_size)
-            logs = torch.log(self.scale / (torch.sqrt(vars) + 1e-6)) / self.logscale_factor
-
-            self.b.data.copy_(unsqueeze(b).data)
-            self.logs.data.copy_(logs.data)
-
-        logs = self.logs * self.logscale_factor
-        b = self.b
-
-        output = (x + b) * torch.exp(logs)
-        output = output.view(input_shape)
-        if logpx is None:
-            return output
-        else:
-            dlogdet = torch.sum(logs) * x.size(-1)  # c x h
-            return output, logpx - dlogdet
-
-    def _reverse(self, x, logpx=None):
-        assert self.initialized
-        input_shape = x.size()
-        x = x.view(input_shape[0], input_shape[1], -1)
-        logs = self.logs * self.logscale_factor
-        b = self.b
-        output = x * torch.exp(-logs) - b
-
-        output = output.view(input_shape)
-        if logpx is None:
-            return output
-        else:
-            dlogdet = torch.sum(logs) * x.size(-1)  # c x h
-            return output, logpx + dlogdet
-
-
-class ActNormNoData(InvertibleLayer):
-    def __init__(self, num_features):
-        super(ActNorm, self).__init__()
-        self.b = nn.Parameter(torch.zeros(1, num_features, 1))
-        self.logs = nn.Parameter(torch.zeros(1, num_features, 1))
-
-    def _forward(self, x, logpx=None):
-        input_shape = x.size()
-        x = x.view(input_shape[0], input_shape[1], -1)
-
-        output = (x + self.b) * torch.exp(self.logs)
-        output = output.view(input_shape)
-        if logpx is None:
-            return output
-        else:
-            dlogdet = torch.sum(self.logs) * x.size(-1)  # c x h
-            return output, logpx - dlogdet
-
-    def _reverse(self, x, logpx=None):
-        input_shape = x.size()
-        x = x.view(input_shape[0], input_shape[1], -1)
-        output = x * torch.exp(-self.logs) - self.b
-
-        output = output.view(input_shape)
-        if logpx is None:
-            return output
-        else:
-            dlogdet = torch.sum(self.logs) * x.size(-1)  # c x h
-        return output, logpx + dlogdet
-
-
-def _test():
-    x = torch.randn(100, 3, 28, 28)
-    conv = Invertible1x1Conv(3, use_lr_decomp=True)
-    print(conv(x))

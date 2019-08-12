@@ -11,7 +11,7 @@ def linear_classifier(
         Flatten(),
         nn.Linear(in_channels, hidden_channels),
         nn.LayerNorm(hidden_channels),
-        nn.ReLU(inplace=True),
+        nn.LeakyReLU(inplace=True),
         nn.Linear(hidden_channels, hidden_channels),
         nn.LayerNorm(hidden_channels),
         nn.ReLU(inplace=True),

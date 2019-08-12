@@ -1,6 +1,4 @@
-import torch.nn as nn
 from torch.autograd import Function
-from finn.layers import Mlp
 
 
 class GradReverse(Function):
@@ -18,13 +16,3 @@ class GradReverse(Function):
 
 def grad_reverse(features, lambda_):
     return GradReverse.apply(features, lambda_)
-
-
-class GradReverseDiscriminator(nn.Module):
-    def __init__(self, mlp_sizes, activation=nn.ReLU, activation_out=nn.Sigmoid):
-        super(GradReverseDiscriminator, self).__init__()
-        self.mlp = Mlp(mlp_sizes, activation, activation_out)
-
-    def forward(self, x, lambda_=1.0):
-        x = grad_reverse(x, lambda_)
-        return self.mlp(x)

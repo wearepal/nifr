@@ -8,7 +8,7 @@ from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility.data_structures import DataTuple
 
 from finn.utils.eval_metrics import evaluate_with_classifier
-from finn.utils.training_utils import train_and_evaluate_classifier
+from finn.optimisation.training_utils import train_and_evaluate_classifier
 from finn.data import MetaDataset, get_data_tuples
 
 
@@ -65,7 +65,7 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
     return metrics
 
 
-def metrics_for_meta_learn(args, experiment, clf, repr, data, save_to_csv=False):
+def metrics_for_pretrain(args, experiment, clf, repr, data, save_to_csv=False):
     assert isinstance(repr, MetaDataset)
     print('Meta Learn Results...')
     if args.dataset == 'cmnist':
@@ -166,7 +166,7 @@ def evaluate_representations(
 
     name = get_name(use_s, use_x, predict_y, use_fair, use_unfair)
 
-    if args.meta_learn:
+    if args.pretrain:
         if use_fair and use_unfair:
             in_channels = args.zy_dim + args.zs_dim
         elif use_fair:

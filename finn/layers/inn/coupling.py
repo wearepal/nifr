@@ -4,24 +4,6 @@ import torch
 import torch.nn as nn
 
 
-class InvertibleLayer(nn.Module):
-    """Base class of an invertible layer"""
-
-    def forward(self, x, logpx=None, reverse=False):
-        if reverse:
-            return self._reverse(x, logpx)
-        else:
-            return self._forward(x, logpx)
-
-    @abstractmethod
-    def _forward(self, x, logpx=None):
-        """Forward pass"""
-
-    @abstractmethod
-    def _reverse(self, x, logpx=None):
-        """Reverse pass"""
-
-
 class ConvBlock(nn.Sequential):
     def __init__(self, in_channels, hidden_channels=512, out_channels=None, n_layers=3):
         super(ConvBlock, self).__init__()

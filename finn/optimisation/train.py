@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from torch.optim import Adam
 from finn.utils import utils
 from finn.utils.evaluate_utils import MetaDataset
-from finn.utils.training_utils import (
+from finn.optimisation.training_utils import (
     get_data_dim,
     log_images,
     reconstruct_all,

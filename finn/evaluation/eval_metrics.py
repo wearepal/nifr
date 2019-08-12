@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from finn.models import MnistConvNet, InvDisc, compute_log_pz, tabular_model
 from finn.utils import utils
-from finn.utils.training_utils import (
+from finn.optimisation.training_utils import (
     validate_classifier,
     classifier_training_loop,
     evaluate,

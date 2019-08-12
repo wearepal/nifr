@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from finn import layers
-from .disc_models import linear_classifier, conv_classifier
+from finn.models.configs.discs import linear_classifier, conv_classifier
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model
 
 
@@ -24,7 +24,7 @@ class NNDisc(DiscBase):
             z_channels = x_dim * 16
 
         args.zs_dim = round(args.zs_frac * z_channels)
-        if args.meta_learn:
+        if args.pretrain:
             args.zy_dim = z_channels - args.zs_dim
             args.zn_dim = 0
         else:
@@ -78,26 +78,15 @@ class NNDisc(DiscBase):
 
         log_pz = compute_log_pz(self.args, z)
         # zn = z[:, :self.args.zn_dim]
-        zs = z[:, self.args.zn_dim : (z.size(1) - self.args.zy_dim)]
-        zy = z[:, (z.size(1) - self.args.zy_dim) :]
+        zs = z[:, self.args.zn_dim: (z.size(1) - self.args.zy_dim)]
+        zy = z[:, (z.size(1) - self.args.zy_dim):]
         # Enforce independence between the fair representation, zy,
         #  and the sensitive attribute, s
         pred_s_from_zy_loss = z.new_zeros(1)
         pred_s_from_zs_loss = z.new_zeros(1)
 
         if self.s_from_zy is not None and zy.size(1) > 0:
-            if self.args.entropy_loss_weight != 0:
-                pred_s_from_zy = self.s_from_zy(
-                    layers.grad_reverse(zy, lambda_=self.args.entropy_loss_weight)
-                )
-                # the adversarial discriminator will try to minimize the entropy
-                entropy = -(pred_s_from_zy * pred_s_from_zy.exp()).sum() / x.size(0)
-                pred_s_from_zy_loss += entropy
-                zy = zy.detach().clone()  # detach so that the NLL loss doesn't go through trunk
-            elif not self.args.proj_grads:
-                # if we don't use the entropy loss, we don't detach and reverse the gradient on z_yn
-                zy = layers.grad_reverse(zy, lambda_=self.pred_s_from_zy_weight)
-
+            zy = layers.grad_reverse(zy, lambda_=self.pred_s_from_zy_weight)
             pred_s_from_zy_loss += loss_fn(self.s_from_zy(zy), s, reduction='mean')
         # Enforce independence between the fair, zy, and unfair, zs, partitions
 

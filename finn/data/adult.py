@@ -43,7 +43,7 @@ def load_adult_data(args):
         data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
         assert data.x.shape[1] == 62
 
-    if args.meta_learn:
+    if args.pretrain:
 
         def _random_split(data, first_pcnt):
             return train_test_split(
@@ -121,7 +121,7 @@ def load_adult_data(args):
     else:
         task = DataTuple(x=task_scaled, s=task.s, y=task.y)
 
-    if args.meta_learn:
+    if args.pretrain:
         meta_train_scaled = meta_train.x
         meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
         if args.drop_discrete:

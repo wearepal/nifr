@@ -1,7 +1,6 @@
 """Run the model and evaluate the fairness"""
 # import sys
 # from pathlib import Path
-import comet_ml  # this import is needed because comet_ml has to be imported before sklearn
 
 import random
 import numpy as np
@@ -13,10 +12,10 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 from torch.utils.data import DataLoader
 
-from finn.train import main as training_loop
+from finn.optimisation.train import main as training_loop
 from finn.data import MetaDataset, get_data_tuples, load_dataset
-from finn.utils.evaluate_utils import metrics_for_meta_learn, evaluate_representations
-from finn.utils.training_utils import (
+from finn.utils.evaluate_utils import metrics_for_pretrain, evaluate_representations
+from finn.optimisation.training_utils import (
     parse_arguments,
     encode_dataset,
     encode_dataset_no_recon,
@@ -53,7 +52,7 @@ def log_sample_images(experiment, data, name):
 
 def log_metrics(args, experiment, model, discs, data, check_originals=False, save_to_csv=False):
     """Compute and log a variety of metrics"""
-    assert args.meta_learn
+    assert args.pretrain
     ethicml_model = MLP() if args.mlp_clf else LR()
 
     # This should be done before computing the representations because computing the representations
@@ -100,7 +99,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
                 input_dim=data.input_dim,
                 output_dim=data.output_dim,
             )
-            metrics_for_meta_learn(
+            metrics_for_pretrain(
                 args, experiment, ethicml_model, repr_, data, save_to_csv=save_to_csv
             )
         return
@@ -119,7 +118,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
     )
 
     if not args.inv_disc:
-        metrics_for_meta_learn(args, experiment, ethicml_model, repr, data)
+        metrics_for_pretrain(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
         task_data, task_train_data = get_data_tuples(data.task, data.task_train)

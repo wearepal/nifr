@@ -12,7 +12,7 @@ from finn.data.dataloading import load_adult_data
 
 def main():
     class _Namespace:
-        meta_learn = True
+        pretrain = True
         drop_native = True
         meta_lead = True
         data_split_seed = 888

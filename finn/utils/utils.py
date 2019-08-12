@@ -8,14 +8,6 @@ import torch
 LOGGER = None
 
 
-def flatten_sum(tensor):
-    return tensor.sum(dim=tuple(range(1, tensor.dim() + 1)))
-
-
-def batch_flatten(x):
-    return x.flatten(1)
-
-
 class BraceString(str):
     def __mod__(self, other):
         return self.format(*other)

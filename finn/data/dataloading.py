@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 
 from .cmnist import CMNIST
-from .colorized_mnist import ColorizedMNIST
+from .cmnist import ColouredMNIST
 from .preprocess_cmnist import get_path_from_args
 from .adult import load_adult_data
 
@@ -29,7 +29,7 @@ class MetaDataset(NamedTuple):
 
 
 def load_dataset(args) -> MetaDataset:
-    assert args.meta_learn
+    assert args.pretrain
 
     # =============== get whole dataset ===================
     if args.dataset == 'cmnist':
@@ -42,7 +42,7 @@ def load_dataset(args) -> MetaDataset:
         cmnist_transforms.append(transforms.ToTensor())
         cmnist_transforms = transforms.Compose(cmnist_transforms)
 
-        whole_train_data = ColorizedMNIST(
+        whole_train_data = ColouredMNIST(
             args.root,
             use_train_split=True,
             assign_color_randomly=True,
@@ -54,7 +54,7 @@ def load_dataset(args) -> MetaDataset:
             black=args.black,
             binarize=args.binarize,
         )
-        whole_test_data = ColorizedMNIST(
+        whole_test_data = ColouredMNIST(
             args.root,
             use_train_split=False,
             assign_color_randomly=False,
