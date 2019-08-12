@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from torch.optim import Adam
 
-from finn.models.base import BaseModel
 from finn.utils.distributions import logit, uniform_bernoulli
 
 
@@ -39,3 +38,9 @@ class Masker(nn.Module):
             out = out.round()
 
         return out
+
+
+x = torch.randn(1, 3, 28, 28)
+masker = Masker(x.shape, prob_1=0.7)
+
+print(masker(threshold=True))

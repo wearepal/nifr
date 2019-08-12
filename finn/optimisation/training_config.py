@@ -24,13 +24,15 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--rotate-data', type=eval, default=False, choices=[True, False])
     parser.add_argument('--shift-data', type=eval, default=False, choices=[True, False])
 
-    parser.add_argument('--prior-dist', type=str, default='normal', choices=['logistic', 'normal'])
     parser.add_argument('--root', type=str, default="data")
 
+    parser.add_argument('--base-density', type=str, default='normal', choices=['logistic', 'normal'])
     parser.add_argument('--depth', type=int, default=10)
     parser.add_argument('--dims', type=str, default="100-100")
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--bn-lag', type=restricted_float, default=0,
+                        help='fraction of current statistics to incorporate into moving average')
     parser.add_argument('--disc-hidden-dims', type=int, default=256)
 
     parser.add_argument('--early-stopping', type=int, default=30)

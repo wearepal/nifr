@@ -4,6 +4,7 @@ import torch.nn.functional as F
 
 from finn import layers
 from finn.models.configs.discs import linear_classifier, conv_classifier
+from finn.optimisation import grad_reverse
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model
 
 
@@ -86,7 +87,7 @@ class NNDisc(DiscBase):
         pred_s_from_zs_loss = z.new_zeros(1)
 
         if self.s_from_zy is not None and zy.size(1) > 0:
-            zy = layers.grad_reverse(zy, lambda_=self.pred_s_from_zy_weight)
+            zy = grad_reverse(zy, lambda_=self.pred_s_from_zy_weight)
             pred_s_from_zy_loss += loss_fn(self.s_from_zy(zy), s, reduction='mean')
         # Enforce independence between the fair, zy, and unfair, zs, partitions
 

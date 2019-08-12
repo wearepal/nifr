@@ -22,10 +22,12 @@ def logit(p, eps=1e-8):
 
 
 def uniform_bernoulli(shape, prob_1=0.5, eps=1.e-8):
+    n_element = (np.product(shape),)
+    samples = torch.empty(n_element, dtype=torch.float32)
     bern = dist.Bernoulli(probs=prob_1)
-    indexes = bern.sample(shape).long()
-    pw_rand = torch.empty(shape, dtype=torch.float32)
-    nn.init.uniform_(pw_rand[1 - indexes], a=0, b=0.5-eps)
-    nn.init.uniform_(pw_rand[indexes], a=0.5, b=1.0)
+    indexes = bern.sample(n_element).long()
+    nn.init.uniform_(samples[1. - indexes], a=0, b=0.5-eps)
+    nn.init.uniform_(samples[indexes], a=0.5, b=1.0)§
+    samples = samples.view(shape)
 
-    return pw_rand
+    return samples

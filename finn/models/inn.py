@@ -1,10 +1,7 @@
-from typing import Tuple, List
+from typing import Tuple
 
 import torch
-import torch.nn.functional as F
 import torch.distributions as dist
-from torch.utils.data import DataLoader
-import numpy as np
 
 from finn.models.base import BaseModel
 from finn.models.masker import Masker

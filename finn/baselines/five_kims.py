@@ -31,14 +31,11 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
     parser.add_argument('--data-pcnt', type=restricted_float, metavar='P', default=1.0,
                         help="data %% should be a real value > 0, and up to 1")
-    parser.add_argument('--add-sampling-bias', type=eval, default=False, choices=[True, False],
-                        help='if True, a sampling bias is added to the data')
     parser.add_argument('--task-mixing-factor', type=float, metavar='P', default=0.0,
                         help='How much of meta train should be mixed into task train?')
 
     # Colored MNIST settings
     parser.add_argument('--scale', type=float, default=0.02)
-    parser.add_argument('--cspace', type=str, default='rgb', choices=['rgb', 'hsv'])
     parser.add_argument('-bg', '--background', type=eval, default=False, choices=[True, False])
     parser.add_argument('--black', type=eval, default=True, choices=[True, False])
     parser.add_argument('--binarize', type=eval, default=True, choices=[True, False])
