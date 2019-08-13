@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from finn import layers
 from finn.models.configs.discs import linear_classifier, conv_classifier
 from finn.optimisation import grad_reverse
 from .discriminator_base import DiscBase, compute_log_pz, fetch_model

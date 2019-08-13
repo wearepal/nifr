@@ -1,5 +1,6 @@
 import torch.nn as nn
-from torch.optim import Adam
+
+from finn.optimisation.optimizers import AdamExtGrad
 
 
 class BaseModel(nn.Module):
@@ -10,7 +11,7 @@ class BaseModel(nn.Module):
         super(BaseModel, self).__init__()
         optimizer_args = optimizer_args or self.default_args["optimizer_args"]
         self.model = model
-        self.optimizer = Adam(self.model.parameters(), **optimizer_args)
+        self.optimizer = AdamExtGrad(self.model.parameters(), **optimizer_args)
 
     def reset_parameters(self):
         def _reset_parameters(m: nn.Module):

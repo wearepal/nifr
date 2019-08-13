@@ -1,33 +1,32 @@
 import torch.nn as nn
 
-from finn.layers import Flatten
-from finn.models import MnistConvNet
 
+def mp_28x28_classifier(input_dim, n_classes):
 
-def linear_classifier(
-    in_channels, num_classes, hidden_channels=512, output_activation=nn.LogSoftmax(dim=1)
-):
-    return nn.Sequential(
-        Flatten(),
-        nn.Linear(in_channels, hidden_channels),
-        nn.LayerNorm(hidden_channels),
-        nn.LeakyReLU(inplace=True),
-        nn.Linear(hidden_channels, hidden_channels),
-        nn.LayerNorm(hidden_channels),
-        nn.ReLU(inplace=True),
-        nn.Linear(hidden_channels, num_classes),
-        output_activation,
-    )
+    def conv_block(in_dim, out_dim):
+        _block = []
+        _block += [nn.Conv2d(in_dim, out_dim, kernel_size=3, stride=1)]
+        _block += [nn.BatchNorm2d(out_dim)]
+        _block += [nn.ReLU]
+        return _block
 
+    layers = []
+    layers += [conv_block(input_dim, 64)]
+    layers += [conv_block(input_dim, 64)]
+    layers += [nn.MaxPool2d(2, 2)]
 
-def conv_classifier(in_channels, num_classes, depth):
-    assert num_classes > 1
-    output_activation = nn.LogSoftmax(dim=1)
-    hidden_sizes = [in_channels * 16] * depth
-    return MnistConvNet(
-        in_channels,
-        num_classes,
-        hidden_sizes=hidden_sizes,
-        kernel_size=3,
-        output_activation=output_activation,
-    )
+    layers += [conv_block(input_dim, 128)]
+    layers += [conv_block(input_dim, 128)]
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers += [conv_block(input_dim, 256)]
+    layers += [conv_block(input_dim, 256)]
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers += [conv_block(input_dim, 512)]
+    layers += [conv_block(input_dim, 512)]
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers += [nn.Linear(512, n_classes)]
+
+    return nn.Sequential(layers)

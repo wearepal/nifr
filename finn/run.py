@@ -13,15 +13,14 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 from torch.utils.data import DataLoader
 
 from finn.optimisation.train import main as training_loop
-from finn.data import MetaDataset, get_data_tuples, load_dataset
-from finn.utils.evaluate_utils import metrics_for_pretrain, evaluate_representations
+from finn.data import DatasetWrapper, get_data_tuples, load_dataset
+from finn.evaluation.evaluate_utils import metrics_for_pretrain, evaluate_representations
+from finn.optimisation.training_config import parse_arguments
 from finn.optimisation.training_utils import (
-    parse_arguments,
     encode_dataset,
     encode_dataset_no_recon,
     log_images,
 )
-from finn.utils.eval_metrics import train_zy_head
 
 
 def random_seed(seed_value, use_cuda):
@@ -55,16 +54,6 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
     assert args.pretrain
     ethicml_model = MLP() if args.mlp_clf else LR()
 
-    # This should be done before computing the representations because computing the representations
-    # takes very long and is not needed for this!
-    if args.inv_disc:
-        assert isinstance(data, MetaDataset)
-        acc = train_zy_head(args, experiment, model, discs, data.task_train, data.task)
-        experiment.log_metric("Meta Accuracy", acc)
-        print(f"Meta Accuracy: {acc:.4f}")
-        # return
-        model = discs.assemble_whole_model(model).eval()
-
     if check_originals:
         print("Evaluating on original dataset...")
         evaluate_representations(
@@ -92,8 +81,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
             use_s=args.dataset == 'cmnist',
         )
         if args.dataset == 'adult':
-            repr_ = MetaDataset(
-                meta_train=None,
+            repr_ = DatasetWrapper(
                 task=task_repr,
                 task_train=task_train_repr,
                 input_dim=data.input_dim,
@@ -109,20 +97,18 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
     print('Encoding task train dataset...')
     task_train_repr_ = encode_dataset(args, data.task_train, model)
 
-    repr = MetaDataset(
-        meta_train=None,
+    repr = DatasetWrapper(
         task=task_repr_,
         task_train=task_train_repr_,
         input_dim=data.input_dim,
         output_dim=data.output_dim,
     )
 
-    if not args.inv_disc:
-        metrics_for_pretrain(args, experiment, ethicml_model, repr, data)
+    metrics_for_pretrain(args, experiment, ethicml_model, repr, data)
 
     if args.dataset == 'adult':
         task_data, task_train_data = get_data_tuples(data.task, data.task_train)
-        data = MetaDataset(
+        data = DatasetWrapper(
             meta_train=None,
             task=task_data,
             task_train=task_train_data,
@@ -200,8 +186,8 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
         )
 
     # ===========================================================================
-    check_meta_train = False
-    if check_meta_train:
+    check_pretrain = False
+    if check_pretrain:
         print('Encoding training set...')
         meta_train_repr = encode_dataset(args, data.meta_train, model)
         evaluate_representations(

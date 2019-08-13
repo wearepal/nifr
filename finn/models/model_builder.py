@@ -1,7 +1,8 @@
 from finn import layers
+from finn.models.classifier import Classifier
 
 
-def fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
+def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
     """Build the model with ARGS.depth many layers
 
     If ARGS.glow is true, then each layer includes 1x1 convolutions.
@@ -23,7 +24,7 @@ def fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
     return layers.SequentialFlow(chain)
 
 
-def conv_inn(args, input_dim):
+def build_conv_inn(args, input_dim):
     hidden_dims = tuple(map(int, args.dims.split("-")))
     squeeze_factor = 4
     chain = [layers.SqueezeLayer(squeeze_factor)]
@@ -43,3 +44,18 @@ def conv_inn(args, input_dim):
         chain += [_inv_block()]
 
     return layers.SequentialFlow(chain)
+
+
+def build_discriminator(args, input_shape, model_fn):
+
+    in_dim = input_shape[0]
+
+    if not args.learn_mask and len(input_shape) > 2:
+        in_dim *= args.squeeze_factor ** 2
+
+    discriminator = Classifier(
+        model_fn(in_dim, args.n_classes),
+        n_classes=args.n_classes)
+
+    return discriminator
+

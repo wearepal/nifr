@@ -4,7 +4,7 @@ from itertools import chain
 import torch
 
 from finn.utils.distributions import logistic_mixture_logprob
-from .inn_builder import conv_inn
+from .model_builder import build_conv_inn
 from .tabular import tabular_model
 
 
@@ -50,7 +50,7 @@ def compute_log_pz(args, z):
 
 def fetch_model(args, x_dim):
     if args.dataset == 'cmnist':
-        model = conv_inn(args, x_dim).to(args.device)
+        model = build_conv_inn(args, x_dim).to(args.device)
     elif args.dataset == 'adult':
         model = tabular_model(args, x_dim).to(args.device)
     else:

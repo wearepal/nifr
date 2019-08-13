@@ -12,15 +12,11 @@ from torch.utils.data import DataLoader, Dataset, random_split, TensorDataset
 from torchvision import transforms
 from tqdm import tqdm
 
-
-from .cmnist import CMNIST
 from .cmnist import ColouredMNIST
-from .preprocess_cmnist import get_path_from_args
 from .adult import load_adult_data
 
 
-class MetaDataset(NamedTuple):
-    meta_train: Dataset
+class DatasetWrapper(NamedTuple):
     task: Dataset
     task_train: Dataset
     input_dim: int
@@ -28,7 +24,7 @@ class MetaDataset(NamedTuple):
     inner_meta: Tuple[Dataset, Dataset] = ()
 
 
-def load_dataset(args) -> MetaDataset:
+def load_dataset(args) -> DatasetWrapper:
     assert args.pretrain
 
     # =============== get whole dataset ===================
@@ -116,11 +112,9 @@ def load_dataset(args) -> MetaDataset:
         inner_meta_train = None
         inner_meta_test = None
 
-    return MetaDataset(
-        meta_train=meta_train_data,
+    return DatasetWrapper(
         task=task_data,
         task_train=task_train_data,
-        inner_meta=(inner_meta_train, inner_meta_test),
         input_dim=None,
         output_dim=args.y_dim,
     )
@@ -165,21 +159,3 @@ def get_mnist_data_tuple(args, data, train=True):
         y_all.to_csv(data_path / "y_values")
 
     return DataTuple(x_all, s_all, y_all)
-
-
-def load_cmnist_from_file(args):
-    train_data = CMNIST(args, train=True)
-    test_data = CMNIST(args, train=False, normalize_transform=train_data.normalize_transform)
-
-    return train_data, test_data
-
-
-# def save_date(args, root='../data'):
-#     from torchvision.transforms import ToPILImage
-#     path = Path(root) / args.dataset
-#     dataloader = []
-#     to_pil = ToPILImage()
-#     for x, s, y in dataloader:
-#         for sample in x.unfold(dim=0):
-#             im = to_pil(x.detach().cpu())
-#             im.save(path / , 'PNG')

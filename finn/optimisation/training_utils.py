@@ -197,24 +197,6 @@ def get_data_dim(data_loader):
     return x_dim, x_dim_flat
 
 
-def metameric_sampling(model, xzx, xzs, zs_dim):
-    xzx_dim, xzs_dim = xzx.dim(), xzs.dim()
-
-    if xzx_dim == 1 or xzx_dim == 3:
-        xzx = xzx.unsqueeze(0)
-
-    if xzs_dim == 1 or xzs_dim == 3:
-        xzs = xzs.unsqueeze(0)
-
-    zx = model(xzx)[:, zs_dim]
-    zs = model(xzs)[:, zs_dim:]
-
-    zm = torch.cat((zx, zs), dim=1)
-    xm = model(zm, reverse=True)
-
-    return xm
-
-
 def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=False, prefix=None):
     """Make a grid of the given images, save them in a file and log them with Comet"""
     prefix = "train_" if prefix is None else f"{prefix}_"
@@ -387,9 +369,6 @@ def encode_dataset(args, data, model):
         )
         representations['zs'] = TensorDataset(
             representations['all_z'][:, args.zn_dim : -args.zy_dim], all_s, all_y
-        )
-        representations['zn'] = TensorDataset(
-            representations['all_z'][:, : args.zn_dim], all_s, all_y
         )
         representations['all_z'] = TensorDataset(representations['all_z'], all_s, all_y)
         representations['recon_y'] = TensorDataset(representations['recon_y'], all_s, all_y)

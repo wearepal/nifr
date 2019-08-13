@@ -114,10 +114,10 @@ class SplitInn(PartitionedInn):
         zs, zy = z.split(split_size=(self.zs_dim, self.zy_dim))
         return zs, zy
 
-    def unsplit_encoding(self, zs, zy):
+    def unsplit_encoding(self, zy, zs):
         assert zs.size(1) == self.zs_dim and zy.size(1) == self.zy_dim
 
-        return torch.cat([zs, zy], dim=1)
+        return torch.cat([zy, zs], dim=1)
 
     def routine(self, data: torch.Tensor) \
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
