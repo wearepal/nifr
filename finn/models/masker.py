@@ -15,12 +15,13 @@ class Masker(nn.Module):
         if not (0. <= prob_1 <= 1.):
             raise ValueError(f"{prob_1} is not a valid probability.")
 
+        optimizer_args = optimizer_args or self.default_args['optimizer_args']
         self.shape = shape
         self.prob_1 = prob_1
 
         self.mask = nn.Parameter(torch.empty(shape))
         self.reset_parameters()
-        self.optimizer = Adam(self.mask, **optimizer_args)
+        self.optimizer = Adam([self.mask], **optimizer_args)
 
     def reset_parameters(self):
         probs = uniform_bernoulli(self.shape, self.prob_1)
@@ -38,9 +39,3 @@ class Masker(nn.Module):
             out = out.round()
 
         return out
-
-
-x = torch.randn(1, 3, 28, 28)
-masker = Masker(x.shape, prob_1=0.7)
-
-print(masker(threshold=True))
