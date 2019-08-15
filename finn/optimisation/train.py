@@ -46,24 +46,21 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def save_model(save_dir, model, discs):
+def save_model(save_dir, model, discriminator):
     filename = save_dir / 'checkpt.pth'
-    save_dict = {'ARGS': ARGS, 'model': model.state_dict()}
-
-    for name, disc in discs.discs_dict.items():
-        if disc is not None:
-            save_dict[name] = disc.state_dict()
+    save_dict = {'ARGS': ARGS,
+                 'model': model.state_dict(),
+                 'discriminator': discriminator.state_dict()}
 
     torch.save(save_dict, filename)
 
 
-def restore_model(filename, model, discs):
+def restore_model(filename, model, discriminator):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     model.load_state_dict(checkpt['model'])
-    for name, disc in discs.discs_dict.items():
-        if disc is not None:
-            disc.load_state_dict(checkpt[name])
-    return model, discs
+    discriminator.load_state_dict(checkpt['discriminator'])
+
+    return model, discriminator
 
 
 def train(model, discriminator, dataloader, epoch):
@@ -280,8 +277,8 @@ def main(args, datasets, metric_callback):
     discriminator = build_discriminator(args, input_shape, disc_fn)
 
     if ARGS.resume is not None:
-        model, discs = restore_model(ARGS.resume, model, discriminator)
-        metric_callback(ARGS, SUMMARY, model, discs, datasets, check_originals=False)
+        model, discriminator = restore_model(ARGS.resume, model, discriminator)
+        metric_callback(ARGS, SUMMARY, model, discriminator, datasets, check_originals=False)
         return
 
     SUMMARY.set_model_graph(str(model))
@@ -326,7 +323,7 @@ def main(args, datasets, metric_callback):
 
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    save_model(save_dir=save_dir, model=model, discs=discriminator)
+                    save_model(save_dir=save_dir, model=model, discriminator=discriminator)
                     n_vals_without_improvement = 0
                 else:
                     n_vals_without_improvement += 1
@@ -344,7 +341,7 @@ def main(args, datasets, metric_callback):
     LOGGER.info('Training has finished.')
     model, discs = restore_model(save_dir / 'checkpt.pth', model, discriminator)
     metric_callback(ARGS, SUMMARY, model, discs, datasets, save_to_csv=True)
-    save_model(save_dir=save_dir, model=model, discs=discs)
+    save_model(save_dir=save_dir, model=model, discriminator=discriminator)
     model.eval()
 
 
