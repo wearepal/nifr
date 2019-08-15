@@ -30,6 +30,7 @@ class PartitionedInn(BaseModel):
         Returns:
             None
         """
+        self.input_shape = input_shape
         self.base_density = args.base_density
         x_dim = input_shape[0]
         z_channels = x_dim
@@ -44,12 +45,9 @@ class PartitionedInn(BaseModel):
         elif args.dataset == 'cmnist':
             self.x_s_dim = x_dim  # s is included in x
             z_channels *= args.squeeze_factor ** 2
-            w = self.input_shape[1] // args.squeeze_factor
-            h = self.output_shape[2] // args.squeeze_factor
+            h = self.input_shape[1] // args.squeeze_factor
+            w = self.input_shape[2] // args.squeeze_factor
             self.output_shape = (z_channels, w, h)
-
-        self.zs_dim = round(args.zs_frac * z_channels)
-        self.zy_dim = z_channels - args.zs_dim
 
         super().__init__(
             model,
@@ -109,6 +107,9 @@ class SplitInn(PartitionedInn):
             input_shape,
             optimizer_args=optimizer_args,
         )
+
+        self.zs_dim = round(args.zs_frac * self.output_shape[0])
+        self.zy_dim = self.output_shape[0] - self.zs_dim
 
     def split_encoding(self, z):
         zs, zy = z.split(split_size=(self.zs_dim, self.zy_dim))
@@ -174,18 +175,18 @@ class MaskedInn(PartitionedInn):
         self.masker.train()
 
     def train(self):
-        self.model.train()
+        super().train()
         self.masker.eval()
 
     def step(self):
         if self.model.training:
-            self.model.step()
+            super().step()
         if self.masker.training:
             self.masker.step()
 
     def zero_grad(self):
         if self.model.training:
-            self.model.zero_grad()
+            super().zero_grad()
         if self.masker.training:
             self.masker.zero_grad()
 
@@ -202,16 +203,16 @@ class MaskedInn(PartitionedInn):
             Tuple containing the pre-images and the negative log probability
             of the data under the model.
         """
-        z = self.forward(data, logdet=None, reverse=False)
+        zero = data.new_zeros(data.size(0), 1)
+        z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
         mask = self.masker(threshold=threshold)
         zy = mask * z
         zs = (1 - mask) * z
 
-        zero = data.new_zeros(z.size(0), 1)
-        xy_pre, delta_logp = self.forward(zy.detach(), logdet=zero, reverse=True)
+        xy_pre = self.forward(zy.detach(), reverse=True)
         xs_pre = self.forward(zs.detach(), logdet=None, reverse=True)
 
-        neg_log_pz = self.neg_log_prob(xy_pre, delta_logp)
+        neg_log_px = self.neg_log_prob(zy, delta_logp)
 
-        return (xy_pre, xs_pre), neg_log_pz
+        return (xy_pre, xs_pre), neg_log_px

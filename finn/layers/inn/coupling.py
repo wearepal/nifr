@@ -1,7 +1,7 @@
-from abc import abstractmethod
-
 import torch
 import torch.nn as nn
+
+from finn.layers.inn.inv_layer import InvertibleLayer
 
 
 class ConvBlock(nn.Sequential):

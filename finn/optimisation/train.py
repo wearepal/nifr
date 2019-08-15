@@ -9,11 +9,12 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from torch.optim import Adam
 
-from finn.models.configs.mnist import mp_28x28_classifier
+from finn.models.configs import mp_28x28_classifier
 
 from finn.data import DatasetWrapper
 from finn.models.inn import MaskedInn, PartitionedInn
-from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discs, build_discriminator
+from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
+from finn.optimisation import grad_reverse
 from finn.utils import utils
 from finn.optimisation.training_utils import (
     get_data_dim,
@@ -81,26 +82,24 @@ def train(model, discriminator, dataloader, epoch):
 
         x, s, y = to_device(x, s, y)
 
-        enc_y, enc_s, neg_log_prob = model.routine(x)
+        (enc_y, enc_s), neg_log_prob = model.routine(x)
 
-        disc_loss = discriminator.routine(enc_y, s)[0]
-
-        inn_loss = neg_log_prob - disc_loss
+        disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
 
         if ARGS.learn_mask:
-            disc_loss_2 = discriminator.routine(enc_s, s)[0]
-            disc_loss += disc_loss_2
-            inn_loss += disc_loss_2
+            disc_loss += discriminator.routine(enc_s, s)[0]
+
+        loss = neg_log_prob + disc_loss
 
         model.zero_grad()
-        model.optimizer.accumulate_gradients(inn_loss)
-        model.step()
-
         discriminator.zero_grad()
-        discriminator.optimizer.accumulate_gradients(disc_loss)
+
+        loss.backward()
+
+        model.step()
         discriminator.step()
 
-        total_loss_meter.update(inn_loss.item())
+        total_loss_meter.update(loss.item())
         log_prob_meter.update(neg_log_prob.item())
         disc_loss_meter.update(disc_loss.item())
 
@@ -118,23 +117,18 @@ def train(model, discriminator, dataloader, epoch):
 
         z = model(x[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
+        recon_all, recon_y, recon_s = reconstruct_all(
             ARGS, z, model
         )
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
         log_images(SUMMARY, recon_s, 'reconstruction_s')
-        log_images(SUMMARY, recon_n, 'reconstruction_n')
-        log_images(SUMMARY, recon_ys, 'reconstruction_ys')
-        log_images(SUMMARY, recon_yn, 'reconstruction_yn')
-        log_images(SUMMARY, recon_sn, 'reconstruction_sn')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
         "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-        "Loss -log_p_x (surprisal): {:.5g} | pred_y_from_zys: {:.5g} | pred_s_from_zy: {:.5g} | "
-        "pred_s_from_zs {:.5g} ({:.5g})",
+        "Loss -log_p_x (surprisal): {:.5g} | disc_loss: {:.5g} ({:.5g})",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
@@ -152,7 +146,7 @@ def validate(model, discriminator, val_loader):
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            enc_y, enc_s, neg_log_prob = model.routine(x_val)
+            (enc_y, enc_s), neg_log_prob = model.routine(x_val)
             disc_loss = discriminator.routine(enc_y, s_val)[0]
 
             loss = neg_log_prob + disc_loss
@@ -170,21 +164,19 @@ def validate(model, discriminator, val_loader):
 
         z = model(x_val[:64])
 
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
-            ARGS, z, model
-        )
+        recon_all, recon_y, recon_s = reconstruct_all(ARGS, z, model)
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
         log_images(SUMMARY, recon_s, 'reconstruction_s', prefix='test')
-        log_images(SUMMARY, recon_ys, 'reconstruction_ys', prefix='test')
     else:
         z = model(x_val[:1000])
-        recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
+        recon_all, recon_y, recon_s = reconstruct_all(
             ARGS, z, model
         )
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
-        log_images(SUMMARY, recon_yn, 'reconstruction_yn', prefix='test')
+        log_images(SUMMARY, recon_y, 'reconstruction_yn', prefix='test')
+        log_images(SUMMARY, recon_s, 'reconstruction_yn', prefix='test')
         x_recon = model(model(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")
@@ -210,7 +202,7 @@ def train_masker(model, discriminator, dataloader, epoch):
 
         x, s, y = to_device(x, s, y)
 
-        enc_y, enc_s, neg_log_prob = model.routine(x)
+        (enc_y, enc_s), neg_log_prob = model.routine(x)
 
         disc_loss = discriminator.routine(enc_y, s)[0]
 
@@ -267,11 +259,11 @@ def main(args, datasets, metric_callback):
 
     # ==== construct dataset ====
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(datasets.meta_train, shuffle=True, batch_size=ARGS.batch_size)
+    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
     val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
 
     # ==== construct networks ====
-    input_shape, z_dim_flat = get_data_dim(train_loader)
+    input_shape = get_data_dim(train_loader)
 
     if args.learn_mask:
         Module = MaskedInn
@@ -279,15 +271,13 @@ def main(args, datasets, metric_callback):
         Module = PartitionedInn
     if len(input_shape) > 2:
         model = build_conv_inn(args, input_shape[0])
-        disc_fn = mp_28x28_classifier(input_dim=input_shape[0], n_classes=args.n_classes)
+        disc_fn = mp_28x28_classifier
     else:
         model = build_fc_inn(args, input_shape[0])
-        disc_fn = torch.nn.Linear(input_shape[0], args.n_classes)
+        disc_fn = torch.nn.Linear
 
     model = Module(args, model=model, input_shape=input_shape)
     discriminator = build_discriminator(args, input_shape, disc_fn)
-
-    LOGGER.info('zs_dim: {}, zy_dim: {}', ARGS.zs_dim, ARGS.zy_dim)
 
     if ARGS.resume is not None:
         model, discs = restore_model(ARGS.resume, model, discriminator)

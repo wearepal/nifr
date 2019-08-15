@@ -26,9 +26,8 @@ def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
 
 def build_conv_inn(args, input_dim):
     hidden_dims = tuple(map(int, args.dims.split("-")))
-    squeeze_factor = 4
-    chain = [layers.SqueezeLayer(squeeze_factor)]
-    input_dim = input_dim * squeeze_factor ** 2
+    chain = [layers.SqueezeLayer(args.squeeze_factor)]
+    input_dim = input_dim * args.squeeze_factor ** 2
 
     def _inv_block():
         chain = []
@@ -54,8 +53,8 @@ def build_discriminator(args, input_shape, model_fn):
         in_dim *= args.squeeze_factor ** 2
 
     discriminator = Classifier(
-        model_fn(in_dim, args.n_classes),
-        n_classes=args.n_classes)
+        model_fn(in_dim, args.y_dim),
+        n_classes=args.y_dim)
 
     return discriminator
 

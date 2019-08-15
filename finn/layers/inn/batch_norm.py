@@ -15,8 +15,8 @@ class MovingBatchNormNd(nn.Module):
         self.bn_lag = bn_lag
         self.register_buffer('step', torch.zeros(1))
         if self.affine:
-            self.weight = Parameter(torch.tensor(num_features))
-            self.bias = Parameter(torch.tensor(num_features))
+            self.weight = Parameter(torch.zeros(num_features))
+            self.bias = Parameter(torch.zeros(num_features))
         else:
             self.register_parameter('weight', None)
             self.register_parameter('bias', None)

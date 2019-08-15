@@ -1,27 +1,20 @@
-import os
-from pathlib import Path
 from typing import NamedTuple
-
-from typing import Tuple
-import pandas as pd
-import numpy as np
+from typing import Optional
 
 import torch
-from ethicml.utility.data_structures import DataTuple
-from torch.utils.data import DataLoader, Dataset, random_split, TensorDataset
+from torch.utils.data import Dataset, random_split, TensorDataset
 from torchvision import transforms
-from tqdm import tqdm
 
-from .cmnist import ColouredMNIST
 from .adult import load_adult_data
+from .cmnist import ColouredMNIST
 
 
 class DatasetWrapper(NamedTuple):
+    pretrain: Optional[Dataset]
     task: Dataset
     task_train: Dataset
-    input_dim: int
-    output_dim: int
-    inner_meta: Tuple[Dataset, Dataset] = ()
+    input_dim: Optional[int]
+    output_dim: Optional[int]
 
 
 def load_dataset(args) -> DatasetWrapper:
@@ -83,9 +76,9 @@ def load_dataset(args) -> DatasetWrapper:
         args.s_dim = 1
 
     # shrink meta train set according to args.data_pcnt
-    meta_train_len = int(args.data_pcnt * len(whole_train_data))
-    meta_train_data, _ = random_split(
-        whole_train_data, lengths=(meta_train_len, len(whole_train_data) - meta_train_len)
+    pretrain_len = int(args.data_pcnt * len(whole_train_data))
+    pretrain_data, _ = random_split(
+        whole_train_data, lengths=(pretrain_len, len(whole_train_data) - pretrain_len)
     )
 
     # shrink task set according to args.data_pcnt
@@ -98,64 +91,10 @@ def load_dataset(args) -> DatasetWrapper:
         whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len)
     )
 
-    if args.full_meta:
-        meta_len = int(args.meta_data_pcnt * len(task_train_data))
-        inner_meta_data, _ = random_split(
-            task_train_data, lengths=(meta_len, len(task_train_data) - meta_len)
-        )
-        inner_meta_train_len = int(0.8 * len(inner_meta_data))
-        inner_meta_train, inner_meta_test = random_split(
-            inner_meta_data,
-            lengths=(inner_meta_train_len, len(inner_meta_data) - inner_meta_train_len),
-        )
-    else:
-        inner_meta_train = None
-        inner_meta_test = None
-
     return DatasetWrapper(
+        pretrain=pretrain_data,
         task=task_data,
         task_train=task_train_data,
         input_dim=None,
         output_dim=args.y_dim,
     )
-
-
-def get_mnist_data_tuple(args, data, train=True):
-    dataset = "train" if train else "test"
-
-    save_dir = Path(args.save)
-    save_dir.mkdir(parents=True, exist_ok=True)
-
-    print("Making data tuple")
-
-    data_path = get_path_from_args(args) / dataset
-
-    if (
-        os.path.exists(data_path / "x_values.npy")
-        and os.path.exists(data_path / "s_values")
-        and os.path.exists(data_path / "y_values")
-    ):
-        print("data tuples found on file")
-        x_all = np.load(data_path / "x_values.npy")
-        s_all = pd.read_csv(data_path / "s_values", index_col=0)
-        y_all = pd.read_csv(data_path / "y_values", index_col=0)
-    else:
-        print("data tuples haven't been created - this may take a while")
-        data_loader = DataLoader(data, batch_size=args.batch_size)
-        x_all, s_all, y_all = [], [], []
-
-        for x, s, y in tqdm(data_loader):
-            x_all.extend(x.numpy())
-            s_all.extend(s.numpy())
-            y_all.extend(y.numpy())
-
-        x_all = np.array(x_all)
-        np.save(data_path / 'x_values', x_all)
-        # s_all = pd.DataFrame(np.array(s_all), columns=['sens_r', 'sens_g', 'sens_b'])
-        s_all = pd.DataFrame(np.array(s_all), columns=['sens'])
-        s_all.to_csv(data_path / "s_values")
-
-        y_all = pd.DataFrame(np.array(y_all), columns=['label'])
-        y_all.to_csv(data_path / "y_values")
-
-    return DataTuple(x_all, s_all, y_all)

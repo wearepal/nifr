@@ -14,5 +14,5 @@ class GradReverse(Function):
         return grad_output.neg().mul(ctx.lambda_), None
 
 
-def grad_reverse(features, lambda_):
+def grad_reverse(features, lambda_=1.0):
     return GradReverse.apply(features, lambda_)

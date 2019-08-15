@@ -16,7 +16,6 @@ from tqdm import tqdm
 
 from ethicml.data import Adult
 
-from finn.models import MnistConvClassifier
 from finn.data import pytorch_data_to_dataframe
 from finn import layers
 
@@ -191,10 +190,9 @@ def evaluate(
 
 def get_data_dim(data_loader):
     x, _, _ = next(iter(data_loader))
-    x_dim = x.size(1)
-    x_dim_flat = np.prod(x.shape[1:]).item()
+    x_dim = x.shape[1:]
 
-    return x_dim, x_dim_flat
+    return x_dim
 
 
 def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=False, prefix=None):
@@ -208,28 +206,20 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
     experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
 
 
-def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zero_yn=False):
+def reconstruct(args, z, model, zero_zy=False, zero_zs=False):
     """Reconstruct the input from the representation in various different ways"""
     z_ = z.clone()
-    wh = z.size(1) // (args.zs_dim + args.zy_dim + args.zn_dim)
 
     if zero_zy:
-        if args.inv_disc:
-            z_[:, (z_.size(1) - args.zy_dim * wh) :][:, : args.y_dim].zero_()
+        if args.learn_mask:
+            z = (1 - model.masker()) * z_
         else:
-            z_[:, (z_.size(1) - args.zy_dim) :].zero_()
+            z_[:, :model.zy_dim:].zero_()
     if zero_zs:
-        if args.inv_disc:
-            z_[:, (args.zn_dim * wh) : (z_.size(1) - (args.zy_dim * wh))][:, : args.s_dim].zero_()
+        if args.learn_mask:
+            z = model.masker() * z_
         else:
-            z_[:, args.zn_dim : (z_.size(1) - args.zy_dim)].zero_()
-    if args.inv_disc:
-        if zero_yn:
-            z_[:, (z_.size(1) - args.zy_dim * wh) :][:, args.y_dim :].zero_()
-        if zero_sn:
-            z_[:, args.zn_dim : (z_.size(1) - args.zy_dim * wh)][:, args.s_dim :].zero_()
-    elif zero_sn or zero_yn:
-        z_[:, : args.zn_dim].zero_()
+            z_[:, model.zy_dim:].zero_()
 
     recon = model(z_, reverse=True)
 
@@ -273,7 +263,7 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zer
         start_idx = 0
         for layer, group in zip(output_layers, grouped_features):
             end_idx = len(group)
-            _recon.append(layer(recon[:, start_idx : start_idx + end_idx]))
+            _recon.append(layer(recon[:, start_idx: start_idx + end_idx]))
             start_idx += end_idx
 
         recon = torch.cat(_recon, dim=1)
@@ -304,17 +294,13 @@ class _OneHotEncoder(nn.Module):
 
 def reconstruct_all(args, z, model):
     recon_all = reconstruct(
-        args, z, model, zero_zy=False, zero_zs=False, zero_sn=False, zero_yn=False
+        args, z, model, zero_zy=False, zero_zs=False
     )
 
-    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=True)
-    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_sn=True, zero_yn=True)
-    recon_n = reconstruct(args, z, model, zero_zy=True, zero_zs=True, zero_sn=False, zero_yn=False)
+    recon_y = reconstruct(args, z, model, zero_zy=False, zero_zs=True)
+    recon_s = reconstruct(args, z, model, zero_zy=True, zero_zs=False)
 
-    recon_ys = reconstruct(args, z, model, zero_zy=False, zero_zs=False, zero_sn=True, zero_yn=True)
-    recon_yn = reconstruct(args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=False)
-    recon_sn = reconstruct(args, z, model, zero_zy=True, zero_zs=False, zero_sn=False, zero_yn=True)
-    return recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn
+    return recon_all, recon_y, recon_s
 
 
 def encode_dataset(args, data, model):
@@ -340,16 +326,10 @@ def encode_dataset(args, data, model):
 
             z = model(x)
 
-            recon_all, recon_y, recon_s, recon_n, recon_ys, recon_yn, recon_sn = reconstruct_all(
-                args, z, model
-            )
+            recon_all, recon_y, recon_s = reconstruct_all(args, z, model)
             representations['recon_all'].append(recon_all)
             representations['recon_y'].append(recon_y)
             representations['recon_s'].append(recon_s)
-            representations['recon_n'].append(recon_n)
-            representations['recon_ys'].append(recon_ys)
-            representations['recon_yn'].append(recon_yn)
-            representations['recon_sn'].append(recon_sn)
 
             representations['all_z'].append(z)
             all_s.append(s)
@@ -365,10 +345,10 @@ def encode_dataset(args, data, model):
 
     if args.dataset == 'cmnist':
         representations['zy'] = TensorDataset(
-            representations['all_z'][:, z.size(1) - args.zy_dim :], all_s, all_y
+            representations['all_z'][:, :model.zy_dim], all_s, all_y
         )
         representations['zs'] = TensorDataset(
-            representations['all_z'][:, args.zn_dim : -args.zy_dim], all_s, all_y
+            representations['all_z'][:, model.zy_dim:], all_s, all_y
         )
         representations['all_z'] = TensorDataset(representations['all_z'], all_s, all_y)
         representations['recon_y'] = TensorDataset(representations['recon_y'], all_s, all_y)
@@ -383,17 +363,12 @@ def encode_dataset(args, data, model):
         representations['y'] = pd.DataFrame(all_y.float().cpu().numpy())
 
         representations['zy'] = DataTuple(
-            x=representations['all_z'][columns[z.size(1) - args.zy_dim :]],
+            x=representations['all_z'][columns[:model.zy_dim]],
             s=representations['s'],
             y=representations['y'],
         )
         representations['zs'] = DataTuple(
-            x=representations['all_z'][columns[args.zn_dim : z.size(1) - args.zy_dim]],
-            s=representations['s'],
-            y=representations['y'],
-        )
-        representations['zn'] = DataTuple(
-            x=representations['all_z'][columns[: args.zn_dim]],
+            x=representations['all_z'][columns[model.zy_dim:]],
             s=representations['s'],
             y=representations['y'],
         )

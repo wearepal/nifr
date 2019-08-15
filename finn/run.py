@@ -82,6 +82,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
         )
         if args.dataset == 'adult':
             repr_ = DatasetWrapper(
+                pretrain=None,
                 task=task_repr,
                 task_train=task_train_repr,
                 input_dim=data.input_dim,
@@ -109,7 +110,7 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
     if args.dataset == 'adult':
         task_data, task_train_data = get_data_tuples(data.task, data.task_train)
         data = DatasetWrapper(
-            meta_train=None,
+            pretrain=None,
             task=task_data,
             task_train=task_train_data,
             input_dim=data.input_dim,
@@ -189,12 +190,12 @@ def log_metrics(args, experiment, model, discs, data, check_originals=False, sav
     check_pretrain = False
     if check_pretrain:
         print('Encoding training set...')
-        meta_train_repr = encode_dataset(args, data.meta_train, model)
+        pretrain_repr = encode_dataset(args, data.pretrain, model)
         evaluate_representations(
-            args, experiment, meta_train_repr['zy'], repr.task['zy'], use_fair=True
+            args, experiment, pretrain_repr['zy'], repr.task['zy'], use_fair=True
         )
         evaluate_representations(
-            args, experiment, meta_train_repr['zs'], repr.task['zs'], use_unfair=True
+            args, experiment, pretrain_repr['zs'], repr.task['zs'], use_unfair=True
         )
 
 
