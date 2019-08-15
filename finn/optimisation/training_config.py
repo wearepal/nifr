@@ -58,11 +58,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--learn-mask', type=eval, default=True, choices=[True, False],
                         help='whether to learn a mask over the encoding instead of'
                              'using fixed-sized partitions.')
-    parser.add_argument('--log-px-weight', type=float, default=1.0e-3)
-
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.0)
-    parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.0)
-    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.0)
+    parser.add_argument('--log-prob-weight', type=float, default=1.0e-3)
+    parser.add_argument('--pred-s-weight', type=float, default=1)
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
                         help='Use s as input (if s is a separate feature)')
 

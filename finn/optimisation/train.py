@@ -2,26 +2,21 @@
 import time
 from pathlib import Path
 
-from comet_ml import Experiment
 import torch
-from torch.optim.lr_scheduler import ExponentialLR
+from comet_ml import Experiment
 from torch.utils.data import DataLoader, TensorDataset
 
-from torch.optim import Adam
-
-from finn.models.configs import mp_28x28_classifier
-
 from finn.data import DatasetWrapper
+from finn.models.configs import mp_28x28_classifier
 from finn.models.inn import MaskedInn, PartitionedInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
 from finn.optimisation import grad_reverse
-from finn.utils import utils
 from finn.optimisation.training_utils import (
     get_data_dim,
     log_images,
     reconstruct_all,
 )
-
+from finn.utils import utils
 
 NDECS = 0
 ARGS = None
@@ -86,6 +81,9 @@ def train(model, discriminator, dataloader, epoch):
         if ARGS.learn_mask:
             disc_loss += discriminator.routine(enc_s, s)[0]
 
+        neg_log_prob *= ARGS.log_prob_weight
+        disc_loss *= ARGS.pred_s_weight
+
         loss = neg_log_prob + disc_loss
 
         model.zero_grad()
@@ -146,10 +144,13 @@ def validate(model, discriminator, val_loader):
             (enc_y, enc_s), neg_log_prob = model.routine(x_val)
             disc_loss = discriminator.routine(enc_y, s_val)[0]
 
-            loss = neg_log_prob + disc_loss
             if ARGS.learn_mask:
-                disc_loss_2 = discriminator.routine(enc_s, s_val)[0]
-                loss += disc_loss_2
+                disc_loss += discriminator.routine(enc_s, s_val)[0]
+
+            neg_log_prob *= ARGS.log_prob_weight
+            disc_loss *= ARGS.pred_s_weight
+
+            loss = neg_log_prob + disc_loss
 
             loss_meter.update(loss.item(), n=x_val.size(0))
 
@@ -293,7 +294,7 @@ def main(args, datasets, metric_callback):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        LOGGER.info("Training INN")
+        LOGGER.info("===> Training INN")
         with SUMMARY.train():
             train(
                 model,
@@ -303,7 +304,7 @@ def main(args, datasets, metric_callback):
             )
 
             if args.learn_mask:
-                LOGGER.info("Training Masker")
+                LOGGER.info("===> Training Masker")
                 train_masker(
                     model,
                     discriminator,
