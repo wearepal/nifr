@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.optim import Adam
 
 from finn.utils.distributions import logit, uniform_bernoulli
+from finn.utils.utils import RoundSTE
 
 
 class Masker(nn.Module):
@@ -36,6 +37,11 @@ class Masker(nn.Module):
     def forward(self, threshold=True):
         out = self.mask.sigmoid()
         if threshold:
-            out = out.round()
+            out = RoundSTE.apply(out)
 
         return out
+
+
+if __name__ == '__main__':
+    masker = Masker((3, 28, 28))
+    print(masker.mask)

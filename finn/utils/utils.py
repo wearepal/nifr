@@ -8,6 +8,19 @@ import torch
 LOGGER = None
 
 
+class RoundSTE(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, inputs):
+        return inputs.round()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Straight-through estimator
+        """
+        return grad_output
+
+
 class BraceString(str):
     def __mod__(self, other):
         return self.format(*other)

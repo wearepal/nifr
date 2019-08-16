@@ -311,6 +311,10 @@ def main(args, datasets, metric_callback):
                     val_loader,
                     epoch
                 )
+                with torch.set_grad_enabled(False):
+                    mask = model.masker(threshold=True)
+                    zs_dim = (1 - mask).sum() / mask.nelement()
+                LOGGER.info("Zy frac:  {}", zs_dim.item())
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():

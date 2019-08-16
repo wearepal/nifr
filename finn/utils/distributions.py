@@ -21,11 +21,26 @@ def logit(p, eps=1e-8):
 
 
 def uniform_bernoulli(shape, prob_1=0.5):
+    nelement = int(np.product(shape))
     bern = dist.Bernoulli(probs=prob_1)
-    indexes = bern.sample(shape).long()
+    indexes = bern.sample((nelement,)).bool()
+    samples = torch.ones(nelement)
 
-    samples = torch.empty(shape)
-    samples[1 - indexes].data.uniform_(0, 0.5)
-    samples[indexes].data.uniform_(0.5, 1)
+    ones = samples[indexes]
+    ones.uniform_(0, 0.5)
+    zeros = samples[~indexes]
+    zeros.uniform_(0.5, 1)
+
+    samples[indexes] = ones
+    samples[~indexes] = zeros
+
+    samples = samples.view(shape)
 
     return samples
+
+
+if __name__ == '__main__':
+
+    probs = uniform_bernoulli((2, 2))
+    print(probs)
+
