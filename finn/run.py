@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader
 
 from finn.optimisation.train import main as training_loop
 from finn.data import DatasetWrapper, get_data_tuples, load_dataset
-from finn.evaluation.evaluate_utils import metrics_for_pretrain, evaluate_representations
+from finn.evaluation.evaluate import metrics_for_pretrain, evaluate_representations
 from finn.optimisation.training_config import parse_arguments
 from finn.optimisation.training_utils import (
     encode_dataset,
@@ -52,7 +52,7 @@ def log_sample_images(experiment, data, name):
 def log_metrics(args, experiment, model, discs, data, check_originals=False, save_to_csv=False):
     """Compute and log a variety of metrics"""
     assert args.pretrain
-    ethicml_model = MLP() if args.mlp_clf else LR()
+    ethicml_model = LR()
 
     if check_originals:
         print("Evaluating on original dataset...")

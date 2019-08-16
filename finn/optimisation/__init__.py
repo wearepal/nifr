@@ -1,1 +1,1 @@
-from .grad_reverse import grad_reverse
+from finn.optimisation.misc import grad_reverse

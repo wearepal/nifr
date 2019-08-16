@@ -62,7 +62,7 @@ class Classifier(BaseModel):
             inputs: Tensor. Inputs to the classifier.
 
         Returns:
-            Class predictions (tensor) for the given DVC samples.
+            Class predictions (tensor) for the given data samples.
         """
         outputs = super().__call__(inputs)
         predicted = torch.argmax(outputs, dim=1)
@@ -105,7 +105,7 @@ class Classifier(BaseModel):
         """Classifier routine.
 
         Args:
-            data: Tensor. Input DVC to the classifier.
+            data: Tensor. Input data to the classifier.
             targets: Tensor. Prediction targets.
             criterion: Callable. Loss function.
 
@@ -125,27 +125,51 @@ class Classifier(BaseModel):
 
         return loss, acc
 
-    def fit(self, args, train_data, use_s, pred_s):
+    def fit(self, train_data, epochs, device, test_data=None,
+            pred_s=False, batch_size=100, test_batch_size=1000):
 
         if not isinstance(train_data, DataLoader):
-            train_data = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
+            train_data = DataLoader(train_data, batch_size=batch_size,
+                                    shuffle=True, pin_memory=True)
 
-        for x, s, y in train_data:
+        if test_data is not None:
+            if not isinstance(train_data, DataLoader):
+                train_data = DataLoader(train_data, batch_size=test_batch_size,
+                                        shuffle=False, pin_memory=True)
 
-            if pred_s:
-                target = s
-            else:
-                target = y
+        for epoch in epochs:
+            print(f"===> Epoch {epoch} of classifier training")
 
-            x = x.to(args.device)
-            target = target.to(args.device)
+            for x, s, y in train_data:
 
-            if args.dataset == 'adult' and use_s and args.use_s:
-                x = torch.cat((x, s), dim=1)
-            elif args.dataset == 'cmnist' and not use_s:
-                x = x.mean(dim=1, keepdim=True)
+                if pred_s:
+                    target = s
+                else:
+                    target = y
 
-            self.zero_grad()
-            loss, acc = self.routine(x, target)
-            loss.backward()
-            self.step()
+                x = x.to(device)
+                target = target.to(device)
+
+                self.zero_grad()
+                loss, acc = self.routine(x, target)
+                loss.backward()
+                self.step()
+
+            if test_data is not None:
+                print(f"===> Testing classifier")
+                avg_test_acc = 0.0
+                with torch.set_grad_enabled(False):
+                    for x, s, y in test_data:
+
+                        if pred_s:
+                            target = s
+                        else:
+                            target = y
+
+                        x = x.to(device)
+                        target = target.to(device)
+                        loss, acc = self.routine(x, target)
+                        avg_test_acc += acc
+
+                avg_test_acc /= len(test_data)
+                print(f"Average test accuracy: {avg_test_acc:.2f}")

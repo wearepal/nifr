@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import torch.distributions as dist
+import torch.distributions as td
 import torch.nn.functional as F
 
 
@@ -22,14 +22,14 @@ def logit(p, eps=1e-8):
 
 def uniform_bernoulli(shape, prob_1=0.5):
     nelement = int(np.product(shape))
-    bern = dist.Bernoulli(probs=prob_1)
+    bern = td.Bernoulli(probs=prob_1)
     indexes = bern.sample((nelement,)).bool()
     samples = torch.ones(nelement)
 
     ones = samples[indexes]
-    ones.uniform_(0, 0.5)
+    ones.uniform_(0.5, 1.0)
     zeros = samples[~indexes]
-    zeros.uniform_(0.5, 1)
+    zeros.uniform_(0, 0.5)
 
     samples[indexes] = ones
     samples[~indexes] = zeros

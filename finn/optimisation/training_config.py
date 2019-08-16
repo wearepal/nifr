@@ -11,7 +11,7 @@ def restricted_float(x):
 def parse_arguments(raw_args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
-    parser.add_argument('--data-pcnt', type=restricted_float, metavar='P', default=0.001,
+    parser.add_argument('--data-pcnt', type=restricted_float, metavar='P', default=1.0,
                         help="data %% should be a real value > 0, and up to 1")
     parser.add_argument('--task-mixing-factor', type=float, metavar='P', default=0.0,
                         help='How much of meta train should be mixed into task train?')

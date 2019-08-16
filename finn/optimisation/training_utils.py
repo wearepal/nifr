@@ -20,174 +20,6 @@ from finn.data import pytorch_data_to_dataframe
 from finn import layers
 
 
-def validate_classifier(args, model, val_data, use_s, pred_s):
-    if not isinstance(val_data, DataLoader):
-        val_data = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
-
-    loss_fn = F.nll_loss if args.dataset == 'cmnist' else F.binary_cross_entropy
-
-    with torch.no_grad():
-        model.eval()
-        val_loss = 0
-        acc = 0
-        for x, s, y in val_data:
-
-            if pred_s:
-                # TODO: do this in EthicML instead
-                target = s
-                # target = s
-            else:
-                target = y
-
-            if loss_fn == F.nll_loss:
-                target = target.long()
-
-            x = x.to(args.device)
-            target = target.to(args.device)
-
-            if args.dataset == 'adult' and use_s and args.use_s:
-                x = torch.cat((x, s), dim=1)
-            if args.dataset == 'cmnist' and not use_s:
-                x = x.mean(dim=1, keepdim=True)
-
-            preds = model(x)
-            val_loss += loss_fn(preds.float(), target, reduction='sum').item()
-
-            if args.dataset == 'adult':
-                acc += torch.sum(preds.round() == target).item()
-            else:
-                acc += torch.sum(preds.argmax(dim=1) == target).item()
-
-        acc /= len(val_data.dataset)
-        val_loss /= len(val_data.dataset)
-
-        return val_loss, acc
-
-
-def classifier_training_loop(args, model, train_data, val_data, use_s=True, pred_s=False):
-    train_loader = DataLoader(train_data, shuffle=True, batch_size=args.batch_size)
-    val_loader = DataLoader(val_data, shuffle=False, batch_size=args.test_batch_size)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=1.0e-3)
-
-    n_vals_without_improvement = 0
-
-    best_acc = 0
-
-    print("Training classifier...")
-    t = tqdm(range(args.clf_epochs))  # we do it like this so we can close in manually
-    for _ in t:
-
-        if n_vals_without_improvement > args.clf_early_stopping > 0:
-            t.close()  # close it manually
-            break
-
-        train_classifier(args, model, optimizer, train_loader, use_s, pred_s)
-        _, acc = validate_classifier(args, model, val_loader, use_s, pred_s)
-
-        if acc > best_acc:
-            best_acc = acc
-            n_vals_without_improvement = 0
-        else:
-            n_vals_without_improvement += 1
-
-    return model
-
-
-def train_and_evaluate_classifier(args, experiment, data, pred_s, use_s, model=None, name=None):
-
-    # LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
-    #
-    # # ==== check GPU ====
-    # args.device = torch.device(f"cuda:{ARGS.gpu}" if torch.cuda.is_available() else "cpu")
-    # LOGGER.info('{} GPUs available.', torch.cuda.device_count())
-
-    # ==== construct dataset ====
-    args.test_batch_size = args.test_batch_size if args.test_batch_size else args.batch_size
-
-    train_len = int((1 - args.clf_val_ratio) * len(data))
-    val_length = int(len(data) - train_len)
-
-    lengths = [train_len, val_length]
-    train_data, val_data = random_split(data, lengths=lengths)
-
-    in_dim = 3 if use_s else 1
-    model = MnistConvClassifier(in_dim) if model is None else model
-    model.to(args.device)
-
-    model = classifier_training_loop(args, model, train_data, val_data, use_s=use_s, pred_s=pred_s)
-
-    return partial(
-        evaluate,
-        args=args,
-        model=model,
-        batch_size=args.test_batch_size,
-        device=args.device,
-        pred_s=pred_s,
-        use_s=use_s,
-        experiment=experiment,
-        name=name,
-    )
-
-
-def evaluate(
-    args,
-    test_data,
-    model,
-    batch_size,
-    device,
-    pred_s=False,
-    use_s=True,
-    using_x=True,
-    experiment=None,
-    name=None,
-):
-    """
-    Evaluate a model on a given test set and return the predictions
-
-    :param args: Our global store
-    :param test_data: evaluate gets passed around as a partial function. test_data is
-                        the value that is supplied that we evaluate
-    :param model: the model that we want to run the test data on
-    :param batch_size:
-    :param device:
-    :param pred_s: whether we want to predict s (in which case set s
-                    from the test_data as the target), or not
-    :param use_s: Should we include S as input to the model (as well as x)
-    :param using_x: are we training the model in x space or z space? If training
-                    in x mark this as true, else we'll assume we're running in z space
-    :return: a dataframe of predictions
-    """
-
-    test_loader = DataLoader(test_data, shuffle=False, batch_size=batch_size)
-
-    with torch.no_grad():
-        model.eval()
-
-        # generate predictions
-        all_preds = []
-        all_targets = []
-        for i, (x, s, y) in enumerate(test_loader):
-
-            target = s if pred_s else y
-
-            x = x.to(device)
-            target = target.to(device)
-
-            if args.dataset == 'adult' and use_s and args.use_s:
-                x = torch.cat((x, s), dim=1)
-            if args.dataset == 'cmnist' and not use_s and using_x:
-                x = x.mean(dim=1, keepdim=True)
-            if experiment is not None and i == 0:
-                log_images(experiment, x, f"evaluation on {name}", prefix='eval')
-
-            preds = model(x).argmax(dim=1)
-            all_preds.extend(preds.detach().cpu().numpy())
-            all_targets.extend(target.detach().cpu().numpy())
-
-    return pd.DataFrame(all_preds, columns=['preds']), pd.DataFrame(all_targets, columns=['y'])
-
-
 def get_data_dim(data_loader):
     x, _, _ = next(iter(data_loader))
     x_dim = x.shape[1:]
@@ -224,8 +56,9 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False):
     recon = model(z_, reverse=True)
 
     if args.dataset == 'adult':
-        disc_feats = Adult().discrete_features
-        cont_feats = Adult().continuous_features
+        dataset = Adult()
+        disc_feats = dataset.discrete_features
+        cont_feats = dataset.continuous_features
         assert len(disc_feats) + len(cont_feats) == 101
 
         if args.drop_native:
@@ -275,21 +108,6 @@ def reconstruct(args, z, model, zero_zy=False, zero_zs=False):
         # recon = torch.cat([layer(recon).flatten(start_dim=1) for layer in output_layers], dim=1)
 
     return recon
-
-
-class _OneHotEncoder(nn.Module):
-    def __init__(self, n_dims, index_dim=1):
-        super().__init__()
-        self.n_dims = n_dims
-        self.index_dim = index_dim
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        indexes = x.argmax(dim=self.index_dim)
-        indexes = indexes.type(torch.int64).view(-1, 1)
-        n_dims = self.n_dims  # if self.n_dims is not None else int(torch.max(indexes)) + 1
-        one_hots = x.new_zeros(indexes.size()[0], n_dims).scatter_(1, indexes, 1)
-        one_hots = one_hots.view(x.size(0), -1)
-        return one_hots
 
 
 def reconstruct_all(args, z, model):
@@ -377,8 +195,6 @@ def encode_dataset(args, data, model):
             x=representations['all_z'], s=representations['s'], y=representations['y']
         )
 
-        recon_all = 'fff'
-
         sens_attrs = Adult().feature_split['s']
 
         def _convert(*tensors):
@@ -411,7 +227,7 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
             z = model(x)
             if recon_zyn:
                 recon_yn = reconstruct(
-                    args, z, model, zero_zy=False, zero_zs=True, zero_sn=True, zero_yn=False
+                    args, z, model, zero_zy=False, zero_zs=True,
                 )
                 raw_encodings['recon_yn'].append(recon_yn)
 
@@ -426,9 +242,8 @@ def encode_dataset_no_recon(args, data, model, recon_zyn=False) -> TensorDataset
 
     encodings = {}
     s, y = raw_encodings['all_s'], raw_encodings['all_y']
-    encodings['zy'] = TensorDataset(raw_encodings['all_z'][:, z.size(1) - args.zy_dim :], s, y)
+    encodings['zy'] = TensorDataset(raw_encodings['all_z'])
     encodings['all_z'] = TensorDataset(raw_encodings['all_z'], s, y)
     if recon_zyn:
         encodings['recon_yn'] = TensorDataset(raw_encodings['recon_yn'], s, y)
     return encodings
-

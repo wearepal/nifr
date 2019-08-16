@@ -206,7 +206,7 @@ class MaskedInn(PartitionedInn):
         zero = data.new_zeros(data.size(0), 1)
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
-        mask = self.masker(threshold=True)
+        mask = self.masker(threshold=threshold)
         zy = mask * z
         neg_log_px = self.neg_log_prob(zy, delta_logp)
         zs = (1 - mask) * z
