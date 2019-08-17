@@ -301,8 +301,6 @@ class LdAugmentedDataset:
     def __init__(
         self,
         source_dataset,
-        num_classes,
-        num_class_samples,
         ld_augmentations,
         li_augmentation=False,
         base_augmentations: list = None,
@@ -314,8 +312,6 @@ class LdAugmentedDataset:
         if not 0 <= correlation <= 1:
             raise ValueError("Label-augmentation correlation must be between 0 and 1.")
 
-        self.num_classes = num_classes
-        self.num_class_samples = num_class_samples
         self.batch_size = batch_size
         self.shuffle = shuffle
 
@@ -331,8 +327,6 @@ class LdAugmentedDataset:
         self.correlation = correlation
 
         self.source_dataset = self._validate_dataset(source_dataset)
-
-
 
     def __len__(self):
         return len(self.source_dataset)
@@ -351,7 +345,7 @@ class LdAugmentedDataset:
         return self._to_dataloader(dataset)
 
     def split_dataset(self, lengths):
-        splits = random_split(self.source_dataset, lengths=lengths)
+        splits = random_split(self.source_dataset.dataset, lengths=lengths)
         return [
             self._to_dataloader(split) for split in splits
         ]
@@ -360,22 +354,6 @@ class LdAugmentedDataset:
         return DataLoader(
             dataset, batch_size=self.batch_size, shuffle=self.shuffle, pin_memory=True
         )
-
-    def _sample_from_inds(self, inds):
-        samples = Subset(self.source_dataset, inds)
-        samples.dataset.transform = self.base_augmentations
-        return samples
-
-    def _subsample(self):
-        inds = list(
-            RandomSampler(
-                self.source_dataset,
-                num_samples=self.num_classes * self.num_class_samples,
-                replacement=False,
-            )
-        )
-        self.inds = inds
-        return self._sample_from_inds(inds)
 
     @staticmethod
     def _validate_data(*args):
@@ -388,7 +366,9 @@ class LdAugmentedDataset:
             yield (arg)
 
     def __getitem__(self, index):
-        return self._subroutine(self.source_dataset.__getitem__(index))
+        return self._subroutine(
+            self.source_dataset.dataset.__getitem__(index)
+        )
 
     def _augment(self, x, label):
         for aug in self.ld_augmentations:
@@ -407,12 +387,7 @@ class LdAugmentedDataset:
         if self.correlation < 1:
             flip_prob = torch.rand(s.shape)
             indexes = flip_prob > self.correlation
-            s[indexes] = torch.randint(
-                size=(indexes.sum(),),
-                low=0,
-                high=self.num_classes,
-                dtype=y.dtype,
-            )
+            s[indexes] = s[indexes][torch.randperm(indexes.size(0))]
 
         x = self._augment(x, s)
 

@@ -8,7 +8,7 @@ from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility.data_structures import DataTuple
 
 from finn.optimisation.training_utils import train_and_evaluate_classifier
-from finn.data import DatasetWrapper, get_data_tuples
+from finn.data import DatasetTuple, get_data_tuples
 
 
 def compute_metrics(experiment, predictions, actual, name, run_all=False):
@@ -65,7 +65,7 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
 
 
 def metrics_for_pretrain(args, experiment, clf, repr, data, save_to_csv=False):
-    assert isinstance(repr, DatasetWrapper)
+    assert isinstance(repr, DatasetTuple)
     print('Meta Learn Results...')
     if args.dataset == 'cmnist':
         acc = evaluate_with_classifier(args, repr.task_train['zy'], repr.task['zy'], args.zy_dim)

@@ -1,4 +1,7 @@
 """Run all tests"""
-import pytest
+import torch
 
-pytest.main(['-vv', 'tests/'])
+x = torch.tensor([1, 2, 3, 4, 5])
+inds = [2, 3]
+x[inds] = x[inds][torch.randperm(len(inds))]
+print(x)

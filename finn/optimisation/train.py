@@ -6,7 +6,7 @@ import torch
 from comet_ml import Experiment
 from torch.utils.data import DataLoader, TensorDataset
 
-from finn.data import DatasetWrapper
+from finn.data import DatasetTuple
 from finn.models.configs import mp_28x28_classifier
 from finn.models.inn import MaskedInn, PartitionedInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
@@ -227,7 +227,7 @@ def main(args, datasets, metric_callback):
     Returns:
         the trained model
     """
-    assert isinstance(datasets, DatasetWrapper)
+    assert isinstance(datasets, DatasetTuple)
     # ==== initialize globals ====
     global ARGS, LOGGER, SUMMARY
     ARGS = args
