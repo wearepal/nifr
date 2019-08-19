@@ -1,5 +1,20 @@
 import torch
-from torch.utils.data import Sampler
+from torch.utils.data import Sampler, random_split, Dataset
+
+
+def shrink_dataset(dataset, pcnt):
+    curr_len = len(dataset)
+    new_data_len = int(pcnt * curr_len)
+    lengths = [new_data_len, curr_len - new_data_len]
+    return random_split(dataset, lengths)
+
+
+def set_transform(dataset, transform):
+    if hasattr(dataset, "dataset"):
+        set_transform(dataset.dataset, transform)
+    elif isinstance(dataset, Dataset):
+        if hasattr(dataset, "transform"):
+            dataset.transform = transform
 
 
 class RandomSampler(Sampler):
@@ -13,6 +28,7 @@ class RandomSampler(Sampler):
     """
 
     def __init__(self, data_source, replacement=False, num_samples=None):
+        super(RandomSampler, self).__init__(data_source)
         self.data_source = data_source
         self.replacement = replacement
         self._num_samples = num_samples

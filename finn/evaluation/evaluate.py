@@ -7,7 +7,6 @@ from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.utility.data_structures import DataTuple
 
-from finn.optimisation.training_utils import train_and_evaluate_classifier
 from finn.data import DatasetTuple, get_data_tuples
 
 

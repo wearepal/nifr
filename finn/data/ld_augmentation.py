@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Subset, random_split
 from torch.utils.data import TensorDataset, Dataset
 from torchvision import transforms
 
-from finn.data.misc import RandomSampler
+from finn.data.misc import RandomSampler, set_transform
 
 
 class LdAugmentation(torch.jit.ScriptModule):
@@ -309,6 +309,7 @@ class LdAugmentedDataset:
         shuffle=True,
     ):
 
+        self.source_dataset = self._validate_dataset(source_dataset)
         if not 0 <= correlation <= 1:
             raise ValueError("Label-augmentation correlation must be between 0 and 1.")
 
@@ -321,39 +322,48 @@ class LdAugmentedDataset:
 
         if base_augmentations is not None:
             base_augmentations = transforms.Compose(base_augmentations)
+            set_transform(self.source_dataset, base_augmentations)
         self.base_augmentations = base_augmentations
 
         self.li_augmentation = li_augmentation
         self.correlation = correlation
 
-        self.source_dataset = self._validate_dataset(source_dataset)
+        self.dataset = self._validate_dataset(source_dataset)
 
     def __len__(self):
-        return len(self.source_dataset)
+        return len(self.dataset)
 
     def num_batches(self):
         return math.ceil(len(self) / self.batch_size)
 
     def _validate_dataset(self, dataset):
-        if dataset.transform is not None:
-            self.base_augmentations = dataset.transform
         if isinstance(dataset, DataLoader):
-            dataset = dataset.dataset
+            dataset = dataset
         elif not isinstance(dataset, Dataset):
             raise TypeError("Dataset must be a Dataset or Dataloader object.")
 
-        return self._to_dataloader(dataset)
+        return dataset
 
-    def split_dataset(self, lengths):
-        splits = random_split(self.source_dataset.dataset, lengths=lengths)
-        return [
-            self._to_dataloader(split) for split in splits
-        ]
-
-    def _to_dataloader(self, dataset):
-        return DataLoader(
-            dataset, batch_size=self.batch_size, shuffle=self.shuffle, pin_memory=True
+    def subsample(self, pcnt=1.0):
+        if not 0 <= pcnt <= 1.0:
+            raise ValueError(f"{pcnt} should be in the range (0, 1]")
+        num_samples = int(pcnt * len(self.source_dataset))
+        inds = list(
+            RandomSampler(
+                self.source_dataset,
+                num_samples=num_samples,
+                replacement=False,
+            )
         )
+        self.inds = inds
+        subset = self._sample_from_inds(inds)
+        self.dataset = subset
+
+    def _sample_from_inds(self, inds):
+        subset = Subset(self.source_dataset, inds)
+        # subset.transform = self.base_augmentations
+
+        return subset
 
     @staticmethod
     def _validate_data(*args):
@@ -367,7 +377,7 @@ class LdAugmentedDataset:
 
     def __getitem__(self, index):
         return self._subroutine(
-            self.source_dataset.dataset.__getitem__(index)
+            self.dataset.__getitem__(index)
         )
 
     def _augment(self, x, label):
@@ -377,6 +387,7 @@ class LdAugmentedDataset:
         return x
 
     def _subroutine(self, data):
+
         x, y = data
         s = y
         x, s, y = self._validate_data(x, s, y)
@@ -394,12 +405,10 @@ class LdAugmentedDataset:
         if x.dim() == 4 and x.size(1) == 1:
             x = x.repeat(1, 3, 1, 1)
         x = x.squeeze(0)
+        s = s.squeeze()
+        y = s.squeeze()
 
         return x, s, y
-
-    def __iter__(self):
-        for data in self.source_dataset:
-            yield self._subroutine(data)
 
 
 def run():

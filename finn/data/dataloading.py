@@ -2,11 +2,14 @@ from typing import NamedTuple
 from typing import Optional
 
 import torch
+from ethicml.data import Adult
 from torch.utils.data import Dataset, random_split, TensorDataset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
+from finn.data.dataset_wrappers import DataTupleDataset
 from finn.data.ld_augmentation import LdAugmentedDataset, LdColorizer
+from finn.data.misc import shrink_dataset
 from .adult import load_adult_data
 from .cmnist import ColouredMNIST
 
@@ -24,14 +27,12 @@ def load_dataset(args) -> DatasetTuple:
 
     # =============== get whole dataset ===================
     if args.dataset == 'cmnist':
-        cmnist_transforms = []
+        to_tensor = transforms.ToTensor()
+        data_aug = []
         if args.rotate_data:
-            cmnist_transforms.append(transforms.RandomAffine(degrees=15))
+            data_aug.append(transforms.RandomAffine(degrees=15))
         if args.shift_data:
-            cmnist_transforms.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
-
-        cmnist_transforms.append(transforms.ToTensor())
-        cmnist_transforms = transforms.Compose(cmnist_transforms)
+            data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
 
         train_data = MNIST(root=args.root, download=True, train=True)
         pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
@@ -41,44 +42,37 @@ def load_dataset(args) -> DatasetTuple:
                                 black=args.black, binarize=args.binarize)
 
         pretrain_data = LdAugmentedDataset(pretrain_data, ld_augmentations=colorizer,
-                                           li_augmentation=True, shuffle=True)
+                                           li_augmentation=True, shuffle=True,
+                                           base_augmentations=data_aug + [to_tensor])
         train_data = LdAugmentedDataset(train_data, ld_augmentations=colorizer,
-                                        li_augmentation=False, shuffle=True)
+                                        li_augmentation=False, shuffle=True,
+                                        base_augmentations=data_aug + [to_tensor])
         test_data = LdAugmentedDataset(test_data, ld_augmentations=colorizer,
-                                       li_augmentation=True, shuffle=False)
+                                       li_augmentation=True, shuffle=False,
+                                       base_augmentations=[to_tensor])
+
+        if 0 < args.data_pcnt < 1:
+            pretrain_data.subsample(args.data_pcnt)
+            train_data.subsample(args.data_pcnt)
+            test_data.subsample(args.data_pcnt)
 
         args.y_dim = 10
         args.s_dim = 10
 
     else:
-        meta_tuple, task_tuple, task_train_tuple = load_adult_data(args)
-        whole_train_data = TensorDataset(
-            *[torch.tensor(df.values, dtype=torch.float32) for df in meta_tuple]
-        )
-        whole_val_data = TensorDataset(
-            *[torch.tensor(df.values, dtype=torch.float32) for df in task_tuple]
-        )
-        whole_test_data = TensorDataset(
-            *[torch.tensor(df.values, dtype=torch.float32) for df in task_train_tuple]
-        )
+        pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
+        source_dataset = Adult()
+        pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
+        train_data = DataTupleDataset(train_tuple, source_dataset)
+        test_data = DataTupleDataset(test_tuple, source_dataset)
+
         args.y_dim = 1
         args.s_dim = 1
 
-    # shrink meta train set according to args.data_pcnt
-    pretrain_len = int(args.data_pcnt * len(pretrain_data))
-    pretrain_data, _ = random_split(
-        pretrain_data, lengths=(pretrain_len, len(pretrain_data) - pretrain_len)
-    )
-
-    # shrink task set according to args.data_pcnt
-    task_len = int(args.data_pcnt * len(test_data))
-    test_data, _ = random_split(test_data, lengths=(task_len, len(test_data) - task_len))
-    test_data.transform = transforms.ToTensor()
-    # shrink task train set according to args.data_pcnt
-    task_train_len = int(args.data_pcnt * len(whole_test_data))
-    train_data, _ = random_split(
-        whole_test_data, lengths=(task_train_len, len(whole_test_data) - task_train_len)
-    )
+        if 0 < args.data_pcnt < 1:
+            pretrain_data = shrink_dataset(pretrain_data, args.data_pcnt)
+            train_data = shrink_dataset(train_data, args.data_pcnt)
+            test_data = shrink_dataset(test_data, args.data_pcnt)
 
     return DatasetTuple(
         pretrain=pretrain_data,

@@ -104,16 +104,6 @@ def parse_arguments(raw_args=None):
                         help='Use meta learning procedure')
     parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
 
-    parser.add_argument('--full-meta', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--meta-weight', type=float, metavar='R', default=1)
-    parser.add_argument('--meta-epochs', type=int, default=3)
-    parser.add_argument('--meta-batch-size', type=int, default=256)
-    parser.add_argument('--meta-data-pcnt', type=restricted_float,
-                        metavar='P', default=0.5)
-    parser.add_argument('--meta-weight-decay', type=float, default=1e-6)
-    parser.add_argument('--fast-lr', type=float, default=1.e-3)
-
-    parser.add_argument('--eff-comb', type=eval, default=True, choices=[True, False])
     parser.add_argument('--task-pcnt', type=float, default=0.2)
     parser.add_argument('--meta-pcnt', type=float, default=0.4)
 
@@ -132,7 +122,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--checkpoint', default=None, help='checkpoint to resume')
     parser.add_argument('--use-pretrain', type=eval, default=False, choices=[False, True], help='whether it use pre-trained parameters if exists')
     parser.add_argument('--eval-only', type=eval, default=False, choices=[False, True], help='Skip the training step?')
-    parser.add_argument('--use-kims-data', type=eval, default=True, choices=[False, True], help='use the kims data? if False, use ours')
+    parser.add_argument('--use-kims-data', type=eval, default=True, choices=[False, True],
+                        help='use the kims data? if False, use ours')
     parser.add_argument('--num-workers', type=int, default=4)
 
     return parser.parse_args(raw_args)
