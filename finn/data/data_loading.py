@@ -1,17 +1,15 @@
 from typing import NamedTuple
 from typing import Optional
 
-import torch
 from ethicml.data import Adult
-from torch.utils.data import Dataset, random_split, TensorDataset
+from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
-from finn.data.dataset_wrappers import DataTupleDataset
-from finn.data.ld_augmentation import LdAugmentedDataset, LdColorizer
+from finn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
+from finn.data.ld_augmentation import LdColorizer
 from finn.data.misc import shrink_dataset
 from .adult import load_adult_data
-from .cmnist import ColouredMNIST
 
 
 class DatasetTuple(NamedTuple):
