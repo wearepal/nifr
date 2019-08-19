@@ -1,7 +1,7 @@
 import torch.nn as nn
 
 
-def mp_28x28_classifier(input_dim, n_classes):
+def mp_28x28_net(input_dim, target_dim):
 
     def conv_block(in_dim, out_dim):
         _block = []
@@ -28,6 +28,25 @@ def mp_28x28_classifier(input_dim, n_classes):
     layers += [nn.MaxPool2d(2, 2)]
 
     layers += [nn.Flatten()]
-    layers += [nn.Linear(512, n_classes)]
+    layers += [nn.Linear(512, target_dim)]
+
+    return nn.Sequential(*layers)
+
+
+def fc_net(input_dim, target_dim, hidden_dims=None):
+
+    hidden_dims = hidden_dims or []
+
+    def fc_block(in_dim, out_dim):
+        _block = []
+        _block += [nn.Linear(in_dim, out_dim)]
+        _block += [nn.ReLU()]
+        return _block
+
+    layers = [nn.Flatten()]
+
+    for output_dim in hidden_dims + [target_dim]:
+        layers.extend(fc_block(input_dim, output_dim))
+        input_dim = output_dim
 
     return nn.Sequential(*layers)

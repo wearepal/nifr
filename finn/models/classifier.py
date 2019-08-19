@@ -69,6 +69,26 @@ class Classifier(BaseModel):
 
         return predicted
 
+    def predict_dataset(self, data, device, batch_size=100):
+        if not isinstance(data, DataLoader):
+            data = DataLoader(data, batch_size=batch_size,
+                              shuffle=False, pin_memory=True)
+        preds, actual = [], []
+        accuracy = 0
+        with torch.set_grad_enabled(False):
+            for x, s, y in data:
+                x = x.to(device)
+                y = y.to(device)
+
+                batch_preds = self.predict(x)
+                preds.append(batch_preds)
+                actual.append(x)
+
+        preds = torch.cat(preds, dim=0).detach()
+        actual = torch.cat(actual, dim=0).detach()
+
+        return preds, actual
+
     def compute_accuracy(
         self,
         outputs: torch.Tensor,

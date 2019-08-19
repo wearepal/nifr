@@ -7,7 +7,7 @@ from comet_ml import Experiment
 from torch.utils.data import DataLoader, TensorDataset
 
 from finn.data import DatasetTuple
-from finn.models.configs import mp_28x28_classifier
+from finn.models.configs import mp_28x28_net
 from finn.models.inn import MaskedInn, PartitionedInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
 from finn.optimisation import grad_reverse
@@ -269,7 +269,7 @@ def main(args, datasets, metric_callback):
         Module = PartitionedInn
     if len(input_shape) > 2:
         model = build_conv_inn(args, input_shape[0])
-        disc_fn = mp_28x28_classifier
+        disc_fn = mp_28x28_net
     else:
         model = build_fc_inn(args, input_shape[0])
         disc_fn = torch.nn.Linear

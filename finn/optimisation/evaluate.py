@@ -1,13 +1,18 @@
 import os
 
+from dask.tests.test_base import pd
 from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 
 # from ethicml.algorithms.preprocess.threaded.threaded_pre_algorithm import BasicTPA
 from ethicml.utility.data_structures import DataTuple
+from torch.utils.data import DataLoader
 
 from finn.data import DatasetTuple, get_data_tuples
+from finn.models.classifier import Classifier
+from finn.models.configs import mp_28x28_net
+from finn.models.configs.classifiers import fc_net
 
 
 def compute_metrics(experiment, predictions, actual, name, run_all=False):
@@ -99,14 +104,9 @@ def metrics_for_pretrain(args, experiment, clf, repr, data, save_to_csv=False):
                     f.write("\n")
 
 
-def make_tuple_from_data(train, test, pred_s, use_s):
-    if use_s:
-        raise RuntimeError("This shouldn't be reached.")
-        # train_x = pd.concat([train.x, train.s], axis='columns')
-        # test_x = pd.concat([test.x, test.s], axis='columns')
-    else:
-        train_x = train.x
-        test_x = test.x
+def make_tuple_from_data(train, test, pred_s):
+    train_x = train.x
+    test_x = test.x
 
     if pred_s:
         train_y = train.s
@@ -118,15 +118,15 @@ def make_tuple_from_data(train, test, pred_s, use_s):
     return DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y)
 
 
-def get_name(use_s, use_x, predict_y, use_fair, use_unfair):
+def _get_name(recon, pred_s, use_fair, use_unfair):
     name = ""
 
-    if predict_y:
-        name += "pred y "
-    else:
+    if pred_s:
         name += "pred s "
+    else:
+        name += "pred y "
 
-    if use_x:
+    if recon:
         if use_fair:
             name += "Recon Z not S "
         elif use_unfair:
@@ -140,78 +140,58 @@ def get_name(use_s, use_x, predict_y, use_fair, use_unfair):
             name += "Fair Z "
         elif use_unfair:
             name += "Unfair Z "
-        else:
-            raise NotImplementedError("Not sure how this was reached")
-    if use_s:
-        name += "& s "
-    else:
-        name += ""
 
     return name
 
 
-def evaluate_representations(
-    args,
-    experiment,
-    train_data,
-    test_data,
-    predict_y=False,
-    use_s=False,
-    use_x=False,
-    use_fair=False,
-    use_unfair=False,
-):
-
-    name = get_name(use_s, use_x, predict_y, use_fair, use_unfair)
-
-    if args.pretrain:
-        if use_fair and use_unfair:
-            in_channels = args.zy_dim + args.zs_dim
-        elif use_fair:
-            in_channels = args.zy_dim
-        else:
-            in_channels = args.zs_dim
+def evaluate(input_dim, target_dim, train_data, test_data, train_on_recon):
+    if train_on_recon or args.learn_mask:
+        clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
-        if use_fair and use_unfair:
-            in_channels = args.zy_dim + args.zs_dim + args.zn_dim
-        elif use_fair:
-            in_channels = args.zy_dim
-        elif use_unfair:
-            in_channels = args.zs_dim
-        else:
-            in_channels = args.zn_dim
+
+        clf = fc_net(input_dim, target_dim=args.y_dim)
+    clf: Classifier = Classifier(clf, n_classes=args.y_dim)
+    clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
+            device=args.device, pred_s=pred_s)
+
+    preds_x, test_x = clf.predict_dataset(test_data)
+
+
+def evaluate_representations(args, experiment, train_data, test_data, train_on_recon=True, pred_s=False, use_fair=False,
+                             use_unfair=False):
+    name = _get_name(train_on_recon, pred_s, use_fair, use_unfair)
 
     print(f"{name}:")
 
+    input_dim = next(iter(train_data))[0].shape[1]
+    train_data = DataLoader(train_data, batch_size=args.batch_size,
+                            shuffle=True, pin_memory=True)
+    test_data = DataLoader(test_data, batch_size=args.test_batch_size,
+                           shuffle=False, pin_memory=True)
+
     if args.dataset == 'cmnist':
         run_all = False
-        if use_x:
-            clf = train_and_evaluate_classifier(
-                args, experiment, train_data, pred_s=not predict_y, use_s=use_s, name=name
-            )
-        else:
-            clf = evaluate_with_classifier(
-                args,
-                train_data,
-                test_data,
-                in_channels=in_channels,
-                pred_s=not predict_y,
-                use_s=use_s,
-                applicative=True,
-            )
-        preds_x, test_x = clf(test_data=train_data)
-        _ = compute_metrics(experiment, preds_x, test_x, f"{name} - Train")
-        preds_x, test_x = clf(test_data=test_data)
-        print("\tTraining performance")
 
+        if train_on_recon or args.learn_mask:
+            clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
+        else:
+
+            clf = fc_net(input_dim, target_dim=args.y_dim)
+        clf: Classifier = Classifier(clf, n_classes=args.y_dim)
+        clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
+                device=args.device, pred_s=pred_s)
+
+        preds_x, test_x = clf.predict_dataset(test_data)
+        preds_x = pd.DataFrame(preds_x)
+        test_x = pd.DataFrame(test_x)
     else:
         if not isinstance(train_data, DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
         run_all = True
         train_x, test_x = make_tuple_from_data(
-            train_data, test_data, pred_s=not predict_y, use_s=use_s
+            train_data, test_data, pred_s=pred_s,
         )
-        clf = MLP() if args.mlp_clf else LR()
+        clf = LR()
         preds_x = clf.run(train_x, test_x)
 
     print("\tTest performance")
