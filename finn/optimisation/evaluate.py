@@ -1,6 +1,6 @@
 import os
 
-from dask.tests.test_base import pd
+import pandas as pd
 from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI

@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-from torch.optim import Adam
 
-from finn.optimisation.optimizers import AdamExtGrad
+from finn.optimisation.optimizers import AdamExtGrad, RAdam
 from finn.utils.distributions import logit, uniform_bernoulli
 from finn.utils.utils import RoundSTE
 
@@ -23,9 +22,9 @@ class Masker(nn.Module):
 
         self.mask = nn.Parameter(torch.empty(shape))
         self.reset_parameters()
-        self.optimizer = AdamExtGrad([self.mask], **optimizer_args)
+        self.optimizer = RAdam([self.mask], **optimizer_args)
 
-    def reset_parameters(self):
+    def reset_parameters(self) -> None:
         probs = uniform_bernoulli(self.shape, self.prob_1)
         self.mask.data = logit(probs)
 
@@ -35,7 +34,7 @@ class Masker(nn.Module):
     def zero_grad(self) -> None:
         self.optimizer.zero_grad()
 
-    def forward(self, threshold=True):
+    def forward(self, threshold=True) -> torch.Tensor:
         out = self.mask.sigmoid()
         if threshold:
             out = RoundSTE.apply(out)

@@ -18,6 +18,7 @@ from ethicml.data import Adult
 
 from finn.data import pytorch_data_to_dataframe
 from finn import layers
+from finn.layers.misc import _OneHotEncoder
 
 
 def get_data_dim(data_loader):
