@@ -8,7 +8,7 @@ from finn.utils.utils import RoundSTE
 
 class Masker(nn.Module):
 
-    default_args = dict(optimizer_args=dict(lr=1e-2, weight_decay=0))
+    default_args = dict(optimizer_args=dict(lr=1e-3, weight_decay=0))
 
     def __init__(self, shape, optimizer_args=None, prob_1=0.5):
         super().__init__()
@@ -43,5 +43,6 @@ class Masker(nn.Module):
 
 
 if __name__ == '__main__':
-    masker = Masker((3, 28, 28))
-    print(masker.mask)
+    masker = Masker((3, 28, 28), prob_1=0.6)
+    mask = masker(threshold=True)
+    print(mask.mean())

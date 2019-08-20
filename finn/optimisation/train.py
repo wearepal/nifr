@@ -272,7 +272,9 @@ def main(args, datasets, metric_callback):
         disc_fn = torch.nn.Linear
 
     model = Module(args, model=model, input_shape=input_shape)
+    model.to(args.device)
     discriminator = build_discriminator(args, input_shape, disc_fn)
+    discriminator.to(args.device)
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
 
     if ARGS.resume is not None:
