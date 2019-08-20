@@ -54,6 +54,12 @@ class PartitionedInn(BaseModel):
             optimizer_args=optimizer_args,
         )
 
+    def encode(self, data, partials=True):
+        return self.forward(data, reverse=False)
+
+    def decode(self, z, partials=True):
+        return self.forward(z, reverse=True)
+
     def compute_log_pz(self, z: torch.Tensor) -> torch.Tensor:
         """Log of the base probability: log(p(z))"""
         if self.base_density == 'logistic':
@@ -112,13 +118,33 @@ class SplitInn(PartitionedInn):
         self.zy_dim = self.output_shape[0] - self.zs_dim
 
     def split_encoding(self, z):
-        zs, zy = z.split(split_size=(self.zs_dim, self.zy_dim))
-        return zs, zy
+        zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim))
+        return zy, zs
 
     def unsplit_encoding(self, zy, zs):
-        assert zs.size(1) == self.zs_dim and zy.size(1) == self.zy_dim
+        assert zy.size(1) == self.zy_dim and zs.size(1) == self.zs_dim
 
         return torch.cat([zy, zs], dim=1)
+
+    def encode(self, data, partials=True):
+        z = self.forward(data, reverse=False)
+
+        if partials:
+            zy, zs = self.split_encoding(z)
+            return z, zy, zs
+        else:
+            return z
+
+    def decode(self, z, partials=True):
+        x = super().decode(z)
+        if partials:
+            zy, zs = self.split_encoding(z)
+            xy = super().decode(zy)
+            xs = super().decode(zs)
+
+            return x, xy, xs
+        else:
+            return x
 
     def routine(self, data: torch.Tensor) \
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
@@ -189,6 +215,29 @@ class MaskedInn(PartitionedInn):
             super().zero_grad()
         if self.masker.training:
             self.masker.zero_grad()
+
+    def encode(self, data, partials=True, threshold=True):
+        z = self.forward(data)
+        if partials:
+            mask = self.masker(threshold=threshold)
+            zy = mask * z
+            zs = (1 - mask) * z
+
+            return z, zy, zs
+        else:
+            return z
+
+    def decode(self, z, partials=True, threshold=True):
+        x = super().decode(z)
+
+        if partials:
+            mask = self.masker(threshold=threshold)
+            xy = super().decode(mask * z)
+            xs = super().decode((1 - mask) * z)
+
+            return x, xy, xs
+        else:
+            return x
 
     def routine(self, data: torch.Tensor, threshold: bool = True) \
         -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:

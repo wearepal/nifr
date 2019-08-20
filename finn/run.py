@@ -17,7 +17,6 @@ from finn.data import DatasetTuple, get_data_tuples, load_dataset
 from finn.optimisation.training_config import parse_arguments
 from finn.optimisation.training_utils import (
     encode_dataset,
-    encode_dataset_no_recon,
     log_images,
 )
 
@@ -48,27 +47,22 @@ def log_sample_images(experiment, data, name):
     log_images(experiment, x, f"Samples from {name}", prefix='eval')
 
 
-def log_metrics(args, experiment, model, data, check_originals=False, save_to_csv=False):
+def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=False):
     """Compute and log a variety of metrics"""
-    assert args.pretrain
     ethicml_model = LR()
 
-    if check_originals:
-        print("Evaluating on original dataset...")
-        evaluate_representations(args, experiment, data.task_train, data.task, train_on_recon=True, pred_s=True)
-        if args.dataset == 'cmnist':
-            evaluate_representations(args, experiment, data.task_train, data.task, train_on_recon=True, pred_s=True)
+    print('Encoding task dataset...')
+    task_repr = encode_dataset(args, data.task, model, recon=True)
+    print('Encoding task train dataset...')
+    task_train_repr = encode_dataset(args, data.task_train, model, recon=True)
 
-    quick_eval = True  # `quick_eval` disables a lot of evaluations and only runs the most important
+    evaluate_representations(args, experiment, task_train_repr['xy'], task_repr['xy'])
+
     if quick_eval:
-        print("Quickly encode task and task train...")
-        task_repr = encode_dataset_no_recon(args, data.task, model, recon_zyn=True)
-        task_train_repr = encode_dataset_no_recon(args, data.task_train, model, recon_zyn=True)
         log_sample_images(experiment, data.task_train, "task_train")
-        evaluate_representations(args, experiment, task_train_repr['recon_y'], task_repr['recon_y'],
-                                 train_on_recon=True, pred_s=False, use_fair=True)
+
         if args.dataset == 'adult':
-            repr_ = DatasetTuple(
+            repr = DatasetTuple(
                 pretrain=None,
                 task=task_repr,
                 task_train=task_train_repr,
@@ -76,72 +70,37 @@ def log_metrics(args, experiment, model, data, check_originals=False, save_to_cs
                 output_dim=data.output_dim,
             )
             metrics_for_pretrain(
-                args, experiment, ethicml_model, repr_, data, save_to_csv=save_to_csv
+                args, experiment, ethicml_model, repr, data, save_to_csv=save_to_csv
             )
-        return
-
-    print('Encoding task dataset...')
-    task_repr_ = encode_dataset(args, data.task, model)
-    print('Encoding task train dataset...')
-    task_train_repr_ = encode_dataset(args, data.task_train, model)
-
-    repr = DatasetTuple(
-        pretrain=None,
-        task=task_repr_,
-        task_train=task_train_repr_,
-        input_dim=data.input_dim,
-        output_dim=data.output_dim,
-    )
-
-    metrics_for_pretrain(args, experiment, ethicml_model, repr, data)
-
-    if args.dataset == 'adult':
-        task_data, task_train_data = get_data_tuples(data.task, data.task_train)
-        data = DatasetTuple(
+    else:
+        repr = DatasetTuple(
             pretrain=None,
-            task=task_data,
-            task_train=task_train_data,
+            task=task_repr,
+            task_train=task_train_repr,
             input_dim=data.input_dim,
             output_dim=data.output_dim,
         )
 
-    experiment.log_other("evaluation model", ethicml_model.name)
+        metrics_for_pretrain(args, experiment, ethicml_model, repr, data)
 
-    # ===========================================================================
-    if check_originals:
-        evaluate_representations(args, experiment, data.task_train, data.task)
-        evaluate_representations(args, experiment, data.task_train, data.task,
-                                 train_on_recon=True, pred_s=True)
+        if args.dataset == 'adult':
+            task_data, task_train_data = get_data_tuples(data.task, data.task_train)
+            data = DatasetTuple(
+                pretrain=None,
+                task=task_data,
+                task_train=task_train_data,
+                input_dim=data.input_dim,
+                output_dim=data.output_dim,
+            )
 
-    # ===========================================================================
+        experiment.log_other("evaluation model", ethicml_model.name)
 
-    evaluate_representations(args, experiment, repr.task_train['all_z'],
-                             repr.task['all_z'], use_fair=True, use_unfair=True)
-    evaluate_representations(args, experiment, repr.task_train['recon_y'],
-                             repr.task['recon_y'], use_fair=True)
-    evaluate_representations(args, experiment, repr.task_train['recon_s'],
-                             repr.task['recon_s'], use_unfair=True)
+        # ===========================================================================
 
-    check_grayscale = False
-    if check_grayscale:
-        # Grayscale the fair representation
-        evaluate_representations(args, experiment, repr.task_train['recon_y'],
-                                 repr.task['recon_y'], use_fair=True)
-
-    # ===========================================================================
-    if check_originals:
-        evaluate_representations(args, experiment, data.task_train, data.task)
-        evaluate_representations(args, experiment, data.task_train, data.task)
-
-    # ===========================================================================
-    check_pretrain = False
-    if check_pretrain:
-        print('Encoding training set...')
-        pretrain_repr = encode_dataset(args, data.pretrain, model)
-        evaluate_representations(args, experiment, pretrain_repr['zy'],
-                                 repr.task['zy'], use_fair=True)
-        evaluate_representations(args, experiment, pretrain_repr['zs'],
-                                 repr.task['zs'], use_unfair=True)
+        evaluate_representations(args, experiment, repr.task_train['zy'], repr.task['zy'])
+        evaluate_representations(args, experiment, repr.task_train['zs'], repr.task['zs'])
+        evaluate_representations(args, experiment, repr.task_train['xy'], repr.task['xy'])
+        evaluate_representations(args, experiment, repr.task_train['xs'], repr.task['xs'])
 
 
 if __name__ == "__main__":

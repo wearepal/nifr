@@ -118,81 +118,39 @@ def make_tuple_from_data(train, test, pred_s):
     return DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y)
 
 
-def _get_name(recon, pred_s, use_fair, use_unfair):
-    name = ""
+def evaluate_representations(args, experiment, train_data, test_data,
+                             train_on_recon=True, pred_s=False):
 
-    if pred_s:
-        name += "pred s "
-    else:
-        name += "pred y "
-
-    if recon:
-        if use_fair:
-            name += "Recon Z not S "
-        elif use_unfair:
-            name += "Recon Z S "
-        else:
-            name += "Original x "
-    else:
-        if use_fair and use_unfair:
-            name += "all Z "
-        elif use_fair:
-            name += "Fair Z "
-        elif use_unfair:
-            name += "Unfair Z "
-
-    return name
-
-
-def evaluate(input_dim, target_dim, train_data, test_data, train_on_recon):
-    if train_on_recon or args.learn_mask:
-        clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
-    else:
-
-        clf = fc_net(input_dim, target_dim=args.y_dim)
-    clf: Classifier = Classifier(clf, n_classes=args.y_dim)
-    clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
-            device=args.device, pred_s=pred_s)
-
-    preds_x, test_x = clf.predict_dataset(test_data)
-
-
-def evaluate_representations(args, experiment, train_data, test_data, train_on_recon=True, pred_s=False, use_fair=False,
-                             use_unfair=False):
-    name = _get_name(train_on_recon, pred_s, use_fair, use_unfair)
-
-    print(f"{name}:")
-
-    input_dim = next(iter(train_data))[0].shape[1]
+    input_dim = next(iter(train_data))[0].shape[0]
     train_data = DataLoader(train_data, batch_size=args.batch_size,
                             shuffle=True, pin_memory=True)
     test_data = DataLoader(test_data, batch_size=args.test_batch_size,
                            shuffle=False, pin_memory=True)
 
     if args.dataset == 'cmnist':
-        run_all = False
 
         if train_on_recon or args.learn_mask:
             clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
         else:
-
             clf = fc_net(input_dim, target_dim=args.y_dim)
+
         clf: Classifier = Classifier(clf, n_classes=args.y_dim)
         clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
                 device=args.device, pred_s=pred_s)
 
-        preds_x, test_x = clf.predict_dataset(test_data)
-        preds_x = pd.DataFrame(preds_x)
-        test_x = pd.DataFrame(test_x)
+        preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
+        preds = pd.DataFrame(preds)
+        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(actual))
+
     else:
         if not isinstance(train_data, DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
-        run_all = True
+
         train_x, test_x = make_tuple_from_data(
             train_data, test_data, pred_s=pred_s,
         )
         clf = LR()
-        preds_x = clf.run(train_x, test_x)
+        preds = clf.run(train_x, test_x)
 
     print("\tTest performance")
-    _ = compute_metrics(experiment, preds_x, test_x, name, run_all=run_all)
+    _ = compute_metrics(experiment, preds, actual, 'foo', run_all=args.dataset == 'adult')

@@ -14,7 +14,6 @@ from finn.optimisation import grad_reverse
 from finn.optimisation.training_utils import (
     get_data_dim,
     log_images,
-    reconstruct_all,
 )
 from finn.utils import utils
 
@@ -41,13 +40,15 @@ def convert_data(train_tuple, test_tuple):
     return data
 
 
-def save_model(save_dir, model, discriminator):
+def save_model(save_dir, model, discriminator) -> str:
     filename = save_dir / 'checkpt.pth'
     save_dict = {'ARGS': ARGS,
                  'model': model.state_dict(),
                  'discriminator': discriminator.state_dict()}
 
     torch.save(save_dict, filename)
+
+    return filename
 
 
 def restore_model(filename, model, discriminator):
@@ -112,9 +113,7 @@ def train(model, discriminator, dataloader, epoch):
 
         z = model(x[:64])
 
-        recon_all, recon_y, recon_s = reconstruct_all(
-            ARGS, z, model
-        )
+        recon_all, recon_y, recon_s = model.decode(z, partials=True)
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -162,16 +161,14 @@ def validate(model, discriminator, val_loader):
 
         z = model(x_val[:64])
 
-        recon_all, recon_y, recon_s = reconstruct_all(ARGS, z, model)
+        recon_all, recon_y, recon_s = model.decode(z, partials=True)
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
         log_images(SUMMARY, recon_s, 'reconstruction_s', prefix='test')
     else:
         z = model(x_val[:1000])
-        recon_all, recon_y, recon_s = reconstruct_all(
-            ARGS, z, model
-        )
+        recon_all, recon_y, recon_s = model.decode(z, partials=True)
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_yn', prefix='test')
         log_images(SUMMARY, recon_s, 'reconstruction_yn', prefix='test')
@@ -276,6 +273,7 @@ def main(args, datasets, metric_callback):
 
     model = Module(args, model=model, input_shape=input_shape)
     discriminator = build_discriminator(args, input_shape, disc_fn)
+    save_model(save_dir=save_dir, model=model, discriminator=discriminator)
 
     if ARGS.resume is not None:
         model, discriminator = restore_model(ARGS.resume, model, discriminator)
@@ -344,8 +342,8 @@ def main(args, datasets, metric_callback):
                 )
 
     LOGGER.info('Training has finished.')
-    model, discs = restore_model(save_dir / 'checkpt.pth', model, discriminator)
-    metric_callback(ARGS, SUMMARY, model, discs, datasets, save_to_csv=True)
+    model, discriminator = restore_model(save_dir / 'checkpt.pth', model, discriminator)
+    metric_callback(ARGS, SUMMARY, model, datasets, check_originals=False, save_to_csv=True)
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
     model.eval()
 

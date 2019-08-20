@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from finn.optimisation.optimizers import AdamExtGrad, RAdam
+from finn.optimisation.radam import RAdam
 from finn.utils.distributions import logit, uniform_bernoulli
 from finn.utils.utils import RoundSTE
 

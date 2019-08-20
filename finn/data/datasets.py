@@ -1,8 +1,9 @@
 import math
+import os
+from functools import partial
 
 import numpy as np
 import pandas as pd
-
 import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms
@@ -186,4 +187,37 @@ class DataTupleDataset(Dataset):
     def __len__(self):
         return self._num_samples
 
+
+class TripletDataset(Dataset):
+
+    def __init__(self, root):
+        super().__init__()
+
+        self.root = root
+        fn = partial(os.path.join, self.root)
+        filename = pd.read_csv(fn("filename.csv"), delim_whitespace=True,
+                               header=None, index_col=0)
+        sens = pd.read_csv(fn("sens.csv"), delim_whitespace=True)
+        target = pd.read_csv(fn("target.csv"), delim_whitespace=True)
+
+        self.filename = filename.index.values
+        self.sens = torch.as_tensor(sens.values)
+        self.target = torch.as_tensor(target.values)
+
+    def __len__(self):
+        return self.target.size(0)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img = np.load(os.path.join(self.root, self.filename[index]))
+        img = torch.as_tensor(img['img'])
+        sens = self.sens[index]
+        target = self.target[index]
+
+        return img, sens, target
 

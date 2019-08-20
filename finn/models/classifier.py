@@ -51,8 +51,9 @@ class Classifier(BaseModel):
             targets = targets.view(-1, 1)
             return F.binary_cross_entropy_with_logits(logits, targets, reduction="none")
         else:
+            targets = targets.view(-1)
             if targets.dtype != torch.long:
-                target = targets.long()
+                targets = targets.long()
             return F.cross_entropy(logits, targets, reduction="none")
 
     def predict(self, inputs: torch.Tensor) -> torch.Tensor:
@@ -73,8 +74,7 @@ class Classifier(BaseModel):
         if not isinstance(data, DataLoader):
             data = DataLoader(data, batch_size=batch_size,
                               shuffle=False, pin_memory=True)
-        preds, actual = [], []
-        accuracy = 0
+        preds, actual, sens = [], [], []
         with torch.set_grad_enabled(False):
             for x, s, y in data:
                 x = x.to(device)
@@ -82,12 +82,13 @@ class Classifier(BaseModel):
 
                 batch_preds = self.predict(x)
                 preds.append(batch_preds)
-                actual.append(x)
+                actual.append(y)
+                sens.append(s)
 
-        preds = torch.cat(preds, dim=0).detach()
-        actual = torch.cat(actual, dim=0).detach()
+        preds = torch.cat(preds, dim=0).detach().view(-1)
+        actual = torch.cat(actual, dim=0).detach().view(-1)
 
-        return preds, actual
+        return preds, actual, sens
 
     def compute_accuracy(
         self,
@@ -157,7 +158,7 @@ class Classifier(BaseModel):
                 train_data = DataLoader(train_data, batch_size=test_batch_size,
                                         shuffle=False, pin_memory=True)
 
-        for epoch in epochs:
+        for epoch in range(epochs):
             print(f"===> Epoch {epoch} of classifier training")
 
             for x, s, y in train_data:

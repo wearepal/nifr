@@ -63,8 +63,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
                         help='Use s as input (if s is a separate feature)')
 
+    parser.add_argument('--eval-epochs', type=int, metavar='N', default=50)
     # classifier parameters (for computing fairness metrics)
-    parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
     parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=20)
     parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
     parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.0e-7)

@@ -1,5 +1,11 @@
+import csv
+import os
+
+import numpy as np
+
 import torch
 from torch.utils.data import Sampler, random_split, Dataset
+from torchvision.utils import save_image
 
 
 def shrink_dataset(dataset, pcnt):
@@ -65,3 +71,39 @@ class RandomSampler(Sampler):
 
     def __len__(self):
         return self.num_samples
+
+
+def save_image_data_tuple(
+    img, sens, target, root: str, filename: str
+) -> None:
+    """
+
+    Args:
+        root: String. Root directory in which to save the dataset.
+        filename: String. Filename of the sample being saved
+
+    Returns:
+
+    """
+    if img.size(0) == 1:
+        img = img.squeeze(0)
+    assert img.dim() == 3, 'Image must be of shape [C x H x W]'
+    # Create the root directory if it doesn't already exist
+    if not os.path.exists(root):
+        os.mkdir(root)
+    # save the image
+    if not filename.lower().endswith(".npz"):
+        filename += ".npz"
+    np.savez_compressed(os.path.join(root, filename), img=img.detach().numpy())
+    # save filenames
+    with open(os.path.join(root, "filename.csv"), 'a', newline="") as f:
+        writer = csv.writer(f, delimiter=" ")
+        writer.writerow([filename])
+    # save sensitive/nuisance labels
+    with open(os.path.join(root, 'sens.csv'), 'ab') as f:
+        sens = sens.view(-1)
+        np.savetxt(f, sens.detach().numpy(), delimiter=",")
+    # save targets
+    with open(os.path.join(root, 'target.csv'), 'ab') as f:
+        target = target.view(-1)
+        np.savetxt(f, target.detach().numpy(), delimiter=",")

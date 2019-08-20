@@ -23,7 +23,7 @@ def logit(p, eps=1e-8):
 def uniform_bernoulli(shape, prob_1=0.5):
     nelement = int(np.product(shape))
     bern = td.Bernoulli(probs=prob_1)
-    indexes = bern.sample((nelement,)).byte()
+    indexes = bern.sample((nelement,)).long()
     samples = torch.ones(nelement)
 
     ones = samples[indexes]

@@ -295,7 +295,7 @@ class RandomChoice:
 def run():
     from torchvision.datasets import KMNIST
     from torchvision.utils import save_image
-    from finn.data.dataset_wrappers import LdAugmentedDataset
+    from finn.data.datasets import LdAugmentedDataset
 
     data = KMNIST("./", train=True, download=True, transform=transforms.ToTensor())
     augments = [
