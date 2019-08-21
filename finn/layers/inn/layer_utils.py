@@ -4,19 +4,6 @@ import torch.nn as nn
 from finn.layers.inn.inv_layer import InvertibleLayer
 
 
-class Identity(nn.Module):
-    def forward(self, x):
-        return x
-
-
-class Flatten(nn.Module):
-    def __init__(self):
-        super(Flatten, self).__init__()
-
-    def forward(self, x):
-        return x.view(x.size(0), -1)
-
-
 class InvFlatten(InvertibleLayer):
     def __init__(self):
         super(InvFlatten, self).__init__()
