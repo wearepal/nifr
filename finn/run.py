@@ -11,12 +11,11 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 # from ethicml.algorithms.inprocess.svm import SVM
 from torch.utils.data import DataLoader
 
-from finn.optimisation.evaluate import evaluate_representations, metrics_for_pretrain
+from finn.optimisation.evaluate import evaluate, encode_dataset
 from finn.optimisation.train import main as training_loop
 from finn.data import DatasetTuple, get_data_tuples, load_dataset
 from finn.optimisation.training_config import parse_arguments
 from finn.optimisation.training_utils import (
-    encode_dataset,
     log_images,
 )
 
@@ -56,7 +55,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=Fals
     print('Encoding task train dataset...')
     task_train_repr = encode_dataset(args, data.task_train, model, recon=True)
 
-    evaluate_representations(args, experiment, task_train_repr['xy'], task_repr['xy'])
+    evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy')
 
     if quick_eval:
         log_sample_images(experiment, data.task_train, "task_train")
@@ -69,9 +68,6 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=Fals
                 input_dim=data.input_dim,
                 output_dim=data.output_dim,
             )
-            metrics_for_pretrain(
-                args, experiment, ethicml_model, repr, data, save_to_csv=save_to_csv
-            )
     else:
         repr = DatasetTuple(
             pretrain=None,
@@ -80,8 +76,6 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=Fals
             input_dim=data.input_dim,
             output_dim=data.output_dim,
         )
-
-        metrics_for_pretrain(args, experiment, ethicml_model, repr, data)
 
         if args.dataset == 'adult':
             task_data, task_train_data = get_data_tuples(data.task, data.task_train)
@@ -97,10 +91,10 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=Fals
 
         # ===========================================================================
 
-        evaluate_representations(args, experiment, repr.task_train['zy'], repr.task['zy'])
-        evaluate_representations(args, experiment, repr.task_train['zs'], repr.task['zs'])
-        evaluate_representations(args, experiment, repr.task_train['xy'], repr.task['xy'])
-        evaluate_representations(args, experiment, repr.task_train['xs'], repr.task['xs'])
+        evaluate(args, experiment, repr.task_train['zy'], repr.task['zy'], name='zy')
+        evaluate(args, experiment, repr.task_train['zs'], repr.task['zs'], name='zs')
+        evaluate(args, experiment, repr.task_train['xy'], repr.task['xy'], name='xy')
+        evaluate(args, experiment, repr.task_train['xs'], repr.task['xs'], name='xs')
 
 
 if __name__ == "__main__":

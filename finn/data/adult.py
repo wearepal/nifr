@@ -54,7 +54,7 @@ def load_adult_data(args):
 
         not_task, task = _random_split(data, first_pcnt=1 - args.task_pcnt)
         meta, not_task_or_meta = _random_split(
-            not_task, first_pcnt=args.meta_pcnt / (1 - args.task_pcnt)
+            not_task, first_pcnt=args.pretrain_pcnt / (1 - args.task_pcnt)
         )
 
         sy_equal = query_dt(
@@ -145,6 +145,7 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
         sens_attrs: (optional) list of names of the sensitive attributes
     """
     # create data loader with one giant batch
+    print(dataset)
     data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     # get the data
     data = next(iter(data_loader))

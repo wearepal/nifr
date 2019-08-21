@@ -68,9 +68,9 @@ def load_dataset(args) -> DatasetTuple:
         args.s_dim = 1
 
         if 0 < args.data_pcnt < 1:
-            pretrain_data = shrink_dataset(pretrain_data, args.data_pcnt)
-            train_data = shrink_dataset(train_data, args.data_pcnt)
-            test_data = shrink_dataset(test_data, args.data_pcnt)
+            pretrain_data.shrink(args.data_pcnt)
+            train_data.shrink(args.data_pcnt)
+            test_data.shrink(args.data_pcnt)
 
     return DatasetTuple(
         pretrain=pretrain_data,

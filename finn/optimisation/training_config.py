@@ -60,14 +60,9 @@ def parse_arguments(raw_args=None):
                              'using fixed-sized partitions.')
     parser.add_argument('--log-prob-weight', type=float, default=1.0e-3)
     parser.add_argument('--pred-s-weight', type=float, default=1)
-    parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
-                        help='Use s as input (if s is a separate feature)')
 
-    parser.add_argument('--eval-epochs', type=int, metavar='N', default=50)
-    # classifier parameters (for computing fairness metrics)
-    parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=20)
-    parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
-    parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.0e-7)
+    parser.add_argument('--eval-epochs', type=int, metavar='N', default=30)
+    parser.add_argument('--eval-lr', type=float, default=1e-3)
 
     parser.add_argument('--gpu', type=int, default=0, help='which GPU to use (if available)')
     parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],

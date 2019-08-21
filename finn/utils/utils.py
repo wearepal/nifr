@@ -1,11 +1,18 @@
 import os
 import math
 from numbers import Number
+import torch.distributions as td
 import logging
 import torch
 
 
 LOGGER = None
+
+
+def to_one_hot(inputs, softmax=True):
+    if softmax:
+        inputs = inputs.softmax(dim=1)
+    return td.OneHotCategorical(inputs).sample()
 
 
 class RoundSTE(torch.autograd.Function):

@@ -73,8 +73,8 @@ class RandomSampler(Sampler):
         return self.num_samples
 
 
-def save_image_data_tuple(
-    img, sens, target, root: str, filename: str
+def data_tuple_to_dataset(
+    data, sens, target, root: str, filename: str
 ) -> None:
     """
 
@@ -85,16 +85,15 @@ def save_image_data_tuple(
     Returns:
 
     """
-    if img.size(0) == 1:
-        img = img.squeeze(0)
-    assert img.dim() == 3, 'Image must be of shape [C x H x W]'
+    if data.size(0) == 1:
+        data = data.squeeze(0)
     # Create the root directory if it doesn't already exist
     if not os.path.exists(root):
         os.mkdir(root)
     # save the image
     if not filename.lower().endswith(".npz"):
         filename += ".npz"
-    np.savez_compressed(os.path.join(root, filename), img=img.detach().numpy())
+    np.savez_compressed(os.path.join(root, filename), img=data.detach().numpy())
     # save filenames
     with open(os.path.join(root, "filename.csv"), 'a', newline="") as f:
         writer = csv.writer(f, delimiter=" ")

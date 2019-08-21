@@ -1,13 +1,4 @@
-import os
-import shutil
-
-import torch
 import torchvision
-from torch.utils.data import DataLoader
-from torchvision.transforms import ToTensor
-
-from finn.data.datasets import TripletDataset
-from finn.data.misc import save_image_data_tuple
 
 
 def get_data_dim(data_loader):
@@ -28,54 +19,3 @@ def log_images(experiment, image_batch, name, nsamples=64, nrows=8, monochrome=F
     experiment.log_image(torchvision.transforms.functional.to_pil_image(shw), name=prefix + name)
 
 
-def encode_dataset(args, data, model, recon):
-
-    root = os.path.join('data', 'encodings')
-    if os.path.exists(root):
-        shutil.rmtree(root)
-    os.mkdir(root)
-
-    encodings = ['z', 'zy', 'zs']
-    if recon:
-        encodings.extend(['x_recon', 'xy', 'xs'])
-
-    filepaths = {key: os.path.join(root, key) for key in encodings}
-
-    data = DataLoader(data, batch_size=1, pin_memory=True)
-
-    with torch.set_grad_enabled(False):
-        for i, (x, s, y) in enumerate(iter(data)):
-            x = x.to(args.device)
-            s = s.to(args.device)
-
-            z, zy, zs = model.encode(x, partials=True)
-
-            save_image_data_tuple(z, s, y,
-                                  root=filepaths['z'],
-                                  filename=f"image_{i}")
-            save_image_data_tuple(zy, s, y,
-                                  root=filepaths['zy'],
-                                  filename=f"image_{i}")
-            save_image_data_tuple(zs, s, y,
-                                  root=os.path.join(root, 'zs'),
-                                  filename=f"image_{i}")
-
-            if recon:
-                x_recon, xy, xs = model.decode(z, partials=True)
-
-                save_image_data_tuple(x_recon, s, y,
-                                      root=filepaths['x_recon'],
-                                      filename=f"image_{i}")
-                save_image_data_tuple(xy, s, y,
-                                      root=filepaths['xy'],
-                                      filename=f"image_{i}")
-                save_image_data_tuple(xs, s, y,
-                                      root=filepaths['xs'],
-                                      filename=f"image_{i}")
-
-    datasets = {
-        key: TripletDataset(root)
-        for key, root in filepaths.items()
-    }
-
-    return datasets

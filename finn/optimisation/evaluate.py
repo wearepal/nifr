@@ -1,6 +1,8 @@
 import os
+import shutil
 
 import pandas as pd
+import torch
 from ethicml.algorithms.inprocess import LR, MLP
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
@@ -10,6 +12,8 @@ from ethicml.utility.data_structures import DataTuple
 from torch.utils.data import DataLoader
 
 from finn.data import DatasetTuple, get_data_tuples
+from finn.data.datasets import TripletDataset
+from finn.data.misc import data_tuple_to_dataset
 from finn.models.classifier import Classifier
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
@@ -68,40 +72,20 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
     return metrics
 
 
-def metrics_for_pretrain(args, experiment, clf, repr, data, save_to_csv=False):
-    assert isinstance(repr, DatasetTuple)
-    print('Meta Learn Results...')
-    if args.dataset == 'cmnist':
-        acc = evaluate_with_classifier(args, repr.task_train['zy'], repr.task['zy'], args.zy_dim)
-        experiment.log_metric("Meta Accuracy", acc)
-        print(f"Meta Accuracy: {acc:.4f}")
+def fit_classifier(args, input_dim, train_data, train_on_recon,
+                   pred_s, test_data=None):
+    if train_on_recon or args.learn_mask:
+        clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
-        if not isinstance(repr.task_train['zy'], DataTuple):
-            repr.task_train['zy'], repr.task['zy'] = get_data_tuples(
-                repr.task_train['zy'], repr.task['zy']
-            )
-        preds_meta = clf.run(repr.task_train['zy'], repr.task['zy'])
-        metrics = compute_metrics(experiment, preds_meta, repr.task['zy'], "Meta", run_all=True)
-        print(",".join(metrics.keys()))
-        print(",".join([str(val) for val in metrics.values()]))
+        clf = fc_net(input_dim, target_dim=args.y_dim)
 
-        if save_to_csv:
-            if os.path.isfile('./adult_results.csv'):
-                with open('./adult_results.csv', 'a') as f:
-                    f.write("%s," % args.task_mixing_factor)
-                    for key in metrics.keys():
-                        f.write("%s," % metrics[key])
-                    f.write("\n")
-            else:
-                with open('./adult_results.csv', 'w') as f:
-                    f.write("Mix_fact,")
-                    for key in metrics.keys():
-                        f.write("%s," % key)
-                    f.write("\n")
-                    f.write("%s," % args.task_mixing_factor)
-                    for key in metrics.keys():
-                        f.write("%s," % metrics[key])
-                    f.write("\n")
+    n_classes = args.y_dim if args.y_dim > 1 else 2
+    clf: Classifier = Classifier(clf, n_classes=n_classes,
+                                 optimizer_args={'lr': args.eval_lr})
+    clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
+            device=args.device, pred_s=pred_s)
+
+    return clf
 
 
 def make_tuple_from_data(train, test, pred_s):
@@ -118,25 +102,23 @@ def make_tuple_from_data(train, test, pred_s):
     return DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y)
 
 
-def evaluate_representations(args, experiment, train_data, test_data,
-                             train_on_recon=True, pred_s=False):
-
+def evaluate(args, experiment, train_data, test_data,
+             name, train_on_recon=True, pred_s=False):
     input_dim = next(iter(train_data))[0].shape[0]
-    train_data = DataLoader(train_data, batch_size=args.batch_size,
-                            shuffle=True, pin_memory=True)
-    test_data = DataLoader(test_data, batch_size=args.test_batch_size,
-                           shuffle=False, pin_memory=True)
 
     if args.dataset == 'cmnist':
 
-        if train_on_recon or args.learn_mask:
-            clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
-        else:
-            clf = fc_net(input_dim, target_dim=args.y_dim)
+        train_data = DataLoader(train_data, batch_size=args.batch_size,
+                                shuffle=True, pin_memory=True)
+        test_data = DataLoader(test_data, batch_size=args.test_batch_size,
+                               shuffle=False, pin_memory=True)
 
-        clf: Classifier = Classifier(clf, n_classes=args.y_dim)
-        clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
-                device=args.device, pred_s=pred_s)
+        clf: Classifier = fit_classifier(args,
+                                         input_dim,
+                                         train_data=train_data,
+                                         train_on_recon=train_on_recon,
+                                         pred_s=pred_s,
+                                         test_data=test_data)
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
         preds = pd.DataFrame(preds)
@@ -146,11 +128,64 @@ def evaluate_representations(args, experiment, train_data, test_data,
         if not isinstance(train_data, DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
 
-        train_x, test_x = make_tuple_from_data(
+        train_data, test_data = make_tuple_from_data(
             train_data, test_data, pred_s=pred_s,
         )
         clf = LR()
-        preds = clf.run(train_x, test_x)
+        preds = clf.run(train_data, test_data)
+        actual = test_data
 
-    print("\tTest performance")
-    _ = compute_metrics(experiment, preds, actual, 'foo', run_all=args.dataset == 'adult')
+    print("\nComputing metrics...")
+    _ = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == 'adult')
+
+
+def encode_dataset(args, data, model, recon):
+    root = os.path.join('data', 'encodings')
+    if os.path.exists(root):
+        shutil.rmtree(root)
+    os.mkdir(root)
+
+    encodings = ['z', 'zy', 'zs']
+    if recon:
+        encodings.extend(['x_recon', 'xy', 'xs'])
+
+    filepaths = {key: os.path.join(root, key) for key in encodings}
+
+    data = DataLoader(data, batch_size=1, pin_memory=True)
+
+    with torch.set_grad_enabled(False):
+        for i, (x, s, y) in enumerate(iter(data)):
+            x = x.to(args.device)
+            s = s.to(args.device)
+
+            z, zy, zs = model.encode(x, partials=True)
+
+            data_tuple_to_dataset(z, s, y,
+                                  root=filepaths['z'],
+                                  filename=f"image_{i}")
+            data_tuple_to_dataset(zy, s, y,
+                                  root=filepaths['zy'],
+                                  filename=f"image_{i}")
+            data_tuple_to_dataset(zs, s, y,
+                                  root=os.path.join(root, 'zs'),
+                                  filename=f"image_{i}")
+
+            if recon:
+                x_recon, xy, xs = model.decode(z, partials=True)
+
+                data_tuple_to_dataset(x_recon, s, y,
+                                      root=filepaths['x_recon'],
+                                      filename=f"image_{i}")
+                data_tuple_to_dataset(xy, s, y,
+                                      root=filepaths['xy'],
+                                      filename=f"image_{i}")
+                data_tuple_to_dataset(xs, s, y,
+                                      root=filepaths['xs'],
+                                      filename=f"image_{i}")
+
+    datasets = {
+        key: TripletDataset(root)
+        for key, root in filepaths.items()
+    }
+
+    return datasets

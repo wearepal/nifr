@@ -8,7 +8,8 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from finn.data import DatasetTuple
 from finn.models.configs import mp_28x28_net
-from finn.models.inn import MaskedInn, PartitionedInn
+from finn.models.configs.classifiers import fc_net
+from finn.models.inn import MaskedInn, PartitionedInn, SplitInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
 from finn.optimisation import grad_reverse
 from finn.optimisation.training_utils import (
@@ -155,8 +156,6 @@ def validate(model, discriminator, val_loader):
 
     SUMMARY.log_metric("Loss", loss_meter.avg)
 
-    x_val = torch.cat((x_val, s_val), dim=1) if ARGS.dataset == 'adult' and ARGS.use_s else x_val
-
     if ARGS.dataset == 'cmnist':
 
         z = model(x_val[:64])
@@ -259,22 +258,43 @@ def main(args, datasets, metric_callback):
 
     # ==== construct networks ====
     input_shape = get_data_dim(train_loader)
+    optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
+    feature_groups = None
+    if hasattr(datasets.pretrain, "feature_groups"):
+        feature_groups = datasets.pretrain.feature_groups
 
     if args.learn_mask:
         Module = MaskedInn
     else:
-        Module = PartitionedInn
+        Module = SplitInn
     if len(input_shape) > 2:
         model = build_conv_inn(args, input_shape[0])
-        disc_fn = mp_28x28_net
+        if args.learn_mask:
+            disc_fn = mp_28x28_net
+            disc_kwargs = {}
+        else:
+            disc_fn = fc_net
+            disc_kwargs = {"hidden_dims": [512, 512]}
     else:
         model = build_fc_inn(args, input_shape[0])
-        disc_fn = torch.nn.Linear
+        disc_fn = fc_net
+        disc_kwargs = {"hidden_dims": [50, 50]}
 
-    model = Module(args, model=model, input_shape=input_shape)
+    model: PartitionedInn = Module(args,
+                                   model=model,
+                                   input_shape=input_shape,
+                                   optimizer_args=optimizer_args,
+                                   feature_groups=feature_groups)
     model.to(args.device)
-    discriminator = build_discriminator(args, input_shape, disc_fn)
+
+    discriminator = build_discriminator(args,
+                                        input_shape,
+                                        disc_fn,
+                                        disc_kwargs,
+                                        flatten=not args.learn_mask)
     discriminator.to(args.device)
+    print(discriminator.model)
+
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
 
     if ARGS.resume is not None:
@@ -320,11 +340,8 @@ def main(args, datasets, metric_callback):
             with SUMMARY.test():
                 val_loss = validate(model, discriminator, val_loader)
                 if args.super_val:
-                    metric_callback(
-                        ARGS, SUMMARY, model, discriminator,
-                        datasets, check_originals=check_originals
-                    )
-                    check_originals = False
+                    metric_callback(ARGS, experiment=SUMMARY, model=model,
+                                    data=datasets, save_to_csv=True)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
@@ -345,7 +362,8 @@ def main(args, datasets, metric_callback):
 
     LOGGER.info('Training has finished.')
     model, discriminator = restore_model(save_dir / 'checkpt.pth', model, discriminator)
-    metric_callback(ARGS, SUMMARY, model, datasets, check_originals=False, save_to_csv=True)
+    metric_callback(ARGS, experiment=SUMMARY, model=model,
+                    data=datasets, save_to_csv=True)
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
     model.eval()
 

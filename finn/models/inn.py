@@ -1,11 +1,14 @@
-from typing import Tuple
+from argparse import Namespace
+from typing import Tuple, Union, List, Optional
 
 import torch
-import torch.distributions as dist
+from torch import Tensor
+import torch.distributions as td
 
 from finn.models.base import BaseModel
 from finn.models.masker import Masker
 from finn.utils.distributions import logistic_mixture_logprob
+from finn.utils.utils import to_one_hot
 
 
 class PartitionedInn(BaseModel):
@@ -14,9 +17,10 @@ class PartitionedInn(BaseModel):
 
     def __init__(
         self,
-        args,
-        model,
-        input_shape,
+        args: Namespace,
+        model: torch.nn.Module,
+        input_shape: Union[Tuple[int], List[int]],
+        feature_groups: Optional[List[slice]] = None,
         optimizer_args: dict = None,
     ) -> None:
         """
@@ -31,19 +35,18 @@ class PartitionedInn(BaseModel):
             None
         """
         self.input_shape = input_shape
-        self.base_density = args.base_density
-        x_dim = input_shape[0]
-        z_channels = x_dim
+        self.feature_groups = feature_groups
+        self.base_density: str = args.base_density
+        x_dim: int = input_shape[0]
+        z_channels: int = x_dim
 
         if args.dataset == 'adult':
-            self.x_s_dim = x_dim
-            if args.use_s:
-                self.x_s_dim += args.s_dim
-                z_channels += args.s_dim
+            self.x_dim: int = x_dim
+            z_channels += args.s_dim
             self.output_shape = self.input_shape
 
         elif args.dataset == 'cmnist':
-            self.x_s_dim = x_dim  # s is included in x
+            self.x_dim: int = x_dim
             z_channels *= args.squeeze_factor ** 2
             h = self.input_shape[1] // args.squeeze_factor
             w = self.input_shape[2] // args.squeeze_factor
@@ -54,13 +57,22 @@ class PartitionedInn(BaseModel):
             optimizer_args=optimizer_args,
         )
 
-    def encode(self, data, partials=True):
+    def invert(self, z, discretize: bool = True) -> Tensor:
+        x = self.forward(z, reverse=True)
+
+        # if discretize and self.feature_groups:
+        #     for group_slice in self.feature_groups["discrete"]:
+        #         x[:, group_slice] = to_one_hot(x[:, group_slice])
+
+        return x
+
+    def encode(self, data, partials: bool = True) -> Tensor:
         return self.forward(data, reverse=False)
 
-    def decode(self, z, partials=True):
-        return self.forward(z, reverse=True)
+    def decode(self, z, partials: bool = True, discretize: bool = True) -> Tensor:
+        return self.invert(z, discretize=discretize)
 
-    def compute_log_pz(self, z: torch.Tensor) -> torch.Tensor:
+    def compute_log_pz(self, z: Tensor) -> Tensor:
         """Log of the base probability: log(p(z))"""
         if self.base_density == 'logistic':
             locs = (-7, -4, 0, 2, 5)
@@ -74,11 +86,14 @@ class PartitionedInn(BaseModel):
 
         return log_pz
 
-    def neg_log_prob(self, z, delta_logp):
+    def neg_log_prob(self, z: Tensor, delta_logp: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
         return -(log_pz - delta_logp).mean()
 
-    def forward(self, inputs, logdet=None, reverse=False):
+    def forward(
+        self, inputs: Tensor, logdet: Tensor = None,
+        reverse: bool = False
+    ) -> Tensor:
         outputs = self.model(inputs, logpx=logdet, reverse=reverse)
 
         return outputs
@@ -90,10 +105,11 @@ class SplitInn(PartitionedInn):
 
     def __init__(
         self,
-        args,
-        model,
-        input_shape,
+        args: Namespace,
+        model: torch.nn.Module,
+        input_shape: Union[Tuple[int], List[int]],
         optimizer_args: dict = None,
+        feature_groups: Optional[List[slice]] = None,
     ) -> None:
         """
         Args:
@@ -112,21 +128,31 @@ class SplitInn(PartitionedInn):
             model,
             input_shape,
             optimizer_args=optimizer_args,
+            feature_groups=feature_groups
         )
 
         self.zs_dim = round(args.zs_frac * self.output_shape[0])
         self.zy_dim = self.output_shape[0] - self.zs_dim
 
-    def split_encoding(self, z):
-        zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim))
+    def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
+        zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)
         return zy, zs
 
-    def unsplit_encoding(self, zy, zs):
+    def unsplit_encoding(self, zy: Tensor, zs: Tensor) -> Tensor:
         assert zy.size(1) == self.zy_dim and zs.size(1) == self.zs_dim
 
         return torch.cat([zy, zs], dim=1)
 
-    def encode(self, data, partials=True):
+    def zero_mask(self, z):
+        zy, zs = self.split_encoding(z)
+        zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
+        zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
+
+        return zy_m, zs_m
+
+    def encode(
+        self, data: Tensor, partials: bool = True
+    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         z = self.forward(data, reverse=False)
 
         if partials:
@@ -135,19 +161,20 @@ class SplitInn(PartitionedInn):
         else:
             return z
 
-    def decode(self, z, partials=True):
+    def decode(
+        self, z: Tensor, partials: bool = True, discretize: bool = True
+    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         x = super().decode(z)
         if partials:
-            zy, zs = self.split_encoding(z)
-            xy = super().decode(zy)
-            xs = super().decode(zs)
+            zy_m, zs_m = self.zero_mask(z)
+            xy = super().decode(zy_m)
+            xs = super().decode(zs_m)
 
             return x, xy, xs
         else:
             return x
 
-    def routine(self, data: torch.Tensor) \
-        -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    def routine(self, data: torch.Tensor) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
         """Training routine for the Split INN.
 
         Args:
@@ -168,10 +195,11 @@ class MaskedInn(PartitionedInn):
 
     def __init__(
         self,
-        args,
-        model,
-        input_shape,
+        args: Namespace,
+        model: torch.nn.Module,
+        input_shape: Union[Tuple[int], List[int]],
         optimizer_args: dict = None,
+        feature_groups: Optional[List[slice]] = None,
         masker_optimizer_args: dict = None
     ) -> None:
         """
@@ -188,6 +216,7 @@ class MaskedInn(PartitionedInn):
             model=model,
             input_shape=input_shape,
             optimizer_args=optimizer_args,
+            feature_groups=feature_groups
         )
 
         self.masker: Masker = Masker(
@@ -196,27 +225,29 @@ class MaskedInn(PartitionedInn):
             optimizer_args=masker_optimizer_args
         )
 
-    def mask_train(self):
+    def mask_train(self) -> None:
         self.model.eval()
         self.masker.train()
 
-    def train(self):
+    def train(self) -> None:
         super().train()
         self.masker.eval()
 
-    def step(self):
+    def step(self) -> None:
         if self.model.training:
             super().step()
         if self.masker.training:
             self.masker.step()
 
-    def zero_grad(self):
+    def zero_grad(self) -> None:
         if self.model.training:
             super().zero_grad()
         if self.masker.training:
             self.masker.zero_grad()
 
-    def encode(self, data, partials=True, threshold=True):
+    def encode(
+        self, data, partials: bool = True, threshold: bool = True
+    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         z = self.forward(data)
         if partials:
             mask = self.masker(threshold=threshold)
@@ -227,7 +258,9 @@ class MaskedInn(PartitionedInn):
         else:
             return z
 
-    def decode(self, z, partials=True, threshold=True):
+    def decode(
+        self, z, partials=True, threshold=True
+    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         x = super().decode(z)
 
         if partials:
@@ -239,8 +272,9 @@ class MaskedInn(PartitionedInn):
         else:
             return x
 
-    def routine(self, data: torch.Tensor, threshold: bool = True) \
-        -> Tuple[Tuple[torch.Tensor, torch.Tensor], torch.Tensor]:
+    def routine(
+        self, data: Tensor, threshold: bool = True
+    ) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
         """Training routine for the MaskedINN.
 
         Args:

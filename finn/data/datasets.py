@@ -1,5 +1,6 @@
 import math
 import os
+import random
 from functools import partial
 
 import numpy as np
@@ -146,12 +147,24 @@ class DataTupleDataset(Dataset):
         self.s = dataset.s.to_numpy(dtype=np.float32)
         self.y = dataset.y.to_numpy(dtype=np.float32)
 
-        self._num_samples = dataset.s.shape[0]
         self.transform = transform
+
+    def __len__(self):
+        return self.s.shape[0]
 
     @property
     def transform(self):
         return self.__transform
+
+    def shrink(self, pcnt):
+        if not 0.0 <= pcnt <= 1.0:
+            raise ValueError(f"{pcnt} is not a valid percentage")
+        new_len = int(pcnt * self.__len__())
+        inds = random.sample(range(self.__len__()), new_len)
+        self.x_disc = self.x_disc[inds]
+        self.x_cont = self.x_cont[inds]
+        self.s = self.s[inds]
+        self.y = self.y[inds]
 
     @transform.setter
     def transform(self, t):
@@ -183,9 +196,6 @@ class DataTupleDataset(Dataset):
         y = torch.from_numpy(y).squeeze()
 
         return x, s, y
-
-    def __len__(self):
-        return self._num_samples
 
 
 class TripletDataset(Dataset):

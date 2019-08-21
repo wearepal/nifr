@@ -1,3 +1,5 @@
+import numpy as np
+
 from finn import layers
 from finn.models.classifier import Classifier
 
@@ -45,16 +47,25 @@ def build_conv_inn(args, input_dim):
     return layers.SequentialFlow(chain)
 
 
-def build_discriminator(args, input_shape, model_fn):
+def build_discriminator(args, input_shape, model_fn, model_kwargs, flatten):
 
-    in_dim = input_shape[0]
-
+    in_dim, h, w = input_shape
     if not args.learn_mask and len(input_shape) > 2:
         in_dim *= args.squeeze_factor ** 2
+        h /= args.squeeze_factor
+        w /= args.squeeze_factor
 
+    if not args.learn_mask:
+        in_dim = int(in_dim - (args.zs_frac * in_dim))
+
+    if flatten:
+        in_dim = int(np.product((in_dim, h, w)))
+
+    n_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
-        model_fn(in_dim, args.y_dim),
-        n_classes=args.y_dim)
+        model_fn(in_dim, args.y_dim, **model_kwargs),
+        n_classes=n_classes
+    )
 
     return discriminator
 
