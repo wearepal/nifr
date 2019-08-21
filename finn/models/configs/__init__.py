@@ -1,1 +1,1 @@
-from .classifiers import mp_28x28_net
+from .classifiers import mp_28x28_net, fc_net
