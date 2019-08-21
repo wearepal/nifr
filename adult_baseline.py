@@ -5,14 +5,13 @@ from ethicml.preprocessing.train_test_split import train_test_split
 from ethicml.algorithms.inprocess import LR, SVM, Majority, Kamiran, Agarwal
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, CV, Theil, TPR, ProbPos, NMI, TNR, PPV
-from ethicml.algorithms.utils import apply_to_joined_tuple, DataTuple
 
-from finn.data.dataloading import load_adult_data
+from finn.data.data_loading import load_adult_data
 
 
 def main():
     class _Namespace:
-        meta_learn = True
+        pretrain = True
         drop_native = True
         meta_lead = True
         data_split_seed = 888

@@ -1,6 +1,7 @@
 import os
 import math
 from numbers import Number
+import torch.distributions as td
 import logging
 import torch
 
@@ -8,12 +9,23 @@ import torch
 LOGGER = None
 
 
-def flatten_sum(tensor):
-    return tensor.sum(dim=tuple(range(1, tensor.dim() + 1)))
+def to_one_hot(inputs, softmax=True):
+    if softmax:
+        inputs = inputs.softmax(dim=1)
+    return td.OneHotCategorical(inputs).sample()
 
 
-def batch_flatten(x):
-    return x.flatten(1)
+class RoundSTE(torch.autograd.Function):
+
+    @staticmethod
+    def forward(ctx, inputs):
+        return inputs.round()
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        """Straight-through estimator
+        """
+        return grad_output
 
 
 class BraceString(str):

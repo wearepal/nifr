@@ -2,9 +2,34 @@ import torch
 import torch.nn as nn
 
 
-class MultiHead(nn.Module):
+class SequentialFlow(nn.Module):
+    """A generalized nn.Sequential container for normalizing flows.
+    """
+
+    def __init__(self, layer_list):
+        super(SequentialFlow, self).__init__()
+        self.chain = nn.ModuleList(layer_list)
+
+    def forward(self, x, logpx=None, reverse=False, inds=None):
+        if inds is None:
+            if reverse:
+                inds = range(len(self.chain) - 1, -1, -1)
+            else:
+                inds = range(len(self.chain))
+
+        if logpx is None:
+            for i in inds:
+                x = self.chain[i](x, reverse=reverse)
+            return x
+        else:
+            for i in inds:
+                x, logpx = self.chain[i](x, logpx, reverse=reverse)
+            return x, logpx
+
+
+class MultiHeadInn(nn.Module):
     def __init__(self, head_list, split_dim):
-        super(MultiHead, self).__init__()
+        super(MultiHeadInn, self).__init__()
 
         head_list = list(head_list)
         self.heads = nn.ModuleList(head_list)
@@ -46,28 +71,3 @@ class MultiHead(nn.Module):
             return outputs
         else:
             return outputs, logpx
-
-
-class SequentialFlow(nn.Module):
-    """A generalized nn.Sequential container for normalizing flows.
-    """
-
-    def __init__(self, layer_list):
-        super(SequentialFlow, self).__init__()
-        self.chain = nn.ModuleList(layer_list)
-
-    def forward(self, x, logpx=None, reverse=False, inds=None):
-        if inds is None:
-            if reverse:
-                inds = range(len(self.chain) - 1, -1, -1)
-            else:
-                inds = range(len(self.chain))
-
-        if logpx is None:
-            for i in inds:
-                x = self.chain[i](x, reverse=reverse)
-            return x
-        else:
-            for i in inds:
-                x, logpx = self.chain[i](x, logpx, reverse=reverse)
-            return x, logpx

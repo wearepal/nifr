@@ -1,9 +1,7 @@
-from .container import SequentialFlow, MultiHead
-from .squeeze import SqueezeLayer, UnsqueezeLayer
-from .normalization import MovingBatchNorm1d, MovingBatchNorm2d, MovingBatchNormNd, Parameter
-from .elemwise import LogitTransform, SigmoidTransform, SoftplusTransform
-from .coupling import CouplingLayer, MaskedCouplingLayer, AffineCouplingLayer
-from .glow import BruteForceLayer, Invertible1x1Conv, ActNorm, ActNormNoData
-from .layer_utils import InvFlatten, Flatten, Identity
-from .mlp import Mlp
-from .adversarial import grad_reverse
+from finn.layers.inn.container import SequentialFlow, MultiHeadInn
+from finn.layers.inn.squeeze import SqueezeLayer, UnsqueezeLayer
+from finn.layers.inn.activations import LogitTransform, SigmoidTransform, SoftplusTransform
+from finn.layers.inn.coupling import CouplingLayer, MaskedCouplingLayer, AffineCouplingLayer
+from finn.layers.inn.layer_utils import InvFlatten
+from finn.layers.inn.glow import Invertible1x1Conv, InvertibleLinear
+from finn.layers.inn.batch_norm import MovingBatchNorm1d, MovingBatchNorm2d

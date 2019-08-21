@@ -6,7 +6,7 @@ __all__ = ['MovingBatchNorm1d', 'MovingBatchNorm2d']
 
 
 class MovingBatchNormNd(nn.Module):
-    def __init__(self, num_features, eps=1e-4, decay=0.1, bn_lag=0.0, affine=True):
+    def __init__(self, num_features, eps=1e-6, decay=0.1, bn_lag=0.0, affine=True):
         super(MovingBatchNormNd, self).__init__()
         self.num_features = num_features
         self.affine = affine
@@ -15,8 +15,8 @@ class MovingBatchNormNd(nn.Module):
         self.bn_lag = bn_lag
         self.register_buffer('step', torch.zeros(1))
         if self.affine:
-            self.weight = Parameter(torch.Tensor(num_features))
-            self.bias = Parameter(torch.Tensor(num_features))
+            self.weight = Parameter(torch.zeros(num_features))
+            self.bias = Parameter(torch.zeros(num_features))
         else:
             self.register_parameter('weight', None)
             self.register_parameter('bias', None)

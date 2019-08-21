@@ -1,4 +1,6 @@
 """Definition of the Adult dataset"""
+from itertools import groupby
+
 import pandas as pd
 from ethicml.utility.data_structures import DataTuple, concat_dt
 from torch.utils.data import DataLoader
@@ -43,7 +45,7 @@ def load_adult_data(args):
         data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
         assert data.x.shape[1] == 62
 
-    if args.meta_learn:
+    if args.pretrain:
 
         def _random_split(data, first_pcnt):
             return train_test_split(
@@ -52,7 +54,7 @@ def load_adult_data(args):
 
         not_task, task = _random_split(data, first_pcnt=1 - args.task_pcnt)
         meta, not_task_or_meta = _random_split(
-            not_task, first_pcnt=args.meta_pcnt / (1 - args.task_pcnt)
+            not_task, first_pcnt=args.pretrain_pcnt / (1 - args.task_pcnt)
         )
 
         sy_equal = query_dt(
@@ -67,12 +69,8 @@ def load_adult_data(args):
         # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
         mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
-        if args.eff_comb:
-            sy_equal_fraction = min(1.0, 2 * (1 - mix_fact))
-            sy_opp_fraction = min(1.0, 2 * mix_fact)
-        else:
-            sy_equal_fraction = 1 - mix_fact
-            sy_opp_fraction = mix_fact
+        sy_equal_fraction = 1 - mix_fact
+        sy_opp_fraction = mix_fact
 
         sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=sy_equal_fraction)
         sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=sy_opp_fraction)
@@ -121,7 +119,7 @@ def load_adult_data(args):
     else:
         task = DataTuple(x=task_scaled, s=task.s, y=task.y)
 
-    if args.meta_learn:
+    if args.pretrain:
         meta_train_scaled = meta_train.x
         meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
         if args.drop_discrete:
@@ -147,6 +145,7 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
         sens_attrs: (optional) list of names of the sensitive attributes
     """
     # create data loader with one giant batch
+    print(dataset)
     data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     # get the data
     data = next(iter(data_loader))
@@ -156,3 +155,33 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
         data[1].columns = sens_attrs
     # create a DataTuple
     return DataTuple(x=data[0], s=data[1], y=data[2])
+
+
+def group_features(disc_feats):
+    """Group discrete features names according to the first segment of their name
+    """
+    def _first_segment(feature_name):
+        return feature_name.split('_')[0]
+
+    group_iter = groupby(disc_feats, _first_segment)
+    return [list(group) for _, group in group_iter]
+
+
+def grouped_features_indexes(disc_feats):
+    """Group discrete features names according to the first segment of their name
+    and return a list of their corresponding slices (assumes order is maintained).
+    """
+    def _first_segment(feature_name):
+        return feature_name.split('_')[0]
+
+    group_iter = groupby(disc_feats, _first_segment)
+
+    feature_slices = []
+    start_idx = 0
+    for _, group in group_iter:
+        len_group = len(list(group))
+        indexes = slice(start_idx, len_group)
+        feature_slices.append(indexes)
+        start_idx += len_group
+
+    return feature_slices
