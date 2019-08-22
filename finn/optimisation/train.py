@@ -135,7 +135,6 @@ def train(model, discriminator, dataloader, epoch):
 
 def validate(model, discriminator, val_loader):
     model.eval()
-    # start_time = time.time()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
