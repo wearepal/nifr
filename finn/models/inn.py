@@ -291,10 +291,12 @@ class MaskedInn(PartitionedInn):
 
         mask = self.masker(threshold=threshold)
         zy = mask * z
-        neg_log_px = self.neg_log_prob(zy, delta_logp)
         zs = (1 - mask) * z
+
+        z.register_hook(lambda grad: grad * mask.unsqueeze(0))
+        neg_log_prob = self.neg_log_prob(z, delta_logp)
 
         xy_pre = self.forward(zy.detach(), reverse=True)
         xs_pre = self.forward(zs.detach(), reverse=True)
 
-        return (xy_pre, xs_pre), neg_log_px
+        return (xy_pre, xs_pre), neg_log_prob

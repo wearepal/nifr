@@ -18,7 +18,7 @@ from finn.optimisation.training_utils import (
 )
 
 
-def random_seed(seed_value, use_cuda):
+def random_seed(seed_value, use_cuda) -> None:
     np.random.seed(seed_value)  # cpu vars
     torch.manual_seed(seed_value)  # cpu  vars
     random.seed(seed_value)  # Python
@@ -29,22 +29,13 @@ def random_seed(seed_value, use_cuda):
         torch.backends.cudnn.benchmark = False
 
 
-def main(raw_args=None):
-    args = parse_arguments(raw_args)
-    use_gpu = torch.cuda.is_available() and not args.gpu < 0
-    random_seed(args.seed, use_gpu)
-    datasets = load_dataset(args)
-    training_loop(args, datasets, log_metrics)
-    return
-
-
 def log_sample_images(experiment, data, name):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
     x, s, y = next(iter(data_loader))
     log_images(experiment, x, f"Samples from {name}", prefix='eval')
 
 
-def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=False):
+def log_metrics(args, experiment, model, data, quick_eval=True):
     """Compute and log a variety of metrics"""
     ethicml_model = LR()
 
@@ -93,6 +84,14 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv=Fals
         evaluate(args, experiment, repr.task_train['zs'], repr.task['zs'], name='zs')
         evaluate(args, experiment, repr.task_train['xy'], repr.task['xy'], name='xy')
         evaluate(args, experiment, repr.task_train['xs'], repr.task['xs'], name='xs')
+
+
+def main(raw_args=None) -> None:
+    args = parse_arguments(raw_args)
+    use_gpu = torch.cuda.is_available() and not args.gpu < 0
+    random_seed(args.seed, use_gpu)
+    datasets = load_dataset(args)
+    training_loop(args, datasets, log_metrics)
 
 
 if __name__ == "__main__":

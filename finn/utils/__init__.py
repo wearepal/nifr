@@ -1,8 +1,8 @@
-from finn.utils.distributions import (
+from .distributions import (
     uniform_bernoulli,
     logistic_mixture_logprob
 )
-from finn.utils.utils import (
+from .utils import (
     RoundSTE,
     get_logger,
     count_parameters,

@@ -293,7 +293,6 @@ def main(args, datasets, metric_callback):
                                         disc_kwargs,
                                         flatten=not args.learn_mask)
     discriminator.to(args.device)
-    print(discriminator.model)
 
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
 
