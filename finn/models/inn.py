@@ -231,7 +231,7 @@ class MaskedInn(PartitionedInn):
 
     def train(self) -> None:
         super().train()
-        self.masker.eval()
+        self.masker.train()
 
     def step(self) -> None:
         if self.model.training:
@@ -290,12 +290,15 @@ class MaskedInn(PartitionedInn):
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
         mask = self.masker(threshold=threshold)
-        zy = mask * z
-        zs = (1 - mask) * z
+        z_sg = z.detach()
+        zy = mask * z_sg
+        zs = (1 - mask) * z_sg
 
-        neg_log_prob = self.neg_log_prob(zy, delta_logp)
+        if z.requires_grad:
+            z.register_hook(lambda grad: grad * mask)
+        neg_log_prob = self.neg_log_prob(z, delta_logp)
 
-        xy_pre = self.forward(zy.detach(), reverse=True)
-        xs_pre = self.forward(zs.detach(), reverse=True)
+        xy_pre = self.forward(zy, reverse=True)
+        xs_pre = self.forward(zs, reverse=True)
 
         return (xy_pre, xs_pre), neg_log_prob

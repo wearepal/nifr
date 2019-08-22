@@ -82,6 +82,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon,
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, n_classes=n_classes,
                                  optimizer_args={'lr': args.eval_lr})
+    clf.to(args.device)
     clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
             device=args.device, pred_s=pred_s)
 

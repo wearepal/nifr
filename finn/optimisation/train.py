@@ -15,7 +15,7 @@ from finn.optimisation import grad_reverse
 from finn.optimisation.training_utils import (
     get_data_dim,
     log_images,
-)
+    apply_gradients)
 from finn.utils import utils
 
 NDECS = 0
@@ -91,7 +91,20 @@ def train(model, discriminator, dataloader, epoch):
         model.zero_grad()
         discriminator.zero_grad()
 
-        loss.backward()
+        if ARGS.learn_mask:
+            inn_grads = torch.autograd.grad(loss, model.model.parameters(), create_graph=True)
+            masker_grads = torch.autograd.grad(inn_grads, model.masker.parameters(),
+                                               retain_graph=True,
+                                               grad_outputs=[torch.ones_like(grad)
+                                                             for grad in inn_grads])
+            masker_grads += torch.autograd.grad(disc_loss, model.masker.parameters(),
+                                                retain_graph=True)
+            disc_grads = torch.autograd.grad(loss, discriminator.parameters())
+            apply_gradients(inn_grads, model.model)
+            apply_gradients(masker_grads, model.masker)
+            apply_gradients(disc_grads, discriminator)
+        else:
+            loss.backward()
 
         model.step()
         discriminator.step()
@@ -321,25 +334,24 @@ def main(args, datasets, metric_callback):
                 epoch,
             )
 
-            if args.learn_mask:
-                LOGGER.info("===> Training Masker")
-                train_masker(
-                    model,
-                    discriminator,
-                    val_loader,
-                    epoch
-                )
-                with torch.set_grad_enabled(False):
-                    mask = model.masker(threshold=True)
-                    zs_dim = (1 - mask).sum() / mask.nelement()
-                LOGGER.info("Zs frac:  {}", zs_dim.item())
+            # if args.learn_mask:
+            #     LOGGER.info("===> Training Masker")
+            #     train_masker(
+            #         model,
+            #         discriminator,
+            #         val_loader,
+            #         epoch
+            #     )
+            with torch.set_grad_enabled(False):
+                mask = model.masker(threshold=True)
+                zs_dim = (1 - mask).sum() / mask.nelement()
+            LOGGER.info("Zs frac:  {}", zs_dim.item())
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
                 val_loss = validate(model, discriminator, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, experiment=SUMMARY, model=model,
-                                    data=datasets, save_to_csv=True)
+                    metric_callback(ARGS, experiment=SUMMARY, model=model, data=datasets)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
@@ -360,8 +372,7 @@ def main(args, datasets, metric_callback):
 
     LOGGER.info('Training has finished.')
     model, discriminator = restore_model(save_dir / 'checkpt.pth', model, discriminator)
-    metric_callback(ARGS, experiment=SUMMARY, model=model,
-                    data=datasets, save_to_csv=True)
+    metric_callback(ARGS, experiment=SUMMARY, model=model, data=datasets)
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
     model.eval()
 

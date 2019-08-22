@@ -93,7 +93,7 @@ def data_tuple_to_dataset(
     # save the image
     if not filename.lower().endswith(".npz"):
         filename += ".npz"
-    np.savez_compressed(os.path.join(root, filename), img=data.detach().numpy())
+    np.savez_compressed(os.path.join(root, filename), img=data.cpu().detach().numpy())
     # save filenames
     with open(os.path.join(root, "filename.csv"), 'a', newline="") as f:
         writer = csv.writer(f, delimiter=" ")
@@ -101,8 +101,8 @@ def data_tuple_to_dataset(
     # save sensitive/nuisance labels
     with open(os.path.join(root, 'sens.csv'), 'ab') as f:
         sens = sens.view(-1)
-        np.savetxt(f, sens.detach().numpy(), delimiter=",")
+        np.savetxt(f, sens.cpu().detach().numpy(), delimiter=",")
     # save targets
     with open(os.path.join(root, 'target.csv'), 'ab') as f:
         target = target.view(-1)
-        np.savetxt(f, target.detach().numpy(), delimiter=",")
+        np.savetxt(f, target.cpu().detach().numpy(), delimiter=",")
