@@ -49,17 +49,19 @@ def build_conv_inn(args, input_dim):
 
 def build_discriminator(args, input_shape, model_fn, model_kwargs, flatten):
 
-    in_dim, h, w = input_shape
-    if not args.learn_mask and len(input_shape) > 2:
-        in_dim *= args.squeeze_factor ** 2
-        h /= args.squeeze_factor
-        w /= args.squeeze_factor
+    in_dim = input_shape[0]
+
+    if len(input_shape) > 2:
+        h, w = input_shape[1:]
+        if not args.learn_mask:
+            in_dim *= args.squeeze_factor ** 2
+            h /= args.squeeze_factor
+            w /= args.squeeze_factor
+        if flatten:
+            in_dim = int(np.product((in_dim, h, w)))
 
     if not args.learn_mask:
         in_dim = int(in_dim - (args.zs_frac * in_dim))
-
-    if flatten:
-        in_dim = int(np.product((in_dim, h, w)))
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
