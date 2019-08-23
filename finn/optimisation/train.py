@@ -292,27 +292,44 @@ def main(args, datasets, metric_callback):
         disc_fn = fc_net
         disc_kwargs = {"hidden_dims": [50, 50]}
 
+    # Model arguments
+    model_args = {
+        'args': args,
+        'input_shape': input_shape,
+        'optimizer_args': optimizer_args,
+        'feature_groups': feature_groups,
+    }
+    if args.learn_mask:
+        masker_optimizer_args = {
+            'lr': args.masker_lr,
+            'weight_decay': args.masker_weight_decay
+        }
+        model_args['masker_optimizer_args'] = masker_optimizer_args
+
+    # Initialise INN
     model: PartitionedInn = Module(args,
                                    model=model,
                                    input_shape=input_shape,
                                    optimizer_args=optimizer_args,
                                    feature_groups=feature_groups)
     model.to(args.device)
-
+    # Initialise Discriminator
     discriminator = build_discriminator(args,
                                         input_shape,
                                         disc_fn,
                                         disc_kwargs,
                                         flatten=not args.learn_mask)
     discriminator.to(args.device)
-
+    # Save initial parameters
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
 
+    # Resume from checkpoint
     if ARGS.resume is not None:
         model, discriminator = restore_model(ARGS.resume, model, discriminator)
         metric_callback(ARGS, SUMMARY, model, discriminator, datasets, check_originals=False)
         return
 
+    # Logging
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
     with torch.set_grad_enabled(False):
@@ -321,9 +338,9 @@ def main(args, datasets, metric_callback):
     LOGGER.info("Zs frac:  {}", zs_dim.item())
 
     best_loss = float('inf')
-
     n_vals_without_improvement = 0
 
+    # Train INN for N epochs
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break

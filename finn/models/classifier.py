@@ -85,8 +85,9 @@ class Classifier(BaseModel):
                 actual.append(y)
                 sens.append(s)
 
-        preds = torch.cat(preds, dim=0).detach().view(-1)
-        actual = torch.cat(actual, dim=0).detach().view(-1)
+        preds = torch.cat(preds, dim=0).cpu().detach().view(-1)
+        actual = torch.cat(actual, dim=0).cpu().detach().view(-1)
+        sens = torch.cat(sens, dim=0).cpu().detach().view(-1)
 
         return preds, actual, sens
 

@@ -9,7 +9,7 @@ from finn.utils.utils import RoundSTE
 
 class Masker(nn.Module):
 
-    default_args = dict(optimizer_args=dict(lr=1e-2, weight_decay=0))
+    default_args = dict(optimizer_args=dict(lr=1e-3, weight_decay=0))
 
     def __init__(self, shape, optimizer_args=None, prob_1=0.5):
         super().__init__()
