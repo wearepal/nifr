@@ -39,7 +39,7 @@ class AffineCouplingLayer(InvertibleLayer):
         if logpx is None:
             return y
         else:
-            if self.mask is not None:
+            if self.mask is not None and x.requires_grad:
                 x.register_hook(lambda grad: x * self.mask)
             delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
             return y, logpx - delta_logp
@@ -56,7 +56,7 @@ class AffineCouplingLayer(InvertibleLayer):
         if logpx is None:
             return y
         else:
-            if self.mask is not None:
+            if self.mask is not None and x.requires_grad:
                 x = x.register_hook(lambda grad: grad * self.mask)
             delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
             return y, logpx + delta_logp
@@ -81,7 +81,7 @@ class MaskedCouplingLayer(nn.Module):
         masked_scale = scale * (1 - self.mask) + torch.ones_like(scale) * self.mask
         masked_shift = shift * (1 - self.mask)
 
-        if self.mask is not None:
+        if self.mask is not None and x.requires_grad:
             x.register_hook(lambda grad: grad * self.mask)
 
         logdetjac = torch.sum(torch.log(masked_scale).view(scale.shape[0], -1), 1, keepdim=True)

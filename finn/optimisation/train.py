@@ -324,7 +324,6 @@ def main(args, datasets, metric_callback):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        LOGGER.info("===> Training INN")
         with SUMMARY.train():
             train(
                 model,
@@ -332,15 +331,6 @@ def main(args, datasets, metric_callback):
                 train_loader,
                 epoch,
             )
-
-            # if args.learn_mask:
-            #     LOGGER.info("===> Training Masker")
-            #     train_masker(
-            #         model,
-            #         discriminator,
-            #         val_loader,
-            #         epoch
-            #     )
             with torch.set_grad_enabled(False):
                 mask = model.masker(threshold=True)
                 zs_dim = (1 - mask).sum() / mask.nelement()
