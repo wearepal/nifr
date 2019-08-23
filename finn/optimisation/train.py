@@ -78,7 +78,8 @@ def train(model, discriminator, dataloader, epoch):
 
         (enc_y, enc_s), neg_log_prob = model.routine(x)
 
-        disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
+        # disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
+        disc_loss = discriminator.routine(enc_y, s)[0]
 
         if ARGS.learn_mask:
             disc_loss += discriminator.routine(enc_s, s)[0]

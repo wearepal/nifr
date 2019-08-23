@@ -45,27 +45,19 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
     print('Encoding task train dataset...')
     task_train_repr = encode_dataset(args, data.task_train, model, recon=True)
 
-    evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy')
+    evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
+
+    repr = DatasetTuple(
+        pretrain=None,
+        task=task_repr,
+        task_train=task_train_repr,
+        input_dim=data.input_dim,
+        output_dim=data.output_dim,
+    )
 
     if quick_eval:
         log_sample_images(experiment, data.task_train, "task_train")
-
-        if args.dataset == 'adult':
-            repr = DatasetTuple(
-                pretrain=None,
-                task=task_repr,
-                task_train=task_train_repr,
-                input_dim=data.input_dim,
-                output_dim=data.output_dim,
-            )
     else:
-        repr = DatasetTuple(
-            pretrain=None,
-            task=task_repr,
-            task_train=task_train_repr,
-            input_dim=data.input_dim,
-            output_dim=data.output_dim,
-        )
 
         if args.dataset == 'adult':
             task_data, task_train_data = get_data_tuples(data.task, data.task_train)
