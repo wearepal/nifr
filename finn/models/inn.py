@@ -289,7 +289,7 @@ class MaskedInn(PartitionedInn):
         zero = data.new_zeros(data.size(0), 1)
         mask = self.masker(threshold=threshold)
 
-        self.model.chain[-1].mask = mask
+        self.model.chain[-1].grad_mask = mask
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
         z_sg = z.detach()
@@ -300,7 +300,7 @@ class MaskedInn(PartitionedInn):
             z.register_hook(lambda grad: grad * mask)
         neg_log_prob = self.neg_log_prob(z, delta_logp)
 
-        self.model.chain[-1].mask = None
+        self.model.chain[-1].grad_mask = None
         xy_pre = self.forward(zy, reverse=True)
         xs_pre = self.forward(zs, reverse=True)
 

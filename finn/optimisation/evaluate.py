@@ -119,7 +119,7 @@ def evaluate(args, experiment, train_data, test_data,
                                          input_dim,
                                          train_data=train_data,
                                          train_on_recon=train_on_recon,
-                                         pred_s=pred_s,
+                                         pred_s=True,
                                          test_data=test_data)
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
