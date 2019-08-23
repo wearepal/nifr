@@ -34,7 +34,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=restricted_float, default=0,
                         help='fraction of current statistics to incorporate into moving average')
-    parser.add_argument('--disc-hidden-dims', type=int, default=256)
+    parser.add_argument('--disc-hidden-dims', nargs="*", type=int, default=[])
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=250)
