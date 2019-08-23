@@ -58,7 +58,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--learn-mask', type=eval, default=True, choices=[True, False],
                         help='whether to learn a mask over the encoding instead of'
                              'using fixed-sized partitions.')
-    parser.add_argument('--masker-lr', type=float, default=3e-4)
+    parser.add_argument('--masker-lr', type=float, default=1e-3)
     parser.add_argument('--masker-weight-decay', type=float, default=0)
     parser.add_argument('--log-prob-weight', type=float, default=1.0e-3)
     parser.add_argument('--pred-s-weight', type=float, default=1)
