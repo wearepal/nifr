@@ -315,6 +315,10 @@ def main(args, datasets, metric_callback):
 
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
+    with torch.set_grad_enabled(False):
+        mask = model.masker(threshold=True)
+        zs_dim = (1 - mask).sum() / mask.nelement()
+    LOGGER.info("Zs frac:  {}", zs_dim.item())
 
     best_loss = float('inf')
 

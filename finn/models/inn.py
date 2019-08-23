@@ -296,7 +296,8 @@ class MaskedInn(PartitionedInn):
         zy = mask * z_sg
         zs = (1 - mask) * z_sg
 
-        z.register_hook(lambda grad: grad * mask)
+        if z.requires_grad:
+            z.register_hook(lambda grad: grad * mask)
         neg_log_prob = self.neg_log_prob(z, delta_logp)
 
         self.model.chain[-1].mask = None

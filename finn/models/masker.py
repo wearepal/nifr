@@ -44,6 +44,6 @@ class Masker(nn.Module):
 
 
 if __name__ == '__main__':
-    masker = Masker((3, 28, 28), prob_1=0.6)
+    masker = Masker((3, 28, 28), prob_1=0.01)
     mask = masker(threshold=True)
     print(mask.mean())
