@@ -131,7 +131,7 @@ class SplitInn(PartitionedInn):
             feature_groups=feature_groups
         )
 
-        self.zs_dim = round(args.zs_frac * self.output_shape[0])
+        self.zs_dim = int(args.zs_frac * self.output_shape[0])
         self.zy_dim = self.output_shape[0] - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
