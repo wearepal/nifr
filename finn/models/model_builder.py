@@ -47,7 +47,8 @@ def build_conv_inn(args, input_dim):
     return layers.SequentialFlow(chain)
 
 
-def build_discriminator(args, input_shape, model_fn, model_kwargs, flatten):
+def build_discriminator(args, input_shape, model_fn, model_kwargs,
+                        flatten, optimizer_args=None):
 
     in_dim = input_shape[0]
 
@@ -65,7 +66,8 @@ def build_discriminator(args, input_shape, model_fn, model_kwargs, flatten):
     n_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
         model_fn(in_dim, args.y_dim, **model_kwargs),
-        n_classes=n_classes
+        n_classes=n_classes,
+        optimizer_args=optimizer_args
     )
 
     return discriminator

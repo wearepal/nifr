@@ -295,6 +295,7 @@ def main(args, datasets, metric_callback):
     # Model arguments
     model_args = {
         'args': args,
+        'model': model,
         'input_shape': input_shape,
         'optimizer_args': optimizer_args,
         'feature_groups': feature_groups,
@@ -307,18 +308,16 @@ def main(args, datasets, metric_callback):
         model_args['masker_optimizer_args'] = masker_optimizer_args
 
     # Initialise INN
-    model: PartitionedInn = Module(args,
-                                   model=model,
-                                   input_shape=input_shape,
-                                   optimizer_args=optimizer_args,
-                                   feature_groups=feature_groups)
+    model: PartitionedInn = Module(**model_args)
     model.to(args.device)
     # Initialise Discriminator
+    disc_optimizer_args = {'lr': args.disc_lr}
     discriminator = build_discriminator(args,
                                         input_shape,
                                         disc_fn,
                                         disc_kwargs,
-                                        flatten=not args.learn_mask)
+                                        flatten=not args.learn_mask,
+                                        optimizer_args=disc_optimizer_args)
     discriminator.to(args.device)
     # Save initial parameters
     save_model(save_dir=save_dir, model=model, discriminator=discriminator)
