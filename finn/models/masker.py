@@ -9,7 +9,7 @@ from finn.utils.utils import RoundSTE
 
 class Masker(nn.Module):
 
-    default_args = dict(optimizer_args=dict(lr=1e-1, weight_decay=0))
+    default_args = dict(optimizer_args=dict(lr=1e-2, weight_decay=0))
 
     def __init__(self, shape, optimizer_args=None, prob_1=0.5):
         super().__init__()
@@ -23,7 +23,7 @@ class Masker(nn.Module):
 
         self.mask = nn.Parameter(torch.empty(shape))
         self.reset_parameters()
-        self.optimizer = SGD([self.mask], **optimizer_args)
+        self.optimizer = RAdam([self.mask], **optimizer_args)
 
     def reset_parameters(self) -> None:
         probs = uniform_bernoulli(self.shape, self.prob_1)

@@ -287,17 +287,19 @@ class MaskedInn(PartitionedInn):
             of the data under the model.
         """
         zero = data.new_zeros(data.size(0), 1)
+        mask = self.masker(threshold=threshold)
+
+        self.model.chain[-1].mask = mask
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
-        mask = self.masker(threshold=threshold)
         z_sg = z.detach()
         zy = mask * z_sg
         zs = (1 - mask) * z_sg
 
-        if z.requires_grad:
-            z.register_hook(lambda grad: grad * mask)
+        z.register_hook(lambda grad: grad * mask)
         neg_log_prob = self.neg_log_prob(z, delta_logp)
 
+        self.model.chain[-1].mask = None
         xy_pre = self.forward(zy, reverse=True)
         xs_pre = self.forward(zs, reverse=True)
 
