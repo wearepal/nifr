@@ -332,10 +332,11 @@ def main(args, datasets, metric_callback):
     # Logging
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
-    with torch.set_grad_enabled(False):
-        mask = model.masker(threshold=True)
-        zs_dim = (1 - mask).sum() / mask.nelement()
-    LOGGER.info("Zs frac:  {}", zs_dim.item())
+    if args.learn_mask:
+        with torch.set_grad_enabled(False):
+            mask = model.masker(threshold=True)
+            zs_dim = (1 - mask).sum() / mask.nelement()
+        LOGGER.info("Zs frac:  {}", zs_dim.item())
 
     best_loss = float('inf')
     n_vals_without_improvement = 0
@@ -352,10 +353,12 @@ def main(args, datasets, metric_callback):
                 train_loader,
                 epoch,
             )
-            with torch.set_grad_enabled(False):
-                mask = model.masker(threshold=True)
-                zs_dim = (1 - mask).sum() / mask.nelement()
-            LOGGER.info("Zs frac:  {}", zs_dim.item())
+
+            if args.learn_mask:
+                with torch.set_grad_enabled(False):
+                    mask = model.masker(threshold=True)
+                    zs_dim = (1 - mask).sum() / mask.nelement()
+                LOGGER.info("Zs frac:  {}", zs_dim.item())
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
