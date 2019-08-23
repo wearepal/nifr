@@ -18,19 +18,17 @@ class LdAugmentedDataset:
         self,
         source_dataset,
         ld_augmentations,
+        n_labels,
         li_augmentation=False,
         base_augmentations: list = None,
         correlation=1.0,
-        batch_size=100,
-        shuffle=True,
     ):
 
         self.source_dataset = self._validate_dataset(source_dataset)
         if not 0 <= correlation <= 1:
             raise ValueError("Label-augmentation correlation must be between 0 and 1.")
 
-        self.batch_size = batch_size
-        self.shuffle = shuffle
+        self.n_labels = n_labels
 
         if not isinstance(ld_augmentations, (list, tuple)):
             ld_augmentations = [ld_augmentations]
@@ -49,10 +47,8 @@ class LdAugmentedDataset:
     def __len__(self):
         return len(self.dataset)
 
-    def num_batches(self):
-        return math.ceil(len(self) / self.batch_size)
-
-    def _validate_dataset(self, dataset):
+    @staticmethod
+    def _validate_dataset(dataset):
         if isinstance(dataset, DataLoader):
             dataset = dataset
         elif not isinstance(dataset, Dataset):
@@ -108,7 +104,7 @@ class LdAugmentedDataset:
         x, s, y = self._validate_data(x, s, y)
 
         if self.li_augmentation:
-            s = s[torch.randperm(s.nelement())]
+            s = torch.randint_like(s, low=0, high=self.n_labels)
 
         if self.correlation < 1:
             flip_prob = torch.rand(s.shape)
@@ -121,7 +117,7 @@ class LdAugmentedDataset:
             x = x.repeat(1, 3, 1, 1)
         x = x.squeeze(0)
         s = s.squeeze()
-        y = s.squeeze()
+        y = y.squeeze()
 
         return x, s, y
 

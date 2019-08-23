@@ -1,9 +1,8 @@
 import torch
 import torch.nn as nn
-from torch.optim import SGD
 
-from finn.optimisation.radam import RAdam
 from finn.utils.distributions import logit, uniform_bernoulli
+from finn.utils.radam import RAdam
 from finn.utils.utils import RoundSTE
 
 

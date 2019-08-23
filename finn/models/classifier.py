@@ -3,6 +3,7 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 
 from finn.models.base import BaseModel
 
@@ -168,7 +169,6 @@ class Classifier(BaseModel):
                     target = s
                 else:
                     target = y
-
                 x = x.to(device)
                 target = target.to(device)
 
@@ -176,6 +176,8 @@ class Classifier(BaseModel):
                 loss, acc = self.routine(x, target)
                 loss.backward()
                 self.step()
+
+            save_image(x, filename='train.png')
 
             if test_data is not None:
                 print(f"===> Testing classifier")
@@ -193,5 +195,9 @@ class Classifier(BaseModel):
                         loss, acc = self.routine(x, target)
                         avg_test_acc += acc
 
+                save_image(x, filename='test.png')
+
                 avg_test_acc /= len(test_data)
                 print(f"Average test accuracy: {avg_test_acc:.2f}")
+
+

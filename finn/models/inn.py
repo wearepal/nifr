@@ -2,13 +2,12 @@ from argparse import Namespace
 from typing import Tuple, Union, List, Optional
 
 import torch
-from torch import Tensor
 import torch.distributions as td
+from torch import Tensor
 
-from finn.models.base import BaseModel
-from finn.models.masker import Masker
 from finn.utils.distributions import logistic_mixture_logprob
-from finn.utils.utils import to_one_hot
+from .base import BaseModel
+from .masker import Masker
 
 
 class PartitionedInn(BaseModel):

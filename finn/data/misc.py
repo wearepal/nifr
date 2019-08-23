@@ -12,7 +12,7 @@ def shrink_dataset(dataset, pcnt):
     curr_len = len(dataset)
     new_data_len = int(pcnt * curr_len)
     lengths = [new_data_len, curr_len - new_data_len]
-    return random_split(dataset, lengths)
+    return random_split(dataset, lengths)[0]
 
 
 def set_transform(dataset, transform):

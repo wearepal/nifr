@@ -290,34 +290,3 @@ class RandomChoice:
 
     def __call__(self, data, label):
         return self._augment(data, label)
-
-
-def run():
-    from torchvision.datasets import KMNIST
-    from torchvision.utils import save_image
-    from finn.data.datasets import LdAugmentedDataset
-
-    data = KMNIST("./", train=True, download=True, transform=transforms.ToTensor())
-    augments = [
-        LdColorJitter(),
-        LdContrastAdjustment(),
-        LdCoordinateCoding(),
-        LdGainAdjustment(),
-        LdColorizer(),
-    ]
-    data = LdAugmentedDataset(
-        data,
-        10,
-        10,
-        ld_augmentations=[LdColorJitter(scale=0.05, multiplicative=False)],
-        batch_size=64,
-        base_augmentations=[transforms.ToTensor()],
-    )
-
-    for x, s, y in data:
-        break
-    save_image(x, "./test.png", nrow=8)
-
-
-if __name__ == "__main__":
-    run()

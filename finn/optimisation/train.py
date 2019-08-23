@@ -11,8 +11,8 @@ from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
 from finn.models.inn import MaskedInn, PartitionedInn, SplitInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
-from finn.optimisation import grad_reverse
-from finn.optimisation.training_utils import (
+from .misc import grad_reverse
+from .training_utils import (
     get_data_dim,
     log_images,
     apply_gradients)
@@ -78,8 +78,7 @@ def train(model, discriminator, dataloader, epoch):
 
         (enc_y, enc_s), neg_log_prob = model.routine(x)
 
-        # disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
-        disc_loss = discriminator.routine(enc_y, s)[0]
+        disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
 
         if ARGS.learn_mask:
             disc_loss += discriminator.routine(enc_s, s)[0]
