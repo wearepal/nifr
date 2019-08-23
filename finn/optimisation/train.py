@@ -2,8 +2,8 @@
 import time
 from pathlib import Path
 
-import torch
 from comet_ml import Experiment
+import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from finn.data import DatasetTuple
