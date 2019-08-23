@@ -61,7 +61,6 @@ def build_discriminator(args, input_shape, model_fn, model_kwargs, flatten):
             w //= args.squeeze_factor
         if flatten:
             in_dim = int(np.product((in_dim, h, w)))
-            print(in_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
