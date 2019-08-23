@@ -78,8 +78,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon,
     if train_on_recon or args.learn_mask:
         clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
-        clf = fc_net(input_dim, target_dim=args.y_dim,
-                     hidden_dims=args.disc_hidden_dims)
+        clf = fc_net(input_dim, target_dim=args.y_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, n_classes=n_classes,

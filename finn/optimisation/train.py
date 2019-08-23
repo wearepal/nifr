@@ -286,11 +286,11 @@ def main(args, datasets, metric_callback):
             disc_kwargs = {}
         else:
             disc_fn = fc_net
-            disc_kwargs = {"hidden_dims": [512, 512]}
+            disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
     else:
         model = build_fc_inn(args, input_shape[0])
         disc_fn = fc_net
-        disc_kwargs = {"hidden_dims": [50, 50]}
+        disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
     # Model arguments
     model_args = {
