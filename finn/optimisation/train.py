@@ -77,7 +77,6 @@ def train(model, discriminator, dataloader, epoch):
         x, s, y = to_device(x, s, y)
 
         (enc_y, enc_s), neg_log_prob = model.routine(x)
-
         disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
 
         if ARGS.learn_mask:

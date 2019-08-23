@@ -55,13 +55,12 @@ def build_discriminator(args, input_shape, model_fn, model_kwargs, flatten):
         h, w = input_shape[1:]
         if not args.learn_mask:
             in_dim *= args.squeeze_factor ** 2
+            in_dim = int(in_dim - (args.zs_frac * in_dim))
             h /= args.squeeze_factor
             w /= args.squeeze_factor
         if flatten:
+            print(in_dim, h, w)
             in_dim = int(np.product((in_dim, h, w)))
-
-    if not args.learn_mask:
-        in_dim = int(in_dim - (args.zs_frac * in_dim))
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
