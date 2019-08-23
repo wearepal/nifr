@@ -45,6 +45,9 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
     print('Encoding task train dataset...')
     task_train_repr = encode_dataset(args, data.task_train, model, recon=True)
 
+    print("===> Predict y from xy")
+    evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=False)
+    print("===> Predict s from xy")
     evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 
     repr = DatasetTuple(
