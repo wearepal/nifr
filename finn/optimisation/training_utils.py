@@ -1,12 +1,6 @@
 import torchvision
 
 
-def apply_gradients(grads, model) -> None:
-    parameters = [param for param in model.parameters() if param.requires_grad]
-    for grad, param in zip(grads, parameters):
-        param.grad = grad
-
-
 def get_data_dim(data_loader):
     x, _, _ = next(iter(data_loader))
     x_dim = x.shape[1:]

@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
-from torch.optim import Adam
 
 from finn.utils.distributions import logit, uniform_bernoulli
+from finn.utils.optimizers import RAdam
 from finn.utils.utils import RoundSTE
 
 
@@ -22,7 +22,7 @@ class Masker(nn.Module):
 
         self.mask = nn.Parameter(torch.empty(shape))
         self.reset_parameters()
-        self.optimizer = Adam([self.mask], **optimizer_args)
+        self.optimizer = RAdam([self.mask], **optimizer_args)
 
     def reset_parameters(self) -> None:
         probs = uniform_bernoulli(self.shape, self.prob_1)

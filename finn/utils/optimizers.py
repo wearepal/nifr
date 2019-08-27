@@ -149,3 +149,9 @@ class Lookahead(Optimizer):
     def add_param_group(self, param_group):
         param_group["counter"] = 0
         self.optimizer.add_param_group(param_group)
+
+
+def apply_gradients(grads, model) -> None:
+    parameters = [param for param in model.parameters() if param.requires_grad]
+    for grad, param in zip(grads, parameters):
+        param.grad = grad

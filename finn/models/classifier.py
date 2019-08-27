@@ -2,11 +2,13 @@ from typing import Tuple
 
 import torch
 import torch.nn.functional as F
+from torch.optim import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 from finn.models.base import BaseModel
+from finn.utils.optimizers import apply_gradients, RAdam
 
 
 class Classifier(BaseModel):
@@ -160,7 +162,6 @@ class Classifier(BaseModel):
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(train_data, batch_size=batch_size,
                                     shuffle=True, pin_memory=True)
-
         if test_data is not None:
             if not isinstance(test_data, DataLoader):
                 train_data = DataLoader(test_data, batch_size=test_batch_size,
@@ -174,7 +175,7 @@ class Classifier(BaseModel):
             if verbose:
                 print(f"===> Epoch {epoch} of classifier training")
 
-            self.train()
+            self.model.train()
 
             for x, s, y in train_data:
 
@@ -186,16 +187,16 @@ class Classifier(BaseModel):
                 x = x.to(device)
                 target = target.to(device)
 
-                self.zero_grad()
+                self.optimizer.zero_grad()
                 loss, acc = self.routine(x, target)
                 loss.backward()
-                self.step()
+                self.optimizer.step()
 
             if test_data is not None:
                 if verbose:
                     print(f"===> Testing classifier")
 
-                self.eval()
+                self.model.eval()
                 avg_test_acc = 0.0
 
                 with torch.set_grad_enabled(False):

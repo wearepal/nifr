@@ -14,8 +14,8 @@ from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discri
 from .misc import grad_reverse
 from .training_utils import (
     get_data_dim,
-    log_images,
-    apply_gradients)
+    log_images)
+from finn.utils.optimizers import apply_gradients
 from finn.utils import utils
 
 NDECS = 0
@@ -78,7 +78,7 @@ def train(model, discriminator, dataloader, epoch):
 
         (enc_y, enc_s), neg_log_prob = model.routine(x)
 
-        disc_loss = discriminator.routine(grad_reverse(enc_y), s)[0]
+        disc_loss, disc_acc = discriminator.routine(enc_y, s)
 
         if ARGS.learn_mask:
             disc_loss += discriminator.routine(enc_s, s)[0]
@@ -154,7 +154,7 @@ def validate(model, discriminator, val_loader):
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
             (enc_y, enc_s), neg_log_prob = model.routine(x_val)
-            disc_loss = discriminator.routine(enc_y, s_val)[0]
+            disc_loss, acc = discriminator.routine(enc_y, s_val)
 
             if ARGS.learn_mask:
                 disc_loss += discriminator.routine(enc_s, s_val)[0]
