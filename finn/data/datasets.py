@@ -127,8 +127,6 @@ class DataTupleDataset(Dataset):
 
     def __init__(self, dataset, source_dataset, transform=None):
 
-        pd.set_option("mode.chained_assignment", None)
-
         disc_features = source_dataset.discrete_features
         disc_features = [feat for feat in disc_features if feat in dataset.x.columns]
         self.disc_features = disc_features

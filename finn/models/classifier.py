@@ -2,6 +2,7 @@ from typing import Tuple
 
 import torch
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
@@ -149,16 +150,21 @@ class Classifier(BaseModel):
         return loss, acc
 
     def fit(self, train_data, epochs, device, test_data=None,
-            pred_s=False, batch_size=100, test_batch_size=1000):
+            pred_s=False, batch_size=100, test_batch_size=1000,
+            lr_milestones: dict = None):
 
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(train_data, batch_size=batch_size,
                                     shuffle=True, pin_memory=True)
 
         if test_data is not None:
-            if not isinstance(train_data, DataLoader):
-                train_data = DataLoader(train_data, batch_size=test_batch_size,
+            if not isinstance(test_data, DataLoader):
+                train_data = DataLoader(test_data, batch_size=test_batch_size,
                                         shuffle=False, pin_memory=True)
+
+        scheduler = None
+        if lr_milestones is not None:
+            scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
         for epoch in range(epochs):
             print(f"===> Epoch {epoch} of classifier training")
@@ -177,8 +183,6 @@ class Classifier(BaseModel):
                 loss.backward()
                 self.step()
 
-            save_image(x, filename='train.png')
-
             if test_data is not None:
                 print(f"===> Testing classifier")
                 avg_test_acc = 0.0
@@ -195,9 +199,8 @@ class Classifier(BaseModel):
                         loss, acc = self.routine(x, target)
                         avg_test_acc += acc
 
-                save_image(x, filename='test.png')
-
                 avg_test_acc /= len(test_data)
                 print(f"Average test accuracy: {avg_test_acc:.2f}")
 
-
+            if scheduler is not None:
+                scheduler.step(epoch)
