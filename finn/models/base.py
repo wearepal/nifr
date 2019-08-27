@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from finn.utils.radam import RAdam
+from finn.utils.optimizers import RAdam
 
 
 class BaseModel(nn.Module):

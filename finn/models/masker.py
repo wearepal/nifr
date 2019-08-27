@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from finn.utils.distributions import logit, uniform_bernoulli
-from finn.utils.radam import RAdam
+from finn.utils.optimizers import RAdam
 from finn.utils.utils import RoundSTE
 
 

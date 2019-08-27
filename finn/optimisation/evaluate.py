@@ -85,7 +85,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon,
                                  optimizer_args={'lr': args.eval_lr})
     clf.to(args.device)
     clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
-            device=args.device, pred_s=pred_s)
+            device=args.device, pred_s=pred_s, verbose=False)
 
     return clf
 

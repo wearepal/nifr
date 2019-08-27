@@ -340,7 +340,7 @@ def main(args, datasets, metric_callback):
     best_loss = float('inf')
     n_vals_without_improvement = 0
 
-    # Train INN for N epochs
+    # Train INN for N epochs
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break

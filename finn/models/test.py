@@ -20,13 +20,14 @@ test = MNIST(root="data", download=True, train=False,
 test = shrink_dataset(test, pcnt=0.1)
 
 augment = LdColorizer(black=True, background=False, scale=0)
-train = LdAugmentedDataset(source_dataset=train, ld_augmentations=augment, n_labels=10)
+train = LdAugmentedDataset(source_dataset=train, ld_augmentations=augment,
+                           li_augmentation=False, n_labels=10)
 
 test = LdAugmentedDataset(source_dataset=test, ld_augmentations=augment,
                           li_augmentation=True, n_labels=10)
 
-train = DataLoader(train, batch_size=10, pin_memory=True)
-test = DataLoader(test, batch_size=10, pin_memory=True)
+train = DataLoader(train, batch_size=256, pin_memory=True)
+test = DataLoader(test, batch_size=256, pin_memory=True)
 
 
 class Net(nn.Module):
@@ -48,10 +49,14 @@ class Net(nn.Module):
         return x
 
 
-# clf = Net()
-clf = mp_28x28_net(input_dim=3, target_dim=10)
+clf = Net()
+# clf = mp_28x28_net(input_dim=3, target_dim=10)
 clf: Classifier = Classifier(clf, n_classes=10)
 
 
-clf.fit(train_data=train, test_data=test, epochs=30,
-        device=torch.device('cpu'), pred_s=False)
+clf.fit(train_data=train,
+        test_data=test,
+        epochs=30,
+        device=torch.device('cpu'),
+        pred_s=False,
+        verbose=True)

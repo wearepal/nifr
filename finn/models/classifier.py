@@ -151,7 +151,7 @@ class Classifier(BaseModel):
 
     def fit(self, train_data, epochs, device, test_data=None,
             pred_s=False, batch_size=100, test_batch_size=1000,
-            lr_milestones: dict = None):
+            lr_milestones: dict = None, verbose=False):
 
         if not isinstance(train_data, DataLoader):
             train_data = DataLoader(train_data, batch_size=batch_size,
@@ -167,7 +167,8 @@ class Classifier(BaseModel):
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
         for epoch in range(epochs):
-            print(f"===> Epoch {epoch} of classifier training")
+            if verbose:
+                print(f"===> Epoch {epoch} of classifier training")
 
             for x, s, y in train_data:
 
@@ -184,7 +185,8 @@ class Classifier(BaseModel):
                 self.step()
 
             if test_data is not None:
-                print(f"===> Testing classifier")
+                if verbose:
+                    print(f"===> Testing classifier")
                 avg_test_acc = 0.0
                 with torch.set_grad_enabled(False):
                     for x, s, y in test_data:
@@ -200,7 +202,8 @@ class Classifier(BaseModel):
                         avg_test_acc += acc
 
                 avg_test_acc /= len(test_data)
-                print(f"Average test accuracy: {avg_test_acc:.2f}")
+                if verbose:
+                    print(f"Average test accuracy: {avg_test_acc:.2f}")
 
             if scheduler is not None:
                 scheduler.step(epoch)
