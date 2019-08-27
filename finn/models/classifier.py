@@ -58,19 +58,23 @@ class Classifier(BaseModel):
                 targets = targets.long()
             return F.cross_entropy(logits, targets, reduction="none")
 
-    def predict(self, inputs: torch.Tensor) -> torch.Tensor:
+    def predict(self, inputs: torch.Tensor, top: int = 1) -> torch.Tensor:
         """Make prediction.
 
         Args:
             inputs: Tensor. Inputs to the classifier.
+            top: Int. Top-k accuracy.
 
         Returns:
             Class predictions (tensor) for the given data samples.
         """
         outputs = super().__call__(inputs)
-        predicted = torch.argmax(outputs, dim=1)
+        if self.criterion == 'bce':
+            pred = torch.round(outputs.sigmoid())
+        else:
+            _, pred = outputs.topk(top, 1, True, True)
 
-        return predicted
+        return pred
 
     def predict_dataset(self, data, device, batch_size=100):
         if not isinstance(data, DataLoader):
@@ -170,12 +174,15 @@ class Classifier(BaseModel):
             if verbose:
                 print(f"===> Epoch {epoch} of classifier training")
 
+            self.train()
+
             for x, s, y in train_data:
 
                 if pred_s:
                     target = s
                 else:
                     target = y
+
                 x = x.to(device)
                 target = target.to(device)
 
@@ -187,7 +194,10 @@ class Classifier(BaseModel):
             if test_data is not None:
                 if verbose:
                     print(f"===> Testing classifier")
+
+                self.eval()
                 avg_test_acc = 0.0
+
                 with torch.set_grad_enabled(False):
                     for x, s, y in test_data:
 
@@ -198,6 +208,7 @@ class Classifier(BaseModel):
 
                         x = x.to(device)
                         target = target.to(device)
+
                         loss, acc = self.routine(x, target)
                         avg_test_acc += acc
 
