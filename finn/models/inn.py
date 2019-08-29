@@ -1,5 +1,5 @@
 from argparse import Namespace
-from typing import Tuple, Union, List, Optional
+from typing import Tuple, Union, List, Optional, Sequence
 
 import torch
 import torch.distributions as td
@@ -106,7 +106,7 @@ class SplitInn(PartitionedInn):
         self,
         args: Namespace,
         model: torch.nn.Module,
-        input_shape: Union[Tuple[int], List[int]],
+        input_shape: Sequence[int],
         optimizer_args: dict = None,
         feature_groups: Optional[List[slice]] = None,
     ) -> None:
@@ -143,9 +143,17 @@ class SplitInn(PartitionedInn):
         return torch.cat([zy, zs], dim=1)
 
     def zero_mask(self, z):
-        zy, zs = self.split_encoding(z)
-        zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
-        zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
+        with torch.set_grad_enabled(False):
+            mask = torch.cat([z.new_ones(1, self.zy_dim),
+                              z.new_zeros(1, self.zs_dim)],
+                             dim=1)
+            # mask = mask[:, torch.randperm(mask.size(1))]
+            mask = mask.view(*mask.shape, *((z.dim() - 2) * [1]))
+        zy_m = mask * z
+        zs_m = (1 - mask) * z
+        # zy, zs = self.split_encoding(z)
+        # zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
+        # zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
 
         return zy_m, zs_m
 
@@ -217,7 +225,6 @@ class MaskedInn(PartitionedInn):
             optimizer_args=optimizer_args,
             feature_groups=feature_groups
         )
-
         self.masker: Masker = Masker(
             shape=self.output_shape,
             prob_1=(1. - args.zs_frac),
@@ -287,8 +294,7 @@ class MaskedInn(PartitionedInn):
         """
         zero = data.new_zeros(data.size(0), 1)
         mask = self.masker(threshold=threshold)
-
-        self.model.chain[-1].grad_mask = mask
+        self.model.chain[-1].grad_mask = None
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
         z_sg = z.detach()
@@ -300,6 +306,7 @@ class MaskedInn(PartitionedInn):
         neg_log_prob = self.neg_log_prob(z, delta_logp)
 
         self.model.chain[-1].grad_mask = None
+
         xy_pre = self.forward(zy, reverse=True)
         xs_pre = self.forward(zs, reverse=True)
 

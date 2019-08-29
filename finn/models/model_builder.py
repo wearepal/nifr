@@ -44,6 +44,9 @@ def build_conv_inn(args, input_dim):
     for _ in range(args.depth):
         chain += [_inv_block()]
 
+    chain += [layers.Invertible1x1Conv(input_dim)]
+    chain += [layers.Invertible1x1Conv(input_dim)]
+
     return layers.SequentialFlow(chain)
 
 

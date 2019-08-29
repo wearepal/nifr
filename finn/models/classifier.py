@@ -46,7 +46,7 @@ class Classifier(BaseModel):
             optimizer_args=optimizer_args,
         )
 
-    def _apply_criterion(self, logits, targets):
+    def apply_criterion(self, logits, targets):
 
         if self.criterion == "bce":
             if targets.dtype != torch.float32:
@@ -144,7 +144,7 @@ class Classifier(BaseModel):
         """
         outputs = super().__call__(data)
         unlabeled = targets.eq(-1).to(targets.dtype)
-        losses = self._apply_criterion(outputs, (1 - unlabeled) * targets)
+        losses = self.apply_criterion(outputs, (1 - unlabeled) * targets)
         labeled = 1.0 - unlabeled
         loss = (losses * labeled.float()).sum() / labeled.float().sum()
 

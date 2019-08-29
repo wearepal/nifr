@@ -13,7 +13,8 @@ from finn.data.adult import grouped_features_indexes
 from finn.data.misc import set_transform, RandomSampler
 
 
-class LdAugmentedDataset:
+class LdAugmentedDataset(Dataset):
+
     def __init__(
         self,
         source_dataset,

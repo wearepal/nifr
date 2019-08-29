@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.optim import SGD
 
 from finn.utils.distributions import logit, uniform_bernoulli
 from finn.utils.optimizers import RAdam
@@ -19,10 +20,9 @@ class Masker(nn.Module):
         optimizer_args = optimizer_args or self.default_args['optimizer_args']
         self.shape = shape
         self.prob_1 = prob_1
-
         self.mask = nn.Parameter(torch.empty(shape))
         self.reset_parameters()
-        self.optimizer = RAdam([self.mask], **optimizer_args)
+        self.optimizer = SGD([self.mask], **optimizer_args)
 
     def reset_parameters(self) -> None:
         probs = uniform_bernoulli(self.shape, self.prob_1)
@@ -43,6 +43,6 @@ class Masker(nn.Module):
 
 
 if __name__ == '__main__':
-    masker = Masker((3, 28, 28), prob_1=0.01)
+    masker = Masker((48, 7, 7), prob_1=0.9)
     mask = masker(threshold=True)
     print(mask.mean())
