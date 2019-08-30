@@ -1,5 +1,6 @@
 from argparse import Namespace
 from typing import Tuple, Union, List, Optional, Sequence
+import numpy as np
 
 import torch
 import torch.distributions as td
@@ -144,13 +145,14 @@ class SplitInn(PartitionedInn):
 
     def zero_mask(self, z):
         with torch.set_grad_enabled(False):
-            mask = torch.cat([z.new_ones(1, self.zy_dim),
-                              z.new_zeros(1, self.zs_dim)],
-                             dim=1)
-            # mask = mask[:, torch.randperm(mask.size(1))]
-            mask = mask.view(*mask.shape, *((z.dim() - 2) * [1]))
-        zy_m = mask * z
-        zs_m = (1 - mask) * z
+            ones = z.new_ones(self.zy_dim * z.size(2) * z.size(3))
+            zeros = z.new_zeros(self.zs_dim * z.size(2) * z.size(3))
+            mask = torch.cat([ones, zeros], dim=0)
+            mask = mask.view(*z.shape[1:])
+            # mask = mask[torch.randperm(mask.size(0))]
+            mask = mask.unsqueeze(0)
+            zy_m = mask * z
+            zs_m = (1 - mask) * z
         # zy, zs = self.split_encoding(z)
         # zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
         # zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)

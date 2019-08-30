@@ -4,8 +4,10 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import linalg
 
+from .layer_utils import InvertibleLayer
 
-class Invertible1x1Conv(nn.Module):
+
+class Invertible1x1Conv(InvertibleLayer):
     """Invertible 1x1 convolution"""
 
     def __init__(self, num_channels, use_lr_decomp=True):
@@ -70,7 +72,7 @@ class Invertible1x1Conv(nn.Module):
             dlogdet = self.log_s.sum() * (x.size(2) * x.size(3))
         return dlogdet
 
-    def _forward(self, x, logpx):
+    def _forward(self, x, logpx=None):
 
         w = self.get_w(reverse=False)
         output = F.conv2d(x, w)
@@ -82,7 +84,7 @@ class Invertible1x1Conv(nn.Module):
             logpx -= dlogdet
             return output, logpx
 
-    def _reverse(self, x, logpx):
+    def _reverse(self, x, logpx=None):
 
         weight_inv = self.get_w(reverse=True)
 
@@ -94,13 +96,6 @@ class Invertible1x1Conv(nn.Module):
             dlogdet = self.dlogdet(x)
             logpx += dlogdet
             return output, logpx
-
-    def forward(self, x, logpx=None, reverse=False):
-
-        if not reverse:
-            return self._forward(x, logpx)
-        else:
-            return self._reverse(x, logpx)
 
 
 class InvertibleLinear(nn.Module):

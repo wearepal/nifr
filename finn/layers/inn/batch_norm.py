@@ -2,10 +2,12 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 
+from .layer_utils import InvertibleLayer
+
 __all__ = ['MovingBatchNorm1d', 'MovingBatchNorm2d']
 
 
-class MovingBatchNormNd(nn.Module):
+class MovingBatchNormNd(InvertibleLayer):
     def __init__(self, num_features, eps=1e-6, decay=0.1, bn_lag=0.0, affine=True):
         super(MovingBatchNormNd, self).__init__()
         self.num_features = num_features
@@ -34,12 +36,6 @@ class MovingBatchNormNd(nn.Module):
         if self.affine:
             self.weight.data.zero_()
             self.bias.data.zero_()
-
-    def forward(self, x, logpx=None, reverse=False):
-        if reverse:
-            return self._reverse(x, logpx)
-        else:
-            return self._forward(x, logpx)
 
     def _forward(self, x, logpx=None):
         c = x.size(1)

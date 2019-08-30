@@ -21,11 +21,11 @@ class ConvBlock(nn.Sequential):
 
 class AffineCouplingLayer(InvertibleLayer):
     def __init__(self, in_channels, hidden_channels):
-        super(AffineCouplingLayer, self).__init__()
+        super().__init__()
+
         self.NN = ConvBlock(
             in_channels // 2, hidden_channels=hidden_channels[0], out_channels=in_channels
         )
-        self.grad_mask = None
 
     def _forward(self, x, logpx=None):
         z1, z2 = torch.chunk(x, 2, dim=1)
@@ -36,11 +36,10 @@ class AffineCouplingLayer(InvertibleLayer):
         z2 *= scale
 
         y = torch.cat([z1, z2], dim=1)
+
         if logpx is None:
             return y
         else:
-            if self.grad_mask is not None and x.requires_grad:
-                x.register_hook(lambda grad: x * self.grad_mask)
             delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
             return y, logpx - delta_logp
 
@@ -56,8 +55,6 @@ class AffineCouplingLayer(InvertibleLayer):
         if logpx is None:
             return y
         else:
-            if self.grad_mask is not None and x.requires_grad:
-                x = x.register_hook(lambda grad: grad * self.grad_mask)
             delta_logp = scale.log().view(x.size(0), -1).sum(1, keepdim=True)
             return y, logpx + delta_logp
 
@@ -71,7 +68,6 @@ class MaskedCouplingLayer(nn.Module):
         self.register_buffer('mask', sample_mask(d, mask_type, swap).view(1, d))
         self.net_scale = build_net(d, hidden_dims, activation="tanh")
         self.net_shift = build_net(d, hidden_dims, activation="relu")
-        self.grad_mask = None
 
     def forward(self, x, logpx=None, reverse=False):
 
@@ -80,9 +76,6 @@ class MaskedCouplingLayer(nn.Module):
 
         masked_scale = scale * (1 - self.mask) + torch.ones_like(scale) * self.mask
         masked_shift = shift * (1 - self.mask)
-
-        if self.mask is not None and x.requires_grad:
-            x.register_hook(lambda grad: grad * self.mask)
 
         logdetjac = torch.sum(torch.log(masked_scale).view(scale.shape[0], -1), 1, keepdim=True)
 

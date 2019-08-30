@@ -2,26 +2,24 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor, RandomHorizontalFlip, RandomVerticalFlip, RandomAffine, Compose
+from torchvision.transforms import ToTensor, RandomAffine, Compose
 from torchvision.utils import save_image
 
 from finn.data import LdColorizer
 from finn.data.datasets import LdAugmentedDataset
-from finn.models import build_conv_inn, build_discriminator, Classifier
-from finn.models.configs import fc_net, mp_28x28_net
+from finn.models import build_conv_inn, build_discriminator
 from finn.models.inn import SplitInn
 from finn.optimisation import parse_arguments, grad_reverse
-from finn.utils.optimizers import apply_gradients
 
 args = parse_arguments()
 args.learn_mask = True
 args.dataset = "cmnist"
 args.disc_hidden_dims = [512, 512]
 args.y_dim = 10
-args.depth = 4
+args.depth = 6
 args.zs_frac = 0.10
-args.lr = 1e-4
-args.disc_lr = 1e-3
+args.lr = 1e-3
+args.disc_lr = 3e-4
 args.log_prob_weight = 1e-3
 
 device = torch.device("cpu")
@@ -83,7 +81,7 @@ inn.model.eval()
 discriminator.train()
 
 print("===> Training Discriminator")
-for epoch in range(2):
+for epoch in range(0):
 
     print(f"===> Epoch {epoch}")
     avg_acc = 0
@@ -94,6 +92,7 @@ for epoch in range(2):
         discriminator.step()
 
         avg_acc += acc
+
     avg_acc /= len(data)
     print(avg_acc)
 
@@ -106,21 +105,28 @@ for epoch in range(100):
     print("===> Training INN")
     for x, s, y in data:
 
-        # (zy, zs), neg_log_prob = inn.routine(x)
-        # z = inn.unsplit_encoding(zy, zs)
-        z = inn.encode(x, partials=False)
+        (zy, zs), neg_log_prob = inn.routine(x)
+        z = inn.unsplit_encoding(zy, zs)
+
+        # z = inn.encode(x, partials=False)
         x_re, enc_y, enc_s = inn.decode(z.detach(), partials=True)
-        loss_enc_y, _ = discriminator.routine(grad_reverse(enc_y), s)
-        loss_enc_s, _ = discriminator.routine(enc_s, s)
+        loss_enc_y, acc = discriminator.routine(grad_reverse(enc_y), s)
+        # loss_enc_s, _ = discriminator.routine(enc_s, s)
 
         inn.optimizer.zero_grad()
         discriminator.zero_grad()
 
-        loss = loss_enc_s + loss_enc_y
+        loss = loss_enc_y + 1e-3 * neg_log_prob
         loss.backward()
         inn.optimizer.step()
         discriminator.step()
 
+        torch.nn.utils.clip_grad_norm_(
+            inn.model.parameters(), max_norm=5)
+        torch.nn.utils.clip_grad_norm_(
+            discriminator.parameters(), max_norm=5)
+
+        print(acc)
         save_image(x_re, filename="test_recon_x.png")
         save_image(enc_y, filename="test_recon_xy.png")
         save_image(enc_s, filename="test_recon_xs.png")
