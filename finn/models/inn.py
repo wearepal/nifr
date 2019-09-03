@@ -19,7 +19,7 @@ class PartitionedInn(BaseModel):
         self,
         args: Namespace,
         model: torch.nn.Module,
-        input_shape: Union[Tuple[int], List[int]],
+        input_shape: Sequence[int],
         feature_groups: Optional[List[slice]] = None,
         optimizer_args: dict = None,
     ) -> None:
@@ -74,21 +74,14 @@ class PartitionedInn(BaseModel):
 
     def compute_log_pz(self, z: Tensor) -> Tensor:
         """Log of the base probability: log(p(z))"""
-        if self.base_density == 'logistic':
-            locs = (-7, -4, 0, 2, 5)
-            scales = (0.5, 0.5, 0.5, 0.5, 0.5)
-            weights = (2, 3, 2, 1, 4)
-            log_pz = logistic_mixture_logprob(z, locs, scales, weights)
-        else:
-            log_pz = torch.distributions.Normal(0, 1).log_prob(z)
-
-        log_pz = log_pz.flatten(1).sum(1).view(z.size(0), 1)
+        log_pz = torch.distributions.Normal(0, 1).log_prob(z)
+        log_pz = log_pz.flatten(1).sum(1)
 
         return log_pz
 
     def neg_log_prob(self, z: Tensor, delta_logp: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        return -(log_pz - delta_logp).mean()
+        return -(log_pz - delta_logp.view(-1)).mean()
 
     def forward(
         self, inputs: Tensor, logdet: Tensor = None,
@@ -144,18 +137,9 @@ class SplitInn(PartitionedInn):
         return torch.cat([zy, zs], dim=1)
 
     def zero_mask(self, z):
-        with torch.set_grad_enabled(False):
-            ones = z.new_ones(self.zy_dim * z.size(2) * z.size(3))
-            zeros = z.new_zeros(self.zs_dim * z.size(2) * z.size(3))
-            mask = torch.cat([ones, zeros], dim=0)
-            mask = mask.view(*z.shape[1:])
-            # mask = mask[torch.randperm(mask.size(0))]
-            mask = mask.unsqueeze(0)
-            zy_m = mask * z
-            zs_m = (1 - mask) * z
-        # zy, zs = self.split_encoding(z)
-        # zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
-        # zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
+        zy, zs = self.split_encoding(z)
+        zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
+        zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
 
         return zy_m, zs_m
 
@@ -194,10 +178,10 @@ class SplitInn(PartitionedInn):
         """
         zero = data.new_zeros(data.size(0), 1)
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
-        neg_log_px = self.neg_log_prob(z, delta_logp)
-        z = self.split_encoding(z)
+        neg_log_prob = self.neg_log_prob(z, delta_logp)
+        # z = self.split_encoding(z)
 
-        return z, neg_log_px
+        return z, neg_log_prob
 
 
 class MaskedInn(PartitionedInn):
@@ -206,7 +190,7 @@ class MaskedInn(PartitionedInn):
         self,
         args: Namespace,
         model: torch.nn.Module,
-        input_shape: Union[Tuple[int], List[int]],
+        input_shape: Sequence[int],
         optimizer_args: dict = None,
         feature_groups: Optional[List[slice]] = None,
         masker_optimizer_args: dict = None
@@ -295,21 +279,9 @@ class MaskedInn(PartitionedInn):
             of the data under the model.
         """
         zero = data.new_zeros(data.size(0), 1)
-        mask = self.masker(threshold=threshold)
-        self.model.chain[-1].grad_mask = None
+
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
-        z_sg = z.detach()
-        zy = mask * z_sg
-        zs = (1 - mask) * z_sg
-
-        if z.requires_grad:
-            z.register_hook(lambda grad: grad * mask)
         neg_log_prob = self.neg_log_prob(z, delta_logp)
 
-        self.model.chain[-1].grad_mask = None
-
-        xy_pre = self.forward(zy, reverse=True)
-        xs_pre = self.forward(zs, reverse=True)
-
-        return (xy_pre, xs_pre), neg_log_prob
+        return z, neg_log_prob

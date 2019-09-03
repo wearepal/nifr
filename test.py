@@ -3,20 +3,31 @@
 import torch
 
 
-x = torch.arange(start=0, end=24)
-x = x.view(3, 4, 2)
-shape = x.shape
-x = x.view(x.size(0), 2, int(x.size(1) / 2), x.size(-1))
-x = x.permute(0, 2, 1, 3).contiguous()
-x = x.view(shape)
-print(x.view(-1))
+def _split(x, frac):
+    split_point = round(x.size(0) * frac)
+    return x.split(split_size=[x.size(0) - split_point, split_point], dim=0)
 
-x = x.view(x.size(0), int(x.size(1) / 2), 2, x.size(-1))
-x = x.permute(0, 2, 1, 3).contiguous()
-x = x.view(-1)
-print(x)
-# print(x)
-# x = x.view(2, -1).t().contiguous()
-# x = x.view(-1)
-# print(x)
 
+len_chain = 4
+inds = range(len_chain)
+splits = {1: 0.5, 2: 0.5, 3: 0.5}
+xs = []
+
+
+x = torch.arange(start=0, end=20)
+for i in inds:
+    if i in splits:
+        x_removed, x = _split(x, splits[i])
+        xs.append(x_removed)
+xs.append(x)
+x = torch.cat(xs, dim=0)
+
+inds = range(len_chain - 1, -1, -1)
+xs = {}
+for block_ind, frac in splits.items():
+    x_removed, x = _split(x, frac=frac)
+    xs[block_ind] = x_removed
+
+for i in inds:
+    if i in xs:
+        x = torch.cat([xs[i], x], dim=0)

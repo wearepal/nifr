@@ -47,7 +47,6 @@ class Classifier(BaseModel):
         )
 
     def apply_criterion(self, logits, targets):
-
         if self.criterion == "bce":
             if targets.dtype != torch.float32:
                 targets = targets.float()

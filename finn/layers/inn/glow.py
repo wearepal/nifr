@@ -10,7 +10,7 @@ from .layer_utils import InvertibleLayer
 class Invertible1x1Conv(InvertibleLayer):
     """Invertible 1x1 convolution"""
 
-    def __init__(self, num_channels, use_lr_decomp=True):
+    def __init__(self, num_channels, use_lr_decomp=False):
         super().__init__()
 
         self.num_channels = num_channels
@@ -31,7 +31,7 @@ class Invertible1x1Conv(InvertibleLayer):
             np_p, np_l, np_u = linalg.lu(np_w)
             np_s = np.diag(np_u)
             np_sign_s = np.sign(np_s)
-            np_log_s = np.log(abs(np_s))
+            np_log_s = np.log(np.abs(np_s))
             np_u = np.triu(np_u, k=1)
 
             self.register_buffer('p', torch.as_tensor(np_p))

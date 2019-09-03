@@ -40,7 +40,7 @@ def fc_net(input_dim, target_dim, hidden_dims=None):
     def fc_block(in_dim, out_dim):
         _block = []
         _block += [nn.Linear(in_dim, out_dim)]
-        _block += [nn.ReLU()]
+        _block += [nn.SELU()]
         return _block
 
     layers = [nn.Flatten()]

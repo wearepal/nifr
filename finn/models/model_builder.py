@@ -34,21 +34,23 @@ def build_conv_inn(args, input_dim):
 
     def _inv_block(_input_dim):
         chain = []
-        print(input_dim)
         if args.batch_norm:
             chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
         if args.glow:
-            chain += [layers.Invertible1x1Conv(_input_dim)]
+            chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=False)]
         chain += [layers.AffineCouplingLayer(_input_dim, hidden_dims)]
 
         return layers.SequentialFlow(chain)
 
     splits: dict = args.splits
-    for i in range(args.depth):
+    offset = len(chain)
+    splits = {k+offset: v for k, v in splits.items()}
+
+    for _ in range(args.depth):
         chain += [_inv_block(input_dim)]
-        if i in splits:
-            input_dim = round(splits[i] * input_dim)
-        print(input_dim)
+        if offset in splits:
+            input_dim = round(splits[offset] * input_dim)
+        offset += 1
 
     chain += [layers.Invertible1x1Conv(input_dim)]
 
