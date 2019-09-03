@@ -8,6 +8,15 @@ def restricted_float(x):
     return x
 
 
+class StoreDictKeyPair(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        my_dict = {}
+        for kv in values.split(","):
+            k, v = kv.split("=")
+            my_dict[k] = v
+        setattr(namespace, self.dest, my_dict)
+
+
 def parse_arguments(raw_args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', choices=['adult', 'cmnist', 'celeba'], default='cmnist')
@@ -34,6 +43,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=restricted_float, default=0,
                         help='fraction of current statistics to incorporate into moving average')
+    parser.add_argument('--splits', action=StoreDictKeyPair, nargs="+", default={})
     parser.add_argument('--disc-hidden-dims', nargs="*", type=int, default=[])
 
     parser.add_argument('--early-stopping', type=int, default=30)

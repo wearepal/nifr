@@ -1,6 +1,7 @@
 import numpy as np
 
 from finn import layers
+from finn.layers.inn import SplittingSequentialFlow
 from finn.models.classifier import Classifier
 
 
@@ -31,23 +32,27 @@ def build_conv_inn(args, input_dim):
     chain = [layers.SqueezeLayer(args.squeeze_factor)]
     input_dim = input_dim * args.squeeze_factor ** 2
 
-    def _inv_block():
+    def _inv_block(_input_dim):
         chain = []
+        print(input_dim)
         if args.batch_norm:
-            chain += [layers.MovingBatchNorm2d(input_dim, bn_lag=args.bn_lag)]
+            chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
         if args.glow:
-            chain += [layers.Invertible1x1Conv(input_dim)]
-        chain += [layers.AffineCouplingLayer(input_dim, hidden_dims)]
+            chain += [layers.Invertible1x1Conv(_input_dim)]
+        chain += [layers.AffineCouplingLayer(_input_dim, hidden_dims)]
 
         return layers.SequentialFlow(chain)
 
-    for _ in range(args.depth):
-        chain += [_inv_block()]
+    splits: dict = args.splits
+    for i in range(args.depth):
+        chain += [_inv_block(input_dim)]
+        if i in splits:
+            input_dim = round(splits[i] * input_dim)
+        print(input_dim)
 
     chain += [layers.Invertible1x1Conv(input_dim)]
-    chain += [layers.Invertible1x1Conv(input_dim)]
 
-    return layers.SequentialFlow(chain)
+    return SplittingSequentialFlow(chain, splits)
 
 
 def build_discriminator(args, input_shape, model_fn, model_kwargs,

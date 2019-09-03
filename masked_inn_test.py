@@ -21,6 +21,7 @@ args.disc_hidden_dims = [1024, 1024]
 args.y_dim = 10
 args.depth = 4
 args.zs_frac = 0.10
+args.splits = {0: 0.33, 1: 0.33, 2: 0.33, 3: 0.33}
 args.lr = 3e-4
 args.disc_lr = 1e-3
 
@@ -79,7 +80,7 @@ discriminator = build_discriminator(args,
 discriminator.to(device)
 
 print("===> Train Discriminator")
-for epoch in range(5):
+for epoch in range(0):
 
     print(f"===> Epoch {epoch}")
     discriminator.train()

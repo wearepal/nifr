@@ -17,9 +17,10 @@ args.dataset = "cmnist"
 args.disc_hidden_dims = [512, 512]
 args.y_dim = 10
 args.depth = 6
+args.splits = {0: 0.50, 1: 0.50, 2: 0.50, 3: 0.50}
 args.zs_frac = 0.10
-args.lr = 1e-3
-args.disc_lr = 3e-4
+args.lr = 3e-4
+args.disc_lr = 1e-3
 args.log_prob_weight = 1e-3
 
 device = torch.device("cpu")
@@ -100,7 +101,7 @@ for epoch in range(0):
 inn.model.train()
 discriminator.train()
 
-for epoch in range(100):
+for epoch in range(10):
 
     print("===> Training INN")
     for x, s, y in data:
@@ -116,15 +117,15 @@ for epoch in range(100):
         inn.optimizer.zero_grad()
         discriminator.zero_grad()
 
-        loss = loss_enc_y + 1e-3 * neg_log_prob
+        loss = loss_enc_y + 1e-2 * neg_log_prob
         loss.backward()
         inn.optimizer.step()
         discriminator.step()
 
         torch.nn.utils.clip_grad_norm_(
-            inn.model.parameters(), max_norm=5)
+            inn.model.parameters(), max_norm=1)
         torch.nn.utils.clip_grad_norm_(
-            discriminator.parameters(), max_norm=5)
+            discriminator.parameters(), max_norm=1)
 
         print(acc)
         save_image(x_re, filename="test_recon_x.png")
