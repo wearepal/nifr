@@ -180,7 +180,7 @@ def grouped_features_indexes(disc_feats):
     start_idx = 0
     for _, group in group_iter:
         len_group = len(list(group))
-        indexes = slice(start_idx, len_group)
+        indexes = slice(start_idx, start_idx + len_group)
         feature_slices.append(indexes)
         start_idx += len_group
 

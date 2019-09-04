@@ -30,7 +30,7 @@ def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
 def build_conv_inn(args, input_dim):
     hidden_dims = tuple(map(int, args.dims.split("-")))
     chain = [layers.SqueezeLayer(args.squeeze_factor)]
-    input_dim = input_dim * args.squeeze_factor ** 2
+    input_dim_0 = input_dim * args.squeeze_factor ** 2
 
     def _inv_block(_input_dim):
         chain = []
@@ -46,15 +46,20 @@ def build_conv_inn(args, input_dim):
     offset = len(chain)
     splits = {k+offset: v for k, v in splits.items()}
 
+    input_dim = input_dim_0
     for _ in range(args.depth):
         chain += [_inv_block(input_dim)]
         if offset in splits:
             input_dim = round(splits[offset] * input_dim)
         offset += 1
 
-    chain += [layers.Invertible1x1Conv(input_dim)]
+    model = SplittingSequentialFlow(chain, splits)
+    model = layers.SequentialFlow([
+        model,
+        layers.Invertible1x1Conv(input_dim_0, use_lr_decomp=False)
+    ])
 
-    return SplittingSequentialFlow(chain, splits)
+    return model
 
 
 def build_discriminator(args, input_shape, model_fn, model_kwargs,

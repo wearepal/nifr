@@ -12,7 +12,7 @@ from finn.data.misc import shrink_dataset
 from .adult import load_adult_data
 
 
-class DatasetTuple(NamedTuple):
+class DatasetTriplet(NamedTuple):
     pretrain: Optional[Dataset]
     task: Dataset
     task_train: Dataset
@@ -20,7 +20,7 @@ class DatasetTuple(NamedTuple):
     output_dim: Optional[int]
 
 
-def load_dataset(args) -> DatasetTuple:
+def load_dataset(args) -> DatasetTriplet:
     assert args.pretrain
 
     # =============== get whole dataset ===================
@@ -75,7 +75,7 @@ def load_dataset(args) -> DatasetTuple:
             train_data.shrink(args.data_pcnt)
             test_data.shrink(args.data_pcnt)
 
-    return DatasetTuple(
+    return DatasetTriplet(
         pretrain=pretrain_data,
         task=test_data,
         task_train=train_data,

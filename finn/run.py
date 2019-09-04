@@ -10,7 +10,7 @@ import torch
 from ethicml.algorithms.inprocess.logistic_regression import LR
 from torch.utils.data import DataLoader
 
-from finn.data import DatasetTuple, get_data_tuples, load_dataset
+from finn.data import DatasetTriplet, get_data_tuples, load_dataset
 from finn.optimisation.evaluate import evaluate, encode_dataset
 from finn.optimisation.train import main as training_loop
 from finn.optimisation.training_config import parse_arguments
@@ -50,7 +50,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
     print("===> Predict s from xy")
     evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 
-    repr = DatasetTuple(
+    repr = DatasetTriplet(
         pretrain=None,
         task=task_repr,
         task_train=task_train_repr,
@@ -64,7 +64,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
 
         if args.dataset == 'adult':
             task_data, task_train_data = get_data_tuples(data.task, data.task_train)
-            data = DatasetTuple(
+            data = DatasetTriplet(
                 pretrain=None,
                 task=task_data,
                 task_train=task_train_data,

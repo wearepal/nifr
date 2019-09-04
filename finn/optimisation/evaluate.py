@@ -12,7 +12,7 @@ from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility.data_structures import DataTuple
 from torch.utils.data import DataLoader
 
-from finn.data import DatasetTuple, get_data_tuples
+from finn.data import DatasetTriplet, get_data_tuples
 from finn.data.datasets import TripletDataset
 from finn.data.misc import data_tuple_to_dataset
 from finn.models.classifier import Classifier

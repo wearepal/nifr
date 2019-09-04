@@ -6,6 +6,7 @@ import torch
 import torch.distributions as td
 from torch import Tensor
 
+from finn.utils import to_discrete
 from finn.utils.distributions import logistic_mixture_logprob
 from .base import BaseModel
 from .masker import Masker
@@ -60,9 +61,10 @@ class PartitionedInn(BaseModel):
     def invert(self, z, discretize: bool = True) -> Tensor:
         x = self.forward(z, reverse=True)
 
-        # if discretize and self.feature_groups:
-        #     for group_slice in self.feature_groups["discrete"]:
-        #         x[:, group_slice] = to_one_hot(x[:, group_slice])
+        if discretize and self.feature_groups:
+            for group_slice in self.feature_groups["discrete"]:
+                one_hot = to_discrete(x[:, group_slice])
+                x[:, group_slice] = one_hot
 
         return x
 
@@ -157,11 +159,11 @@ class SplitInn(PartitionedInn):
     def decode(
         self, z: Tensor, partials: bool = True, discretize: bool = True
     ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
-        x = super().decode(z)
+        x = super().decode(z, discretize=discretize)
         if partials:
             zy_m, zs_m = self.zero_mask(z)
-            xy = super().decode(zy_m)
-            xs = super().decode(zs_m)
+            xy = super().decode(zy_m, discretize=discretize)
+            xs = super().decode(zs_m, discretize=discretize)
 
             return x, xy, xs
         else:

@@ -8,5 +8,5 @@ from .utils import (
     count_parameters,
     inf_generator,
     save_checkpoint,
-    to_one_hot,
+    to_discrete,
 )

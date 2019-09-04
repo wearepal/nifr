@@ -1,6 +1,7 @@
 import os
 import math
 from numbers import Number
+import torch.nn.functional as F
 import torch.distributions as td
 import logging
 import torch
@@ -9,10 +10,12 @@ import torch
 LOGGER = None
 
 
-def to_one_hot(inputs, softmax=True):
-    if softmax:
-        inputs = inputs.softmax(dim=1)
-    return td.OneHotCategorical(inputs).sample()
+def to_discrete(inputs, dim=1):
+    if inputs.dim() <= 1 or inputs.size(1) <= 1:
+        return inputs.round()
+    else:
+        argmax = inputs.argmax(dim=1)
+        return F.one_hot(argmax, num_classes=inputs.size(1))
 
 
 class RoundSTE(torch.autograd.Function):
