@@ -8,9 +8,10 @@ from torchvision.utils import save_image
 from finn.data import LdColorizer
 from finn.data.datasets import LdAugmentedDataset
 from finn.models import build_conv_inn, build_discriminator
-from finn.models.configs import fc_net
-from finn.models.inn import SplitInn
+from finn.models.configs import fc_net, mp_28x28_net
+from finn.models.inn import BipartiteInn
 from finn.optimisation import parse_arguments, grad_reverse
+from finn.optimisation.misc import contrastive_gradient_penalty
 
 args = parse_arguments()
 args.dataset = "cmnist"
@@ -23,115 +24,140 @@ def to_device(device, *tensors):
     for tensor in tensors:
         yield tensor.to(device)
 
+
 transforms = [
-    RandomAffine(translate=(0.1, 0.1), degrees=(15, 15)),
+    # RandomAffine(translate=(0.1, 0.1), degrees=(15, 15)),
     ToTensor()
 ]
 transforms = Compose(transforms)
 
 mnist = MNIST(root="data", train=True, download=True, transform=transforms)
-mnist, _ = random_split(mnist, lengths=(1000, 59000))
+mnist, _ = random_split(mnist, lengths=(50000, 10000))
 colorizer = LdColorizer(scale=0.0, black=True, background=False)
 data = LdAugmentedDataset(mnist, ld_augmentations=colorizer, n_labels=10, li_augmentation=True)
-data = DataLoader(data, batch_size=100, pin_memory=True)
+data = DataLoader(data, batch_size=256, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
 
 args.depth = 10
-args.splits = {3: 0.5, 5: 0.5, 7: 0.5}
+args.coupling_dims = 512
+args.coupling_depth = 3
+
+args.splits = {4: 0.74, 7: 0.75}
 args.zs_frac = 0.04
 args.lr = 3e-4
-args.disc_lr = 1e-3
-args.learn_mask = True
-args.batch_norm = False
+args.disc_lr = 3e-4
+args.train_on_recon = False
+args.glow = True
+args.batch_norm = True
 
-inn = build_conv_inn(args, input_shape[0])
-inn: SplitInn = SplitInn(args, input_shape=input_shape, model=inn)
+model = build_conv_inn(args, input_shape[0])
+inn: BipartiteInn = BipartiteInn(args, input_shape=input_shape, model=model)
 inn.to(device)
 
 
-def disc_net(input_dim, target_dim):
-    layers = []
+def convnet(input_dim, target_dim):
 
-    layers += [nn.Conv2d(input_dim, 64, kernel_size=3, stride=1, padding=1)]
-    layers += [nn.MaxPool2d(2, 2)]
-    layers += [nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)]
-    layers += [nn.MaxPool2d(2, 2)]
-    layers += [nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)]
-    layers += [nn.MaxPool2d(2, 2)]
-    layers += [nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1)]
-
-    layers += [nn.AdaptiveAvgPool2d(1)]
-    layers += [nn.Flatten()]
-    layers += [nn.Linear(512, 512)]
-    layers += [nn.Linear(512, target_dim)]
-
-    return nn.Sequential(*layers)
+    def _block(in_channels, out_channels):
+        block = [
+            nn.Conv2d(in_channels, out_channels, kernel_size=3,
+                      stride=1, padding=1),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        ]
 
 
 disc_kwargs = {}
 disc_optimizer_args = {'lr': args.disc_lr}
 
-args.disc_hidden_dims = [2048, 2048]
+args.disc_hidden_dims = [1024, 1024]
 discriminator = build_discriminator(args,
-                                    (inn.zy_dim, 7, 7),
-                                    fc_net,
-                                    disc_kwargs,
+                                    input_shape,
+                                    frac_enc=1 - args.zs_frac,
+                                    model_fn=fc_net,
+                                    model_kwargs=disc_kwargs,
                                     flatten=True,
                                     optimizer_args=disc_optimizer_args)
+# discriminator = build_discriminator(args,
+#                                     input_shape,
+#                                     frac_enc=1 - args.zs_frac,
+#                                     model_fn=mp_28x28_net,
+#                                     model_kwargs=disc_kwargs,
+#                                     flatten=False,
+#                                     optimizer_args=disc_optimizer_args)
 discriminator.to(device)
 
-# Training routine
-inn.model.eval()
-discriminator.train()
+mod_steps = 1
 
-print("===> Training Discriminator")
-for epoch in range(0):
+for epoch in range(1000):
 
-    print(f"===> Epoch {epoch}")
-    avg_acc = 0
-    for x, s, y in data:
-        x, s, y = to_device(device, x, s, y)
-        loss, acc = discriminator.routine(x, s)
-        discriminator.zero_grad()
-        loss.backward()
-        discriminator.step()
+    print(f"===> Epoch {epoch} of training")
 
-        avg_acc += acc
+    inn.model.train()
+    discriminator.train()
+    train_inn = True
 
-    avg_acc /= len(data)
-    print(avg_acc)
-
-
-inn.model.train()
-discriminator.train()
-
-for epoch in range(100):
-
-    print(f"===> Epoch {epoch} of INN training")
-    saved = False
-
-    for x, s, y in data:
+    for i, (x, s, y) in enumerate(data):
         x, s, y = to_device(device, x, s, y)
 
-        z, neg_log_prob = inn.routine(x)
-        zy, zs = inn.split_encoding(z)
+        if train_inn:
+            enc, nll = inn.routine(x)
 
-        loss_enc_y, acc = discriminator.routine(grad_reverse(zy), s)
+            enc_y, enc_s = inn.split_encoding(enc)
+            # enc_y = inn.invert(torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1))
+            #
+            loss_enc_y, acc = discriminator.routine(grad_reverse(enc_y), s)
+            # gp = contrastive_gradient_penalty(input=enc_y, network=discriminator)
 
-        inn.optimizer.zero_grad()
-        discriminator.zero_grad()
+            inn.optimizer.zero_grad()
+            discriminator.zero_grad()
+
+            nll *= 1e-2
+            loss = nll
+            # if epoch > 0:
+            loss += loss_enc_y
+
+            loss.backward()
+
+            inn.optimizer.step()
+            discriminator.step()
+
+            if i % 10 == 0:
+                print(f"NLL: {nll:.4f}")
+                print(f"Adv Loss: {loss_enc_y:.4f}")
+
+                with torch.set_grad_enabled(False):
+                    enc = inn.encode(x, partials=False)
+                    x_recon, xy, xs = inn.decode(enc, partials=True)
+                    save_image(x_recon[:64], filename="cmnist_recon_x.png")
+                    save_image(xy[:64], filename="cmnist_recon_xy.png")
+                    save_image(xs[:64], filename="cmnist_recon_xs.png")
+
+            inn.model.eval()
+            discriminator.train()
+
+        # else:
+        #     x, s, y = to_device(device, x, s, y)
         #
-        loss = loss_enc_y + 1e-2 * neg_log_prob
-        loss.backward()
+        #     enc = inn.encode(x)
+        #     enc_y, enc_s = inn.split_encoding(enc)
+        #
+        #     loss_enc_y, acc = discriminator.routine(grad_reverse(enc_y), s)
+        #
+        #     discriminator.zero_grad()
+        #
+        #     loss = loss_enc_y
+        #     loss.backward()
+        #
+        #     discriminator.step()
 
-        inn.optimizer.step()
-        discriminator.step()
-
-        if not saved:
-            with torch.set_grad_enabled(False):
-                x_recon, xy, xs = inn.decode(z, partials=True)
-                save_image(x_recon, filename="test_recon_x.png")
-                save_image(xy, filename="test_recon_xy.png")
-                save_image(xs, filename="test_recon_xs.png")
-                saved = True
+        # if i % mod_steps == 0:
+        #     train_inn = not train_inn
+        #     if train_inn:
+        #         print("===> Training INN")
+        #         inn.train()
+        #         discriminator.eval()
+        #     else:
+        #         print("===> Training Discriminator")
+        #         inn.eval()
+        #         discriminator.train()

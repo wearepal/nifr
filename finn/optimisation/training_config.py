@@ -38,7 +38,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--base-density', type=str, default='normal', choices=['logistic', 'normal'])
     parser.add_argument('--squeeze-factor', type=int, default=4)
     parser.add_argument('--depth', type=int, default=10)
-    parser.add_argument('--dims', type=str, default="100-100")
+    parser.add_argument('--coupling-dims', type=int, default=100)
+    parser.add_argument('--coupling-depth', type=int, default=1)
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=restricted_float, default=0,
@@ -65,9 +66,9 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--log-freq', type=int, default=10)
 
     parser.add_argument('--zs-frac', type=float, default=0.33)
-    parser.add_argument('--learn-mask', type=eval, default=True, choices=[True, False],
-                        help='whether to learn a mask over the encoding instead of'
-                             'using fixed-sized partitions.')
+    parser.add_argument('-train_on_recon', type=eval, default=False, choices=[True, False],
+                        help='whether to train the discriminator on the reconstructions'
+                             'of the encodings.')
     parser.add_argument('--masker-lr', type=float, default=1e-3)
     parser.add_argument('--masker-weight-decay', type=float, default=0)
     parser.add_argument('--log-prob-weight', type=float, default=1.0e-3)

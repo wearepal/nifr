@@ -37,7 +37,7 @@ class MovingBatchNormNd(InvertibleLayer):
             self.weight.data.zero_()
             self.bias.data.zero_()
 
-    def _forward(self, x, logpx=None):
+    def _forward(self, x, sum_logdet=None):
         c = x.size(1)
         used_mean = self.running_mean.clone().detach()
         used_var = self.running_var.clone().detach()
@@ -71,12 +71,12 @@ class MovingBatchNormNd(InvertibleLayer):
             bias = self.bias.view(*self.shape).expand_as(x)
             y = y * torch.exp(weight) + bias
 
-        if logpx is None:
+        if sum_logdet is None:
             return y
         else:
-            return y, logpx - self._logdetgrad(x, used_var).view(x.size(0), -1).sum(1, keepdim=True)
+            return y, sum_logdet - self._logdetgrad(x, used_var).view(x.size(0), -1).sum(1, keepdim=True)
 
-    def _reverse(self, y, logpy=None):
+    def _inverse(self, y, logpy=None):
         used_mean = self.running_mean
         used_var = self.running_var
 

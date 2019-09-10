@@ -72,30 +72,30 @@ class Invertible1x1Conv(InvertibleLayer):
             dlogdet = self.log_s.sum() * (x.size(2) * x.size(3))
         return dlogdet
 
-    def _forward(self, x, logpx=None):
+    def _forward(self, x, sum_logdet=None):
 
         w = self.get_w(reverse=False)
         output = F.conv2d(x, w)
 
-        if logpx is None:
+        if sum_logdet is None:
             return output
         else:
             dlogdet = self.dlogdet(x)
-            logpx -= dlogdet
-            return output, logpx
+            sum_logdet -= dlogdet
+            return output, sum_logdet
 
-    def _reverse(self, x, logpx=None):
+    def _inverse(self, x, sum_logdet=None):
 
         weight_inv = self.get_w(reverse=True)
 
         output = F.conv2d(x, weight_inv)
 
-        if logpx is None:
+        if sum_logdet is None:
             return output
         else:
             dlogdet = self.dlogdet(x)
-            logpx += dlogdet
-            return output, logpx
+            sum_logdet += dlogdet
+            return output, sum_logdet
 
 
 class InvertibleLinear(nn.Module):

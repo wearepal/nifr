@@ -1,5 +1,7 @@
 from argparse import Namespace
 from typing import Tuple, Union, List, Optional, Sequence
+
+import math
 import numpy as np
 
 import torch
@@ -12,7 +14,7 @@ from .base import BaseModel
 from .masker import Masker
 
 
-class PartitionedInn(BaseModel):
+class FactorInn(BaseModel):
     """ Base wrapper class for INN models.
     """
 
@@ -37,7 +39,8 @@ class PartitionedInn(BaseModel):
         """
         self.input_shape = input_shape
         self.feature_groups = feature_groups
-        self.base_density: str = args.base_density
+
+        self.base_density: td.Distribution = td.Normal(0, 1)
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 
@@ -76,14 +79,13 @@ class PartitionedInn(BaseModel):
 
     def compute_log_pz(self, z: Tensor) -> Tensor:
         """Log of the base probability: log(p(z))"""
-        log_pz = torch.distributions.Normal(0, 1).log_prob(z)
-        log_pz = log_pz.flatten(1).sum(1)
-
+        log_pz = self.base_density.log_prob(z)
         return log_pz
 
-    def neg_log_prob(self, z: Tensor, delta_logp: Tensor) -> Tensor:
+    def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        return -(log_pz - delta_logp.view(-1)).mean()
+        nll = -(log_pz.sum() - sum_logdet.sum()) / z.size(0)
+        return nll
 
     def forward(
         self, inputs: Tensor, logdet: Tensor = None,
@@ -94,7 +96,7 @@ class PartitionedInn(BaseModel):
         return outputs
 
 
-class SplitInn(PartitionedInn):
+class BipartiteInn(FactorInn):
     """ Wrapper for classifier models.
     """
 
@@ -126,7 +128,7 @@ class SplitInn(PartitionedInn):
             feature_groups=feature_groups
         )
 
-        self.zs_dim = int(args.zs_frac * self.output_shape[0])
+        self.zs_dim = round(args.zs_frac * self.output_shape[0])
         self.zy_dim = self.output_shape[0] - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
@@ -146,7 +148,7 @@ class SplitInn(PartitionedInn):
         return zy_m, zs_m
 
     def encode(
-        self, data: Tensor, partials: bool = True
+        self, data: Tensor, partials: bool = False
     ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         z = self.forward(data, reverse=False)
 
@@ -157,7 +159,7 @@ class SplitInn(PartitionedInn):
             return z
 
     def decode(
-        self, z: Tensor, partials: bool = True, discretize: bool = True
+        self, z: Tensor, partials: bool = True, discretize: bool = False
     ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         x = super().decode(z, discretize=discretize)
         if partials:
@@ -169,7 +171,7 @@ class SplitInn(PartitionedInn):
         else:
             return x
 
-    def routine(self, data: torch.Tensor) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+    def routine(self, data: torch.Tensor) -> Tuple[Tensor, Tensor]:
         """Training routine for the Split INN.
 
         Args:
@@ -179,14 +181,13 @@ class SplitInn(PartitionedInn):
             Tuple of classification loss (Tensor) and accuracy (float)
         """
         zero = data.new_zeros(data.size(0), 1)
-        z, delta_logp = self.forward(data, logdet=zero, reverse=False)
-        neg_log_prob = self.neg_log_prob(z, delta_logp)
-        # z = self.split_encoding(z)
+        z, sum_logdet = self.forward(data, logdet=zero, reverse=False)
+        nll = self.nll(z, sum_logdet)
 
-        return z, neg_log_prob
+        return z, nll
 
 
-class MaskedInn(PartitionedInn):
+class MaskedInn(FactorInn):
 
     def __init__(
         self,
@@ -284,6 +285,6 @@ class MaskedInn(PartitionedInn):
 
         z, delta_logp = self.forward(data, logdet=zero, reverse=False)
 
-        neg_log_prob = self.neg_log_prob(z, delta_logp)
+        neg_log_prob = self.nll(z, delta_logp)
 
         return z, neg_log_prob

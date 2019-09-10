@@ -8,14 +8,14 @@ class InvertibleLayer(nn.Module):
 
     def forward(self, x, logpx=None, reverse=False):
         if reverse:
-            return self._reverse(x, logpx)
+            return self._inverse(x, logpx)
         else:
             return self._forward(x, logpx)
 
     @abstractmethod
-    def _forward(self, x, logpx=None):
+    def _forward(self, x, sum_logdet=None):
         """Forward pass"""
 
     @abstractmethod
-    def _reverse(self, x, logpx=None):
+    def _inverse(self, x, sum_logdet=None):
         """Reverse pass"""

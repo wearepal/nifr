@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
-from finn.models.inn import MaskedInn, PartitionedInn, SplitInn
+from finn.models.inn import MaskedInn, FactorInn, BipartiteInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
 from .misc import grad_reverse
 from .training_utils import (
@@ -81,7 +81,7 @@ def train(model, discriminator, dataloader, epoch):
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
         print(disc_acc)
 
-        if ARGS.learn_mask:
+        if args.train_on_recon:
             disc_loss += discriminator.routine(enc_s, s)[0]
 
         neg_log_prob *= ARGS.log_prob_weight
@@ -92,7 +92,7 @@ def train(model, discriminator, dataloader, epoch):
         model.zero_grad()
         discriminator.zero_grad()
 
-        if ARGS.learn_mask:
+        if args.train_on_recon:
             inn_grads = torch.autograd.grad(loss, model.model.parameters(), create_graph=True)
             masker_grads = torch.autograd.grad(inn_grads, model.masker.parameters(),
                                                retain_graph=True,
@@ -157,7 +157,7 @@ def validate(model, discriminator, val_loader):
             (enc_y, enc_s), neg_log_prob = model.routine(x_val)
             disc_loss, acc = discriminator.routine(enc_y, s_val)
 
-            if ARGS.learn_mask:
+            if args.train_on_recon:
                 disc_loss += discriminator.routine(enc_s, s_val)[0]
 
             neg_log_prob *= ARGS.log_prob_weight
@@ -215,7 +215,7 @@ def train_masker(model, discriminator, dataloader, epoch):
 
         masker_loss = neg_log_prob - disc_loss
 
-        if ARGS.learn_mask:
+        if args.train_on_recon:
             disc_loss_2 = discriminator.routine(enc_s, s)[0]
             disc_loss += disc_loss_2
             masker_loss += disc_loss_2
@@ -276,13 +276,13 @@ def main(args, datasets, metric_callback):
     if hasattr(datasets.pretrain, "feature_groups"):
         feature_groups = datasets.pretrain.feature_groups
 
-    if args.learn_mask:
+    if args.train_on_recon:
         Module = MaskedInn
     else:
-        Module = SplitInn
+        Module = BipartiteInn
     if len(input_shape) > 2:
         model = build_conv_inn(args, input_shape[0])
-        if args.learn_mask:
+        if args.train_on_recon:
             disc_fn = mp_28x28_net
             disc_kwargs = {}
         else:
@@ -301,7 +301,7 @@ def main(args, datasets, metric_callback):
         'optimizer_args': optimizer_args,
         'feature_groups': feature_groups,
     }
-    if args.learn_mask:
+    if args.train_on_recon:
         masker_optimizer_args = {
             'lr': args.masker_lr,
             'weight_decay': args.masker_weight_decay
@@ -309,7 +309,7 @@ def main(args, datasets, metric_callback):
         model_args['masker_optimizer_args'] = masker_optimizer_args
 
     # Initialise INN
-    model: PartitionedInn = Module(**model_args)
+    model: FactorInn = Module(**model_args)
     model.to(args.device)
     # Initialise Discriminator
     disc_optimizer_args = {'lr': args.disc_lr}
@@ -317,7 +317,7 @@ def main(args, datasets, metric_callback):
                                         input_shape,
                                         disc_fn,
                                         disc_kwargs,
-                                        flatten=not args.learn_mask,
+                                        flatten=not args.train_on_recon,
                                         optimizer_args=disc_optimizer_args)
     discriminator.to(args.device)
     # Save initial parameters
@@ -332,7 +332,7 @@ def main(args, datasets, metric_callback):
     # Logging
     SUMMARY.set_model_graph(str(model))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
-    if args.learn_mask:
+    if args.train_on_recon:
         with torch.set_grad_enabled(False):
             mask = model.masker(threshold=True)
             zs_dim = (1 - mask).sum() / mask.nelement()
@@ -354,7 +354,7 @@ def main(args, datasets, metric_callback):
                 epoch,
             )
 
-            if args.learn_mask:
+            if args.train_on_recon:
                 with torch.set_grad_enabled(False):
                     mask = model.masker(threshold=True)
                     zs_dim = (1 - mask).sum() / mask.nelement()

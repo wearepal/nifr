@@ -9,23 +9,23 @@ class InvFlatten(InvertibleLayer):
         super(InvFlatten, self).__init__()
         self.orig_shape = None
 
-    def _forward(self, x, logpx=None, reverse=False):
+    def _forward(self, x, sum_logdet=None, reverse=False):
         self.orig_shape = x.shape
 
         y = x.flatten(start_dim=1)
 
-        if logpx is None:
+        if sum_logdet is None:
             return y
         else:
-            return y, logpx
+            return y, sum_logdet
 
-    def _reverse(self, x, logpx=None):
+    def _inverse(self, x, sum_logdet=None):
         y = x.view(self.orig_shape)
 
-        if logpx is None:
+        if sum_logdet is None:
             return y
         else:
-            return y, logpx
+            return y, sum_logdet
 
 
 class Exp(nn.Module):

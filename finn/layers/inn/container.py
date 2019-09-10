@@ -29,7 +29,7 @@ class SequentialFlow(nn.Module):
             return x, logpx
 
 
-class SplittingSequentialFlow(nn.Module):
+class FactorOutSequentialFlow(nn.Module):
     """A generalized nn.Sequential container for normalizing flows
     with splitting.
     """

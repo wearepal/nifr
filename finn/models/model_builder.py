@@ -1,7 +1,7 @@
 import numpy as np
 
 from finn import layers
-from finn.layers.inn import SplittingSequentialFlow
+from finn.layers.inn import FactorOutSequentialFlow
 from finn.models.classifier import Classifier
 
 
@@ -20,7 +20,10 @@ def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
         if args.glow and args.dataset == 'adult':
             chain += [layers.InvertibleLinear(input_dim)]
-        chain += [layers.MaskedCouplingLayer(input_dim, hidden_dims, 'alternate', swap=i % 2 == 0)]
+        chain += [layers.MaskedCouplingLayer(input_dim,
+                                             hidden_dims,
+                                             'alternate',
+                                             swap=(i % 2 == 0)) and not args.glow]
 
     chain += [layers.InvertibleLinear(input_dim)]
 
@@ -28,7 +31,8 @@ def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
 
 
 def build_conv_inn(args, input_dim):
-    hidden_dims = tuple(map(int, args.dims.split("-")))
+    hidden_dims = args.coupling_dims
+    coupling_depth = args.coupling_depth
     chain = [layers.SqueezeLayer(args.squeeze_factor)]
     input_dim_0 = input_dim * args.squeeze_factor ** 2
 
@@ -37,8 +41,11 @@ def build_conv_inn(args, input_dim):
         if args.batch_norm:
             chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
         if args.glow:
-            chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=False)]
-        chain += [layers.AffineCouplingLayer(_input_dim, hidden_dims)]
+            chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
+        chain += [layers.CouplingLayer(_input_dim,
+                                       hidden_channels=hidden_dims,
+                                       depth=coupling_depth,
+                                       swap=False)]
 
         return layers.SequentialFlow(chain)
 
@@ -53,26 +60,26 @@ def build_conv_inn(args, input_dim):
             input_dim = round(splits[offset] * input_dim)
         offset += 1
 
-    model = SplittingSequentialFlow(chain, splits)
+    model = FactorOutSequentialFlow(chain, splits)
     model = layers.SequentialFlow([
         model,
-        layers.Invertible1x1Conv(input_dim_0, use_lr_decomp=False)
+        layers.Invertible1x1Conv(input_dim_0, use_lr_decomp=True)
     ])
 
     return model
 
 
-def build_discriminator(args, input_shape, model_fn, model_kwargs,
+def build_discriminator(args, input_shape, frac_enc,
+                        model_fn, model_kwargs,
                         flatten, optimizer_args=None):
 
     in_dim = input_shape[0]
 
     if len(input_shape) > 2:
         h, w = input_shape[1:]
-        if not args.learn_mask:
+        if not args.train_on_recon:
             in_dim *= args.squeeze_factor ** 2
-            zs_dim = int(args.zs_frac * in_dim)
-            in_dim = in_dim - zs_dim
+            in_dim = round(frac_enc * in_dim)
             h //= args.squeeze_factor
             w //= args.squeeze_factor
         if flatten:
