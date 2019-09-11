@@ -32,7 +32,6 @@ def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
 
 def build_conv_inn(args, input_dim):
     hidden_dims = args.coupling_dims
-    coupling_depth = args.coupling_depth
     chain = [layers.SqueezeLayer(args.squeeze_factor)]
     input_dim_0 = input_dim * args.squeeze_factor ** 2
 
@@ -44,7 +43,6 @@ def build_conv_inn(args, input_dim):
             chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
         chain += [layers.CouplingLayer(_input_dim,
                                        hidden_channels=hidden_dims,
-                                       depth=coupling_depth,
                                        swap=False)]
 
         return layers.SequentialFlow(chain)
