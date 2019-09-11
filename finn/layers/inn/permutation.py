@@ -35,28 +35,36 @@ class Permutation(Bijector):
 
         return outputs
 
-    def _forward(self, inputs, sum_logdetjac=None):
+    def _forward(self, inputs, sum_ldj=None):
         y = self._permute(inputs, self._permutation, self._dim)
-        return y, sum_logdetjac
 
-    def _inverse(self, inputs, sum_logdetjac=None):
+        if sum_ldj is None:
+            return y
+        else:
+            return y, sum_ldj
+
+    def _inverse(self, inputs, sum_ldj=None):
         y = self._permute(inputs, self._inverse_permutation, self._dim)
-        return y, sum_logdetjac
+
+        if sum_ldj is None:
+            return y
+        else:
+            return y, sum_ldj
 
 
 class RandomPermutation(Permutation):
     """Permutes using a random, but fixed, permutation. Only works with 1D inputs."""
 
-    def __init__(self, features, dim=1):
-        if not is_positive_int(features):
+    def __init__(self, in_channels, dim=1):
+        if not is_positive_int(in_channels):
             raise ValueError('Number of features must be a positive integer.')
-        super().__init__(torch.randperm(features), dim)
+        super().__init__(torch.randperm(in_channels), dim)
 
 
 class ReversePermutation(Permutation):
     """Reverses the elements of the input. Only works with 1D inputs."""
 
-    def __init__(self, features, dim=1):
-        if not is_positive_int(features):
+    def __init__(self, in_channels, dim=1):
+        if not is_positive_int(in_channels):
             raise ValueError('Number of features must be a positive integer.')
-        super().__init__(torch.arange(features - 1, -1, -1), dim)
+        super().__init__(torch.arange(in_channels - 1, -1, -1), dim)

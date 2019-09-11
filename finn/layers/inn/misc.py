@@ -1,6 +1,3 @@
-import torch
-import torch.nn as nn
-
 from finn.layers.inn.bijector import Bijector
 
 
@@ -8,6 +5,9 @@ class Flatten(Bijector):
     def __init__(self):
         super(Flatten, self).__init__()
         self.orig_shape = None
+
+    def logdetjac(self):
+        return 0
 
     def _forward(self, x, sum_logdet=None, reverse=False):
         self.orig_shape = x.shape
@@ -26,15 +26,3 @@ class Flatten(Bijector):
             return y
         else:
             return y, sum_ldj
-
-
-class Exp(nn.Module):
-    """
-    a custom module for exponentiation of tensors
-    """
-
-    def __init__(self):
-        super(Exp, self).__init__()
-
-    def forward(self, val):
-        return torch.exp(val)

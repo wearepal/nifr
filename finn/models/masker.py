@@ -41,9 +41,3 @@ class Masker(nn.Module):
             out = RoundSTE.apply(out)
 
         return out
-
-
-if __name__ == '__main__':
-    masker = Masker((48, 7, 7), prob_1=0.9)
-    mask = masker(threshold=True)
-    print(mask.mean())

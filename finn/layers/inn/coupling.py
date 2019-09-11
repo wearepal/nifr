@@ -3,6 +3,7 @@ import torch.nn as nn
 
 from finn.layers.inn.bijector import Bijector
 from finn.layers.conv import BottleneckConvBlock
+from finn.utils import RoundSTE
 
 
 class AffineCouplingLayer(Bijector):
@@ -18,24 +19,24 @@ class AffineCouplingLayer(Bijector):
     def logdetjac(self, scale):
         return torch.sum(scale.log().view(scale.size(0), -1), 1, keepdim=True)
 
-    def _forward(self, x, sum_logdet=None):
+    def _get_scale_and_shift_params(self, x):
         s_t = self.net_s_t(x[:, :self.d])
         scale, shift = s_t.chunk(2, dim=1)
         scale = scale.sigmoid()
+        return scale, shift
 
+    def _forward(self, x, sum_ldj=None):
+        scale, shift = self._get_scale_and_shift_params(x)
         y1 = scale * x[:, self.d:] + shift
         y = torch.cat([x[:, :self.d], y1], 1)
 
-        if sum_logdet is None:
+        if sum_ldj is None:
             return y
         else:
-            return y, sum_logdet - self.logdetjac(scale)
+            return y, sum_ldj - self.logdetjac(scale)
 
     def _inverse(self, x, sum_ldj=None):
-        s_t = self.net_s_t(x[:, :self.d])
-        scale, shift = s_t.chunk(2, dim=1)
-        scale = scale.sigmoid()
-
+        scale, shift = self._get_scale_and_shift_params(x)
         y1 = (x[:, self.d:] - shift) / scale
         y = torch.cat([x[:, :self.d], y1], 1)
 
@@ -58,19 +59,62 @@ class AdditiveCouplingLayer(Bijector):
     def logdetjac(self):
         return 0
 
-    def _forward(self, x, sum_logdet=None):
-        shift = self.net_t(x[:, :self.d])
+    def get_shift_param(self, x):
+        return self.net_t(x[:, :self.d])
+
+    def _forward(self, x, sum_ldj=None):
+        shift = self.get_shift_param(x)
 
         y1 = x[:, self.d:] + shift
         y = torch.cat([x[:, :self.d], y1], 1)
 
-        if sum_logdet is None:
+        if sum_ldj is None:
             return y
         else:
-            return y, sum_logdet - self.logdetjac()
+            return y, sum_ldj - self.logdetjac()
 
     def _inverse(self, x, sum_ldj=None):
+        shift = self.get_shift_param(x)
+
+        y1 = x[:, self.d:] - shift
+        y = torch.cat([x[:, :self.d], y1], 1)
+
+        if sum_ldj is None:
+            return y
+        else:
+            return y, sum_ldj + self.logdetjac()
+
+
+class IntegerDiscreteFlow(AdditiveCouplingLayer):
+    def __init__(self, in_channels, hidden_channels):
+        super().__init__(in_channels, hidden_channels)
+        self.d = round(0.75 * in_channels)
+        self.net_t = BottleneckConvBlock(
+            in_channels=self.d,
+            hidden_channels=hidden_channels,
+            out_channels=(in_channels - self.d),
+        )
+
+    def logdetjac(self):
+        return 0
+
+    def _get_shift_param(self, x):
         shift = self.net_t(x[:, :self.d])
+        # Round with straight-through-estimator
+        return RoundSTE.apply(shift)
+
+    def _forward(self, x, sum_ldj=None):
+        shift = self._get_shift_param(x)
+        y1 = x[:, self.d:] + shift
+        y = torch.cat([x[:, :self.d], y1], 1)
+
+        if sum_ldj is None:
+            return y
+        else:
+            return y, sum_ldj - self.logdetjac()
+
+    def _inverse(self, x, sum_ldj=None):
+        shift = self._get_shift_param(x)
 
         y1 = x[:, self.d:] - shift
         y = torch.cat([x[:, :self.d], y1], 1)
@@ -94,7 +138,7 @@ class MaskedCouplingLayer(Bijector):
     def logdetjac(self, scale):
         return scale.log().view(scale.shape[0], -1).sum(dim=1, keepdim=True)
 
-    def _forward(self, x, sum_logdet=None):
+    def _forward(self, x, sum_ldj=None):
 
         scale = torch.exp(self.net_scale(x * self.mask))
         shift = self.net_shift(x * self.mask)
@@ -104,10 +148,10 @@ class MaskedCouplingLayer(Bijector):
 
         y = x * masked_scale + masked_shift
 
-        if sum_logdet is None:
+        if sum_ldj is None:
             return y
         else:
-            return y, sum_logdet - self.logdetjac(masked_scale)
+            return y, sum_ldj - self.logdetjac(masked_scale)
 
     def _inverse(self, x, sum_ldj=None):
         scale = torch.exp(self.net_scale(x * self.mask))

@@ -10,7 +10,7 @@ from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
 from finn.models.inn import MaskedInn, BipartiteInn, PartitionedInn
-from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
+from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from .loss import grad_reverse
 from .utils import (
     get_data_dim,

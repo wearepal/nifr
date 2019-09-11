@@ -34,32 +34,40 @@ def build_conv_inn(args, input_dim):
     chain = [layers.SqueezeLayer(args.squeeze_factor)]
     input_dim_0 = input_dim * args.squeeze_factor ** 2
 
-    def _inv_block(_input_dim):
+    def _block(_input_dim):
         chain = []
-        if args.batch_norm:
-            chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
-        if args.glow:
-            chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
-        chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+        if args.idf:
+            chain += [layers.IntegerDiscreteFlow(_input_dim, hidden_channels=hidden_dims)]
+            chain += [layers.RandomPermutation(input_dim)]
+        else:
+            if args.batch_norm:
+                chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
+            if args.glow:
+                chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
+            chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            # chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
 
         return layers.BijectorChain(chain)
 
-    splits: dict = args.splits
+    factor_splits: dict = args.factor_splits
     offset = len(chain)
-    splits = {k+offset: v for k, v in splits.items()}
+    factor_splits = {k+offset: v for k, v in factor_splits.items()}
 
     input_dim = input_dim_0
     for _ in range(args.depth):
-        chain += [_inv_block(input_dim)]
-        if offset in splits:
-            input_dim = round(splits[offset] * input_dim)
+        chain += [_block(input_dim)]
+        if offset in factor_splits:
+            input_dim = round(factor_splits[offset] * input_dim)
         offset += 1
 
-    model = layers.FactorOut(chain, splits)
-    model = layers.BijectorChain([
-        model,
-        layers.Invertible1x1Conv(input_dim_0, use_lr_decomp=True)
-    ])
+    model = [layers.FactorOut(chain, factor_splits)]
+    if args.idf:
+        pass
+        model += [layers.RandomPermutation(input_dim_0)]
+    else:
+        model += [layers.Invertible1x1Conv(input_dim_0, use_lr_decomp=True)]
+
+    model = layers.BijectorChain(model)
 
     return model
 

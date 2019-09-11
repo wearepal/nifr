@@ -6,7 +6,7 @@ from torchvision.transforms import ToTensor
 from torchvision.utils import save_image
 
 from finn.data import LdColorizer
-from finn.data.datasets import LdAugmentedDataset
+from finn.data.dataset_wrappers import LdAugmentedDataset
 from finn.data.misc import shrink_dataset
 from finn.models import Classifier
 from finn.models.configs import fc_net, mp_28x28_net

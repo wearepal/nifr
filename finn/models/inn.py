@@ -1,14 +1,12 @@
 from argparse import Namespace
 from typing import Tuple, Union, List, Optional, Sequence
 
-import math
-import numpy as np
-
 import torch
 import torch.distributions as td
 from torch import Tensor
 
 from finn.utils import to_discrete
+from finn.utils.distributions import MixtureDistribution, DLogistic
 from .base import ModelBase
 from .masker import Masker
 
@@ -39,7 +37,16 @@ class BipartiteInn(ModelBase):
         self.input_shape = input_shape
         self.feature_groups = feature_groups
 
-        self.base_density: td.Distribution = td.Normal(0, 1)
+        if args.idf:
+            probs = 5 * [1/5]
+            dist_params = [(0, 0.5), (2, 0.5), (-2, 0.5), (4, 0.5), (-4, 0.5)]
+            components = [DLogistic(loc, scale) for loc, scale in dist_params]
+            self.base_density: td.Distribution = MixtureDistribution(
+                probs=probs,
+                components=components
+            )
+        else:
+            self.base_density: td.Distribution = td.Normal(0, 1)
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 
@@ -180,8 +187,8 @@ class PartitionedInn(BipartiteInn):
             Tuple of classification loss (Tensor) and accuracy (float)
         """
         zero = data.new_zeros(data.size(0), 1)
-        z, sum_logdet = self.forward(data, logdet=zero, reverse=False)
-        nll = self.nll(z, sum_logdet)
+        z, sum_ldj = self.forward(data, logdet=zero, reverse=False)
+        nll = self.nll(z, sum_ldj)
 
         return z, nll
 

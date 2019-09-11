@@ -7,7 +7,7 @@ from torchvision.transforms import ToTensor, RandomAffine, Compose
 from torchvision.utils import save_image
 
 from finn.data import LdColorizer, load_dataset
-from finn.data.datasets import LdAugmentedDataset
+from finn.data.dataset_wrappers import LdAugmentedDataset
 from finn.models import build_conv_inn, build_discriminator, build_fc_inn
 from finn.models.configs import fc_net
 from finn.models.inn import PartitionedInn

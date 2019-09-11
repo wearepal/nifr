@@ -4,7 +4,7 @@ from .adult import (
     pytorch_data_to_dataframe,
     get_data_tuples
 )
-from .ld_augmentation import (
+from .transforms import (
     LdColorizer,
     LdColorJitter,
     LdContrastAdjustment,
