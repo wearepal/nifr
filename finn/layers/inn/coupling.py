@@ -32,7 +32,7 @@ class AffineCouplingLayer(Bijector):
             return y, sum_logdet - self.logdetjac(scale)
 
     def _inverse(self, x, sum_ldj=None):
-        shift = self.net_s_t(x[:, :self.d])
+        s_t = self.net_s_t(x[:, :self.d])
         scale, shift = s_t.chunk(2, dim=1)
         scale = scale.sigmoid()
 
