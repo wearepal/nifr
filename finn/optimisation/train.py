@@ -9,10 +9,10 @@ from torch.utils.data import DataLoader, TensorDataset
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
-from finn.models.inn import MaskedInn, FactorInn, BipartiteInn
+from finn.models.inn import MaskedInn, BipartiteInn, PartitionedInn
 from finn.models.model_builder import build_fc_inn, build_conv_inn, build_discriminator
-from .misc import grad_reverse
-from .training_utils import (
+from .loss import grad_reverse
+from .utils import (
     get_data_dim,
     log_images)
 from finn.utils.optimizers import apply_gradients
@@ -22,23 +22,6 @@ NDECS = 0
 ARGS = None
 LOGGER = None
 SUMMARY = None
-
-
-def convert_data(train_tuple, test_tuple):
-    """
-    Convert tuples of dataframes to pytorch datasets
-    Args:
-        train_tuple: tuple of dataframes with the training data
-        test_tuple: tuple of dataframes with the test data
-
-    Returns:
-        a dictionary with the pytorch datasets
-    """
-    data = {
-        'trn': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in train_tuple]),
-        'val': TensorDataset(*[torch.tensor(df.values, dtype=torch.float32) for df in test_tuple]),
-    }
-    return data
 
 
 def save_model(save_dir, model, discriminator) -> str:
@@ -81,7 +64,7 @@ def train(model, discriminator, dataloader, epoch):
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
         print(disc_acc)
 
-        if args.train_on_recon:
+        if ARGS.train_on_recon:
             disc_loss += discriminator.routine(enc_s, s)[0]
 
         neg_log_prob *= ARGS.log_prob_weight
@@ -92,7 +75,7 @@ def train(model, discriminator, dataloader, epoch):
         model.zero_grad()
         discriminator.zero_grad()
 
-        if args.train_on_recon:
+        if ARGS.train_on_recon:
             inn_grads = torch.autograd.grad(loss, model.model.parameters(), create_graph=True)
             masker_grads = torch.autograd.grad(inn_grads, model.masker.parameters(),
                                                retain_graph=True,
@@ -157,7 +140,7 @@ def validate(model, discriminator, val_loader):
             (enc_y, enc_s), neg_log_prob = model.routine(x_val)
             disc_loss, acc = discriminator.routine(enc_y, s_val)
 
-            if args.train_on_recon:
+            if ARGS.train_on_recon:
                 disc_loss += discriminator.routine(enc_s, s_val)[0]
 
             neg_log_prob *= ARGS.log_prob_weight
@@ -198,31 +181,6 @@ def to_device(*tensors):
     if len(moved) == 1:
         return moved[0]
     return tuple(moved)
-
-
-def train_masker(model, discriminator, dataloader, epoch):
-
-    model.mask_train()
-    discriminator.eval()
-
-    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
-
-        x, s, y = to_device(x, s, y)
-
-        (enc_y, enc_s), neg_log_prob = model.routine(x)
-
-        disc_loss = discriminator.routine(enc_y, s)[0]
-
-        masker_loss = neg_log_prob - disc_loss
-
-        if args.train_on_recon:
-            disc_loss_2 = discriminator.routine(enc_s, s)[0]
-            disc_loss += disc_loss_2
-            masker_loss += disc_loss_2
-
-        model.zero_grad()
-        masker_loss.backward()
-        model.step()
 
 
 def main(args, datasets, metric_callback):
@@ -279,7 +237,7 @@ def main(args, datasets, metric_callback):
     if args.train_on_recon:
         Module = MaskedInn
     else:
-        Module = BipartiteInn
+        Module = PartitionedInn
     if len(input_shape) > 2:
         model = build_conv_inn(args, input_shape[0])
         if args.train_on_recon:
@@ -309,7 +267,7 @@ def main(args, datasets, metric_callback):
         model_args['masker_optimizer_args'] = masker_optimizer_args
 
     # Initialise INN
-    model: FactorInn = Module(**model_args)
+    model: BipartiteInn = Module(**model_args)
     model.to(args.device)
     # Initialise Discriminator
     disc_optimizer_args = {'lr': args.disc_lr}

@@ -4,10 +4,10 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import linalg
 
-from .layer_utils import InvertibleLayer
+from .misc import Bijector
 
 
-class Invertible1x1Conv(InvertibleLayer):
+class Invertible1x1Conv(Bijector):
     """Invertible 1x1 convolution"""
 
     def __init__(self, num_channels, use_lr_decomp=False):
@@ -65,7 +65,7 @@ class Invertible1x1Conv(InvertibleLayer):
                 w = self.p @ (l @ u)
                 return w.unsqueeze(-1).unsqueeze(-1)
 
-    def dlogdet(self, x):
+    def logdetjac(self, x):
         if not self.use_lr_decomp:
             dlogdet = self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)
         else:
@@ -80,45 +80,40 @@ class Invertible1x1Conv(InvertibleLayer):
         if sum_logdet is None:
             return output
         else:
-            dlogdet = self.dlogdet(x)
-            sum_logdet -= dlogdet
-            return output, sum_logdet
+            dlogdet = self.logdetjac(x)
+            return output, sum_logdet - dlogdet
 
-    def _inverse(self, x, sum_logdet=None):
+    def _inverse(self, x, sum_ldj=None):
 
         weight_inv = self.get_w(reverse=True)
 
         output = F.conv2d(x, weight_inv)
 
-        if sum_logdet is None:
+        if sum_ldj is None:
             return output
         else:
-            dlogdet = self.dlogdet(x)
-            sum_logdet += dlogdet
-            return output, sum_logdet
+            dlogdet = self.logdetjac(x)
+            return output, sum_ldj + dlogdet
 
 
-class InvertibleLinear(nn.Module):
+class InvertibleLinear(Bijector):
     def __init__(self, dim):
         super(InvertibleLinear, self).__init__()
         self.weight = nn.Parameter(torch.eye(dim))
 
-    def forward(self, x, logpx=None, reverse=False):
-
-        if not reverse:
-            y = F.linear(x, self.weight)
-            if logpx is None:
-                return y
-            else:
-                return y, logpx - self._logdetgrad.expand_as(logpx)
-
-        else:
-            y = F.linear(x, self.weight.double().inverse().float())
-            if logpx is None:
-                return y
-            else:
-                return y, logpx + self._logdetgrad.expand_as(logpx)
-
-    @property
-    def _logdetgrad(self):
+    def logdetjac(self):
         return torch.log(torch.abs(torch.det(self.weight.double()))).float()
+
+    def _forward(self, x, sum_ldj=None):
+        y = F.linear(x, self.weight)
+        if sum_ldj is None:
+            return y
+        else:
+            return y, sum_ldj - self.logdetjac().expand_as(sum_ldj)
+
+    def _inverse(self, x, sum_ldj=None):
+        y = F.linear(x, self.weight.double().inverse().float())
+        if sum_ldj is None:
+            return y
+        else:
+            return y, sum_ldj + self.logdetjac().expand_as(sum_ldj)

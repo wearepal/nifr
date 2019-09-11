@@ -10,9 +10,9 @@ from finn.data import LdColorizer, load_dataset
 from finn.data.datasets import LdAugmentedDataset
 from finn.models import build_conv_inn, build_discriminator, build_fc_inn
 from finn.models.configs import fc_net
-from finn.models.inn import BipartiteInn
+from finn.models.inn import PartitionedInn
 from finn.optimisation import parse_arguments, grad_reverse
-from finn.optimisation.misc import contrastive_gradient_penalty
+from finn.optimisation.loss import contrastive_gradient_penalty
 from finn.utils import to_discrete
 from finn.utils.plotting import plot_contrastive
 
@@ -43,8 +43,8 @@ args.batch_norm = False
 args.batch_size = 256
 
 inn = build_fc_inn(args, input_dim=input_shape[0])
-inn: BipartiteInn = BipartiteInn(args, input_shape=input_shape, model=inn,
-                                 feature_groups=datasets.pretrain.feature_groups)
+inn: PartitionedInn = PartitionedInn(args, input_shape=input_shape, model=inn,
+                                     feature_groups=datasets.pretrain.feature_groups)
 inn.to(device)
 
 

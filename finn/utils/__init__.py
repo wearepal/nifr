@@ -1,12 +1,18 @@
 from .distributions import (
     uniform_bernoulli,
-    logistic_mixture_logprob
 )
 from .utils import (
-    RoundSTE,
     get_logger,
     count_parameters,
     inf_generator,
     save_checkpoint,
-    to_discrete,
+)
+from finn.utils.torch_ops import RoundSTE, to_discrete
+from finn.utils.typechecks import (
+    is_bool,
+    is_int,
+    is_nonnegative_int,
+    is_positive_int,
+    is_power_of_two,
+    is_nan,
 )

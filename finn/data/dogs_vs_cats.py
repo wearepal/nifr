@@ -4,7 +4,7 @@ import pandas as pd
 from torchvision import transforms
 
 
-def partition_data(root: str):
+def format_data_folder(root: str):
     data = f"{root}/data"
     train_dir = f"{data}/train"
 

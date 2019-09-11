@@ -1,4 +1,4 @@
-from .base import BaseModel
+from .base import ModelBase
 from .classifier import Classifier
 from .masker import Masker
 from .model_builder import (

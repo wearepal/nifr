@@ -1,34 +1,9 @@
 import os
-import math
-from numbers import Number
-import torch.nn.functional as F
-import torch.distributions as td
 import logging
 import torch
 
 
 LOGGER = None
-
-
-def to_discrete(inputs, dim=1):
-    if inputs.dim() <= 1 or inputs.size(1) <= 1:
-        return inputs.round()
-    else:
-        argmax = inputs.argmax(dim=1)
-        return F.one_hot(argmax, num_classes=inputs.size(1))
-
-
-class RoundSTE(torch.autograd.Function):
-
-    @staticmethod
-    def forward(ctx, inputs):
-        return inputs.round()
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        """Straight-through estimator
-        """
-        return grad_output
 
 
 class BraceString(str):
@@ -137,16 +112,6 @@ def save_checkpoint(state, save, epoch):
         os.makedirs(save)
     filename = os.path.join(save, 'checkpt-%04d.pth' % epoch)
     torch.save(state, filename)
-
-
-def isnan(tensor):
-    return tensor != tensor
-
-
-def standard_normal_logprob(z):
-    """Log probability with respect to a normal distribution"""
-    log_z = -0.5 * math.log(2 * math.pi)
-    return log_z - z.pow(2) / 2
 
 
 def count_parameters(model):

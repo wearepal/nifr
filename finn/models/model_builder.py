@@ -1,20 +1,19 @@
 import numpy as np
 
 from finn import layers
-from finn.layers.inn import FactorOutSequentialFlow
 from finn.models.classifier import Classifier
 
 
-def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
+def build_fc_inn(args, input_dim, depth: int = None):
     """Build the model with ARGS.depth many layers
 
     If ARGS.glow is true, then each layer includes 1x1 convolutions.
     """
     _depth = depth or args.depth
-    _batch_norm = batch_norm if batch_norm is not None else args.batch_norm
+    _batch_norm = args.batch_norm
 
     hidden_dims = tuple(map(int, args.dims.split("-")))
-    chain = [layers.InvFlatten()]
+    chain = [layers.Flatten()]
     for i in range(_depth):
         if args.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
@@ -27,7 +26,7 @@ def build_fc_inn(args, input_dim, depth: int = None, batch_norm: bool = None):
 
     chain += [layers.InvertibleLinear(input_dim)]
 
-    return layers.SequentialFlow(chain)
+    return layers.BijectorChain(chain)
 
 
 def build_conv_inn(args, input_dim):
@@ -41,11 +40,9 @@ def build_conv_inn(args, input_dim):
             chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
         if args.glow:
             chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
-        chain += [layers.CouplingLayer(_input_dim,
-                                       hidden_channels=hidden_dims,
-                                       swap=False)]
+        chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
 
-        return layers.SequentialFlow(chain)
+        return layers.BijectorChain(chain)
 
     splits: dict = args.splits
     offset = len(chain)
@@ -58,8 +55,8 @@ def build_conv_inn(args, input_dim):
             input_dim = round(splits[offset] * input_dim)
         offset += 1
 
-    model = FactorOutSequentialFlow(chain, splits)
-    model = layers.SequentialFlow([
+    model = layers.FactorOut(chain, splits)
+    model = layers.BijectorChain([
         model,
         layers.Invertible1x1Conv(input_dim_0, use_lr_decomp=True)
     ])

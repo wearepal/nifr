@@ -1,4 +1,5 @@
-import torch.nn as nn
+from torch import nn as nn
+from torch.nn import functional as F
 
 
 class ResidualBlock(nn.Module):
@@ -31,4 +32,28 @@ class ResidualBlock(nn.Module):
         out += residual
         out = self.relu(out)
 
+        return out
+
+
+class BottleneckConvBlock(nn.Module):
+    def __init__(self, in_channels, hidden_channels=512, out_channels=None):
+        super().__init__()
+
+        self.conv_first = nn.Conv2d(
+            in_channels, hidden_channels, kernel_size=3, stride=1, padding=1
+        )
+        self.conv_bottleneck = nn.Conv2d(
+            hidden_channels, hidden_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.conv_final = nn.Conv2d(
+            hidden_channels, out_channels, kernel_size=3, stride=1, padding=1
+        )
+        # Initialize final kernel to zero so the coupling layer initially performs
+        # and identity mapping
+        nn.init.zeros_(self.conv_final.weight)
+
+    def forward(self, x):
+        out = F.relu(self.conv_first(x))
+        out = F.relu(self.conv_bottleneck(out))
+        out = self.conv_final(out)
         return out

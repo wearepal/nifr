@@ -2,9 +2,10 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD
 
-from finn.utils.distributions import logit, uniform_bernoulli
+from finn.utils.distributions import uniform_bernoulli
+from finn.utils.torch_ops import logit
 from finn.utils.optimizers import RAdam
-from finn.utils.utils import RoundSTE
+from finn.utils import RoundSTE
 
 
 class Masker(nn.Module):

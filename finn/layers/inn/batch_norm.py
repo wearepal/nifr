@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 
-from .layer_utils import InvertibleLayer
+from .misc import Bijector
 
 __all__ = ['MovingBatchNorm1d', 'MovingBatchNorm2d']
 
 
-class MovingBatchNormNd(InvertibleLayer):
+class MovingBatchNormNd(Bijector):
     def __init__(self, num_features, eps=1e-6, decay=0.1, bn_lag=0.0, affine=True):
         super(MovingBatchNormNd, self).__init__()
         self.num_features = num_features

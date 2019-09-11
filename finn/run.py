@@ -11,10 +11,10 @@ from ethicml.algorithms.inprocess.logistic_regression import LR
 from torch.utils.data import DataLoader
 
 from finn.data import DatasetTriplet, get_data_tuples, load_dataset
-from finn.optimisation.evaluate import evaluate, encode_dataset
+from finn.optimisation.evaluation import evaluate, encode_dataset
 from finn.optimisation.train import main as training_loop
-from finn.optimisation.training_config import parse_arguments
-from finn.optimisation.training_utils import (
+from finn.optimisation.config import parse_arguments
+from finn.optimisation.utils import (
     log_images,
 )
 

@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 
-from finn.layers.inn.inv_layer import InvertibleLayer
+from finn.layers.inn.bijector import Bijector
 
 
-class InvFlatten(InvertibleLayer):
+class Flatten(Bijector):
     def __init__(self):
-        super(InvFlatten, self).__init__()
+        super(Flatten, self).__init__()
         self.orig_shape = None
 
     def _forward(self, x, sum_logdet=None, reverse=False):
@@ -19,13 +19,13 @@ class InvFlatten(InvertibleLayer):
         else:
             return y, sum_logdet
 
-    def _inverse(self, x, sum_logdet=None):
+    def _inverse(self, x, sum_ldj=None):
         y = x.view(self.orig_shape)
 
-        if sum_logdet is None:
+        if sum_ldj is None:
             return y
         else:
-            return y, sum_logdet
+            return y, sum_ldj
 
 
 class Exp(nn.Module):

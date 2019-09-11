@@ -9,12 +9,11 @@ import torch.distributions as td
 from torch import Tensor
 
 from finn.utils import to_discrete
-from finn.utils.distributions import logistic_mixture_logprob
-from .base import BaseModel
+from .base import ModelBase
 from .masker import Masker
 
 
-class FactorInn(BaseModel):
+class BipartiteInn(ModelBase):
     """ Base wrapper class for INN models.
     """
 
@@ -84,7 +83,7 @@ class FactorInn(BaseModel):
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        nll = -(log_pz.sum() - sum_logdet.sum()) / z.size(0)
+        nll = -(log_pz.sum() - sum_logdet.sum()) / z.nelement()
         return nll
 
     def forward(
@@ -96,7 +95,7 @@ class FactorInn(BaseModel):
         return outputs
 
 
-class BipartiteInn(FactorInn):
+class PartitionedInn(BipartiteInn):
     """ Wrapper for classifier models.
     """
 
@@ -187,7 +186,7 @@ class BipartiteInn(FactorInn):
         return z, nll
 
 
-class MaskedInn(FactorInn):
+class MaskedInn(BipartiteInn):
 
     def __init__(
         self,

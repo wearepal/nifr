@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
 
-from finn.layers.inn.inv_layer import InvertibleLayer
+from finn.layers.inn.bijector import Bijector
 
 
-class SequentialFlow(nn.Module):
+class BijectorChain(nn.Module):
     """A generalized nn.Sequential container for normalizing flows.
     """
 
     def __init__(self, layer_list):
-        super(SequentialFlow, self).__init__()
+        super(BijectorChain, self).__init__()
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
 
     def forward(self, x, logpx=None, reverse=False, inds=None):
@@ -29,7 +29,7 @@ class SequentialFlow(nn.Module):
             return x, logpx
 
 
-class FactorOutSequentialFlow(nn.Module):
+class FactorOut(BijectorChain):
     """A generalized nn.Sequential container for normalizing flows
     with splitting.
     """
@@ -44,10 +44,8 @@ class FactorOutSequentialFlow(nn.Module):
         return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
 
     def __init__(self, layer_list, splits=None):
-        super().__init__()
-
+        super().__init__(layer_list)
         self.splits: dict = splits or {}
-        self.chain: nn.ModuleList = nn.ModuleList(layer_list)
 
     def _forward(self, x, logpx, inds=None):
         if inds is None:
@@ -80,22 +78,22 @@ class FactorOutSequentialFlow(nn.Module):
         if inds is None:
             inds = range(len_chain-1, -1, -1)
 
-        fragments = {}
+        components = {}
         for block_ind, frac in self.splits.items():
             x_removed, x = self._split_channelwise(x, frac=frac)
-            fragments[block_ind] = x_removed
+            components[block_ind] = x_removed
 
         if logpx is None:
             for i in inds:
-                if i in fragments:
-                    x = torch.cat([fragments[i], x], dim=1)
+                if i in components:
+                    x = torch.cat([components[i], x], dim=1)
                 x = self.chain[i](x, reverse=True)
 
             return x
         else:
             for i in inds:
-                if i in fragments:
-                    x = torch.cat([fragments[i], x], dim=1)
+                if i in components:
+                    x = torch.cat([components[i], x], dim=1)
                 x, logpx = self.chain[i](x, logpx, reverse=True)
 
             return x, logpx
@@ -105,49 +103,3 @@ class FactorOutSequentialFlow(nn.Module):
             return self._reverse(x, logpx=logpx, inds=inds)
         else:
             return self._forward(x, logpx=logpx, inds=inds)
-
-
-class MultiHeadInn(nn.Module):
-    def __init__(self, head_list, split_dim):
-        super(MultiHeadInn, self).__init__()
-
-        head_list = list(head_list)
-        self.heads = nn.ModuleList(head_list)
-        self.split_dim = split_dim
-
-        assert len(head_list) == len(split_dim), (
-            "Number of heads must" " equal the number of specified splits"
-        )
-
-        for i, head in enumerate(head_list):
-            if not isinstance(head, SequentialFlow):
-                head_list[i] = SequentialFlow(head_list[i])
-
-    def split_dims(self, z):
-        assert z.size(1) % sum(self.split_dim) == 0
-        width_x_height = z.size(1) // sum(self.split_dim)
-        return z.split(split_size=[dim * width_x_height for dim in self.split_dim], dim=1)
-
-    def forward(self, x, logpx=None, reverse=False, inds=None):
-
-        xs = self.split_dims(x)
-        outputs = []
-
-        for x_, head in zip(xs, self.heads):
-            if head is None:
-                output_ = x_
-            else:
-                if logpx is not None:
-                    output_, logpx_ = head(x_, logpx, reverse)
-                    logpx += logpx_
-                else:
-                    output_ = head(x_, logpx, reverse)
-
-            outputs.append(output_)
-
-        outputs = torch.cat(outputs, dim=1)
-
-        if logpx is None:
-            return outputs
-        else:
-            return outputs, logpx

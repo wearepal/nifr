@@ -3,7 +3,7 @@ import torch.nn as nn
 from finn.utils.optimizers import RAdam
 
 
-class BaseModel(nn.Module):
+class ModelBase(nn.Module):
 
     default_args = dict(optimizer_args=dict(lr=1e-3, weight_decay=0))
 
