@@ -44,8 +44,8 @@ def build_conv_inn(args, input_dim):
                 chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
             if args.glow:
                 chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
-            chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
-            # chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            # chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
 
         return layers.BijectorChain(chain)
 

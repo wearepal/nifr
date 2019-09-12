@@ -9,6 +9,7 @@ from torchvision.utils import save_image
 from finn.data import LdColorizer
 from finn.data.dataset_wrappers import LdAugmentedDataset
 from finn.models import build_conv_inn, build_discriminator, Masker, Classifier
+from finn.models.configs import fc_net
 from finn.models.inn import PartitionedInn
 from finn.optimisation import parse_arguments, grad_reverse
 
@@ -112,13 +113,13 @@ args.depth = 12
 args.coupling_dims = 512
 
 args.factor_splits = {4: 0.75, 7: 0.75, 10: 0.75}
-args.zs_frac = 0.04
+args.zs_frac = 0.02
 args.lr = 3e-4
 args.disc_lr = 3e-4
 args.glow = True
 args.batch_norm = True
 args.weight_decay = 0
-args.idf = True
+args.idf = False
 
 model = build_conv_inn(args, input_shape[0])
 inn: PartitionedInn = PartitionedInn(args, input_shape=input_shape, model=model)
@@ -133,13 +134,24 @@ args.train_on_recon = False
 discriminator: Classifier = build_discriminator(args,
                                                 input_shape,
                                                 frac_enc=1,
-                                                model_fn=convnet,
+                                                model_fn=fc_net,
                                                 model_kwargs=disc_kwargs,
-                                                flatten=False,
+                                                flatten=True,
                                                 optimizer_args=disc_optimizer_args)
 
 discriminator.to(device)
 
+discriminator2: Classifier = build_discriminator(args,
+                                                 input_shape,
+                                                 frac_enc=1,
+                                                 model_fn=fc_net,
+                                                 model_kwargs=disc_kwargs,
+                                                 flatten=True,
+                                                 optimizer_args=disc_optimizer_args)
+
+discriminator2.to(device)
+
+enc_s_dim = 10
 
 for epoch in range(1000):
 
@@ -154,21 +166,28 @@ for epoch in range(1000):
 
         enc, nll = inn.routine(x)
 
-        enc_y, enc_s = inn.split_encoding(enc)
-        # enc = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
-        enc = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+        enc = enc.flatten(start_dim=1)
+        enc_y_dim = enc.size(1) - enc_s_dim
+        enc_y, enc_s = enc.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
 
-        pred_s_loss, acc = discriminator.routine(enc, s)
+        enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
+        enc_y_m = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+
+        pred_s_loss, acc = discriminator.routine(enc_s_m, s)
+        pred_s_loss += 0.01 * discriminator2.routine(enc_y_m, s)[0]
 
         inn.optimizer.zero_grad()
         discriminator.zero_grad()
+        discriminator2.zero_grad()
 
         loss = nll
-        # loss += pred_s_loss
+        loss += pred_s_loss
 
         loss.backward()
+
         inn.optimizer.step()
         discriminator.step()
+        discriminator2.step()
 
         if i % 10 == 0:
             print(f"NLL: {nll:.4f}")
@@ -176,8 +195,16 @@ for epoch in range(1000):
 
             with torch.set_grad_enabled(False):
                 enc = inn(x)
+                enc_y_dim = enc.size(1) - enc_s_dim
+                enc_y, enc_s = enc.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
 
-                x_recon, xy, xs = inn.decode(enc, partials=True)
+                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).view_as(enc)
+                enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1).view_as(enc)
+                x_recon = inn.invert(enc)
+                xy = inn.invert(enc_y_m, discretize=False)
+                xs = inn.invert(enc_s_m, discretize=False)
+
+                # x_recon, xy, xs = inn.decode(enc, partials=True)
                 save_image(x_recon[:64], filename="cmnist_recon_x.png")
                 save_image(xy[:64], filename="cmnist_recon_xy.png")
                 save_image(xs[:64], filename="cmnist_recon_xs.png")

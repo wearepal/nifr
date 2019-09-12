@@ -30,8 +30,9 @@ class DLogistic(td.Distribution):
 class MixtureDistribution(td.Distribution):
 
     def __init__(self, probs: Sequence[float], components: Sequence[td.Distribution]):
-        assert sum(probs) == 1.0
         assert len(probs) == len(components)
+        assert all(prob >= 0 for prob in probs)
+        assert sum(probs) == 1.0
 
         super().__init__()
         self.probs = probs
