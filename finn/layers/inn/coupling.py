@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from finn.layers.inn.bijector import Bijector
 from finn.layers.conv import BottleneckConvBlock
-from finn.utils import RoundSTE
+from finn.utils import RoundSTE, sum_except_batch
 
 
 class AffineCouplingLayer(Bijector):
@@ -17,7 +17,7 @@ class AffineCouplingLayer(Bijector):
         )
 
     def logdetjac(self, scale):
-        return torch.sum(scale.log().view(scale.size(0), -1), 1, keepdim=True)
+        return sum_except_batch(scale.log(), keepdim=True)
 
     def _get_scale_and_shift_params(self, x):
         s_t = self.net_s_t(x[:, :self.d])

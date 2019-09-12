@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 
+from finn.utils import sum_except_batch
 from .misc import Bijector
 
 __all__ = ['MovingBatchNorm1d', 'MovingBatchNorm2d']
@@ -74,7 +75,7 @@ class MovingBatchNormNd(Bijector):
         if sum_logdet is None:
             return y
         else:
-            return y, sum_logdet - self._logdetgrad(x, used_var).view(x.size(0), -1).sum(1, keepdim=True)
+            return y, sum_logdet - self.logdetgrad(x, used_var)
 
     def _inverse(self, y, logpy=None):
         used_mean = self.running_mean
@@ -92,14 +93,15 @@ class MovingBatchNormNd(Bijector):
         if logpy is None:
             return x
         else:
-            return x, logpy + self._logdetgrad(x, used_var).view(x.size(0), -1).sum(1, keepdim=True)
+            return x, logpy + self.logdetgrad(x, used_var)
 
-    def _logdetgrad(self, x, used_var):
-        logdetgrad = -0.5 * torch.log(used_var + self.eps)
+    def logdetgrad(self, x, used_var):
+        ldj = -0.5 * torch.log(used_var + self.eps)
         if self.affine:
             weight = self.weight.view(*self.shape).expand(*x.size())
-            logdetgrad += weight
-        return logdetgrad
+            ldj += weight
+        ldj = sum_except_batch(ldj, keepdim=True)
+        return ldj
 
     def __repr__(self):
         return (

@@ -21,10 +21,10 @@ test = shrink_dataset(test, pcnt=0.1)
 
 augment = LdColorizer(black=True, background=False, scale=0)
 train = LdAugmentedDataset(source_dataset=train, ld_augmentations=augment,
-                           li_augmentation=False, n_labels=10)
+                           li_augmentation=False, num_classes=10)
 
 test = LdAugmentedDataset(source_dataset=test, ld_augmentations=augment,
-                          li_augmentation=True, n_labels=10)
+                          li_augmentation=True, num_classes=10)
 
 train = DataLoader(train, batch_size=256, pin_memory=True)
 test = DataLoader(test, batch_size=256, pin_memory=True)
@@ -51,7 +51,7 @@ class Net(nn.Module):
 
 clf = Net()
 # clf = mp_28x28_net(input_dim=3, target_dim=10)
-clf: Classifier = Classifier(clf, n_classes=10)
+clf: Classifier = Classifier(clf, num_classes=10)
 
 
 clf.fit(train_data=train,

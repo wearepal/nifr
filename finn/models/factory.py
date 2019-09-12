@@ -91,7 +91,7 @@ def build_discriminator(args, input_shape, frac_enc,
     n_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
         model_fn(in_dim, args.y_dim, **model_kwargs),
-        n_classes=n_classes,
+        num_classes=n_classes,
         optimizer_args=optimizer_args
     )
 

@@ -26,3 +26,7 @@ def to_discrete(inputs, dim=1):
 def logit(p, eps=1e-8):
     p = p.clamp(min=eps, max=1.-eps)
     return torch.log(p / (1. - p))
+
+
+def sum_except_batch(x, keepdim=False):
+    return x.flatten(start_dim=1).sum(-1, keepdim=keepdim)
