@@ -3,7 +3,7 @@ import torch
 import kornia
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, CIFAR10
 from torchvision.transforms import ToTensor, Compose
 from torchvision.utils import save_image
 
@@ -71,19 +71,17 @@ transforms = [
 ]
 transforms = Compose(transforms)
 
-mnist_train = MNIST(root="data", train=True, download=True, transform=transforms)
-mnist_test = MNIST(root="data", train=False, download=True, transform=transforms)
+train = CIFAR10(root="data", train=True, download=True, transform=transforms)
+test = CIFAR10(root="data", train=False, download=True, transform=transforms)
 
-pretrain, task_train = random_split(mnist_train, lengths=(50000, 10000))
+pretrain_pcnt = 0.95
+train_len = len(train)
+pretrain_len = round(pretrain_pcnt * train_len)
+pretrain, task_train = random_split(train, lengths=(pretrain_len, train_len - pretrain_len))
 colorizer = LdColorizer(scale=0.0, black=True, background=False)
 
-pretrain = LdAugmentedDataset(pretrain, ld_augmentations=colorizer, num_classes=10, li_augmentation=True)
 pretrain = DataLoader(pretrain, batch_size=64, pin_memory=True, shuffle=True)
-
-task_train = LdAugmentedDataset(task_train, ld_augmentations=colorizer, num_classes=10, li_augmentation=True)
 task_train = DataLoader(task_train, batch_size=256, pin_memory=True, shuffle=True)
-
-test = LdAugmentedDataset(mnist_test, ld_augmentations=colorizer, num_classes=10, li_augmentation=True)
 test = DataLoader(test, batch_size=256, pin_memory=True, shuffle=True)
 
 # ======= Define models ===========
@@ -102,14 +100,18 @@ args.batch_norm = True
 args.weight_decay = 1e-5
 args.idf = False
 
-clf: Classifier = Classifier(model=mp_28x28_net(3, 10), num_classes=4)
-clf.to(device)
+
+from torchvision.models import AlexNet, ResNet
 
 
-for epoch in range(3):
+rotnet: Classifier = Classifier(model=AlexNet(10), num_classes=4)
+rotnet.to(device)
+
+
+for epoch in range(50):
 
     print(f"Epoch {epoch} of self-supervised training")
-    for x, s, y in pretrain:
+    for i, (x, y) in enumerate(pretrain):
         x_0 = x
         y_0 = torch.full_like(y, 0)
 
@@ -130,48 +132,37 @@ for epoch in range(3):
 
         x, y = to_device(device, x, y)
 
-        loss, acc = clf.routine(x, y)
-        clf.zero_grad()
+        loss, acc = rotnet.routine(x, y)
+        rotnet.zero_grad()
         loss.backward()
-        clf.step()
+        rotnet.step()
 
+        if i % 10 == 0:
+            print(f"Accuracy: {acc:.4f}")
 
-encoder = clf.model[:-1]
-ft_layer = nn.Linear(512, args.y_dim)
-ft_layer.to(device)
-optimizer = RAdam(ft_layer.parameters())
-loss_fn = nn.CrossEntropyLoss(reduction="mean")
+for epoch in range(50):
 
-encoder.eval()
-
-for epoch in range(5):
-    ft_layer.train()
+    rotnet.model.features.train()
+    rotnet.model.classifier.train()
 
     print("===> Training")
-    for x, s, y in task_train:
-        x, s, y = to_device(device, x, s, y)
+    for x, y in task_train:
+        x, y = to_device(device, x, y)
 
-        enc = encoder(x)
-        logits = ft_layer(enc)
-
-        loss = loss_fn(logits, y)
-        acc = (logits.argmax(1) == y).float().mean()
-
-        optimizer.zero_grad()
+        loss, acc = rotnet.routine(x, y)
+        rotnet.zero_grad()
         loss.backward()
-        optimizer.step()
+        rotnet.step()
 
-        print(f"Train accuracy: {acc:.4f}")
+        # print(f"Train accuracy: {acc:.4f}")
 
-    ft_layer.eval()
-
+    rotnet.model.features.eval()
+    rotnet.model.classifier.eval()
     print("===> Testing")
-    for x, s, y in test:
-        x, s, y = to_device(device, x, s, y)
+    for x, y in test:
+        x, y = to_device(device, x, y)
 
-        enc = encoder(x)
-        logits = ft_layer(enc)
-        acc = (logits.argmax(1) == y).float().mean()
+        loss, acc = rotnet.routine(x, y)
 
         print(f"Test accuracy: {acc:.4f}")
 
