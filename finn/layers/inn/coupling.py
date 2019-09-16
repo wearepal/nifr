@@ -20,15 +20,19 @@ class AffineCouplingLayer(Bijector):
         return sum_except_batch(scale.log(), keepdim=True)
 
     def _get_scale_and_shift_params(self, x):
-        s_t = self.net_s_t(x[:, :self.d])
+        s_t = self.net_s_t(x)
         scale, shift = s_t.chunk(2, dim=1)
         scale = scale.sigmoid()
         return scale, shift
 
+    def _split(self, x):
+        return x.split(lengths=(self.d, x.size(1) - self.d))
+
     def _forward(self, x, sum_ldj=None):
-        scale, shift = self._get_scale_and_shift_params(x)
-        y1 = scale * x[:, self.d:] + shift
-        y = torch.cat([x[:, :self.d], y1], 1)
+        x_a, x_b = self._split(x)
+        scale, shift = self._get_scale_and_shift_params(x_a)
+        y_b = scale * x_b + shift
+        y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
             return y
@@ -36,14 +40,15 @@ class AffineCouplingLayer(Bijector):
             return y, sum_ldj - self.logdetjac(scale)
 
     def _inverse(self, x, sum_ldj=None):
-        scale, shift = self._get_scale_and_shift_params(x)
-        y1 = (x[:, self.d:] - shift) / scale
-        y = torch.cat([x[:, :self.d], y1], 1)
+        x_a, y_b = self._split(x)
+        scale, shift = self._get_scale_and_shift_params(x_a)
+        x_b = (y_b - shift) / scale
+        x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
-            return y
+            return x
         else:
-            return y, sum_ldj + self.logdetjac(scale)
+            return x, sum_ldj + self.logdetjac(scale)
 
 
 class AdditiveCouplingLayer(Bijector):
@@ -60,13 +65,17 @@ class AdditiveCouplingLayer(Bijector):
         return 0
 
     def get_shift_param(self, x):
-        return self.net_t(x[:, :self.d])
+        return self.net_t(x)
+
+    def _split(self, x):
+        return x.split(lengths=(self.d, x.size(1) - self.d))
 
     def _forward(self, x, sum_ldj=None):
-        shift = self.get_shift_param(x)
+        x_a, x_b = self._split(x)
+        shift = self.get_shift_param(x_a)
 
-        y1 = x[:, self.d:] + shift
-        y = torch.cat([x[:, :self.d], y1], 1)
+        y_b = x_b + shift
+        y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
             return y
@@ -74,15 +83,16 @@ class AdditiveCouplingLayer(Bijector):
             return y, sum_ldj - self.logdetjac()
 
     def _inverse(self, x, sum_ldj=None):
-        shift = self.get_shift_param(x)
+        x_a, y_b = self._split(x)
+        shift = self.get_shift_param(x_a)
 
-        y1 = x[:, self.d:] - shift
-        y = torch.cat([x[:, :self.d], y1], 1)
+        x_b = y_b - shift
+        x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
-            return y
+            return x
         else:
-            return y, sum_ldj + self.logdetjac()
+            return x, sum_ldj + self.logdetjac()
 
 
 class IntegerDiscreteFlow(AdditiveCouplingLayer):
