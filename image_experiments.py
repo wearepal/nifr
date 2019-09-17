@@ -95,12 +95,16 @@ disc_optimizer_args = {'lr': args.disc_lr}
 args.disc_hidden_dims = [1024, 1024]
 
 args.train_on_recon = False
+
+use_conv_disc = True
+model_fn = convnet if use_conv_disc else fc_net
+
 discriminator: Classifier = build_discriminator(args,
                                                 input_shape,
                                                 frac_enc=1,
-                                                model_fn=fc_net,
+                                                model_fn=model_fn,
                                                 model_kwargs=disc_kwargs,
-                                                flatten=True,
+                                                flatten=not use_conv_disc,
                                                 optimizer_args=disc_optimizer_args)
 
 discriminator.to(device)
@@ -120,18 +124,25 @@ for epoch in range(1000):
 
         enc, nll = inn.routine(x)
 
-        enc = enc.flatten(start_dim=1)
-        enc_y_dim = enc.size(1) - enc_s_dim
-        enc_y, enc_s = enc.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+        # ===== Partition the encoding ======
+        enc_flat = enc.flatten(start_dim=1)
+        enc_y_dim = enc_flat.size(1) - enc_s_dim
+        enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
 
         enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
         enc_y_m = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
 
+        if use_conv_disc:
+            enc_y_m = enc_y_m.view_as(enc)
+            enc_s_m = enc_s_m.view_as(enc)
+
+        # ======== Loss computation =========
         pred_s_loss, acc = discriminator.routine(enc_y_m, s)
 
         inn.optimizer.zero_grad()
         discriminator.zero_grad()
 
+        nll *= 1e1
         loss = nll
         loss += pred_s_loss
 
@@ -140,14 +151,16 @@ for epoch in range(1000):
         inn.optimizer.step()
         discriminator.step()
 
-        if i % 10 == 0:
+        # ============= Logging ==============
+        if i % 50 == 0:
             print(f"NLL: {nll:.4f}")
             print(f"Adv Loss: {pred_s_loss:.4f}")
 
             with torch.set_grad_enabled(False):
                 enc = inn(x)
-                enc_y_dim = enc.size(1) - enc_s_dim
-                enc_y, enc_s = enc.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+                enc_flat = enc.flatten(start_dim=1)
+                enc_y_dim = enc_flat.size(1) - enc_s_dim
+                enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
 
                 enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).view_as(enc)
                 enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1).view_as(enc)
