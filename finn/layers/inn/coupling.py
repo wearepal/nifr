@@ -1,12 +1,34 @@
+from typing import Tuple
+
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 from finn.layers.inn.bijector import Bijector
 from finn.layers.conv import BottleneckConvBlock
 from finn.utils import RoundSTE, sum_except_batch
 
 
-class AffineCouplingLayer(Bijector):
+class CouplingLayer(Bijector):
+
+    def __init__(self):
+        super().__init__()
+        self.d: int
+
+    def logdetjac(self, *args):
+        pass
+
+    def _split(self, x):
+        return x.split(split_size=(self.d, x.size(1) - self.d), dim=1)
+
+    def _forward(self, x: Tensor, sum_logdet=None) -> Tuple[Tensor, Tensor]:
+        pass
+
+    def _inverse(self, y: Tensor, sum_ldj=None) -> Tuple[Tensor, Tensor]:
+        pass
+
+
+class AffineCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels):
         super().__init__()
         self.d = in_channels - (in_channels // 2)
@@ -19,14 +41,11 @@ class AffineCouplingLayer(Bijector):
     def logdetjac(self, scale):
         return sum_except_batch(scale.log(), keepdim=True)
 
-    def _get_scale_and_shift_params(self, x):
-        s_t = self.net_s_t(x)
+    def _get_scale_and_shift_params(self, x_a):
+        s_t = self.net_s_t(x_a)
         scale, shift = s_t.chunk(2, dim=1)
-        scale = scale.sigmoid()
+        scale = scale.exp()
         return scale, shift
-
-    def _split(self, x):
-        return x.split(lengths=(self.d, x.size(1) - self.d))
 
     def _forward(self, x, sum_ldj=None):
         x_a, x_b = self._split(x)
@@ -39,8 +58,8 @@ class AffineCouplingLayer(Bijector):
         else:
             return y, sum_ldj - self.logdetjac(scale)
 
-    def _inverse(self, x, sum_ldj=None):
-        x_a, y_b = self._split(x)
+    def _inverse(self, y, sum_ldj=None):
+        x_a, y_b = self._split(y)
         scale, shift = self._get_scale_and_shift_params(x_a)
         x_b = (y_b - shift) / scale
         x = torch.cat([x_a, x_b], dim=1)
@@ -51,7 +70,7 @@ class AffineCouplingLayer(Bijector):
             return x, sum_ldj + self.logdetjac(scale)
 
 
-class AdditiveCouplingLayer(Bijector):
+class AdditiveCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels):
         super().__init__()
         self.d = in_channels - (in_channels // 2)
@@ -64,11 +83,8 @@ class AdditiveCouplingLayer(Bijector):
     def logdetjac(self):
         return 0
 
-    def get_shift_param(self, x):
-        return self.net_t(x)
-
-    def _split(self, x):
-        return x.split(lengths=(self.d, x.size(1) - self.d))
+    def get_shift_param(self, x_a):
+        return self.net_t(x_a)
 
     def _forward(self, x, sum_ldj=None):
         x_a, x_b = self._split(x)
@@ -82,8 +98,8 @@ class AdditiveCouplingLayer(Bijector):
         else:
             return y, sum_ldj - self.logdetjac()
 
-    def _inverse(self, x, sum_ldj=None):
-        x_a, y_b = self._split(x)
+    def _inverse(self, y, sum_ldj=None):
+        x_a, y_b = self._split(y)
         shift = self.get_shift_param(x_a)
 
         x_b = y_b - shift
@@ -105,34 +121,33 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
             out_channels=(in_channels - self.d),
         )
 
-    def logdetjac(self):
-        return 0
-
     def _get_shift_param(self, x):
         shift = self.net_t(x[:, :self.d])
         # Round with straight-through-estimator
         return RoundSTE.apply(shift)
 
     def _forward(self, x, sum_ldj=None):
-        shift = self._get_shift_param(x)
-        y1 = x[:, self.d:] + shift
-        y = torch.cat([x[:, :self.d], y1], 1)
+        x_a, x_b = self._split(x)
+        shift = self._get_shift_param(x_a)
+        y_b = x_b + shift
+        y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
             return y
         else:
             return y, sum_ldj - self.logdetjac()
 
-    def _inverse(self, x, sum_ldj=None):
-        shift = self._get_shift_param(x)
+    def _inverse(self, y, sum_ldj=None):
+        x_a, y_b = self._split(y)
+        shift = self._get_shift_param(x_a)
 
-        y1 = x[:, self.d:] - shift
-        y = torch.cat([x[:, :self.d], y1], 1)
+        x_b = y_b - shift
+        x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
-            return y
+            return x
         else:
-            return y, sum_ldj + self.logdetjac()
+            return x, sum_ldj + self.logdetjac()
 
 
 class MaskedCouplingLayer(Bijector):
