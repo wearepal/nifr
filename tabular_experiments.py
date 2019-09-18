@@ -51,12 +51,13 @@ inn.to(device)
 disc_kwargs = {}
 disc_optimizer_args = {'lr': args.disc_lr}
 
-args.disc_hidden_dims = [100, 100]
+args.disc_hidden_dim = 100
 discriminator = build_discriminator(args,
                                     (inn.zy_dim,),
-                                    fc_net,
-                                    disc_kwargs,
+                                    model_fn=fc_net,
+                                    model_kwargs=disc_kwargs,
                                     flatten=True,
+                                    frac_enc=1 - args.zs_frac,
                                     optimizer_args=disc_optimizer_args)
 discriminator.to(device)
 
@@ -85,12 +86,9 @@ for epoch in range(100):
 
         inn.optimizer.zero_grad()
         discriminator.zero_grad()
-        loss = 1e-3 * neg_log_prob + loss_enc_y
-        loss += contrastive_gradient_penalty(discriminator, gr_zy)
+        loss = neg_log_prob
 
         loss.backward()
-
-        torch.nn.utils.clip_grad_norm_(inn.parameters(), max_norm=5)
 
         inn.optimizer.step()
         discriminator.step()

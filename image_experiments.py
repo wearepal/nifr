@@ -22,11 +22,10 @@ def convnet(in_dim, target_dim):
         nn.ReLU(inplace=True)
     ])
     layers.extend([
-        nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+        nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
         nn.BatchNorm2d(256),
         nn.ReLU(inplace=True)
     ])
-    layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend([
         nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
@@ -34,11 +33,10 @@ def convnet(in_dim, target_dim):
         nn.ReLU(inplace=True)
     ])
     layers.extend([
-        nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+        nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
         nn.BatchNorm2d(512),
         nn.ReLU(inplace=True)
     ])
-    layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend([
         nn.Flatten(),
@@ -69,20 +67,20 @@ mnist = MNIST(root="data", train=True, download=True, transform=transforms)
 mnist, _ = random_split(mnist, lengths=(50000, 10000))
 colorizer = LdColorizer(scale=0.0, black=True, background=False)
 data = LdAugmentedDataset(mnist, ld_augmentations=colorizer, num_classes=10, li_augmentation=True)
-data = DataLoader(data, batch_size=256, pin_memory=True, shuffle=True)
+data = DataLoader(data, batch_size=128, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
 
-args.depth = 12
+args.depth = 8
 args.coupling_dims = 512
 
-args.factor_splits = {4: 0.75, 7: 0.75, 10: 0.75}
+args.factor_splits = {}
 args.zs_frac = 0.02
-args.lr = 3e-4
-args.disc_lr = 3e-4
-args.glow = True
-args.batch_norm = True
-args.weight_decay = 0
+args.lr = 1e-4
+args.disc_lr = 1e-4
+args.glow = False
+args.batch_norm = False
+args.weight_decay = 1e-6
 args.idf = False
 
 model = build_conv_inn(args, input_shape[0])
@@ -96,7 +94,7 @@ args.disc_hidden_dims = [1024, 1024]
 
 args.train_on_recon = False
 
-use_conv_disc = True
+use_conv_disc = False
 model_fn = convnet if use_conv_disc else fc_net
 
 discriminator: Classifier = build_discriminator(args,
@@ -109,7 +107,7 @@ discriminator: Classifier = build_discriminator(args,
 
 discriminator.to(device)
 
-enc_s_dim = 10
+enc_s_dim = 16
 
 for epoch in range(1000):
 
@@ -124,7 +122,7 @@ for epoch in range(1000):
 
         enc, nll = inn.routine(x)
 
-        # ===== Partition the encoding ======
+        # # ===== Partition the encoding ======
         enc_flat = enc.flatten(start_dim=1)
         enc_y_dim = enc_flat.size(1) - enc_s_dim
         enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
@@ -135,16 +133,16 @@ for epoch in range(1000):
         if use_conv_disc:
             enc_y_m = enc_y_m.view_as(enc)
             enc_s_m = enc_s_m.view_as(enc)
-
-        # ======== Loss computation =========
+        #
+        # # ======== Loss computation =========
         pred_s_loss, acc = discriminator.routine(enc_y_m, s)
 
-        inn.optimizer.zero_grad()
+        inn.zero_grad()
         discriminator.zero_grad()
 
-        nll *= 1e1
+        nll *= 1
         loss = nll
-        loss += pred_s_loss
+        loss += 1.0 * pred_s_loss
 
         loss.backward()
 

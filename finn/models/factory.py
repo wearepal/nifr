@@ -12,7 +12,6 @@ def build_fc_inn(args, input_dim, depth: int = None):
     _depth = depth or args.depth
     _batch_norm = args.batch_norm
 
-    hidden_dims = tuple(map(int, args.dims.split("-")))
     chain = [layers.Flatten()]
     for i in range(_depth):
         if args.batch_norm:
@@ -20,9 +19,9 @@ def build_fc_inn(args, input_dim, depth: int = None):
         if args.glow and args.dataset == 'adult':
             chain += [layers.InvertibleLinear(input_dim)]
         chain += [layers.MaskedCouplingLayer(input_dim,
-                                             hidden_dims,
+                                             2 * [args.coupling_dims],
                                              'alternate',
-                                             swap=(i % 2 == 0)) and not args.glow]
+                                             swap=(i % 2 == 0) and not args.glow)]
 
     chain += [layers.InvertibleLinear(input_dim)]
 
@@ -44,8 +43,8 @@ def build_conv_inn(args, input_dim):
                 chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
             if args.glow:
                 chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
-            # chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
-            chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            # chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
 
         return layers.BijectorChain(chain)
 

@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 
 from finn.layers.inn.bijector import Bijector
-from finn.layers.conv import BottleneckConvBlock
+from finn.layers.conv import BottleneckConvBlock, ResidualBlock
 from finn.utils import RoundSTE, sum_except_batch
 
 
@@ -44,7 +44,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _get_scale_and_shift_params(self, x_a):
         s_t = self.net_s_t(x_a)
         scale, shift = s_t.chunk(2, dim=1)
-        scale = scale.exp()
+        scale = torch.sigmoid(scale) * 2
         return scale, shift
 
     def _forward(self, x, sum_ldj=None):
@@ -74,6 +74,7 @@ class AdditiveCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels):
         super().__init__()
         self.d = in_channels - (in_channels // 2)
+
         self.net_t = BottleneckConvBlock(
             in_channels=self.d,
             hidden_channels=hidden_channels,
@@ -112,17 +113,20 @@ class AdditiveCouplingLayer(CouplingLayer):
 
 
 class IntegerDiscreteFlow(AdditiveCouplingLayer):
-    def __init__(self, in_channels, hidden_channels):
+    def __init__(self, in_channels, hidden_channels, depth=3):
         super().__init__(in_channels, hidden_channels)
         self.d = round(0.75 * in_channels)
-        self.net_t = BottleneckConvBlock(
-            in_channels=self.d,
-            hidden_channels=hidden_channels,
-            out_channels=(in_channels - self.d),
-        )
 
-    def _get_shift_param(self, x):
-        shift = self.net_t(x[:, :self.d])
+        layers = []
+        curr_dim = self.d
+        for i in range(depth):
+            layers += [ResidualBlock(curr_dim, hidden_channels)]
+            curr_dim = hidden_channels
+        layers += [nn.Conv2d(curr_dim, in_channels - self.d, kernel_size=1, stride=1, padding=0)]
+        self.net_t = nn.Sequential(*layers)
+
+    def _get_shift_param(self, x_a):
+        shift = self.net_t(x_a)
         # Round with straight-through-estimator
         return RoundSTE.apply(shift)
 
