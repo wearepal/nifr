@@ -73,16 +73,16 @@ data = DataLoader(data, batch_size=128, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
 
-args.depth = 12
+args.depth = 10
 args.coupling_dims = 512
 
 args.factor_splits = {}
 args.zs_frac = 0.02
 args.lr = 3e-4
-args.disc_lr = 1e-4
+args.disc_lr = 3e-4
 args.glow = False
 args.batch_norm = False
-args.weight_decay = 1e-5
+args.weight_decay = 0
 args.idf = False
 
 model = build_conv_inn(args, input_shape[0])
@@ -109,6 +109,13 @@ discriminator: Classifier = build_discriminator(args,
 
 discriminator.to(device)
 
+
+def apply_spectral_norm(m):
+    if hasattr(m, "weight"):
+        return torch.nn.utils.spectral_norm(m)
+
+
+discriminator.apply(apply_spectral_norm)
 enc_s_dim = 48
 
 for epoch in range(1000):
@@ -142,13 +149,10 @@ for epoch in range(1000):
         inn.zero_grad()
         discriminator.zero_grad()
 
-        loss = nll
+        loss = nll * 1
         loss += pred_s_loss
 
         loss.backward()
-
-        torch.nn.utils.clip_grad_norm_(inn.parameters(), max_norm=5)
-        torch.nn.utils.clip_grad_norm_(discriminator.parameters(), max_norm=5)
 
         inn.optimizer.step()
         discriminator.step()

@@ -50,12 +50,12 @@ class BipartiteInn(ModelBase):
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 
-        if args.dataset == 'adult':
+        if len(input_shape) < 2:
             self.x_dim: int = x_dim
             z_channels += args.s_dim
             self.output_shape = self.input_shape
 
-        elif args.dataset == 'cmnist':
+        else:
             self.x_dim: int = x_dim
             z_channels *= args.squeeze_factor ** 2
             h = self.input_shape[1] // args.squeeze_factor
