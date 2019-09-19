@@ -7,6 +7,9 @@ def is_int(x):
     return isinstance(x, int)
 
 
+def is_probability(x):
+    return 0.0 <= x <= 1.0
+
 def is_positive_int(x):
     return is_int(x) and x > 0
 

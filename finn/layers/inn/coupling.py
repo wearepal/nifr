@@ -7,6 +7,7 @@ from torch import Tensor
 from finn.layers.inn.bijector import Bijector
 from finn.layers.conv import BottleneckConvBlock, ResidualBlock
 from finn.utils import RoundSTE, sum_except_batch
+from finn.utils.typechecks import is_probability
 
 
 class CouplingLayer(Bijector):
@@ -29,9 +30,11 @@ class CouplingLayer(Bijector):
 
 
 class AffineCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels):
+    def __init__(self, in_channels, hidden_channels, pcnt_to_transform=0.5):
+        assert is_probability(pcnt_to_transform)
+
         super().__init__()
-        self.d = in_channels - (in_channels // 2)
+        self.d = in_channels - round(pcnt_to_transform * in_channels)
         self.net_s_t = BottleneckConvBlock(
             in_channels=self.d,
             hidden_channels=hidden_channels,
@@ -41,8 +44,8 @@ class AffineCouplingLayer(CouplingLayer):
     def logdetjac(self, scale):
         return sum_except_batch(scale.log(), keepdim=True)
 
-    def _get_scale_and_shift_params(self, x_a):
-        s_t = self.net_s_t(x_a)
+    def _get_scale_and_shift_params(self, x):
+        s_t = self.net_s_t(x)
         scale, shift = s_t.chunk(2, dim=1)
         scale = torch.sigmoid(scale) * 2
         return scale, shift
@@ -71,10 +74,11 @@ class AffineCouplingLayer(CouplingLayer):
 
 
 class AdditiveCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels):
-        super().__init__()
-        self.d = in_channels - (in_channels // 2)
+    def __init__(self, in_channels, hidden_channels, pcnt_to_transform=0.5):
+        assert is_probability(pcnt_to_transform)
 
+        super().__init__()
+        self.d = in_channels - round(pcnt_to_transform * in_channels)
         self.net_t = BottleneckConvBlock(
             in_channels=self.d,
             hidden_channels=hidden_channels,
