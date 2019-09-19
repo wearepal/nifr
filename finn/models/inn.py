@@ -1,6 +1,7 @@
 from argparse import Namespace
 from typing import Tuple, Union, List, Optional, Sequence
 
+import numpy as np
 import torch
 import torch.distributions as td
 from torch import Tensor
@@ -90,8 +91,14 @@ class BipartiteInn(ModelBase):
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        nll = -(log_pz.sum() - sum_logdet.sum()) / z.nelement()
-        return nll
+        log_px = (log_pz.sum() - sum_logdet.sum())
+        if z.dim() > 2:
+            log_px_per_dim = log_px / z.nelement()
+            bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
+            return bits_per_dim
+        else:
+            nll = -log_px / z.size(0)
+            return nll
 
     def forward(
         self, inputs: Tensor, logdet: Tensor = None,

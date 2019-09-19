@@ -73,16 +73,16 @@ data = DataLoader(data, batch_size=128, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
 
-args.depth = 10
-args.coupling_dims = 512
+args.depth = 8
+args.coupling_dims = 128
 
 args.factor_splits = {}
 args.zs_frac = 0.02
 args.lr = 3e-4
 args.disc_lr = 3e-4
-args.glow = False
+args.glow = True
 args.batch_norm = False
-args.weight_decay = 0
+args.weight_decay = 1e-5
 args.idf = False
 
 model = build_conv_inn(args, input_shape[0])
@@ -150,7 +150,7 @@ for epoch in range(1000):
         discriminator.zero_grad()
 
         loss = nll * 1
-        loss += pred_s_loss
+        loss += pred_s_loss * 0.1
 
         loss.backward()
 
