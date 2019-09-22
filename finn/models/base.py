@@ -1,4 +1,5 @@
 import torch.nn as nn
+from torch.optim import Adam
 
 from finn.utils.optimizers import RAdam
 
@@ -11,7 +12,7 @@ class ModelBase(nn.Module):
         super().__init__()
         self.model = model
         optimizer_args = optimizer_args or self.default_args["optimizer_args"]
-        self.optimizer = RAdam(self.model.parameters(), **optimizer_args)
+        self.optimizer = Adam(self.model.parameters(), **optimizer_args)
 
     def reset_parameters(self):
         def _reset_parameters(m: nn.Module):

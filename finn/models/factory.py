@@ -40,14 +40,16 @@ def build_conv_inn(args, input_dim):
             chain += [layers.RandomPermutation(_input_dim)]
         else:
             if args.batch_norm:
-                chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
+                chain += [layers.ActNorm(_input_dim)]
+                # chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
             if args.glow:
                 chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
             else:
-                chain += [layers.ReversePermutation(_input_dim)]
-            chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims,
-                                                 pcnt_to_transform=0.5)]
-            # chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+                chain += [layers.RandomPermutation(_input_dim)]
+            # chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims,
+            #                                      pcnt_to_transform=0.5)]
+            chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims,
+                                                   pcnt_to_transform=0.25)]
 
         return layers.BijectorChain(chain)
 

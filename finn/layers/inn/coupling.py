@@ -42,17 +42,17 @@ class AffineCouplingLayer(CouplingLayer):
         )
 
     def logdetjac(self, scale):
-        return sum_except_batch(scale.log(), keepdim=True)
+        return sum_except_batch(torch.log(scale + 1e-6), keepdim=True)
 
-    def _get_scale_and_shift_params(self, x):
-        s_t = self.net_s_t(x)
+    def _scale_and_shift_fn(self, inputs):
+        s_t = self.net_s_t(inputs)
         scale, shift = s_t.chunk(2, dim=1)
         scale = torch.sigmoid(scale) * 2.0
         return scale, shift
 
     def _forward(self, x, sum_ldj=None):
         x_a, x_b = self._split(x)
-        scale, shift = self._get_scale_and_shift_params(x_a)
+        scale, shift = self._scale_and_shift_fn(x_a)
         y_b = scale * x_b + shift
         y = torch.cat([x_a, y_b], dim=1)
 
@@ -63,7 +63,7 @@ class AffineCouplingLayer(CouplingLayer):
 
     def _inverse(self, y, sum_ldj=None):
         x_a, y_b = self._split(y)
-        scale, shift = self._get_scale_and_shift_params(x_a)
+        scale, shift = self._scale_and_shift_fn(x_a)
         x_b = (y_b - shift) / scale
         x = torch.cat([x_a, x_b], dim=1)
 
@@ -88,12 +88,12 @@ class AdditiveCouplingLayer(CouplingLayer):
     def logdetjac(self):
         return 0
 
-    def get_shift_param(self, x_a):
-        return self.net_t(x_a)
+    def _shift_fn(self, inputs):
+        return self.net_t(inputs)
 
     def _forward(self, x, sum_ldj=None):
         x_a, x_b = self._split(x)
-        shift = self.get_shift_param(x_a)
+        shift = self._shift_fn(x_a)
 
         y_b = x_b + shift
         y = torch.cat([x_a, y_b], dim=1)
@@ -105,7 +105,7 @@ class AdditiveCouplingLayer(CouplingLayer):
 
     def _inverse(self, y, sum_ldj=None):
         x_a, y_b = self._split(y)
-        shift = self.get_shift_param(x_a)
+        shift = self._shift_fn(x_a)
 
         x_b = y_b - shift
         x = torch.cat([x_a, x_b], dim=1)
@@ -129,8 +129,8 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
         layers += [nn.Conv2d(curr_dim, in_channels - self.d, kernel_size=1, stride=1, padding=0)]
         self.net_t = nn.Sequential(*layers)
 
-    def _get_shift_param(self, x_a):
-        shift = self.net_t(x_a)
+    def _shift_fn(self, inputs):
+        shift = self.net_t(inputs)
         # Round with straight-through-estimator
         return RoundSTE.apply(shift)
 
