@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from finn.data import get_data_tuples
 from finn.data.dataset_wrappers import TripletDataset
-from finn.data.misc import data_tuple_to_dataset
+from finn.data.misc import data_tuple_to_dataset_sample
 from finn.models.classifier import Classifier
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
@@ -151,37 +151,44 @@ def encode_dataset(args, data, model, recon):
 
     filepaths = {key: os.path.join(root, key) for key in encodings}
 
-    data = DataLoader(data, batch_size=1, pin_memory=True)
+    data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True)
 
+    index_offset = 0
     with torch.set_grad_enabled(False):
-        for i, (x, s, y) in enumerate(iter(data)):
+        for i, (x, s, y) in enumerate(data):
             x = x.to(args.device)
-            s = s.to(args.device)
 
             z, zy, zs = model.encode(x, partials=True)
-
-            data_tuple_to_dataset(z, s, y,
-                                  root=filepaths['z'],
-                                  filename=f"image_{i}")
-            data_tuple_to_dataset(zy, s, y,
-                                  root=filepaths['zy'],
-                                  filename=f"image_{i}")
-            data_tuple_to_dataset(zs, s, y,
-                                  root=os.path.join(root, 'zs'),
-                                  filename=f"image_{i}")
-
             if recon:
                 x_recon, xy, xs = model.decode(z, partials=True)
 
-                data_tuple_to_dataset(x_recon, s, y,
-                                      root=filepaths['x_recon'],
-                                      filename=f"image_{i}")
-                data_tuple_to_dataset(xy, s, y,
-                                      root=filepaths['xy'],
-                                      filename=f"image_{i}")
-                data_tuple_to_dataset(xs, s, y,
-                                      root=filepaths['xs'],
-                                      filename=f"image_{i}")
+            for j in range(z.size(0)):
+                file_index = index_offset + j
+                s_j, y_j = s[j], y[j]
+
+                data_tuple_to_dataset_sample(z[j], s_j, y_j,
+                                             root=filepaths['z'],
+                                             filename=f"image_{file_index}")
+
+                data_tuple_to_dataset_sample(zy[j], s_j, y_j,
+                                             root=filepaths['zy'],
+                                             filename=f"image_{file_index}")
+                data_tuple_to_dataset_sample(zs[j], s_j, y_j,
+                                             root=os.path.join(root, 'zs'),
+                                             filename=f"image_{file_index}")
+
+                if recon:
+                    data_tuple_to_dataset_sample(x_recon[j], s_j, y_j,
+                                                 root=filepaths['x_recon'],
+                                                 filename=f"image_{file_index}")
+                    data_tuple_to_dataset_sample(xy[j], s_j, y_j,
+                                                 root=filepaths['xy'],
+                                                 filename=f"image_{file_index}")
+                    data_tuple_to_dataset_sample(xs[j], s_j, y_j,
+                                                 root=filepaths['xs'],
+                                                 filename=f"image_{file_index}")
+
+        index_offset += x.size(0)
 
     datasets = {
         key: TripletDataset(root)

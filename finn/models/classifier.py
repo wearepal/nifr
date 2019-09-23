@@ -155,7 +155,7 @@ class Classifier(ModelBase):
         return loss, acc
 
     def fit(self, train_data, epochs, device, test_data=None,
-            pred_s=False, batch_size=100, test_batch_size=1000,
+            pred_s=False, batch_size=256, test_batch_size=1000,
             lr_milestones: dict = None, verbose=False):
 
         if not isinstance(train_data, DataLoader):

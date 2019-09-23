@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
-from finn.models.configs.classifiers import fc_net
+from finn.models.configs.classifiers import fc_net, strided_7x7_net
 from finn.models.inn import MaskedInn, BipartiteInn, PartitionedInn
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from .loss import grad_reverse
@@ -24,10 +24,10 @@ LOGGER = None
 SUMMARY = None
 
 
-def save_model(save_dir, model, discriminator) -> str:
+def save_model(save_dir, inn, discriminator) -> str:
     filename = save_dir / 'checkpt.pth'
     save_dict = {'ARGS': ARGS,
-                 'model': model.state_dict(),
+                 'model': inn.state_dict(),
                  'discriminator': discriminator.state_dict()}
 
     torch.save(save_dict, filename)
@@ -43,9 +43,9 @@ def restore_model(filename, model, discriminator):
     return model, discriminator
 
 
-def train(model, discriminator, dataloader, epoch):
+def train(inn, discriminator, dataloader, epoch):
 
-    model.train()
+    inn.train()
 
     total_loss_meter = utils.AverageMeter()
     log_prob_meter = utils.AverageMeter()
@@ -59,59 +59,48 @@ def train(model, discriminator, dataloader, epoch):
 
         x, s, y = to_device(x, s, y)
 
-        (enc_y, enc_s), neg_log_prob = model.routine(x)
+        enc, nll = inn.routine(x)
+
+        enc_y, enc_s = inn.split_encoding(enc)
+        enc_y = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
 
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
-        print(disc_acc)
 
         if ARGS.train_on_recon:
             disc_loss += discriminator.routine(enc_s, s)[0]
 
-        neg_log_prob *= ARGS.log_prob_weight
+        nll *= ARGS.nll_weight
         disc_loss *= ARGS.pred_s_weight
 
-        loss = neg_log_prob + disc_loss
+        loss = nll + disc_loss
 
-        model.zero_grad()
+        inn.zero_grad()
         discriminator.zero_grad()
 
-        if ARGS.train_on_recon:
-            inn_grads = torch.autograd.grad(loss, model.model.parameters(), create_graph=True)
-            masker_grads = torch.autograd.grad(inn_grads, model.masker.parameters(),
-                                               retain_graph=True,
-                                               grad_outputs=[torch.ones_like(grad)
-                                                             for grad in inn_grads])
-            masker_grads += torch.autograd.grad(disc_loss, model.masker.parameters(),
-                                                retain_graph=True)
-            disc_grads = torch.autograd.grad(loss, discriminator.parameters())
-            apply_gradients(inn_grads, model.model)
-            apply_gradients(masker_grads, model.masker)
-            apply_gradients(disc_grads, discriminator)
-        else:
-            loss.backward()
+        loss.backward()
 
-        model.step()
+        inn.step()
         discriminator.step()
 
         total_loss_meter.update(loss.item())
-        log_prob_meter.update(neg_log_prob.item())
+        log_prob_meter.update(nll.item())
         disc_loss_meter.update(disc_loss.item())
 
         time_meter.update(time.time() - end)
 
         SUMMARY.set_step(itr)
-        SUMMARY.log_metric('Loss log_p_x', neg_log_prob.item())
-        SUMMARY.log_metric('Loss pred_y_from_zys_loss', disc_loss.item())
+        SUMMARY.log_metric('Loss NLL', nll.item())
+        SUMMARY.log_metric('Loss Adversarial', disc_loss.item())
         end = time.time()
 
-    model.eval()
+    inn.eval()
     with torch.set_grad_enabled(False):
 
         log_images(SUMMARY, x, 'original_x')
 
-        z = model(x[:64])
+        z = inn(x[:64])
 
-        recon_all, recon_y, recon_s = model.decode(z, partials=True)
+        recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
         log_images(SUMMARY, recon_all, 'reconstruction_all')
         log_images(SUMMARY, recon_y, 'reconstruction_y')
@@ -120,7 +109,7 @@ def train(model, discriminator, dataloader, epoch):
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
         "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-        "Loss -log_p_x (surprisal): {:.5g} | disc_loss: {:.5g} ({:.5g})",
+        "Loss NLL: {:.5g} | Loss Adv: {:.5g} ({:.5g})",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
@@ -130,23 +119,24 @@ def train(model, discriminator, dataloader, epoch):
     )
 
 
-def validate(model, discriminator, val_loader):
-    model.eval()
+def validate(inn, discriminator, val_loader):
+    inn.eval()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            (enc_y, enc_s), neg_log_prob = model.routine(x_val)
+            enc, nll = inn.routine(x_val)
+
+            enc_y, enc_s = inn.split_encoding(enc)
+            enc_y = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+
             disc_loss, acc = discriminator.routine(enc_y, s_val)
 
-            if ARGS.train_on_recon:
-                disc_loss += discriminator.routine(enc_s, s_val)[0]
-
-            neg_log_prob *= ARGS.log_prob_weight
+            nll *= ARGS.nll_weight
             disc_loss *= ARGS.pred_s_weight
 
-            loss = neg_log_prob + disc_loss
+            loss = nll + disc_loss
 
             loss_meter.update(loss.item(), n=x_val.size(0))
 
@@ -154,20 +144,20 @@ def validate(model, discriminator, val_loader):
 
     if ARGS.dataset == 'cmnist':
 
-        z = model(x_val[:64])
+        z = inn(x_val[:64])
 
-        recon_all, recon_y, recon_s = model.decode(z, partials=True)
+        recon_all, recon_y, recon_s = inn.decode(z, partials=True)
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
         log_images(SUMMARY, recon_s, 'reconstruction_s', prefix='test')
     else:
-        z = model(x_val[:1000])
-        recon_all, recon_y, recon_s = model.decode(z, partials=True)
+        z = inn(x_val[:1000])
+        recon_all, recon_y, recon_s = inn.decode(z, partials=True)
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_yn', prefix='test')
         log_images(SUMMARY, recon_s, 'reconstruction_yn', prefix='test')
-        x_recon = model(model(x_val), reverse=True)
+        x_recon = inn(inn(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")
         SUMMARY.log_metric("reconstruction MAE", x_diff)
@@ -239,22 +229,22 @@ def main(args, datasets, metric_callback):
     else:
         Module = PartitionedInn
     if len(input_shape) > 2:
-        model = build_conv_inn(args, input_shape[0])
+        inn = build_conv_inn(args, input_shape[0])
         if args.train_on_recon:
             disc_fn = mp_28x28_net
             disc_kwargs = {}
         else:
-            disc_fn = fc_net
-            disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
+            disc_fn = strided_7x7_net
+            disc_kwargs = {}
     else:
-        model = build_fc_inn(args, input_shape[0])
+        inn = build_fc_inn(args, input_shape[0])
         disc_fn = fc_net
         disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
     # Model arguments
-    model_args = {
+    inn_args = {
         'args': args,
-        'model': model,
+        'model': inn,
         'input_shape': input_shape,
         'optimizer_args': optimizer_args,
         'feature_groups': feature_groups,
@@ -264,37 +254,33 @@ def main(args, datasets, metric_callback):
             'lr': args.masker_lr,
             'weight_decay': args.masker_weight_decay
         }
-        model_args['masker_optimizer_args'] = masker_optimizer_args
+        inn_args['masker_optimizer_args'] = masker_optimizer_args
 
     # Initialise INN
-    model: BipartiteInn = Module(**model_args)
-    model.to(args.device)
+    inn: BipartiteInn = Module(**inn_args)
+    inn.to(args.device)
     # Initialise Discriminator
     disc_optimizer_args = {'lr': args.disc_lr}
     discriminator = build_discriminator(args,
                                         input_shape,
-                                        disc_fn,
-                                        disc_kwargs,
-                                        flatten=not args.train_on_recon,
+                                        frac_enc=1,
+                                        model_fn=disc_fn,
+                                        model_kwargs=disc_kwargs,
+                                        flatten=False,
                                         optimizer_args=disc_optimizer_args)
     discriminator.to(args.device)
     # Save initial parameters
-    save_model(save_dir=save_dir, model=model, discriminator=discriminator)
+    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
 
     # Resume from checkpoint
     if ARGS.resume is not None:
-        model, discriminator = restore_model(ARGS.resume, model, discriminator)
-        metric_callback(ARGS, SUMMARY, model, discriminator, datasets, check_originals=False)
+        inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
+        metric_callback(ARGS, SUMMARY, inn, discriminator, datasets, check_originals=False)
         return
 
     # Logging
-    SUMMARY.set_model_graph(str(model))
-    LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(model))
-    if args.train_on_recon:
-        with torch.set_grad_enabled(False):
-            mask = model.masker(threshold=True)
-            zs_dim = (1 - mask).sum() / mask.nelement()
-        LOGGER.info("Zs frac:  {}", zs_dim.item())
+    SUMMARY.set_model_graph(str(inn))
+    LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(inn))
 
     best_loss = float('inf')
     n_vals_without_improvement = 0
@@ -306,32 +292,24 @@ def main(args, datasets, metric_callback):
 
         with SUMMARY.train():
             train(
-                model,
+                inn,
                 discriminator,
                 train_loader,
                 epoch,
             )
 
-            if args.train_on_recon:
-                with torch.set_grad_enabled(False):
-                    mask = model.masker(threshold=True)
-                    zs_dim = (1 - mask).sum() / mask.nelement()
-                LOGGER.info("Zs frac:  {}", zs_dim.item())
-
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
-                val_loss = validate(model, discriminator, val_loader)
+                val_loss = validate(inn, discriminator, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, experiment=SUMMARY, model=model, data=datasets)
+                    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
 
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    save_model(save_dir=save_dir, model=model, discriminator=discriminator)
+                    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
                     n_vals_without_improvement = 0
                 else:
                     n_vals_without_improvement += 1
-
-                # scheduler.step(val_loss)
 
                 LOGGER.info(
                     '[VAL] Epoch {:04d} | Val Loss {:.6f} | '
@@ -342,10 +320,10 @@ def main(args, datasets, metric_callback):
                 )
 
     LOGGER.info('Training has finished.')
-    model, discriminator = restore_model(save_dir / 'checkpt.pth', model, discriminator)
-    metric_callback(ARGS, experiment=SUMMARY, model=model, data=datasets)
-    save_model(save_dir=save_dir, model=model, discriminator=discriminator)
-    model.eval()
+    inn, discriminator = restore_model(save_dir / 'checkpt.pth', inn, discriminator)
+    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
+    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    inn.eval()
 
 
 if __name__ == '__main__':

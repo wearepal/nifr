@@ -73,7 +73,7 @@ class RandomSampler(Sampler):
         return self.num_samples
 
 
-def data_tuple_to_dataset(
+def data_tuple_to_dataset_sample(
     data, sens, target, root: str, filename: str
 ) -> None:
     """

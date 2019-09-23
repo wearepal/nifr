@@ -1,6 +1,36 @@
 import torch.nn as nn
 
 
+def strided_7x7_net(in_dim, target_dim):
+    layers = []
+    layers.extend([
+        nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
+        nn.BatchNorm2d(256),
+        nn.LeakyReLU(inplace=True)
+    ])
+    layers.extend([
+        nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
+        nn.BatchNorm2d(256),
+        nn.LeakyReLU(inplace=True)
+    ])
+
+    layers.extend([
+        nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+        nn.BatchNorm2d(512),
+        nn.LeakyReLU(inplace=True)
+    ])
+    layers.extend([
+        nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
+        nn.BatchNorm2d(512),
+        nn.LeakyReLU(inplace=True)
+    ])
+
+    layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
+    layers.append(nn.Flatten())
+
+    return nn.Sequential(*layers)
+
+
 def mp_28x28_net(input_dim, target_dim):
 
     def conv_block(in_dim, out_dim):
