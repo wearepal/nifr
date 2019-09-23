@@ -70,15 +70,15 @@ data = DataLoader(data, batch_size=128, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
 
-args.depth = 16
-args.coupling_dims = 512
+args.depth = 10
+args.coupling_dims = 128
 
 args.factor_splits = {4: 0.80, 8: 0.75, 12: 0.75}
 args.zs_frac = 0.02
 args.lr = 1e-3
 args.disc_lr = 1e-3
-args.glow = False
-args.batch_norm = False
+args.glow = True
+args.batch_norm = True
 args.weight_decay = 0
 args.idf = False
 
@@ -112,7 +112,7 @@ discriminator.to(device)
 #
 #
 # discriminator.apply(apply_spectral_norm)
-enc_s_dim = 16
+enc_s_dim = 48
 
 # plt.ion()
 grads = []
@@ -135,17 +135,17 @@ for epoch in range(50):
 
         enc, nll = inn.routine(x)
         # # ===== Partition the encoding ======
-        # enc_y, enc_s = inn.split_encoding(enc)
-        enc_flat = enc.flatten(start_dim=1)
-        enc_y_dim = enc_flat.size(1) - enc_s_dim
-        enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
-
-        enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
+        enc_y, enc_s = inn.split_encoding(enc)
+        # enc_flat = enc.flatten(start_dim=1)
+        # enc_y_dim = enc_flat.size(1) - enc_s_dim
+        # enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+        #
+        # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
         enc_y_m = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
-
-        if use_conv_disc:
-            enc_y_m = enc_y_m.view_as(enc)
-            enc_s_m = enc_s_m.view_as(enc)
+        #
+        # if use_conv_disc:
+        #     enc_y_m = enc_y_m.view_as(enc)
+        #     enc_s_m = enc_s_m.view_as(enc)
 
         # # ======== Loss computation =========
         pred_s_loss, acc = discriminator.routine(enc_y_m, s)
@@ -153,7 +153,7 @@ for epoch in range(50):
         inn.zero_grad()
         discriminator.zero_grad()
 
-        loss = nll * 1
+        loss = nll
         loss += pred_s_loss
 
         loss.backward()
@@ -181,16 +181,16 @@ for epoch in range(50):
             with torch.set_grad_enabled(False):
                 enc = inn(x)
 
-                enc_flat = enc.flatten(start_dim=1)
-                enc_y_dim = enc_flat.size(1) - enc_s_dim
-                enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
-
-                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).view_as(enc)
-                enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1).view_as(enc)
-                x_recon = inn.invert(enc)
-                xy = inn.invert(enc_y_m, discretize=False)
-                xs = inn.invert(enc_s_m, discretize=False)
-                # x_recon, xy, xs = inn.decode(enc, partials=True)
+                # enc_flat = enc.flatten(start_dim=1)
+                # enc_y_dim = enc_flat.size(1) - enc_s_dim
+                # enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+                #
+                # enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).view_as(enc)
+                # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1).view_as(enc)
+                # x_recon = inn.invert(enc)
+                # xy = inn.invert(enc_y_m, discretize=False)
+                # xs = inn.invert(enc_s_m, discretize=False)
+                x_recon, xy, xs = inn.decode(enc, partials=True)
 
                 save_image(x_recon[:64], filename="cmnist_recon_x.png")
                 save_image(xy[:64], filename="cmnist_recon_xy.png")
