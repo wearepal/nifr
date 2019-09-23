@@ -18,7 +18,7 @@ class Classifier(ModelBase):
     def __init__(
         self,
         model,
-        n_classes: int,
+        num_classes: int,
         optimizer_args: dict = None,
     ) -> None:
         """Build classifier model.
@@ -31,15 +31,15 @@ class Classifier(ModelBase):
         Returns:
             None
         """
-        if n_classes < 2:
+        if num_classes < 2:
             raise ValueError(f"Invalid number of classes: must equal 2 or more,"
-                             f" {n_classes} given.")
-        if n_classes == 2:
+                             f" {num_classes} given.")
+        if num_classes == 2:
             self.criterion = "bce"
         else:
             self.criterion = "ce"
 
-        self.out_dim = n_classes if self.criterion == 'ce' else 1
+        self.out_dim = num_classes if self.criterion == 'ce' else 1
 
         super().__init__(
             model,

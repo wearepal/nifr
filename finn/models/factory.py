@@ -12,17 +12,16 @@ def build_fc_inn(args, input_dim, depth: int = None):
     _depth = depth or args.depth
     _batch_norm = args.batch_norm
 
-    hidden_dims = tuple(map(int, args.dims.split("-")))
     chain = [layers.Flatten()]
     for i in range(_depth):
         if args.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
-        if args.glow and args.dataset == 'adult':
+        if args.glow:
             chain += [layers.InvertibleLinear(input_dim)]
         chain += [layers.MaskedCouplingLayer(input_dim,
-                                             hidden_dims,
+                                             2 * [args.coupling_dims],
                                              'alternate',
-                                             swap=(i % 2 == 0)) and not args.glow]
+                                             swap=(i % 2 == 0) and not args.glow)]
 
     chain += [layers.InvertibleLinear(input_dim)]
 
@@ -38,14 +37,18 @@ def build_conv_inn(args, input_dim):
         chain = []
         if args.idf:
             chain += [layers.IntegerDiscreteFlow(_input_dim, hidden_channels=hidden_dims)]
-            chain += [layers.RandomPermutation(input_dim)]
+            chain += [layers.RandomPermutation(_input_dim)]
         else:
             if args.batch_norm:
-                chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
+                chain += [layers.ActNorm(_input_dim)]
+                # chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
             if args.glow:
                 chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
-            # chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
-            chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            else:
+                chain += [layers.RandomPermutation(_input_dim)]
+            chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
+            # chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims,
+            #                                        pcnt_to_transform=0.25)]
 
         return layers.BijectorChain(chain)
 
@@ -56,11 +59,12 @@ def build_conv_inn(args, input_dim):
     input_dim = input_dim_0
     for _ in range(args.depth):
         chain += [_block(input_dim)]
-        if offset in factor_splits:
-            input_dim = round(factor_splits[offset] * input_dim)
-        offset += 1
+        # if offset in factor_splits:
+        #     input_dim = round(factor_splits[offset] * input_dim)
+        # offset += 1
 
-    model = [layers.FactorOut(chain, factor_splits)]
+    model = chain
+    # model = [layers.FactorOut(chain, factor_splits)]
     if args.idf:
         pass
         model += [layers.RandomPermutation(input_dim_0)]
@@ -88,10 +92,10 @@ def build_discriminator(args, input_shape, frac_enc,
         if flatten:
             in_dim = int(np.product((in_dim, h, w)))
 
-    n_classes = args.y_dim if args.y_dim > 1 else 2
+    num_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
         model_fn(in_dim, args.y_dim, **model_kwargs),
-        n_classes=n_classes,
+        num_classes=num_classes,
         optimizer_args=optimizer_args
     )
 

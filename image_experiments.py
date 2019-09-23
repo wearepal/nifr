@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor, Compose
@@ -18,68 +19,32 @@ def convnet(in_dim, target_dim):
     layers = []
     layers.extend([
         nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
+        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(256),
-        nn.ReLU(inplace=True)
+        nn.LeakyReLU(inplace=True)
     ])
     layers.extend([
-        nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
+        nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
+        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(256),
-        nn.ReLU(inplace=True)
+        nn.LeakyReLU(inplace=True)
     ])
-    layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend([
         nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(512),
-        nn.ReLU(inplace=True)
+        nn.LeakyReLU(inplace=True)
     ])
     layers.extend([
-        nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
+        nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
+        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(512),
-        nn.ReLU(inplace=True)
-    ])
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend([
-        nn.Flatten(),
-        nn.Linear(512, target_dim)
+        nn.LeakyReLU(inplace=True)
     ])
 
-    return nn.Sequential(*layers)
-
-
-def depthwise_convnet(in_dim, target_dim):
-    layers = []
-    h_dim_1 = in_dim * 8
-    layers.extend([
-        nn.Conv2d(in_dim, h_dim_1, kernel_size=3, stride=1, padding=1, groups=in_dim),
-        nn.GroupNorm(num_channels=h_dim_1, num_groups=in_dim),
-        nn.ReLU(inplace=True)
-    ])
-    layers.extend([
-        nn.Conv2d(h_dim_1, h_dim_1, kernel_size=3, stride=1, padding=1, groups=in_dim),
-        nn.GroupNorm(num_channels=h_dim_1, num_groups=in_dim),
-        nn.ReLU(inplace=True)
-    ])
-    layers += [nn.MaxPool2d(2, 2)]
-
-    h_dim_2 = in_dim * 16
-    layers.extend([
-        nn.Conv2d(h_dim_1, h_dim_2, kernel_size=3, stride=1, padding=1, groups=in_dim),
-        nn.GroupNorm(num_channels=h_dim_2, num_groups=in_dim),
-        nn.ReLU(inplace=True)
-    ])
-    layers.extend([
-        nn.Conv2d(h_dim_2, h_dim_2, kernel_size=3, stride=1, padding=1, groups=in_dim),
-        nn.GroupNorm(num_channels=h_dim_2, num_groups=in_dim),
-        nn.ReLU(inplace=True)
-    ])
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend(
-        [nn.Conv2d(h_dim_2, out_channels=in_dim * target_dim, kernel_size=1,
-                   padding=0, groups=in_dim)]
-    )
+    layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
+    layers.append(nn.Flatten())
 
     return nn.Sequential(*layers)
 
@@ -104,18 +69,18 @@ transforms = Compose(transforms)
 mnist = MNIST(root="data", train=True, download=True, transform=transforms)
 mnist, _ = random_split(mnist, lengths=(50000, 10000))
 colorizer = LdColorizer(scale=0.0, black=True, background=False)
-data = LdAugmentedDataset(mnist, ld_augmentations=colorizer, n_labels=10, li_augmentation=True)
-data = DataLoader(data, batch_size=256, pin_memory=True, shuffle=True)
+data = LdAugmentedDataset(mnist, ld_augmentations=colorizer, num_classes=10, li_augmentation=True)
+data = DataLoader(data, batch_size=128, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
 
-args.depth = 12
-args.coupling_dims = 512
+args.depth = 10
+args.coupling_dims = 128
 
-args.factor_splits = {4: 0.75, 7: 0.75, 10: 0.75}
+args.factor_splits = {4: 0.80, 8: 0.75, 12: 0.75}
 args.zs_frac = 0.02
-args.lr = 3e-4
-args.disc_lr = 3e-4
+args.lr = 1e-3
+args.disc_lr = 1e-3
 args.glow = True
 args.batch_norm = True
 args.weight_decay = 0
@@ -128,57 +93,69 @@ inn.to(device)
 disc_kwargs = {}
 disc_optimizer_args = {'lr': args.disc_lr}
 
-args.disc_hidden_dims = [1024, 1024]
-
+args.disc_hidden_dims = [1024]
 args.train_on_recon = False
+
+use_conv_disc = True
+model_fn = convnet if use_conv_disc else fc_net
+
 discriminator: Classifier = build_discriminator(args,
                                                 input_shape,
                                                 frac_enc=1,
-                                                model_fn=fc_net,
+                                                model_fn=model_fn,
                                                 model_kwargs=disc_kwargs,
-                                                flatten=True,
+                                                flatten=not use_conv_disc,
                                                 optimizer_args=disc_optimizer_args)
 
 discriminator.to(device)
 
-discriminator2: Classifier = build_discriminator(args,
-                                                 input_shape,
-                                                 frac_enc=1,
-                                                 model_fn=fc_net,
-                                                 model_kwargs=disc_kwargs,
-                                                 flatten=True,
-                                                 optimizer_args=disc_optimizer_args)
 
-discriminator2.to(device)
+# def apply_spectral_norm(m):
+#     if hasattr(m, "weight"):
+#         return torch.nn.utils.spectral_norm(m)
+#
+#
+# discriminator.apply(apply_spectral_norm)
+enc_s_dim = 48
 
-enc_s_dim = 10
+# plt.ion()
+grads = []
+iters = []
 
-for epoch in range(1000):
+for epoch in range(50):
 
     print(f"===> Epoch {epoch} of training")
 
     inn.model.train()
     discriminator.train()
 
+    # train_inn = True
+    # inn.train()
+    # discriminator.eval()
+
     for i, (x, s, y) in enumerate(data):
 
         x, s, y = to_device(device, x, s, y)
 
         enc, nll = inn.routine(x)
-
-        enc = enc.flatten(start_dim=1)
-        enc_y_dim = enc.size(1) - enc_s_dim
-        enc_y, enc_s = enc.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
-
-        enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
+        # # ===== Partition the encoding ======
+        enc_y, enc_s = inn.split_encoding(enc)
+        # enc_flat = enc.flatten(start_dim=1)
+        # enc_y_dim = enc_flat.size(1) - enc_s_dim
+        # enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+        #
+        # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
         enc_y_m = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+        #
+        # if use_conv_disc:
+        #     enc_y_m = enc_y_m.view_as(enc)
+        #     enc_s_m = enc_s_m.view_as(enc)
 
-        pred_s_loss, acc = discriminator.routine(enc_s_m, s)
-        pred_s_loss += 0.01 * discriminator2.routine(enc_y_m, s)[0]
+        # # ======== Loss computation =========
+        pred_s_loss, acc = discriminator.routine(enc_y_m, s)
 
-        inn.optimizer.zero_grad()
+        inn.zero_grad()
         discriminator.zero_grad()
-        discriminator2.zero_grad()
 
         loss = nll
         loss += pred_s_loss
@@ -186,25 +163,43 @@ for epoch in range(1000):
         loss.backward()
 
         inn.optimizer.step()
-        discriminator.step()
-        discriminator2.step()
 
-        if i % 10 == 0:
+        # if train_inn:
+        inn.optimizer.step()
+        # else:
+        discriminator.step()
+
+        # if i % 10 == 0:
+        #     train_inn = not train_inn
+        #     if train_inn:
+        #         inn.train()
+        #         discriminator.eval()
+        #     else:
+        #         inn.eval()
+        #         discriminator.train()
+        # ============= Logging ==============
+        if i % 50 == 0:
             print(f"NLL: {nll:.4f}")
             print(f"Adv Loss: {pred_s_loss:.4f}")
 
             with torch.set_grad_enabled(False):
                 enc = inn(x)
-                enc_y_dim = enc.size(1) - enc_s_dim
-                enc_y, enc_s = enc.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
 
-                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).view_as(enc)
-                enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1).view_as(enc)
-                x_recon = inn.invert(enc)
-                xy = inn.invert(enc_y_m, discretize=False)
-                xs = inn.invert(enc_s_m, discretize=False)
+                # enc_flat = enc.flatten(start_dim=1)
+                # enc_y_dim = enc_flat.size(1) - enc_s_dim
+                # enc_y, enc_s = enc_flat.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+                #
+                # enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).view_as(enc)
+                # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1).view_as(enc)
+                # x_recon = inn.invert(enc)
+                # xy = inn.invert(enc_y_m, discretize=False)
+                # xs = inn.invert(enc_s_m, discretize=False)
+                x_recon, xy, xs = inn.decode(enc, partials=True)
 
-                # x_recon, xy, xs = inn.decode(enc, partials=True)
                 save_image(x_recon[:64], filename="cmnist_recon_x.png")
                 save_image(xy[:64], filename="cmnist_recon_xy.png")
                 save_image(xs[:64], filename="cmnist_recon_xs.png")
+
+
+plt.plot(grads)
+plt.show()

@@ -19,7 +19,7 @@ class LdAugmentedDataset(Dataset):
         self,
         source_dataset,
         ld_augmentations,
-        n_labels,
+        num_classes,
         li_augmentation=False,
         base_augmentations: list = None,
         correlation=1.0,
@@ -29,7 +29,7 @@ class LdAugmentedDataset(Dataset):
         if not 0 <= correlation <= 1:
             raise ValueError("Label-augmentation correlation must be between 0 and 1.")
 
-        self.n_labels = n_labels
+        self.num_classes = num_classes
 
         if not isinstance(ld_augmentations, (list, tuple)):
             ld_augmentations = [ld_augmentations]
@@ -105,7 +105,7 @@ class LdAugmentedDataset(Dataset):
         x, s, y = self._validate_data(x, s, y)
 
         if self.li_augmentation:
-            s = torch.randint_like(s, low=0, high=self.n_labels)
+            s = torch.randint_like(s, low=0, high=self.num_classes)
 
         if self.correlation < 1:
             flip_prob = torch.rand(s.shape)

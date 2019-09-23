@@ -7,7 +7,11 @@ from .utils import (
     inf_generator,
     save_checkpoint,
 )
-from finn.utils.torch_ops import RoundSTE, to_discrete
+from finn.utils.torch_ops import (
+    RoundSTE,
+    sum_except_batch,
+    to_discrete
+)
 from finn.utils.typechecks import (
     is_bool,
     is_int,

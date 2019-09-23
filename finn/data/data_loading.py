@@ -40,15 +40,15 @@ def load_dataset(args) -> DatasetTriplet:
                                 black=args.black, binarize=args.binarize)
 
         pretrain_data = LdAugmentedDataset(pretrain_data, ld_augmentations=colorizer,
-                                           n_labels=10,
+                                           num_classes=10,
                                            li_augmentation=True,
                                            base_augmentations=data_aug + [to_tensor])
         train_data = LdAugmentedDataset(train_data, ld_augmentations=colorizer,
-                                        n_labels=10,
+                                        num_classes=10,
                                         li_augmentation=False,
                                         base_augmentations=data_aug + [to_tensor])
         test_data = LdAugmentedDataset(test_data, ld_augmentations=colorizer,
-                                       n_labels=10,
+                                       num_classes=10,
                                        li_augmentation=True,
                                        base_augmentations=[to_tensor])
 

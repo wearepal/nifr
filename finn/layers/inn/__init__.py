@@ -4,7 +4,7 @@ from .activations import (
     LogitTransform,
     ZeroMeanTransform
 )
-from .batch_norm import MovingBatchNorm1d, MovingBatchNorm2d
+from .normalization import MovingBatchNorm1d, MovingBatchNorm2d, ActNorm
 from .chain import BijectorChain, FactorOut
 from .coupling import (
     AdditiveCouplingLayer,

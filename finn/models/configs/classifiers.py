@@ -33,6 +33,34 @@ def mp_28x28_net(input_dim, target_dim):
     return nn.Sequential(*layers)
 
 
+def strided_28x28_net(input_dim, target_dim):
+
+    def conv_block(in_dim, out_dim, kernel_size, stride):
+        _block = []
+        _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
+        _block += [nn.BatchNorm2d(out_dim)]
+        _block += [nn.ReLU()]
+        return _block
+
+    layers = []
+    layers.extend(conv_block(input_dim, 64, 3, 1))
+    layers.extend(conv_block(64, 64, 4, 2))
+
+    layers.extend(conv_block(64, 128, 3, 1))
+    layers.extend(conv_block(128, 128, 4, 2))
+
+    layers.extend(conv_block(128, 256, 3, 1))
+    layers.extend(conv_block(256, 256, 4, 2))
+
+    layers.extend(conv_block(256, 512, 3, 1))
+    layers.extend(conv_block(512, 512, 4, 2))
+
+    layers += [nn.Flatten()]
+    layers += [nn.Linear(512, target_dim)]
+
+    return nn.Sequential(*layers)
+
+
 def fc_net(input_dim, target_dim, hidden_dims=None):
 
     hidden_dims = hidden_dims or []
