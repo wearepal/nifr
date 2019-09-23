@@ -19,26 +19,22 @@ def convnet(in_dim, target_dim):
     layers = []
     layers.extend([
         nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
-        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(256),
         nn.LeakyReLU(inplace=True)
     ])
     layers.extend([
         nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
-        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(256),
         nn.LeakyReLU(inplace=True)
     ])
 
     layers.extend([
         nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(512),
         nn.LeakyReLU(inplace=True)
     ])
     layers.extend([
         nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
-        nn.Dropout2d(p=0.5),
         nn.BatchNorm2d(512),
         nn.LeakyReLU(inplace=True)
     ])

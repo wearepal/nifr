@@ -37,7 +37,7 @@ def parse_arguments(raw_args=None):
 
     parser.add_argument('--base-density', type=str, default='normal', choices=['logistic', 'normal'])
     parser.add_argument('--squeeze-factor', type=int, default=4)
-    parser.add_argument('--depth', type=int, default=10)
+    parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--coupling-dims', type=int, default=100)
     parser.add_argument('--coupling-depth', type=int, default=1)
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
@@ -72,7 +72,7 @@ def parse_arguments(raw_args=None):
                              'of the encodings.')
     parser.add_argument('--masker-lr', type=float, default=1e-3)
     parser.add_argument('--masker-weight-decay', type=float, default=0)
-    parser.add_argument('--log-prob-weight', type=float, default=1.0e-3)
+    parser.add_argument('--nll-weight', type=float, default=1)
     parser.add_argument('--pred-s-weight', type=float, default=1)
 
     parser.add_argument('--eval-epochs', type=int, metavar='N', default=30)
