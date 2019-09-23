@@ -31,7 +31,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--black', type=eval, default=True, choices=[True, False])
     parser.add_argument('--binarize', type=eval, default=True, choices=[True, False])
     parser.add_argument('--rotate-data', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--shift-data', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--shift-data', type=eval, default=True, choices=[True, False])
 
     parser.add_argument('--root', type=str, default="data")
 
@@ -50,7 +50,7 @@ def parse_arguments(raw_args=None):
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=250)
-    parser.add_argument('--batch-size', type=int, default=100)
+    parser.add_argument('--batch-size', type=int, default=128)
     parser.add_argument('--test-batch-size', type=int, default=None)
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--disc-lr', type=float, default=3e-4)
@@ -66,7 +66,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--val-freq', type=int, default=4)
     parser.add_argument('--log-freq', type=int, default=10)
 
-    parser.add_argument('--zs-frac', type=float, default=0.33)
+    parser.add_argument('--zs-frac', type=float, default=0.02)
     parser.add_argument('-train_on_recon', type=eval, default=False, choices=[True, False],
                         help='whether to train the discriminator on the reconstructions'
                              'of the encodings.')
@@ -75,7 +75,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--nll-weight', type=float, default=1)
     parser.add_argument('--pred-s-weight', type=float, default=1)
 
-    parser.add_argument('--eval-epochs', type=int, metavar='N', default=30)
+    parser.add_argument('--eval-epochs', type=int, metavar='N', default=25)
     parser.add_argument('--eval-lr', type=float, default=1e-3)
 
     parser.add_argument('--gpu', type=int, default=0, help='which GPU to use (if available)')
