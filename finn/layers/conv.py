@@ -35,7 +35,7 @@ class ResidualBlock(nn.Module):
 
 
 class BottleneckConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels=None, hidden_channels=512, residual=False):
+    def __init__(self, in_channels, out_channels=None, hidden_channels=512):
         super().__init__()
 
         self.conv_first = nn.Conv2d(
@@ -49,24 +49,11 @@ class BottleneckConvBlock(nn.Module):
         )
         # Initialize final kernel to zero so the coupling layer initially performs
         # and identity mapping
-        nn.init.zeros_(self.conv_final.weight)
-
-        self.residual = residual
-        if residual:
-            if in_channels != out_channels:
-                self.shortcut = nn.Conv2d(in_channels, out_channels,
-                                          kernel_size=1, stride=1, padding=0)
-                nn.init.ones_(self.shortcut.weight)
-            else:
-                self.shortcut = nn.Identity()
+        # nn.init.zeros_(self.conv_final.weight)
 
     def forward(self, x):
         out = F.relu(self.conv_first(x))
         out = F.relu(self.conv_bottleneck(out))
         out = self.conv_final(out)
-
-        if self.residual:
-            residual = self.shortcut(x)
-            out += residual
 
         return out

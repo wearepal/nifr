@@ -2,6 +2,7 @@ from typing import Tuple
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 
 from finn.layers.inn.bijector import Bijector
@@ -42,12 +43,12 @@ class AffineCouplingLayer(CouplingLayer):
         )
 
     def logdetjac(self, scale):
-        return sum_except_batch(torch.log(scale + 1e-6), keepdim=True)
+        return sum_except_batch(torch.log(scale), keepdim=True)
 
     def _scale_and_shift_fn(self, inputs):
         s_t = self.net_s_t(inputs)
         scale, shift = s_t.chunk(2, dim=1)
-        scale = torch.sigmoid(scale) * 2.0
+        scale = torch.sigmoid(scale) + 0.5
         return scale, shift
 
     def _forward(self, x, sum_ldj=None):
