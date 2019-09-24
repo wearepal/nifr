@@ -54,17 +54,16 @@ def build_conv_inn(args, input_dim):
 
     factor_splits: dict = args.factor_splits
     offset = len(chain)
-    factor_splits = {k+offset: v for k, v in factor_splits.items()}
+    factor_splits = {int(k)+offset: float(v) for k, v in factor_splits.items()}
 
     input_dim = input_dim_0
     for _ in range(args.depth):
         chain += [_block(input_dim)]
-        # if offset in factor_splits:
-        #     input_dim = round(factor_splits[offset] * input_dim)
-        # offset += 1
+        if offset in factor_splits:
+            input_dim = round(factor_splits[offset] * input_dim)
+        offset += 1
 
-    model = chain
-    # model = [layers.FactorOut(chain, factor_splits)]
+    model = [layers.FactorOut(chain, factor_splits)]
     if args.idf:
         pass
         model += [layers.RandomPermutation(input_dim_0)]

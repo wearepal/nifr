@@ -1,6 +1,8 @@
 import os
 import os
 import shutil
+from argparse import Namespace
+from collections import Callable
 
 import pandas as pd
 import torch
@@ -8,7 +10,8 @@ from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility.data_structures import DataTuple
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
+from torchvision.utils import save_image
 
 from finn.data import get_data_tuples
 from finn.data.dataset_wrappers import TripletDataset
@@ -139,19 +142,19 @@ def evaluate(args, experiment, train_data, test_data,
     _ = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == 'adult')
 
 
-def encode_dataset(args, data, model, recon):
-    root = os.path.join('data', 'encodings')
+def encode_dataset(args: Namespace, data: Dataset, model: Callable, recon: bool, subdir: str) -> dict:
+    root = os.path.join('data', 'encodings', subdir)
     if os.path.exists(root):
         shutil.rmtree(root)
     os.mkdir(root)
 
     encodings = ['z', 'zy', 'zs']
     if recon:
-        encodings.extend(['x_recon', 'xy', 'xs'])
+        encodings.extend(['x', 'xy', 'xs'])
 
     filepaths = {key: os.path.join(root, key) for key in encodings}
 
-    data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True)
+    data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
 
     index_offset = 0
     with torch.set_grad_enabled(False):
@@ -179,7 +182,7 @@ def encode_dataset(args, data, model, recon):
 
                 if recon:
                     data_tuple_to_dataset_sample(x_recon[j], s_j, y_j,
-                                                 root=filepaths['x_recon'],
+                                                 root=filepaths['x'],
                                                  filename=f"image_{file_index}")
                     data_tuple_to_dataset_sample(xy[j], s_j, y_j,
                                                  root=filepaths['xy'],
@@ -188,7 +191,7 @@ def encode_dataset(args, data, model, recon):
                                                  root=filepaths['xs'],
                                                  filename=f"image_{file_index}")
 
-        index_offset += x.size(0)
+            index_offset += x.size(0)
 
     datasets = {
         key: TripletDataset(root)

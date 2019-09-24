@@ -9,6 +9,7 @@ import numpy as np
 import torch
 from ethicml.algorithms.inprocess.logistic_regression import LR
 from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet, get_data_tuples, load_dataset
 from finn.optimisation.evaluation import evaluate, encode_dataset
@@ -41,14 +42,9 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
     ethicml_model = LR()
 
     print('Encoding task dataset...')
-    task_repr = encode_dataset(args, data.task, model, recon=True)
+    task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
     print('Encoding task train dataset...')
-    task_train_repr = encode_dataset(args, data.task_train, model, recon=True)
-
-    print("===> Predict y from xy")
-    evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=False)
-    print("===> Predict s from xy")
-    evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
+    task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
 
     repr = DatasetTriplet(
         pretrain=None,
@@ -57,6 +53,11 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
         input_dim=data.input_dim,
         output_dim=data.output_dim,
     )
+
+    print("===> Predict y from xy")
+    evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
+    # print("===> Predict s from xy")
+    # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 
     if quick_eval:
         log_sample_images(experiment, data.task_train, "task_train")

@@ -1,4 +1,3 @@
-import math
 import os
 import random
 from functools import partial
@@ -202,8 +201,10 @@ class TripletDataset(Dataset):
         fn = partial(os.path.join, self.root)
         filename = pd.read_csv(fn("filename.csv"), delim_whitespace=True,
                                header=None, index_col=0)
-        sens = pd.read_csv(fn("sens.csv"), delim_whitespace=True)
-        target = pd.read_csv(fn("target.csv"), delim_whitespace=True)
+        sens = pd.read_csv(fn("sens.csv"), delim_whitespace=True, header=None)
+        target = pd.read_csv(fn("target.csv"), delim_whitespace=True, header=None)
+
+        assert(filename.shape[0] == sens.shape[0] == target.shape[0])
 
         self.filename = filename.index.values
         self.sens = torch.as_tensor(sens.values)

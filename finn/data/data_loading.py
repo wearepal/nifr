@@ -1,4 +1,4 @@
-from typing import NamedTuple
+from typing import NamedTuple, Union
 from typing import Optional
 
 from ethicml.data import Adult
@@ -8,14 +8,13 @@ from torchvision.datasets import MNIST
 
 from finn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
 from finn.data.transforms import LdColorizer
-from finn.data.misc import shrink_dataset
 from .adult import load_adult_data
 
 
 class DatasetTriplet(NamedTuple):
     pretrain: Optional[Dataset]
-    task: Dataset
-    task_train: Dataset
+    task: Union[Dataset, dict]
+    task_train: Union[Dataset, dict]
     input_dim: Optional[int]
     output_dim: Optional[int]
 

@@ -2,13 +2,11 @@ from typing import Tuple
 
 import torch
 import torch.nn.functional as F
-from torch.optim import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 from finn.models.base import ModelBase
-from finn.utils.optimizers import apply_gradients, RAdam
 
 
 class Classifier(ModelBase):
