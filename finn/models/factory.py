@@ -40,8 +40,7 @@ def build_conv_inn(args, input_dim):
             chain += [layers.RandomPermutation(_input_dim)]
         else:
             if args.batch_norm:
-                chain += [layers.ActNorm(_input_dim)]
-                # chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
+                chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
             if args.glow:
                 chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
             else:

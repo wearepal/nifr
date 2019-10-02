@@ -40,7 +40,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--coupling-dims', type=int, default=512)
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--batch-norm', type=eval, default=False, choices=[True, False])
     parser.add_argument('--bn-lag', type=restricted_float, default=0,
                         help='fraction of current statistics to incorporate into moving average')
     parser.add_argument('--factor-splits', action=StoreDictKeyPair, nargs="+", default={})
@@ -71,8 +71,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--train-on-recon', type=eval, default=False, choices=[True, False],
                         help='whether to train the discriminator on the reconstructions'
                              'of the encodings.')
-    parser.add_argument('--masker-lr', type=float, default=1e-3)
-    parser.add_argument('--masker-weight-decay', type=float, default=0)
     parser.add_argument('--nll-weight', type=float, default=1)
     parser.add_argument('--pred-s-weight', type=float, default=1)
 
@@ -82,7 +80,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--gpu', type=int, default=0, help='which GPU to use (if available)')
     parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
                         help='whether to use the comet.ml logging')
-    parser.add_argument('--gamma', type=float, default=0.95,
+    parser.add_argument('--gamma', type=float, default=0.96,
                         help='Gamma value for Exponential Learning Rate scheduler.')
 
     parser.add_argument('--pretrain', type=eval, default=True, choices=[True, False],
