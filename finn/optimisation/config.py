@@ -47,6 +47,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--factor-splits', action=StoreDictKeyPair, nargs="+", default={})
     parser.add_argument('--disc-hidden-dims', nargs="*", type=int, default=[])
     parser.add_argument('--idf', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--no-scaling', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--spectral-norm', type=eval, default=True, choices=[True,  False])
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=250)
@@ -67,7 +69,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--log-freq', type=int, default=10)
 
     parser.add_argument('--zs-frac', type=float, default=0.02)
-    parser.add_argument('-train_on_recon', type=eval, default=False, choices=[True, False],
+    parser.add_argument('--train-on-recon', type=eval, default=False, choices=[True, False],
                         help='whether to train the discriminator on the reconstructions'
                              'of the encodings.')
     parser.add_argument('--masker-lr', type=float, default=1e-3)

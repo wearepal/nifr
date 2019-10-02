@@ -62,12 +62,14 @@ def train(inn, discriminator, dataloader, epoch):
         enc, nll = inn.routine(x)
 
         enc_y, enc_s = inn.split_encoding(enc)
-        enc_y = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
 
-        disc_loss, disc_acc = discriminator.routine(enc_y, s)
+        enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
 
         if ARGS.train_on_recon:
-            disc_loss += discriminator.routine(enc_s, s)[0]
+            enc_y = inn.invert(enc_y)
+
+        enc_y = grad_reverse(enc_y)
+        disc_loss, disc_acc = discriminator.routine(enc_y, s)
 
         nll *= ARGS.nll_weight
         disc_loss *= ARGS.pred_s_weight
@@ -129,7 +131,13 @@ def validate(inn, discriminator, val_loader):
             enc, nll = inn.routine(x_val)
 
             enc_y, enc_s = inn.split_encoding(enc)
-            enc_y = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+
+            enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+
+            if ARGS.train_on_recon:
+                enc_y = inn.invert(enc_y)
+
+            enc_y = grad_reverse(enc_y)
 
             disc_loss, acc = discriminator.routine(enc_y, s_val)
 
@@ -224,10 +232,7 @@ def main(args, datasets, metric_callback):
     if hasattr(datasets.pretrain, "feature_groups"):
         feature_groups = datasets.pretrain.feature_groups
 
-    if args.train_on_recon:
-        Module = MaskedInn
-    else:
-        Module = PartitionedInn
+    Module = PartitionedInn
     if len(input_shape) > 2:
         inn = build_conv_inn(args, input_shape[0])
         if args.train_on_recon:
@@ -249,12 +254,6 @@ def main(args, datasets, metric_callback):
         'optimizer_args': optimizer_args,
         'feature_groups': feature_groups,
     }
-    if args.train_on_recon:
-        masker_optimizer_args = {
-            'lr': args.masker_lr,
-            'weight_decay': args.masker_weight_decay
-        }
-        inn_args['masker_optimizer_args'] = masker_optimizer_args
 
     # Initialise INN
     inn: BipartiteInn = Module(**inn_args)
@@ -269,6 +268,13 @@ def main(args, datasets, metric_callback):
                                         flatten=False,
                                         optimizer_args=disc_optimizer_args)
     discriminator.to(args.device)
+
+    if ARGS.spectral_norm:
+        def spectral_norm(m):
+            if hasattr(m, "weight"):
+                return torch.nn.utils.spectral_norm(m)
+        inn.apply(spectral_norm)
+
     # Save initial parameters
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
 
