@@ -39,7 +39,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--squeeze-factor', type=int, default=4)
     parser.add_argument('--depth', type=int, default=1)
     parser.add_argument('--coupling-dims', type=int, default=512)
-    parser.add_argument('--coupling-depth', type=int, default=1)
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
     parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=restricted_float, default=0,
