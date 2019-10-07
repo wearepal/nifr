@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
-from finn.models.configs.classifiers import fc_net, strided_7x7_net
+from finn.models.configs.classifiers import fc_net, mp_7x7_net
 from finn.models.inn import MaskedInn, BipartiteInn, PartitionedInn
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from .loss import grad_reverse
@@ -236,7 +236,7 @@ def main(args, datasets, metric_callback):
             disc_fn = mp_28x28_net
             disc_kwargs = {}
         else:
-            disc_fn = strided_7x7_net
+            disc_fn = mp_7x7_net
             disc_kwargs = {}
     else:
         inn = build_fc_inn(args, input_shape[0])

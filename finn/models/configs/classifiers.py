@@ -1,34 +1,50 @@
 import torch.nn as nn
 
 
-def strided_7x7_net(in_dim, target_dim):
+def mp_7x7_net(in_dim, target_dim):
+
+    hidden_sizes = [in_dim * 16] * 3
+    # return MnistConvNet(in_channels, num_classes, hidden_sizes=hidden_sizes, kernel_size=3,
+    #                     output_activation=output_activation)
+
     layers = []
-    layers.extend([
-        nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
-        nn.BatchNorm2d(256),
-        nn.LeakyReLU(inplace=True)
-    ])
+
+    curr_channels = in_dim
+
+    for hsize in hidden_sizes:
+        layers.append(nn.Conv2d(curr_channels, hsize, 3, stride=1, padding=1))
+        layers.append(nn.BatchNorm2d(hsize))
+        layers.append(nn.ReLU(inplace=True))
+        # layers.append(nn.MaxPool2d(2, 2))
+        curr_channels = hsize
+
+    layers.append(nn.AdaptiveAvgPool2d(1))
+    layers.append(nn.Flatten())
+
+    layers.append(nn.Linear(curr_channels, curr_channels))
+    layers.append(nn.ReLU(inplace=True))
+    layers.append(nn.LayerNorm(curr_channels))
+    layers.append(nn.Linear(curr_channels, target_dim))
+
+    # layers = []
     # layers.extend([
-    #     nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
+    #     nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
     #     nn.BatchNorm2d(256),
     #     nn.LeakyReLU(inplace=True)
     # ])
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.extend([
-        nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-        nn.BatchNorm2d(512),
-        nn.LeakyReLU(inplace=True)
-    ])
+    #
+    # layers += [nn.MaxPool2d(2, 2)]
+    #
     # layers.extend([
-    #     nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
+    #     nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
     #     nn.BatchNorm2d(512),
     #     nn.LeakyReLU(inplace=True)
     # ])
-    layers += [nn.MaxPool2d(2, 2)]
-
-    layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
-    layers.append(nn.Flatten())
+    #
+    # layers += [nn.MaxPool2d(2, 2)]
+    #
+    # layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
+    # layers.append(nn.Flatten())
 
     return nn.Sequential(*layers)
 

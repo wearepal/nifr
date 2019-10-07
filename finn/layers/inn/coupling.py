@@ -30,17 +30,40 @@ class CouplingLayer(Bijector):
         pass
 
 
+class _ConvBlock(nn.Sequential):
+    def __init__(self, in_channels, hidden_channels=512, out_channels=None, n_layers=3):
+        super().__init__()
+
+        for i in range(n_layers-1):
+            current_channels = in_channels if i == 0 else hidden_channels
+            self.add_module(f'conv_{i}', nn.Conv2d(current_channels, hidden_channels, kernel_size=3,
+                                                   stride=1, padding=1))
+
+            self.add_module(f'bn{i}', nn.BatchNorm2d(hidden_channels))
+            self.add_module(f'actfun_{i}', nn.ReLU(inplace=True))
+
+        self.add_module(f'conv_{n_layers}', nn.Conv2d(hidden_channels, out_channels, kernel_size=3,
+                                                      stride=1, padding=1))
+
+
 class AffineCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
-        self.net_s_t = BottleneckConvBlock(
+
+        self.net_s_t = _ConvBlock(
             in_channels=self.d,
             hidden_channels=hidden_channels,
             out_channels=(in_channels - self.d) * 2,
         )
+
+        # self.net_s_t = BottleneckConvBlock(
+        #     in_channels=self.d,
+        #     hidden_channels=hidden_channels,
+        #     out_channels=(in_channels - self.d) * 2,
+        # )
 
     def logdetjac(self, scale):
         return sum_except_batch(torch.log(scale), keepdim=True)
