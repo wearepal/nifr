@@ -48,7 +48,7 @@ def build_conv_inn(args, input_dim):
                 chain += [layers.RandomPermutation(_input_dim)]
             chain += [layers.AffineCouplingLayer(_input_dim, hidden_channels=hidden_dims)]
             # chain += [layers.AdditiveCouplingLayer(_input_dim, hidden_channels=hidden_dims,
-            #                                        pcnt_to_transform=0.25)]
+            #                                        pcnt_to_transform=0.75)]
 
         return layers.BijectorChain(chain)
 

@@ -8,22 +8,24 @@ def strided_7x7_net(in_dim, target_dim):
         nn.BatchNorm2d(256),
         nn.LeakyReLU(inplace=True)
     ])
-    layers.extend([
-        nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
-        nn.BatchNorm2d(256),
-        nn.LeakyReLU(inplace=True)
-    ])
+    # layers.extend([
+    #     nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
+    #     nn.BatchNorm2d(256),
+    #     nn.LeakyReLU(inplace=True)
+    # ])
+    layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend([
         nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
         nn.BatchNorm2d(512),
         nn.LeakyReLU(inplace=True)
     ])
-    layers.extend([
-        nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
-        nn.BatchNorm2d(512),
-        nn.LeakyReLU(inplace=True)
-    ])
+    # layers.extend([
+    #     nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
+    #     nn.BatchNorm2d(512),
+    #     nn.LeakyReLU(inplace=True)
+    # ])
+    layers += [nn.MaxPool2d(2, 2)]
 
     layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
     layers.append(nn.Flatten())

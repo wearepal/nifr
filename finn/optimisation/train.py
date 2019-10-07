@@ -62,12 +62,13 @@ def train(inn, discriminator, dataloader, epoch):
         enc, nll = inn.routine(x)
 
         enc_y, enc_s = inn.split_encoding(enc)
-        enc_y = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+
+        enc_y = grad_reverse(enc_y)
+        if ARGS.train_on_recon:
+            enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+            enc_y = inn.invert(enc_y)
 
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
-
-        if ARGS.train_on_recon:
-            disc_loss += discriminator.routine(enc_s, s)[0]
 
         nll *= ARGS.nll_weight
         disc_loss *= ARGS.pred_s_weight
@@ -93,18 +94,18 @@ def train(inn, discriminator, dataloader, epoch):
         SUMMARY.log_metric('Loss Adversarial', disc_loss.item())
         end = time.time()
 
-    inn.eval()
-    with torch.set_grad_enabled(False):
+        if itr == 0:
+            with torch.set_grad_enabled(False):
 
-        log_images(SUMMARY, x, 'original_x')
+                log_images(SUMMARY, x, 'original_x')
 
-        z = inn(x[:64])
+                z = inn(x[:64])
 
-        recon_all, recon_y, recon_s = inn.decode(z, partials=True)
+                recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-        log_images(SUMMARY, recon_all, 'reconstruction_all')
-        log_images(SUMMARY, recon_y, 'reconstruction_y')
-        log_images(SUMMARY, recon_s, 'reconstruction_s')
+                log_images(SUMMARY, recon_all, 'reconstruction_all')
+                log_images(SUMMARY, recon_y, 'reconstruction_y')
+                log_images(SUMMARY, recon_s, 'reconstruction_s')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -129,7 +130,11 @@ def validate(inn, discriminator, val_loader):
             enc, nll = inn.routine(x_val)
 
             enc_y, enc_s = inn.split_encoding(enc)
-            enc_y = torch.cat([grad_reverse(enc_y), torch.zeros_like(enc_s)], dim=1)
+            enc_y = grad_reverse(enc_y)
+
+            if ARGS.train_on_recon:
+                enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+                enc_y = inn.invert(enc_y.detach())
 
             disc_loss, acc = discriminator.routine(enc_y, s_val)
 
@@ -224,10 +229,7 @@ def main(args, datasets, metric_callback):
     if hasattr(datasets.pretrain, "feature_groups"):
         feature_groups = datasets.pretrain.feature_groups
 
-    if args.train_on_recon:
-        Module = MaskedInn
-    else:
-        Module = PartitionedInn
+    Module = PartitionedInn
     if len(input_shape) > 2:
         inn = build_conv_inn(args, input_shape[0])
         if args.train_on_recon:
@@ -249,26 +251,30 @@ def main(args, datasets, metric_callback):
         'optimizer_args': optimizer_args,
         'feature_groups': feature_groups,
     }
-    if args.train_on_recon:
-        masker_optimizer_args = {
-            'lr': args.masker_lr,
-            'weight_decay': args.masker_weight_decay
-        }
-        inn_args['masker_optimizer_args'] = masker_optimizer_args
 
     # Initialise INN
     inn: BipartiteInn = Module(**inn_args)
     inn.to(args.device)
     # Initialise Discriminator
     disc_optimizer_args = {'lr': args.disc_lr}
+
     discriminator = build_discriminator(args,
                                         input_shape,
-                                        frac_enc=1,
+                                        frac_enc=1 - args.zs_frac,
                                         model_fn=disc_fn,
                                         model_kwargs=disc_kwargs,
                                         flatten=False,
                                         optimizer_args=disc_optimizer_args)
     discriminator.to(args.device)
+
+    if ARGS.spectral_norm:
+        def spectral_norm(m):
+            if hasattr(m, "weight"):
+                return torch.nn.utils.spectral_norm(m)
+
+        inn.apply(spectral_norm)
+        # discriminator.apply(spectral_norm)
+
     # Save initial parameters
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
 
