@@ -37,14 +37,12 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--root', type=str, default="data")
 
     parser.add_argument('--base-density', type=str, default='normal', choices=['logistic', 'normal'])
-    parser.add_argument('--squeeze-factor', type=int, default=4)
-    parser.add_argument('--input-padding', type=int, default=4)
     parser.add_argument('--levels', type=int, default=4)
     parser.add_argument('--level-depth', type=int, default=3)
     parser.add_argument('--coupling-channels', type=int, default=256)
     parser.add_argument('--coupling-depth', type=int, default=2)
     parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--batch-norm', type=eval, default=False, choices=[True, False])
+    parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
     parser.add_argument('--bn-lag', type=restricted_float, default=0,
                         help='fraction of current statistics to incorporate into moving average')
     parser.add_argument('--factor-splits', action=StoreDictKeyPair, nargs="+", default={})
