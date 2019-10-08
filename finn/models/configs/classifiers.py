@@ -9,8 +9,8 @@ def mp_7x7_net(in_dim, target_dim):
         return [
             nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size,
                       stride=stride, padding=1),
-            # nn.BatchNorm2d(_out_channels),
-            nn.LeakyReLU(inplace=True)
+            nn.BatchNorm2d(_out_channels),
+            nn.ReLU(inplace=True)
         ]
 
     layers = []
@@ -33,10 +33,10 @@ def mp_7x7_net(in_dim, target_dim):
     layers.extend(_conv_block(256, 512, 3, 1))
     layers.extend(_conv_block(512, 512, 4, 2))
     #
-    layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
+    # layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
     layers.append(nn.Flatten())
-    # layers.append(nn.Linear(512, 512))
-    # layers.append(nn.Linear(512, target_dim))
+    layers.append(nn.Linear(512, 512))
+    layers.append(nn.Linear(512, target_dim))
 
     return nn.Sequential(*layers)
 
