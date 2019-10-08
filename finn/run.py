@@ -54,8 +54,9 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
         output_dim=data.output_dim,
     )
 
-    print("===> Predict y from xy")
-    evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
+    evaluate(args, experiment, task_train_repr["xy"], task_repr["xy"], name='xy', pred_s=False)
+    # print("===> Predict y from xy")
+    # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
     # print("===> Predict s from xy")
     # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 

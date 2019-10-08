@@ -1,5 +1,6 @@
 import os
 import os
+from pathlib import Path
 import shutil
 from argparse import Namespace
 from collections import Callable
@@ -10,7 +11,7 @@ from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility.data_structures import DataTuple
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 from torchvision.utils import save_image
 
 from finn.data import get_data_tuples
@@ -19,6 +20,7 @@ from finn.data.misc import data_tuple_to_dataset_sample
 from finn.models.classifier import Classifier
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net
+from finn.models.inn import BipartiteInn
 
 
 def compute_metrics(experiment, predictions, actual, name, run_all=False):
@@ -86,7 +88,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon,
                                  optimizer_args={'lr': args.eval_lr})
     clf.to(args.device)
     clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
-            device=args.device, pred_s=pred_s, verbose=False)
+            device=args.device, pred_s=pred_s, verbose=True)
 
     return clf
 
@@ -142,60 +144,87 @@ def evaluate(args, experiment, train_data, test_data,
     _ = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == 'adult')
 
 
-def encode_dataset(args: Namespace, data: Dataset, model: Callable, recon: bool, subdir: str) -> dict:
-    root = os.path.join('data', 'encodings', subdir)
-    if os.path.exists(root):
-        shutil.rmtree(root)
-    os.mkdir(root)
+def encode_dataset(args: Namespace, data: Dataset, model: BipartiteInn, recon: bool, subdir: str) -> dict:
 
-    encodings = ['z', 'zy', 'zs']
-    if recon:
-        encodings.extend(['x', 'xy', 'xs'])
-
-    filepaths = {key: os.path.join(root, key) for key in encodings}
+    encodings = {"xy": []}
+    all_s = []
+    all_y = []
 
     data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
 
-    index_offset = 0
     with torch.set_grad_enabled(False):
         for i, (x, s, y) in enumerate(data):
             x = x.to(args.device)
+            all_s.append(s)
+            all_y.append(y)
 
             z, zy, zs = model.encode(x, partials=True)
-            if recon:
-                x_recon, xy, xs = model.decode(z, partials=True)
 
-            for j in range(z.size(0)):
-                file_index = index_offset + j
-                s_j, y_j = s[j], y[j]
+            zs_m = torch.cat([zy, torch.zeros_like(zs)], dim=1)
+            xy = model.invert(zs_m)
 
-                data_tuple_to_dataset_sample(z[j], s_j, y_j,
-                                             root=filepaths['z'],
-                                             filename=f"image_{file_index}")
+            encodings["xy"].append(xy.cpu())
 
-                data_tuple_to_dataset_sample(zy[j], s_j, y_j,
-                                             root=filepaths['zy'],
-                                             filename=f"image_{file_index}")
-                data_tuple_to_dataset_sample(zs[j], s_j, y_j,
-                                             root=os.path.join(root, 'zs'),
-                                             filename=f"image_{file_index}")
+    encodings['xy'] = TensorDataset(torch.cat(encodings['xy'], dim=0),
+                                    torch.cat(all_s, dim=0),
+                                    torch.cat(all_y, dim=0))
 
-                if recon:
-                    data_tuple_to_dataset_sample(x_recon[j], s_j, y_j,
-                                                 root=filepaths['x'],
-                                                 filename=f"image_{file_index}")
-                    data_tuple_to_dataset_sample(xy[j], s_j, y_j,
-                                                 root=filepaths['xy'],
-                                                 filename=f"image_{file_index}")
-                    data_tuple_to_dataset_sample(xs[j], s_j, y_j,
-                                                 root=filepaths['xs'],
-                                                 filename=f"image_{file_index}")
+    return encodings
 
-            index_offset += x.size(0)
-
-    datasets = {
-        key: TripletDataset(root)
-        for key, root in filepaths.items()
-    }
+    # path = f"C:\\Users\\Myles\\PycharmProjects\\Fair-Invertible-Networks\\data\\encodings\\{subdir}"
+    # # path = Path("data", "encodings", subdir)
+    # if os.path.exists(path):
+    #     shutil.rmtree(path)
+    # os.mkdir(path)
+    #
+    # encodings = ['z', 'zy', 'zs']
+    # if recon:
+    #     encodings.extend(['x', 'xy', 'xs'])
+    #
+    # filepaths = {key: Path(path, key) for key in encodings}
+    #
+    # data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
+    #
+    # index_offset = 0
+    # with torch.set_grad_enabled(False):
+    #     for i, (x, s, y) in enumerate(data):
+    #         x = x.to(args.device)
+    #
+    #         z, zy, zs = model.encode(x, partials=True)
+    #         if recon:
+    #             x_recon, xy, xs = model.decode(z, partials=True)
+    #
+    #         for j in range(z.size(0)):
+    #             file_index = index_offset + j
+    #             s_j, y_j = s[j], y[j]
+    #
+    #             data_tuple_to_dataset_sample(z[j], s_j, y_j,
+    #                                          root=filepaths['z'],
+    #                                          filename=f"image_{file_index}")
+    #
+    #             data_tuple_to_dataset_sample(zy[j], s_j, y_j,
+    #                                          root=filepaths['zy'],
+    #                                          filename=f"image_{file_index}")
+    #             data_tuple_to_dataset_sample(zs[j], s_j, y_j,
+    #                                          root=filepaths['zs'],
+    #                                          filename=f"image_{file_index}")
+    #
+    #             if recon:
+    #                 data_tuple_to_dataset_sample(x_recon[j], s_j, y_j,
+    #                                              root=filepaths['x'],
+    #                                              filename=f"image_{file_index}")
+    #                 data_tuple_to_dataset_sample(xy[j], s_j, y_j,
+    #                                              root=filepaths['xy'],
+    #                                              filename=f"image_{file_index}")
+    #                 data_tuple_to_dataset_sample(xs[j], s_j, y_j,
+    #                                              root=filepaths['xs'],
+    #                                              filename=f"image_{file_index}")
+    #
+    #         index_offset += x.size(0)
+    #
+    # datasets = {
+    #     key: TripletDataset(root)
+    #     for key, root in filepaths.items()
+    # }
 
     return datasets

@@ -1,4 +1,3 @@
-from finn.layers.conv import ResidualBlock
 from finn.layers.inn.activations import LogitTransform, SigmoidTransform, SoftplusTransform
 from finn.layers.inn.normalization import MovingBatchNorm1d, MovingBatchNorm2d, ActNorm
 from finn.layers.inn.chain import BijectorChain, FactorOut

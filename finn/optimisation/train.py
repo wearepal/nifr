@@ -2,21 +2,21 @@
 import time
 from pathlib import Path
 
-from comet_ml import Experiment
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from comet_ml import Experiment
+from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net, mp_7x7_net
-from finn.models.inn import MaskedInn, BipartiteInn, PartitionedInn
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
+from finn.models.inn import BipartiteInn, PartitionedInn
+from finn.utils import utils
 from .loss import grad_reverse
 from .utils import (
     get_data_dim,
     log_images)
-from finn.utils.optimizers import apply_gradients
-from finn.utils import utils
 
 NDECS = 0
 ARGS = None
@@ -54,8 +54,8 @@ def train(inn, discriminator, dataloader, epoch):
     time_meter = utils.AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-
-    for itr, (x, s, y) in enumerate(dataloader, start=epoch * len(dataloader)):
+    start_itr = start =epoch * len(dataloader)
+    for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
 
@@ -63,11 +63,11 @@ def train(inn, discriminator, dataloader, epoch):
 
         enc_y, enc_s = inn.split_encoding(enc)
 
-        enc_y = grad_reverse(enc_y)
         if ARGS.train_on_recon:
             enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
             enc_y = inn.invert(enc_y)
 
+        enc_y = grad_reverse(enc_y)
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
 
         nll *= ARGS.nll_weight
@@ -94,7 +94,7 @@ def train(inn, discriminator, dataloader, epoch):
         SUMMARY.log_metric('Loss Adversarial', disc_loss.item())
         end = time.time()
 
-        if itr == 0:
+        if itr % 10 == 0:
             with torch.set_grad_enabled(False):
 
                 log_images(SUMMARY, x, 'original_x')
@@ -103,9 +103,13 @@ def train(inn, discriminator, dataloader, epoch):
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                log_images(SUMMARY, recon_all, 'reconstruction_all')
-                log_images(SUMMARY, recon_y, 'reconstruction_y')
-                log_images(SUMMARY, recon_s, 'reconstruction_s')
+                save_image(recon_all[:64], filename="cmnist_recon_x.png")
+                save_image(recon_y[:64], filename="cmnist_recon_xy.png")
+                save_image(recon_s[:64], filename="cmnist_recon_xs.png")
+
+                # log_images(SUMMARY, recon_all, 'reconstruction_all')
+                # log_images(SUMMARY, recon_y, 'reconstruction_y')
+                # log_images(SUMMARY, recon_s, 'reconstruction_s')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -130,11 +134,12 @@ def validate(inn, discriminator, val_loader):
             enc, nll = inn.routine(x_val)
 
             enc_y, enc_s = inn.split_encoding(enc)
-            enc_y = grad_reverse(enc_y)
 
             if ARGS.train_on_recon:
                 enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-                enc_y = inn.invert(enc_y.detach())
+                enc_y = inn.invert(enc_y)
+
+            enc_y = grad_reverse(enc_y)
 
             disc_loss, acc = discriminator.routine(enc_y, s_val)
 
@@ -234,10 +239,12 @@ def main(args, datasets, metric_callback):
         inn = build_conv_inn(args, input_shape[0])
         if args.train_on_recon:
             disc_fn = mp_28x28_net
-            disc_kwargs = {}
+            disc_kwargs = {"use_bn": False}
         else:
             disc_fn = mp_7x7_net
+            # disc_fn = fc_net
             disc_kwargs = {}
+            # disc_kwargs = {"hidden_dims": [1024, 1024]}
     else:
         inn = build_fc_inn(args, input_shape[0])
         disc_fn = fc_net
@@ -257,7 +264,6 @@ def main(args, datasets, metric_callback):
     inn.to(args.device)
     # Initialise Discriminator
     disc_optimizer_args = {'lr': args.disc_lr}
-
     discriminator = build_discriminator(args,
                                         input_shape,
                                         frac_enc=1 - args.zs_frac,
@@ -271,9 +277,8 @@ def main(args, datasets, metric_callback):
         def spectral_norm(m):
             if hasattr(m, "weight"):
                 return torch.nn.utils.spectral_norm(m)
-
         inn.apply(spectral_norm)
-        # discriminator.apply(spectral_norm)
+        discriminator.apply(spectral_norm)
 
     # Save initial parameters
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)

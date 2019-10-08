@@ -189,9 +189,8 @@ class Classifier(ModelBase):
                 loss.backward()
                 self.optimizer.step()
 
-            if test_data is not None:
-                if verbose:
-                    print(f"===> Testing classifier")
+            if test_data is not None and verbose:
+                print(f"===> Testing classifier")
 
                 self.model.eval()
                 avg_test_acc = 0.0
@@ -211,8 +210,8 @@ class Classifier(ModelBase):
                         avg_test_acc += acc
 
                 avg_test_acc /= len(test_data)
-                if verbose:
-                    print(f"Average test accuracy: {avg_test_acc:.2f}")
+
+                print(f"Average test accuracy: {avg_test_acc:.2f}")
 
             if scheduler is not None:
                 scheduler.step(epoch)

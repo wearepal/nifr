@@ -6,7 +6,8 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from finn.layers.inn.bijector import Bijector
-from finn.layers.conv import BottleneckConvBlock, ResidualBlock
+from finn.layers.conv import BottleneckConvBlock
+from finn.layers.resnet import ResidualNet, ConvResidualNet
 from finn.utils import RoundSTE, sum_except_batch
 from finn.utils.typechecks import is_probability
 
@@ -30,22 +31,6 @@ class CouplingLayer(Bijector):
         pass
 
 
-class _ConvBlock(nn.Sequential):
-    def __init__(self, in_channels, hidden_channels=512, out_channels=None, n_layers=3):
-        super().__init__()
-
-        for i in range(n_layers-1):
-            current_channels = in_channels if i == 0 else hidden_channels
-            self.add_module(f'conv_{i}', nn.Conv2d(current_channels, hidden_channels, kernel_size=3,
-                                                   stride=1, padding=1))
-
-            self.add_module(f'bn{i}', nn.BatchNorm2d(hidden_channels))
-            self.add_module(f'actfun_{i}', nn.ReLU(inplace=True))
-
-        self.add_module(f'conv_{n_layers}', nn.Conv2d(hidden_channels, out_channels, kernel_size=3,
-                                                      stride=1, padding=1))
-
-
 class AffineCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
@@ -53,16 +38,20 @@ class AffineCouplingLayer(CouplingLayer):
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        self.net_s_t = _ConvBlock(
-            in_channels=self.d,
-            hidden_channels=hidden_channels,
-            out_channels=(in_channels - self.d) * 2,
-        )
+        self.net_s_t = ConvResidualNet(
+                in_channels=self.d,
+                out_channels=(in_channels - self.d) * 2,
+                hidden_channels=hidden_channels,
+                num_blocks=2,
+                activation=F.relu,
+                dropout_probability=0,
+                use_batch_norm=True)
 
         # self.net_s_t = BottleneckConvBlock(
         #     in_channels=self.d,
         #     hidden_channels=hidden_channels,
         #     out_channels=(in_channels - self.d) * 2,
+        #     use_bn=False,
         # )
 
     def logdetjac(self, scale):
@@ -77,7 +66,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _forward(self, x, sum_ldj=None):
         x_a, x_b = self._split(x)
         scale, shift = self._scale_and_shift_fn(x_a)
-        y_b = scale * x_b + shift
+        y_b = scale * (x_b + shift)
         y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
@@ -88,7 +77,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _inverse(self, y, sum_ldj=None):
         x_a, y_b = self._split(y)
         scale, shift = self._scale_and_shift_fn(x_a)
-        x_b = (y_b - shift) / scale
+        x_b = y_b / scale - shift
         x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
@@ -103,11 +92,20 @@ class AdditiveCouplingLayer(CouplingLayer):
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
-        self.net_t = BottleneckConvBlock(
-            in_channels=self.d,
-            hidden_channels=hidden_channels,
-            out_channels=(in_channels - self.d),
-        )
+
+        self.net_t = ConvResidualNet(
+                in_channels=self.d,
+                out_channels=(in_channels - self.d),
+                hidden_channels=hidden_channels,
+                num_blocks=2,
+                activation=F.relu,
+                dropout_probability=0,
+                use_batch_norm=False)
+        # self.net_t = BottleneckConvBlock(
+        #     in_channels=self.d,
+        #     hidden_channels=hidden_channels,
+        #     out_channels=(in_channels - self.d),
+        # )
 
     def logdetjac(self):
         return 0
@@ -145,13 +143,14 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
         super().__init__(in_channels, hidden_channels)
         self.d = round(0.75 * in_channels)
 
-        layers = []
-        curr_dim = self.d
-        for i in range(depth):
-            layers += [ResidualBlock(curr_dim, hidden_channels)]
-            curr_dim = hidden_channels
-        layers += [nn.Conv2d(curr_dim, in_channels - self.d, kernel_size=1, stride=1, padding=0)]
-        self.net_t = nn.Sequential(*layers)
+        self.net_t = ConvResidualNet(
+            in_channels=self.d,
+            out_channels=(in_channels - self.d),
+            hidden_channels=hidden_channels,
+            num_blocks=2,
+            activation=F.relu,
+            dropout_probability=0,
+            use_batch_norm=False)
 
     def _shift_fn(self, inputs):
         shift = self.net_t(inputs)
