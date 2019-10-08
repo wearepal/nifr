@@ -165,14 +165,6 @@ for epoch in range(50):
         # else:
         discriminator.step()
 
-        # if i % 10 == 0:
-        #     train_inn = not train_inn
-        #     if train_inn:
-        #         inn.train()
-        #         discriminator.eval()
-        #     else:
-        #         inn.eval()
-        #         discriminator.train()
         # ============= Logging ==============
         if i % 50 == 0:
             print(f"NLL: {nll:.4f}")

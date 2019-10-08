@@ -54,7 +54,7 @@ def train(inn, discriminator, dataloader, epoch):
     time_meter = utils.AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    start_itr = start =epoch * len(dataloader)
+    start_itr = start = epoch * len(dataloader)
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
@@ -64,11 +64,15 @@ def train(inn, discriminator, dataloader, epoch):
         enc_y, enc_s = inn.split_encoding(enc)
 
         if ARGS.train_on_recon:
-            enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-            enc_y = inn.invert(enc_y)
+            enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+            # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
+            enc_y = inn.invert(enc_y_m)
+            # enc_s = inn.invert(enc_s_m)
 
         enc_y = grad_reverse(enc_y)
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
+        # if ARGS.train_on_recon:
+        #     disc_loss += discriminator.routine(enc_s, s)[0]
 
         nll *= ARGS.nll_weight
         disc_loss *= ARGS.pred_s_weight
@@ -94,7 +98,7 @@ def train(inn, discriminator, dataloader, epoch):
         SUMMARY.log_metric('Loss Adversarial', disc_loss.item())
         end = time.time()
 
-        if itr % 10 == 0:
+        if itr % 50 == 0:
             with torch.set_grad_enabled(False):
 
                 log_images(SUMMARY, x, 'original_x')
@@ -103,13 +107,13 @@ def train(inn, discriminator, dataloader, epoch):
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                # save_image(recon_all[:64], filename="cmnist_recon_x.png")
-                # save_image(recon_y[:64], filename="cmnist_recon_xy.png")
-                # save_image(recon_s[:64], filename="cmnist_recon_xs.png")
+                save_image(recon_all[:64], filename="cmnist_recon_x.png")
+                save_image(recon_y[:64], filename="cmnist_recon_xy.png")
+                save_image(recon_s[:64], filename="cmnist_recon_xs.png")
 
-                log_images(SUMMARY, recon_all, 'reconstruction_all')
-                log_images(SUMMARY, recon_y, 'reconstruction_y')
-                log_images(SUMMARY, recon_s, 'reconstruction_s')
+                # log_images(SUMMARY, recon_all, 'reconstruction_all')
+                # log_images(SUMMARY, recon_y, 'reconstruction_y')
+                # log_images(SUMMARY, recon_s, 'reconstruction_s')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -278,7 +282,7 @@ def main(args, datasets, metric_callback):
             if hasattr(m, "weight"):
                 return torch.nn.utils.spectral_norm(m)
         inn.apply(spectral_norm)
-        discriminator.apply(spectral_norm)
+        # discriminator.apply(spectral_norm)
 
     # Save initial parameters
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
