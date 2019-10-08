@@ -58,9 +58,9 @@ class BipartiteInn(ModelBase):
 
         else:
             self.x_dim: int = x_dim
-            z_channels *= args.squeeze_factor ** 2
-            h = self.input_shape[1] // args.squeeze_factor
-            w = self.input_shape[2] // args.squeeze_factor
+            z_channels *= (2**2)**args.levels
+            h = (self.input_shape[1] + 2 * args.padding) // args.levels * 2
+            w = (self.input_shape[2] + 2 * args.padding) // args.levels * 2
             self.output_shape = (z_channels, w, h)
 
         super().__init__(

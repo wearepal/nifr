@@ -32,27 +32,27 @@ class CouplingLayer(Bijector):
 
 
 class AffineCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels, pcnt_to_transform=0.5):
+    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        # self.net_s_t = ConvResidualNet(
-        #         in_channels=self.d,
-        #         out_channels=(in_channels - self.d) * 2,
-        #         hidden_channels=hidden_channels,
-        #         num_blocks=2,
-        #         activation=F.relu,
-        #         dropout_probability=0,
-        #         use_batch_norm=True)
+        self.net_s_t = ConvResidualNet(
+                in_channels=self.d,
+                out_channels=(in_channels - self.d) * 2,
+                hidden_channels=hidden_channels,
+                num_blocks=num_blocks,
+                activation=F.relu,
+                dropout_probability=0,
+                use_batch_norm=False)
 
-        self.net_s_t = BottleneckConvBlock(
-            in_channels=self.d,
-            hidden_channels=hidden_channels,
-            out_channels=(in_channels - self.d) * 2,
-            use_bn=False,
-        )
+        # self.net_s_t = BottleneckConvBlock(
+        #     in_channels=self.d,
+        #     hidden_channels=hidden_channels,
+        #     out_channels=(in_channels - self.d) * 2,
+        #     use_bn=False,
+        # )
 
     def logdetjac(self, scale):
         return sum_except_batch(torch.log(scale), keepdim=True)
@@ -87,25 +87,25 @@ class AffineCouplingLayer(CouplingLayer):
 
 
 class AdditiveCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels, pcnt_to_transform=0.5):
+    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        # self.net_t = ConvResidualNet(
-        #         in_channels=self.d,
-        #         out_channels=(in_channels - self.d),
-        #         hidden_channels=hidden_channels,
-        #         num_blocks=2,
-        #         activation=F.relu,
-        #         dropout_probability=0,
-        #         use_batch_norm=False)
-        self.net_t = BottleneckConvBlock(
-            in_channels=self.d,
-            hidden_channels=hidden_channels,
-            out_channels=(in_channels - self.d),
-        )
+        self.net_t = ConvResidualNet(
+                in_channels=self.d,
+                out_channels=(in_channels - self.d),
+                hidden_channels=hidden_channels,
+                num_blocks=num_blocks,
+                activation=F.relu,
+                dropout_probability=0,
+                use_batch_norm=False)
+        # self.net_t = BottleneckConvBlock(
+        #     in_channels=self.d,
+        #     hidden_channels=hidden_channels,
+        #     out_channels=(in_channels - self.d),
+        # )
 
     def logdetjac(self):
         return 0

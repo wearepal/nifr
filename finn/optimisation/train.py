@@ -3,13 +3,14 @@ import time
 from pathlib import Path
 
 import torch
+import torch.nn.functional as F
 from comet_ml import Experiment
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
-from finn.models.configs.classifiers import fc_net, mp_7x7_net
+from finn.models.configs.classifiers import fc_net, latent_space_classifier
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from finn.models.inn import BipartiteInn, PartitionedInn
 from finn.utils import utils
@@ -57,6 +58,8 @@ def train(inn, discriminator, dataloader, epoch):
     start_itr = start = epoch * len(dataloader)
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
+        if x.dim() == 4:
+            x = F.pad(x, 4*[ARGS.padding])
         x, s, y = to_device(x, s, y)
 
         enc, nll = inn.routine(x)
@@ -107,13 +110,13 @@ def train(inn, discriminator, dataloader, epoch):
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                # save_image(recon_all[:64], filename="cmnist_recon_x.png")
-                # save_image(recon_y[:64], filename="cmnist_recon_xy.png")
-                # save_image(recon_s[:64], filename="cmnist_recon_xs.png")
+                save_image(recon_all[:64], filename="cmnist_recon_x.png")
+                save_image(recon_y[:64], filename="cmnist_recon_xy.png")
+                save_image(recon_s[:64], filename="cmnist_recon_xs.png")
 
-                log_images(SUMMARY, recon_all, 'reconstruction_all')
-                log_images(SUMMARY, recon_y, 'reconstruction_y')
-                log_images(SUMMARY, recon_s, 'reconstruction_s')
+                # log_images(SUMMARY, recon_all, 'reconstruction_all')
+                # log_images(SUMMARY, recon_y, 'reconstruction_y')
+                # log_images(SUMMARY, recon_s, 'reconstruction_s')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -133,6 +136,10 @@ def validate(inn, discriminator, val_loader):
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
+
+            if x_val.dim() == 4:
+                x_val = F.pad(x_val, pad=4 * [ARGS.padding])
+
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
             enc, nll = inn.routine(x_val)
@@ -245,10 +252,10 @@ def main(args, datasets, metric_callback):
             disc_fn = mp_28x28_net
             disc_kwargs = {"use_bn": False}
         else:
-            disc_fn = mp_7x7_net
+            disc_fn = latent_space_classifier
             # disc_fn = fc_net
             disc_kwargs = {}
-            # disc_kwargs = {"hidden_dims": [1024, 1024]}
+            disc_kwargs = {"hidden_channels": 64 * 2**ARGS.levels, "num_blocks": ARGS.disc_depth}
     else:
         inn = build_fc_inn(args, input_shape[0])
         disc_fn = fc_net
@@ -285,7 +292,7 @@ def main(args, datasets, metric_callback):
         # discriminator.apply(spectral_norm)
 
     # Save initial parameters
-    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
 
     # Resume from checkpoint
     if ARGS.resume is not None:
@@ -335,10 +342,10 @@ def main(args, datasets, metric_callback):
                 )
 
     LOGGER.info('Training has finished.')
-    inn, discriminator = restore_model(save_dir / 'checkpt.pth', inn, discriminator)
-    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
-    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
-    inn.eval()
+    # inn, discriminator = restore_model(save_dir / 'checkpt.pth', inn, discriminator)
+    # metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
+    # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    # inn.eval()
 
 
 if __name__ == '__main__':
