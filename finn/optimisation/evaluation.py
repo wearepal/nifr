@@ -3,8 +3,7 @@ import os
 from pathlib import Path
 import shutil
 from argparse import Namespace
-from collections import Callable
-
+import torch.nn.functional as F
 import pandas as pd
 import torch
 from ethicml.algorithms.inprocess import LR
@@ -19,7 +18,7 @@ from finn.data.dataset_wrappers import TripletDataset
 from finn.data.misc import data_tuple_to_dataset_sample
 from finn.models.classifier import Classifier
 from finn.models.configs import mp_28x28_net
-from finn.models.configs.classifiers import fc_net
+from finn.models.configs.classifiers import fc_net, mp_32x32_net
 from finn.models.inn import BipartiteInn
 
 
@@ -79,7 +78,7 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False):
 def fit_classifier(args, input_dim, train_data, train_on_recon,
                    pred_s, test_data=None):
     if train_on_recon or args.train_on_recon:
-        clf = mp_28x28_net(input_dim=input_dim, target_dim=args.y_dim)
+        clf = mp_32x32_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
         clf = fc_net(input_dim, target_dim=args.y_dim)
 
@@ -154,6 +153,10 @@ def encode_dataset(args: Namespace, data: Dataset, model: BipartiteInn, recon: b
 
     with torch.set_grad_enabled(False):
         for i, (x, s, y) in enumerate(data):
+
+            if x.dim() == 4:
+                x = F.pad(x, 4 * [args.padding])
+
             x = x.to(args.device)
             all_s.append(s)
             all_y.append(y)
@@ -226,5 +229,5 @@ def encode_dataset(args: Namespace, data: Dataset, model: BipartiteInn, recon: b
     #     key: TripletDataset(root)
     #     for key, root in filepaths.items()
     # }
-
-    return datasets
+    #
+    # return datasets

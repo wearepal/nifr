@@ -10,7 +10,7 @@ from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
-from finn.models.configs.classifiers import fc_net, latent_space_classifier
+from finn.models.configs.classifiers import fc_net, latent_discriminator
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from finn.models.inn import BipartiteInn, PartitionedInn
 from finn.utils import utils
@@ -110,13 +110,13 @@ def train(inn, discriminator, dataloader, epoch):
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                save_image(recon_all[:64], filename="cmnist_recon_x.png")
-                save_image(recon_y[:64], filename="cmnist_recon_xy.png")
-                save_image(recon_s[:64], filename="cmnist_recon_xs.png")
+                # save_image(recon_all[:64], filename="cmnist_recon_x.png")
+                # save_image(recon_y[:64], filename="cmnist_recon_xy.png")
+                # save_image(recon_s[:64], filename="cmnist_recon_xs.png")
 
-                # log_images(SUMMARY, recon_all, 'reconstruction_all')
-                # log_images(SUMMARY, recon_y, 'reconstruction_y')
-                # log_images(SUMMARY, recon_s, 'reconstruction_s')
+                log_images(SUMMARY, recon_all, 'reconstruction_all')
+                log_images(SUMMARY, recon_y, 'reconstruction_y')
+                log_images(SUMMARY, recon_s, 'reconstruction_s')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -252,7 +252,7 @@ def main(args, datasets, metric_callback):
             disc_fn = mp_28x28_net
             disc_kwargs = {"use_bn": False}
         else:
-            disc_fn = latent_space_classifier
+            disc_fn = latent_discriminator
             # disc_fn = fc_net
             disc_kwargs = {}
             disc_kwargs = {"hidden_channels": 64 * 2**ARGS.levels, "num_blocks": ARGS.disc_depth}
@@ -289,7 +289,7 @@ def main(args, datasets, metric_callback):
             if hasattr(m, "weight"):
                 return torch.nn.utils.spectral_norm(m)
         inn.apply(spectral_norm)
-        # discriminator.apply(spectral_norm)
+        discriminator.apply(spectral_norm)
 
     # Save initial parameters
     # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)

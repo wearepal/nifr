@@ -38,21 +38,21 @@ class AffineCouplingLayer(CouplingLayer):
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        self.net_s_t = ConvResidualNet(
-                in_channels=self.d,
-                out_channels=(in_channels - self.d) * 2,
-                hidden_channels=hidden_channels,
-                num_blocks=num_blocks,
-                activation=F.relu,
-                dropout_probability=0,
-                use_batch_norm=False)
+        # self.net_s_t = ConvResidualNet(
+        #         in_channels=self.d,
+        #         out_channels=(in_channels - self.d) * 2,
+        #         hidden_channels=hidden_channels,
+        #         num_blocks=num_blocks,
+        #         activation=F.relu,
+        #         dropout_probability=0,
+        #         use_batch_norm=False)
 
-        # self.net_s_t = BottleneckConvBlock(
-        #     in_channels=self.d,
-        #     hidden_channels=hidden_channels,
-        #     out_channels=(in_channels - self.d) * 2,
-        #     use_bn=False,
-        # )
+        self.net_s_t = BottleneckConvBlock(
+            in_channels=self.d,
+            hidden_channels=hidden_channels,
+            out_channels=(in_channels - self.d) * 2,
+            use_bn=False,
+        )
 
     def logdetjac(self, scale):
         return sum_except_batch(torch.log(scale), keepdim=True)
@@ -60,13 +60,13 @@ class AffineCouplingLayer(CouplingLayer):
     def _scale_and_shift_fn(self, inputs):
         s_t = self.net_s_t(inputs)
         scale, shift = s_t.chunk(2, dim=1)
-        scale = torch.sigmoid(scale) + 0.5
+        scale = scale.sigmoid() + 0.5
         return scale, shift
 
     def _forward(self, x, sum_ldj=None):
         x_a, x_b = self._split(x)
         scale, shift = self._scale_and_shift_fn(x_a)
-        y_b = scale * (x_b + shift)
+        y_b = scale * x_b + shift
         y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
@@ -77,7 +77,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _inverse(self, y, sum_ldj=None):
         x_a, y_b = self._split(y)
         scale, shift = self._scale_and_shift_fn(x_a)
-        x_b = y_b / scale - shift
+        x_b = (y_b - shift) / scale
         x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
@@ -93,19 +93,19 @@ class AdditiveCouplingLayer(CouplingLayer):
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        self.net_t = ConvResidualNet(
-                in_channels=self.d,
-                out_channels=(in_channels - self.d),
-                hidden_channels=hidden_channels,
-                num_blocks=num_blocks,
-                activation=F.relu,
-                dropout_probability=0,
-                use_batch_norm=False)
-        # self.net_t = BottleneckConvBlock(
-        #     in_channels=self.d,
-        #     hidden_channels=hidden_channels,
-        #     out_channels=(in_channels - self.d),
-        # )
+        # self.net_t = ConvResidualNet(
+        #         in_channels=self.d,
+        #         out_channels=(in_channels - self.d),
+        #         hidden_channels=hidden_channels,
+        #         num_blocks=num_blocks,
+        #         activation=F.relu,
+        #         dropout_probability=0,
+        #         use_batch_norm=False)
+        self.net_t = BottleneckConvBlock(
+            in_channels=self.d,
+            hidden_channels=hidden_channels,
+            out_channels=(in_channels - self.d),
+        )
 
     def logdetjac(self):
         return 0

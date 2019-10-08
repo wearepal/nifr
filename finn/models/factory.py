@@ -47,7 +47,7 @@ def build_conv_inn(args, input_dim):
                 _chain += [layers.AdditiveCouplingLayer(_input_dim,
                                                         hidden_channels=args.coupling_channels,
                                                         num_blocks=args.coupling_depth,
-                                                        pcnt_to_transform=0.5)]
+                                                        pcnt_to_transform=0.25)]
             else:
                 _chain += [layers.AffineCouplingLayer(_input_dim,
                                                       num_blocks=args.coupling_depth,
@@ -72,14 +72,13 @@ def build_conv_inn(args, input_dim):
             #     input_dim = round(factor_splits[offset] * input_dim)
             # offset += 1
 
-    model = [layers.FactorOut(chain, factor_splits)]
+    # model = [layers.FactorOut(chain, factor_splits)]
     if args.idf:
-        pass
-        model += [layers.RandomPermutation(input_dim)]
+        chain += [layers.RandomPermutation(input_dim)]
     else:
-        model += [layers.Invertible1x1Conv(input_dim, use_lr_decomp=True)]
+        chain += [layers.Invertible1x1Conv(input_dim, use_lr_decomp=True)]
 
-    model = layers.BijectorChain(model)
+    model = layers.BijectorChain(chain)
 
     return model
 

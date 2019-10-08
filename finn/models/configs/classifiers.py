@@ -4,16 +4,38 @@ import torch.nn.functional as F
 from finn.layers.resnet import ResidualNet, ConvResidualNet
 
 
-def latent_space_classifier(in_dim, target_dim, hidden_channels=512, num_blocks=4):
-    # def _conv_block(_in_channels, _out_channels, kernel_size, stride):
-    #     return [
-    #         nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size,
-    #                   stride=stride, padding=1),
-    #         nn.BatchNorm2d(_out_channels),
-    #         nn.ReLU(inplace=True)
-    #     ]
+def latent_discriminator(in_dim, target_dim, hidden_channels=512, num_blocks=4):
+
+    def _conv_block(_in_channels, _out_channels, kernel_size=3, stride=1, padding=1):
+        return [
+            nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size,
+                      stride=stride, padding=padding),
+            nn.BatchNorm2d(_out_channels),
+            nn.ReLU(inplace=True)
+        ]
 
     # layers = []
+    # hidden_sizes = [in_dim * 16] * 2
+    #
+    # curr_dim = in_dim
+    # for h in hidden_sizes:
+    #     layers.extend(_conv_block(in_dim, h))
+    #     curr_dim = h
+    #
+    # layers.append(nn.AdaptiveAvgPool2d(1))
+    # layers.append(nn.Flatten())
+    #
+    # layers.append(nn.Linear(curr_dim, curr_dim))
+    # layers.append(nn.ReLU(inplace=True))
+    # layers.append(nn.Linear(curr_dim, target_dim))
+
+    # layers = [
+    #     nn.AdaptiveAvgPool2d(1),
+    #     nn.Flatten(),
+    #     nn.Linear(in_dim, in_dim),
+    #     nn.ReLU(),
+    #     nn.Linear(in_dim, target_dim)
+    # ]
     layers = [
         ConvResidualNet(
             in_channels=in_dim,
@@ -21,11 +43,12 @@ def latent_space_classifier(in_dim, target_dim, hidden_channels=512, num_blocks=
             hidden_channels=hidden_channels,
             num_blocks=num_blocks,
             activation=F.relu,
-            dropout_probability=0,
+            dropout_probability=0.,
             use_batch_norm=True),
         nn.AdaptiveAvgPool2d(1),
         nn.Flatten(),
         nn.Linear(hidden_channels, hidden_channels),
+        nn.ReLU(),
         nn.Linear(hidden_channels, target_dim)
     ]
     # layers.extend(_conv_block(in_dim, 256, 3, 1))
@@ -41,7 +64,36 @@ def latent_space_classifier(in_dim, target_dim, hidden_channels=512, num_blocks=
     return nn.Sequential(*layers)
 
 
-def mp_28x28_net(input_dim, target_dim, use_bn =True):
+def mp_32x32_net(input_dim, target_dim, use_bn=True):
+    def conv_block(in_dim, out_dim, kernel_size, stride, padding):
+        _block = []
+        _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size,
+                             stride=stride, padding=padding)]
+        if use_bn:
+            _block += [nn.BatchNorm2d(out_dim)]
+        _block += [nn.LeakyReLU()]
+        return _block
+
+    layers = []
+    layers.extend(conv_block(input_dim, 64, 5, 1, 0))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(64, 128, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(128, 256, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(256, 512, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers += [nn.Flatten()]
+    layers += [nn.Linear(512, target_dim)]
+
+    return nn.Sequential(*layers)
+
+
+def mp_28x28_net(input_dim, target_dim, use_bn=True):
     def conv_block(in_dim, out_dim, kernel_size, stride):
         _block = []
         _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size,
