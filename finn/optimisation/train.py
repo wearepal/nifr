@@ -102,13 +102,13 @@ def train(inn, discriminator, dataloader, epoch):
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                save_image(recon_all[:64], filename="cmnist_recon_x.png")
-                save_image(recon_y[:64], filename="cmnist_recon_xy.png")
-                save_image(recon_s[:64], filename="cmnist_recon_xs.png")
+                # save_image(recon_all[:64], filename="cmnist_recon_x.png")
+                # save_image(recon_y[:64], filename="cmnist_recon_xy.png")
+                # save_image(recon_s[:64], filename="cmnist_recon_xs.png")
 
-                # log_images(SUMMARY, recon_all, 'reconstruction_all')
-                # log_images(SUMMARY, recon_y, 'reconstruction_y')
-                # log_images(SUMMARY, recon_s, 'reconstruction_s')
+                log_images(SUMMARY, recon_all, 'reconstruction_all')
+                log_images(SUMMARY, recon_y, 'reconstruction_y')
+                log_images(SUMMARY, recon_s, 'reconstruction_s')
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
