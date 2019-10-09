@@ -6,12 +6,13 @@ from finn.layers.resnet import ResidualNet, ConvResidualNet
 
 def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
 
+    act = F.relu if use_bn else F.selu
     layers = [
         ResidualNet(in_features=in_dim,
                     out_features=target_dim,
                     hidden_features=hidden_channels,
                     num_blocks=num_blocks,
-                    activation=F.relu,
+                    activation=act,
                     dropout_probability=0.,
                     use_batch_norm=use_bn),
     ]
