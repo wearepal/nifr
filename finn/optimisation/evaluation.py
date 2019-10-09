@@ -154,9 +154,6 @@ def encode_dataset(args: Namespace, data: Dataset, model: BipartiteInn, recon: b
     with torch.set_grad_enabled(False):
         for i, (x, s, y) in enumerate(data):
 
-            if x.dim() == 4:
-                x = F.pad(x, 4 * [args.padding])
-
             x = x.to(args.device)
             all_s.append(s)
             all_y.append(y)

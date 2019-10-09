@@ -23,7 +23,7 @@ class BottleneckConvBlock(nn.Module):
         ]
         # Initialize final kernel to zero so the coupling layer initially performs
         # and identity mapping
-        nn.init.uniform_(sub_blocks[-1].weight, a=-1e-3, b=1e-3)
+        # nn.init.uniform_(sub_blocks[-1].weight, a=-1e-3, b=1e-3)
 
         self.sub_blocks = nn.Sequential(*sub_blocks)
 

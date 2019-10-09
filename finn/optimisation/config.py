@@ -58,6 +58,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--disc-lr', type=float, default=3e-4)
     parser.add_argument('--disc-depth', type=int, default=2)
+    parser.add_argument('--disc-channels', type=int, default=512)
     parser.add_argument('--weight-decay', type=float, default=0)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--data-split-seed', type=int, default=888)

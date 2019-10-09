@@ -15,4 +15,5 @@ from .coupling import (
 from .glow import Invertible1x1Conv, InvertibleLinear
 from .bijector import Bijector
 from .permutation import RandomPermutation, ReversePermutation
+from .misc import Flatten
 from .squeeze import SqueezeLayer, UnsqueezeLayer

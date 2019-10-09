@@ -28,7 +28,9 @@ def build_fc_inn(args, input_dim, level_depth: int = None):
     return layers.BijectorChain(chain)
 
 
-def build_conv_inn(args, input_dim):
+def build_conv_inn(args, input_shape):
+
+    input_dim = input_shape[0]
 
     def _block(_input_dim):
         _chain = []
@@ -55,28 +57,27 @@ def build_conv_inn(args, input_dim):
 
         return layers.BijectorChain(_chain)
 
-    factor_splits = {}
-    # factor_splits: dict = args.factor_splits
-    # offset = len(chain)
-    # factor_splits = {int(k)+offset: float(v) for k, v in factor_splits.items()}
+    factor_splits: dict = {int(k): v for k, v in args.factor_splits.items()}
+    factor_splits = {int(k): float(v) for k, v in factor_splits.items()}
 
-    # input_dim = input_dim_0
     chain = []
-    for _ in range(args.levels):
-        chain += [layers.SqueezeLayer(2)]
-        input_dim = input_dim * 2**2
+    for i in range(args.levels):
+        level = [layers.SqueezeLayer(2)]
+        input_dim *= 4
 
-        for _ in range(args.level_depth):
-            chain += [_block(input_dim)]
-            # if offset in factor_splits:
-            #     input_dim = round(factor_splits[offset] * input_dim)
-            # offset += 1
+        level.extend([_block(input_dim) for _ in range(args.level_depth)])
 
-    # model = [layers.FactorOut(chain, factor_splits)]
-    if args.idf:
+        chain.append(layers.BijectorChain(level))
+        if i in factor_splits:
+            input_dim = round(factor_splits[i] * input_dim)
+
+    chain = [layers.FactorOut(chain, factor_splits)]
+
+    input_dim = int(np.product(input_shape))
+    if args.idf or not args.glow:
         chain += [layers.RandomPermutation(input_dim)]
     else:
-        chain += [layers.Invertible1x1Conv(input_dim, use_lr_decomp=True)]
+        chain += [layers.InvertibleLinear(input_dim)]
 
     model = layers.BijectorChain(chain)
 
@@ -85,21 +86,12 @@ def build_conv_inn(args, input_dim):
 
 def build_discriminator(args, input_shape, frac_enc,
                         model_fn, model_kwargs,
-                        flatten, optimizer_args=None):
+                        optimizer_args=None):
 
     in_dim = input_shape[0]
 
     if len(input_shape) > 2:
-        h, w = input_shape[1:]
-        h += args.padding * 2
-        w += args.padding * 2
-        if not args.train_on_recon:
-            in_dim *= (2**2)**args.levels
-            in_dim = round(frac_enc * in_dim)
-            h //= args.levels * 2
-            w //= args.levels * 2
-        if flatten:
-            in_dim = int(np.product((in_dim, h, w)))
+        in_dim = round(frac_enc * int(np.product(input_shape)))
 
     num_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(

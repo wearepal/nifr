@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-
-from finn.layers.inn.bijector import Bijector
+import numpy as np
+from .misc import Flatten
 
 
 class BijectorChain(nn.Module):
@@ -38,7 +38,7 @@ class FactorOut(BijectorChain):
     def _compute_split_point(tensor, frac):
         return round(tensor.size(1) * frac)
 
-    def _split_channelwise(self, tensor, frac):
+    def _frac_split_channelwise(self, tensor, frac):
         assert 0 <= frac <= 1
         split_point = self._compute_split_point(tensor, frac)
         return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
@@ -46,32 +46,30 @@ class FactorOut(BijectorChain):
     def __init__(self, layer_list, splits=None):
         super().__init__(layer_list)
         self.splits: dict = splits or {}
+        self._factor_layers = {
+            key: Flatten() for key in self.splits.keys()
+        }
+        self._final_flatten = Flatten()
 
     def _forward(self, x, logpx, inds=None):
         if inds is None:
             inds = range(len(self.chain))
 
         xs = []
-        if logpx is None:
-            for i in inds:
-                x = self.chain[i](x, reverse=False)
-                if i in self.splits:
-                    x_removed, x = self._split_channelwise(x, self.splits[i])
-                    xs.append(x_removed)
-            xs.append(x)
-            x = torch.cat(xs, dim=1)
+        for i in inds:
+            x = self.chain[i](x, logpx=logpx, reverse=False)
+            if logpx is not None:
+                x, logpx = x
+            if i in self.splits:
+                x_removed, x = self._frac_split_channelwise(x, self.splits[i])
+                x_removed_flat = self._factor_layers[i](x_removed)
+                xs.append(x_removed_flat)
+        xs.append(self._final_flatten(x))
+        x = torch.cat(xs, dim=1)
 
-            return x
-        else:
-            for i in inds:
-                x, logpx = self.chain[i](x, logpx, reverse=False)
-                if i in self.splits:
-                    x_removed, x = self._split_channelwise(x, self.splits[i])
-                    xs.append(x_removed)
-            xs.append(x)
-            x = torch.cat(xs, dim=1)
+        out = (x, logpx) if logpx is not None else x
 
-            return x, logpx
+        return out
 
     def _reverse(self, x, logpx=None, inds=None):
         len_chain = len(self.chain)
@@ -80,23 +78,23 @@ class FactorOut(BijectorChain):
 
         components = {}
         for block_ind, frac in self.splits.items():
-            x_removed, x = self._split_channelwise(x, frac=frac)
-            components[block_ind] = x_removed
+            factor_layer = self._factor_layers[block_ind]
+            split_point = factor_layer.flat_shape[1]
+            x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
+            components[block_ind] = factor_layer(x_removed_flat, reverse=True)
 
-        if logpx is None:
-            for i in inds:
-                if i in components:
-                    x = torch.cat([components[i], x], dim=1)
-                x = self.chain[i](x, reverse=True)
+        x = self._final_flatten(x, reverse=True)
 
-            return x
-        else:
-            for i in inds:
-                if i in components:
-                    x = torch.cat([components[i], x], dim=1)
-                x, logpx = self.chain[i](x, logpx, reverse=True)
+        for i in inds:
+            if i in components:
+                x = torch.cat([components[i], x], dim=1)
+            x = self.chain[i](x, logpx=logpx, reverse=True)
+            if logpx is not None:
+                x, logpx = x
 
-            return x, logpx
+        out = (x, logpx) if logpx is not None else x
+
+        return out
 
     def forward(self, x, logpx=None, reverse=False, inds=None):
         if reverse:

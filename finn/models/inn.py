@@ -51,17 +51,13 @@ class BipartiteInn(ModelBase):
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 
+        self.x_dim: int = x_dim
         if len(input_shape) < 2:
-            self.x_dim: int = x_dim
             z_channels += args.s_dim
             self.output_shape = self.input_shape
-
         else:
             self.x_dim: int = x_dim
-            z_channels *= (2**2)**args.levels
-            h = (self.input_shape[1] + 2 * args.padding) // args.levels * 2
-            w = (self.input_shape[2] + 2 * args.padding) // args.levels * 2
-            self.output_shape = (z_channels, w, h)
+            self.output_shape = int(np.product(self.input_shape))
 
         super().__init__(
             model,
@@ -141,8 +137,8 @@ class PartitionedInn(BipartiteInn):
             feature_groups=feature_groups
         )
 
-        self.zs_dim = round(args.zs_frac * self.output_shape[0])
-        self.zy_dim = self.output_shape[0] - self.zs_dim
+        self.zs_dim = round(args.zs_frac * self.output_shape)
+        self.zy_dim = self.output_shape - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)

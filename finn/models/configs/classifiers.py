@@ -4,15 +4,15 @@ import torch.nn.functional as F
 from finn.layers.resnet import ResidualNet, ConvResidualNet
 
 
-def latent_discriminator(in_dim, target_dim, hidden_channels=512, num_blocks=4):
-
+def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
     def _conv_block(_in_channels, _out_channels, kernel_size=3, stride=1, padding=1):
-        return [
-            nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size,
-                      stride=stride, padding=padding),
-            nn.BatchNorm2d(_out_channels),
-            nn.ReLU(inplace=True)
-        ]
+        _block = [nn.Conv2d(_in_channels, _out_channels, kernel_size=kernel_size,
+                            stride=stride, padding=padding)]
+        if use_bn:
+            _block.append(nn.BatchNorm2d(_out_channels))
+        _block.append(nn.ReLU(inplace=True))
+
+        return _block
 
     # layers = []
     # hidden_sizes = [in_dim * 16] * 2
@@ -37,20 +37,16 @@ def latent_discriminator(in_dim, target_dim, hidden_channels=512, num_blocks=4):
     #     nn.Linear(in_dim, target_dim)
     # ]
     layers = [
-        ConvResidualNet(
-            in_channels=in_dim,
-            out_channels=hidden_channels,
-            hidden_channels=hidden_channels,
-            num_blocks=num_blocks,
-            activation=F.relu,
-            dropout_probability=0.,
-            use_batch_norm=True),
-        nn.AdaptiveAvgPool2d(1),
-        nn.Flatten(),
-        nn.Linear(hidden_channels, hidden_channels),
-        nn.ReLU(),
+        ResidualNet(in_features=in_dim,
+                    out_features=hidden_channels,
+                    hidden_features=hidden_channels,
+                    num_blocks=num_blocks,
+                    activation=F.relu,
+                    dropout_probability=0.,
+                    use_batch_norm=use_bn),
         nn.Linear(hidden_channels, target_dim)
     ]
+
     # layers.extend(_conv_block(in_dim, 256, 3, 1))
     # layers.extend(_conv_block(256, 256, 4, 2))
     # layers.extend(_conv_block(256, 512, 3, 1))
