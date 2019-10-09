@@ -29,22 +29,21 @@ def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, u
     # layers.append(nn.ReLU(inplace=True))
     # layers.append(nn.Linear(curr_dim, target_dim))
 
-    # layers = [
-    #     nn.AdaptiveAvgPool2d(1),
-    #     nn.Flatten(),
-    #     nn.Linear(in_dim, in_dim),
-    #     nn.ReLU(),
-    #     nn.Linear(in_dim, target_dim)
-    # ]
     layers = [
-        ResidualNet(in_features=in_dim,
-                    out_features=target_dim,
-                    hidden_features=hidden_channels,
-                    num_blocks=num_blocks,
-                    activation=F.relu,
-                    dropout_probability=0.,
-                    use_batch_norm=use_bn),
+        nn.Linear(in_dim, hidden_channels),
+        nn.SELU(),
+        nn.Linear(hidden_channels, target_dim)
     ]
+
+    # layers = [
+    #     ResidualNet(in_features=in_dim,
+    #                 out_features=target_dim,
+    #                 hidden_features=hidden_channels,
+    #                 num_blocks=num_blocks,
+    #                 activation=F.relu,
+    #                 dropout_probability=0.,
+    #                 use_batch_norm=use_bn),
+    # ]
 
     # layers.extend(_conv_block(in_dim, 256, 3, 1))
     # layers.extend(_conv_block(256, 256, 4, 2))
