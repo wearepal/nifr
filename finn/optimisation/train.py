@@ -75,7 +75,6 @@ def train(inn, discriminator, dataloader, epoch):
         nll *= ARGS.nll_weight
         disc_loss *= ARGS.pred_s_weight
 
-        # disc_loss += 0.1 * contrastive_gradient_penalty(input=enc_y, network=discriminator)
         loss = nll + disc_loss
 
         inn.zero_grad()
