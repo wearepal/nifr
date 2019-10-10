@@ -62,6 +62,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--weight-decay', type=float, default=0)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--data-split-seed', type=int, default=888)
+    parser.add_argument('--warmup-steps', type=float, default=0)
 
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--save', type=str, default='experiments/finn')
