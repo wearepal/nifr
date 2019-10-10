@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
+from finn.models import AutoEncoder
 from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
@@ -128,7 +129,7 @@ def train(inn, discriminator, dataloader, epoch):
     )
 
 
-def validate(inn, discriminator, val_loader):
+def validate(inn, discriminator, autoencoder: AutoEncoder, val_loader):
     inn.eval()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
@@ -136,8 +137,10 @@ def validate(inn, discriminator, val_loader):
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            enc, nll = inn.routine(x_val)
+            if autoencoder is not None:
+                x_val = autoencoder.encode(x_val)
 
+            enc, nll = inn.routine(x_val)
             enc_y, enc_s = inn.split_encoding(enc)
 
             if ARGS.train_on_recon:
@@ -158,11 +161,8 @@ def validate(inn, discriminator, val_loader):
     SUMMARY.log_metric("Loss", loss_meter.avg)
 
     if ARGS.dataset == 'cmnist':
-
         z = inn(x_val[:64])
-
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
@@ -286,6 +286,18 @@ def main(args, datasets, metric_callback):
         inn.apply(spectral_norm)
         discriminator.apply(spectral_norm)
 
+    autoencoder = None
+    if args.autencode:
+        import torch.nn as nn
+        LOGGER.info("Training the AutoEncoder.")
+        encoder = nn.Conv2d(input_shape[0], input_shape[0] * 2,
+                            kernel_size=3, stride=2, padding=1)
+        decoder = nn.ConvTranspose2d(input_shape[0] * 2, input_shape[0],
+                                     kernel_size=3, stride=2, padding=1)
+        autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
+        autoencoder.fit(train_loader, epochs=5, device=args.device)
+        autoencoder.eval()
+
     # Save initial parameters
     # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
 
@@ -302,6 +314,7 @@ def main(args, datasets, metric_callback):
     best_loss = float('inf')
     n_vals_without_improvement = 0
 
+
     # Train INN for N epochs
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
@@ -311,15 +324,17 @@ def main(args, datasets, metric_callback):
             train(
                 inn,
                 discriminator,
+                autoencoder,
                 train_loader,
                 epoch,
             )
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
-                val_loss = validate(inn, discriminator, val_loader)
+                val_loss = validate(inn, discriminator, autoencoder, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
+                    metric_callback(ARGS, experiment=SUMMARY, model=inn,
+                                    autoencoder=autoencoder, data=datasets)
 
                 if val_loss < best_loss:
                     best_loss = val_loss

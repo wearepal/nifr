@@ -1,3 +1,4 @@
+from .autoencoder import AutoEncoder
 from .base import ModelBase
 from .inn import PartitionedInn, MaskedInn
 from .classifier import Classifier
