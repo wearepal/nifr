@@ -86,7 +86,7 @@ class AdditiveCouplingLayer(CouplingLayer):
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        self.net_s_t = ConvResidualNet(
+        self.net_t = ConvResidualNet(
                 in_channels=self.d,
                 out_channels=(in_channels - self.d),
                 hidden_channels=hidden_channels,
