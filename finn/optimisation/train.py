@@ -74,11 +74,11 @@ def train(inn, discriminator, dataloader, epoch):
 
         nll *= ARGS.nll_weight
 
-        pred_s_from_zy_weight = min(
-            (ARGS.pred_s_from_zy_weight ** (epoch - ARGS.warmup_steps),
-             ARGS.pred_s_from_zy_weight)
+        pred_s_weight = min(
+            (ARGS.pred_s_weight ** (epoch - ARGS.warmup_steps),
+             ARGS.pred_s_weight)
         )
-        disc_loss *= pred_s_from_zy_weight
+        disc_loss *= pred_s_weight
 
         loss = nll + disc_loss
 
