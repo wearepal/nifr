@@ -10,7 +10,7 @@ from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models.configs import mp_28x28_net
-from finn.models.configs.classifiers import fc_net, linear_disciminator
+from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from finn.models.inn import BipartiteInn, PartitionedInn
 from finn.utils import utils
@@ -238,7 +238,7 @@ def main(args, datasets, metric_callback):
     if len(input_shape) > 2:
         inn = build_conv_inn(args, input_shape)
         if args.train_on_recon:
-            disc_fn = mp_28x28_net
+            disc_fn = mp_32x32_net
             disc_kwargs = {"use_bn": not ARGS.spectral_norm}
         else:
             disc_fn = linear_disciminator
