@@ -90,7 +90,7 @@ def build_discriminator(args, input_shape, frac_enc,
 
     in_dim = input_shape[0]
 
-    if len(input_shape) > 2:
+    if not args.train_on_recon and len(input_shape) > 2:
         in_dim = round(frac_enc * int(np.product(input_shape)))
 
     num_classes = args.y_dim if args.y_dim > 1 else 2
