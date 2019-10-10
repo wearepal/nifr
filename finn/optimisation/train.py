@@ -157,6 +157,7 @@ def validate(inn, discriminator, val_loader):
         z = inn(x_val[:64])
 
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
+
         log_images(SUMMARY, x_val, 'original_x', prefix='test')
         log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
         log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')

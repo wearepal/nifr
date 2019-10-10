@@ -162,6 +162,8 @@ def encode_dataset(args: Namespace, data: Dataset, model: BipartiteInn, recon: b
 
             zs_m = torch.cat([zy, torch.zeros_like(zs)], dim=1)
             xy = model.invert(zs_m)
+            if x.dim() > 2:
+                xy = xy.clamp(min=0, max=1)
 
             encodings["xy"].append(xy.cpu())
 
