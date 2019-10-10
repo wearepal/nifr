@@ -66,7 +66,7 @@ def train(inn, discriminator, dataloader, epoch):
         if ARGS.train_on_recon:
             enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
             # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
-            enc_y = inn.invert(enc_y_m)
+            enc_y = inn.invert(enc_y_m).clamp(min=0, max=1)
             # enc_s = inn.invert(enc_s_m)
 
         enc_y = grad_reverse(enc_y)
