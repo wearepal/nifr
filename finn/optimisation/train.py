@@ -3,19 +3,18 @@ import time
 from pathlib import Path
 
 import torch
-import torch.nn.functional as F
+import torch.nn as nn
 from comet_ml import Experiment
 from torch.utils.data import DataLoader
-from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models import AutoEncoder
-from finn.models.configs import mp_28x28_net
+from finn.models.configs import conv_autoencoder
 from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
-from finn.models.inn import BipartiteInn, PartitionedInn
+from finn.models.inn import PartitionedInn, PartitionedAeInn
 from finn.utils import utils
-from .loss import grad_reverse, contrastive_gradient_penalty
+from .loss import grad_reverse
 from .utils import (
     get_data_dim,
     log_images)
@@ -129,16 +128,13 @@ def train(inn, discriminator, dataloader, epoch):
     )
 
 
-def validate(inn, discriminator, autoencoder: AutoEncoder, val_loader):
+def validate(inn, discriminator, val_loader):
     inn.eval()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
-
-            if autoencoder is not None:
-                x_val = autoencoder.encode(x_val)
 
             enc, nll = inn.routine(x_val)
             enc_y, enc_s = inn.split_encoding(enc)
@@ -240,9 +236,9 @@ def main(args, datasets, metric_callback):
     if hasattr(datasets.pretrain, "feature_groups"):
         feature_groups = datasets.pretrain.feature_groups
 
-    Module = PartitionedInn
+    # Model constructors and arguments
     if len(input_shape) > 2:
-        inn = build_conv_inn(args, input_shape)
+        inn_fn = build_conv_inn
         if args.train_on_recon:
             disc_fn = mp_32x32_net
             disc_kwargs = {"use_bn": not ARGS.spectral_norm}
@@ -252,30 +248,44 @@ def main(args, datasets, metric_callback):
                            "num_blocks": ARGS.disc_depth,
                            "use_bn": not ARGS.spectral_norm}
     else:
-        inn = build_fc_inn(args, input_shape[0])
+        inn_fn = build_fc_inn
         disc_fn = fc_net
         disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
     #  Model arguments
-    inn_args = {
+    inn_kwargs = {
         'args': args,
-        'model': inn,
-        'input_shape': input_shape,
         'optimizer_args': optimizer_args,
         'feature_groups': feature_groups,
     }
 
     # Initialise INN
-    inn: BipartiteInn = Module(**inn_args)
-    inn.to(args.device)
+    if ARGS.autoencode:
+        encoder, decoder, enc_shape = conv_autoencoder(input_shape, 64, encoded_dim=3, levels=1)
+        autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
+
+        inn_kwargs["input_shape"] = enc_shape
+        inn_kwargs["autoencoder"] = autoencoder
+        inn_kwargs["model"] = inn_fn(args, inn_kwargs["input_shape"])
+
+        inn = PartitionedAeInn(**inn_kwargs)
+        inn.to(args.device)
+
+        inn.fit_ae(train_loader, epochs=5, device=ARGS.device, loss_fn=torch.nn.MSELoss())
+    else:
+        inn_kwargs["input_shape"] = input_shape
+        inn_kwargs["model"] = inn_fn(args, input_shape)
+        inn = PartitionedInn(**inn_kwargs)
+        inn.to(args.device)
+
     # Initialise Discriminator
-    disc_optimizer_args = {'lr': args.disc_lr}
+    dis_optimizer_kwargs = {'lr': args.disc_lr}
     discriminator = build_discriminator(args,
-                                        input_shape,
+                                        inn_kwargs["input_shape"],
                                         frac_enc=1 - args.zs_frac,
                                         model_fn=disc_fn,
                                         model_kwargs=disc_kwargs,
-                                        optimizer_args=disc_optimizer_args)
+                                        optimizer_kwargs=dis_optimizer_kwargs)
     discriminator.to(args.device)
 
     if ARGS.spectral_norm:
@@ -285,18 +295,6 @@ def main(args, datasets, metric_callback):
 
         inn.apply(spectral_norm)
         discriminator.apply(spectral_norm)
-
-    autoencoder = None
-    if args.autencode:
-        import torch.nn as nn
-        LOGGER.info("Training the AutoEncoder.")
-        encoder = nn.Conv2d(input_shape[0], input_shape[0] * 2,
-                            kernel_size=3, stride=2, padding=1)
-        decoder = nn.ConvTranspose2d(input_shape[0] * 2, input_shape[0],
-                                     kernel_size=3, stride=2, padding=1)
-        autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
-        autoencoder.fit(train_loader, epochs=5, device=args.device)
-        autoencoder.eval()
 
     # Save initial parameters
     # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
@@ -324,17 +322,15 @@ def main(args, datasets, metric_callback):
             train(
                 inn,
                 discriminator,
-                autoencoder,
                 train_loader,
                 epoch,
             )
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
-                val_loss = validate(inn, discriminator, autoencoder, val_loader)
+                val_loss = validate(inn, discriminator, val_loader)
                 if args.super_val:
-                    metric_callback(ARGS, experiment=SUMMARY, model=inn,
-                                    autoencoder=autoencoder, data=datasets)
+                    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
 
                 if val_loss < best_loss:
                     best_loss = val_loss

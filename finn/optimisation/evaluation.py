@@ -84,7 +84,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon,
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes,
-                                 optimizer_args={'lr': args.eval_lr})
+                                 optimizer_kwargs={'lr': args.eval_lr})
     clf.to(args.device)
     clf.fit(train_data, test_data=test_data, epochs=args.eval_epochs,
             device=args.device, pred_s=pred_s, verbose=True)
@@ -173,8 +173,7 @@ def encode_dataset(args: Namespace, data: Dataset, model: BipartiteInn, recon: b
 
     return encodings
 
-    # path = f"C:\\Users\\Myles\\PycharmProjects\\Fair-Invertible-Networks\\data\\encodings\\{subdir}"
-    # # path = Path("data", "encodings", subdir)
+    # path = Path("data", "encodings", subdir)
     # if os.path.exists(path):
     #     shutil.rmtree(path)
     # os.mkdir(path)

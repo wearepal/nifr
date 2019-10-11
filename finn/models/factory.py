@@ -86,7 +86,7 @@ def build_conv_inn(args, input_shape):
 
 def build_discriminator(args, input_shape, frac_enc,
                         model_fn, model_kwargs,
-                        optimizer_args=None):
+                        optimizer_kwargs=None):
 
     in_dim = input_shape[0]
 
@@ -97,7 +97,7 @@ def build_discriminator(args, input_shape, frac_enc,
     discriminator = Classifier(
         model_fn(in_dim, args.y_dim, **model_kwargs),
         num_classes=num_classes,
-        optimizer_args=optimizer_args
+        optimizer_kwargs=optimizer_kwargs
     )
 
     return discriminator

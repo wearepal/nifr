@@ -104,7 +104,7 @@ def strided_28x28_net(input_dim, target_dim):
     return nn.Sequential(*layers)
 
 
-def fc_net(input_dim, target_dim, hidden_dims=None):
+def fc_net(input_shape, target_dim, hidden_dims=None):
     hidden_dims = hidden_dims or []
 
     def fc_block(in_dim, out_dim):
@@ -116,9 +116,9 @@ def fc_net(input_dim, target_dim, hidden_dims=None):
     layers = [nn.Flatten()]
 
     for output_dim in hidden_dims:
-        layers.extend(fc_block(input_dim, output_dim))
+        layers.extend(fc_block(input_shape[0], output_dim))
         input_dim = output_dim
 
-    layers.append(nn.Linear(input_dim, target_dim))
+    layers.append(nn.Linear(input_shape[0], target_dim))
 
     return nn.Sequential(*layers)

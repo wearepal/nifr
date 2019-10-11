@@ -17,7 +17,7 @@ class Classifier(ModelBase):
         self,
         model,
         num_classes: int,
-        optimizer_args: dict = None,
+        optimizer_kwargs: dict = None,
     ) -> None:
         """Build classifier model.
 
@@ -41,7 +41,7 @@ class Classifier(ModelBase):
 
         super().__init__(
             model,
-            optimizer_args=optimizer_args,
+            optimizer_args=optimizer_kwargs,
         )
 
     def apply_criterion(self, logits, targets):

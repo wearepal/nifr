@@ -1,7 +1,6 @@
-import torch
 import torch.nn as nn
 
-from finn.models import ModelBase
+from .base import ModelBase
 
 
 class AutoEncoder(nn.Module):
@@ -26,8 +25,11 @@ class AutoEncoder(nn.Module):
     def decode(self, encoding):
         return self.decoder(encoding)
 
-    def forward(self, inputs):
-        return self.encode(inputs)
+    def forward(self, inputs, reverse=False):
+        if reverse:
+            return self.decode(inputs)
+        else:
+            return self.encode(inputs)
 
     def zero_grad(self):
         self.encoder.zero_grad()
@@ -51,6 +53,6 @@ class AutoEncoder(nn.Module):
                 x = x.to(device)
 
                 self.zero_grad()
-                loss, acc = self.routine(x, loss_fn=loss_fn)
+                loss = self.routine(x, loss_fn=loss_fn)
                 loss.backward()
                 self.step()

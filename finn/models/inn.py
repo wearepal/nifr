@@ -8,6 +8,7 @@ from torch import Tensor
 
 from finn.utils import to_discrete
 from finn.utils.distributions import MixtureDistribution, DLogistic
+from .autoencoder import AutoEncoder
 from .base import ModelBase
 from .masker import Masker
 
@@ -194,6 +195,52 @@ class PartitionedInn(BipartiteInn):
         nll = self.nll(z, sum_ldj)
 
         return z, nll
+
+
+class PartitionedAeInn(PartitionedInn):
+
+    def __init__(
+        self,
+        args: Namespace,
+        model: torch.nn.Module,
+        autoencoder: AutoEncoder,
+        input_shape: Sequence[int],
+        optimizer_args: dict = None,
+        feature_groups: Optional[List[slice]] = None,
+    ) -> None:
+        super().__init__(args,
+                         model,
+                         input_shape,
+                         optimizer_args,
+                         feature_groups)
+        self.autoencoder = autoencoder
+
+    def train(self):
+        self.model.train()
+        self.autoencoder.eval()
+
+    def eval(self):
+        self.model.eval()
+        self.autoencoder.eval()
+
+    def fit_ae(self, train_data, epochs, device, loss_fn=torch.nn.MSELoss()):
+        print("===> Fitting Auto-encoder to the training data....")
+        self.autoencoder.train()
+        self.autoencoder.fit(train_data, epochs, device, loss_fn)
+        self.autoencoder.eval()
+
+    def forward(
+        self, inputs: Tensor, logdet: Tensor = None,
+        reverse: bool = False
+    ) -> Tensor:
+        if reverse:
+            outputs = self.model(inputs, logpx=logdet, reverse=reverse)
+            outputs = self.autoencoder.decode(outputs)
+        else:
+            outputs = self.autoencoder.encode(inputs)
+            outputs = self.model(outputs, logpx=logdet, reverse=reverse)
+
+        return outputs
 
 
 class MaskedInn(BipartiteInn):

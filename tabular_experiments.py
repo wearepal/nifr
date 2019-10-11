@@ -58,7 +58,7 @@ discriminator = build_discriminator(args,
                                     model_kwargs=disc_kwargs,
                                     flatten=True,
                                     frac_enc=1 - args.zs_frac,
-                                    optimizer_args=disc_optimizer_args)
+                                    optimizer_kwargs=disc_optimizer_args)
 discriminator.to(device)
 
 inn.model.train()

@@ -101,7 +101,7 @@ discriminator: Classifier = build_discriminator(args,
                                                 model_fn=model_fn,
                                                 model_kwargs=disc_kwargs,
                                                 flatten=not use_conv_disc,
-                                                optimizer_args=disc_optimizer_args)
+                                                optimizer_kwargs=disc_optimizer_args)
 
 discriminator.to(device)
 
