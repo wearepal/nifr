@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from finn.data import DatasetTriplet
 from finn.models import AutoEncoder
-from finn.models.configs import conv_autoencoder
+from finn.models.configs import conv_autoencoder, fc_autoencoder
 from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from finn.models.inn import PartitionedInn, PartitionedAeInn
@@ -231,13 +231,15 @@ def main(args, datasets, metric_callback):
 
     # ==== construct networks ====
     input_shape = get_data_dim(train_loader)
+    is_image_data = len(input_shape) > 2
+
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
     feature_groups = None
     if hasattr(datasets.pretrain, "feature_groups"):
         feature_groups = datasets.pretrain.feature_groups
 
     # Model constructors and arguments
-    if len(input_shape) > 2:
+    if is_image_data:
         inn_fn = build_conv_inn
         if args.train_on_recon:
             disc_fn = mp_32x32_net
@@ -261,9 +263,14 @@ def main(args, datasets, metric_callback):
 
     # Initialise INN
     if ARGS.autoencode:
-        encoder, decoder, enc_shape = conv_autoencoder(input_shape, ARGS.ae_channels,
-                                                       encoded_dim=ARGS.ae_enc_dim,
-                                                       levels=ARGS.ae_levels)
+        if is_image_data:
+            encoder, decoder, enc_shape = conv_autoencoder(input_shape, ARGS.ae_channels,
+                                                           encoded_dim=ARGS.ae_enc_dim,
+                                                           levels=ARGS.ae_levels)
+        else:
+            encoder, decoder, enc_shape = fc_autoencoder(input_shape, ARGS.ae_channels,
+                                                         encoded_dim=ARGS.ae_enc_dim,
+                                                         levels=ARGS.ae_levels)
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
 
         inn_kwargs["input_shape"] = enc_shape
