@@ -3,7 +3,7 @@ import torch.nn as nn
 
 def _down_conv_block(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
-        nn.BatchNorm2d(out_channels),
+        nn.BatchNorm2d(in_channels),
         nn.ReLU(inplace=True),
         nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding),
     )
@@ -11,7 +11,7 @@ def _down_conv_block(in_channels, out_channels, kernel_size, stride, padding):
 
 def _up_conv_block(in_channels, out_channels, kernel_size, stride, padding, output_padding):
     return nn.Sequential(
-        nn.BatchNorm2d(out_channels),
+        nn.BatchNorm2d(in_channels),
         nn.ReLU(inplace=True),
         nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride,
                            padding=padding, output_padding=output_padding),
