@@ -50,7 +50,12 @@ def parse_arguments(raw_args=None):
     parser.add_argument('--idf', type=eval, default=False, choices=[True, False])
     parser.add_argument('--no-scaling', type=eval, default=False, choices=[True, False])
     parser.add_argument('--spectral-norm', type=eval, default=False, choices=[True,  False])
+
     parser.add_argument('--autoencode', type=eval, default=True, choices=[True, False])
+    parser.add_argument('--ae-levels', type=int, default=1)
+    parser.add_argument('--ae-enc-dim', type=int, default=3)
+    parser.add_argument('--ae-channels', type=int, default=64)
+    parser.add_argument('--ae-epochs', type=int, default=3)
 
     parser.add_argument('--early-stopping', type=int, default=30)
     parser.add_argument('--epochs', type=int, default=250)

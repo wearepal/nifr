@@ -261,7 +261,9 @@ def main(args, datasets, metric_callback):
 
     # Initialise INN
     if ARGS.autoencode:
-        encoder, decoder, enc_shape = conv_autoencoder(input_shape, 64, encoded_dim=3, levels=1)
+        encoder, decoder, enc_shape = conv_autoencoder(input_shape, ARGS.ae_channels,
+                                                       encoded_dim=ARGS.ae_enc_dim,
+                                                       levels=ARGS.ae_levels)
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
 
         inn_kwargs["input_shape"] = enc_shape
@@ -270,8 +272,7 @@ def main(args, datasets, metric_callback):
 
         inn = PartitionedAeInn(**inn_kwargs)
         inn.to(args.device)
-
-        inn.fit_ae(train_loader, epochs=5, device=ARGS.device, loss_fn=torch.nn.MSELoss())
+        inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=torch.nn.MSELoss())
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
