@@ -2,11 +2,12 @@ from typing import Sequence
 
 import numpy as np
 import torch
+from torch import Tensor
 import torch.distributions as td
 
 
-def logistic_distribution(loc, scale):
-    base_distribution = td.Uniform(0, 1)
+def logistic_distribution(loc: Tensor, scale: Tensor):
+    base_distribution = td.Uniform(loc.new_zeros(1), scale.new_zeros(1))
     transforms = [td.SigmoidTransform().inv, td.AffineTransform(loc=loc, scale=scale)]
     logistic = td.TransformedDistribution(base_distribution, transforms)
     return logistic
