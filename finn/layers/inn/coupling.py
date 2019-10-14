@@ -6,8 +6,7 @@ import torch.nn.functional as F
 from torch import Tensor
 
 from finn.layers.inn.bijector import Bijector
-from finn.layers.conv import BottleneckConvBlock
-from finn.layers.resnet import ResidualNet, ConvResidualNet
+from finn.layers.resnet import ConvResidualNet
 from finn.utils import RoundSTE, sum_except_batch
 from finn.utils.typechecks import is_probability
 
