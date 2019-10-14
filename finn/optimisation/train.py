@@ -137,7 +137,7 @@ def validate(inn, discriminator, val_loader):
 
             if ARGS.train_on_recon:
                 enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-                enc_y = inn.invert(enc_y)
+                enc_y = inn.invert(enc_y).clamp(min=0, max=1)
 
             enc_y = grad_reverse(enc_y)
 

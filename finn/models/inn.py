@@ -6,8 +6,7 @@ import torch
 import torch.distributions as td
 from torch import Tensor
 
-from finn.utils import to_discrete, logistic_distribution
-from finn.utils.distributions import MixtureDistribution, DLogistic
+from finn.utils import to_discrete, logistic_distribution, MixtureDistribution, DLogistic
 from .autoencoder import AutoEncoder
 from .base import ModelBase
 from .masker import Masker
