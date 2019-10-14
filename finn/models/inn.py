@@ -6,7 +6,7 @@ import torch
 import torch.distributions as td
 from torch import Tensor
 
-from finn.utils import to_discrete
+from finn.utils import to_discrete, logistic_distribution
 from finn.utils.distributions import MixtureDistribution, DLogistic
 from .autoencoder import AutoEncoder
 from .base import ModelBase
@@ -38,16 +38,20 @@ class BipartiteInn(ModelBase):
         """
         self.input_shape = input_shape
         self.feature_groups = feature_groups
+        self.base_density: td.Distribution
 
         if args.idf:
             probs = 5 * [1 / 5]
             dist_params = [(0, 0.5), (2, 0.5), (-2, 0.5), (4, 0.5), (-4, 0.5)]
             components = [DLogistic(loc, scale) for loc, scale in dist_params]
-            self.base_density: td.Distribution = MixtureDistribution(
+            self.base_density = MixtureDistribution(
                 probs=probs, components=components
             )
         else:
-            self.base_density: td.Distribution = td.Normal(0, 1)
+            if args.base_density == "logistic":
+                self.base_density = logistic_distribution(0, 1)
+            else:
+                self.base_density = td.Normal(0, 1)
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 

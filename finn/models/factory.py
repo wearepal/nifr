@@ -90,10 +90,7 @@ def build_conv_inn(args, input_shape):
     chain = [layers.FactorOut(chain, factor_splits)]
 
     input_dim = int(np.product(input_shape))
-    # if args.idf or not args.glow:
     chain += [layers.RandomPermutation(input_dim)]
-    # else:
-    #     chain += [layers.InvertibleLinear(input_dim)]
 
     model = layers.BijectorChain(chain)
 

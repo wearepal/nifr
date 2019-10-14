@@ -3,7 +3,13 @@ from typing import Sequence
 import numpy as np
 import torch
 import torch.distributions as td
-import torch.nn.functional as F
+
+
+def logistic_distribution(loc, scale):
+    base_distribution = td.Uniform(0, 1)
+    transforms = [td.SigmoidTransform().inv, td.AffineTransform(loc=loc, scale=scale)]
+    logistic = td.TransformedDistribution(base_distribution, transforms)
+    return logistic
 
 
 class DLogistic(td.Distribution):
