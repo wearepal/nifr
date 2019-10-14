@@ -16,40 +16,42 @@ def main():
         meta_lead = True
         data_split_seed = 888
 
-    for clf in [LR()]:#, Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
-        df = pd.DataFrame(columns=[
-            'mix_factor',
-            'Accuracy',
-            'Theil_Index',
-            'TPR_sex_Male_1',
-            'TPR_sex_Male_0',
-            'TPR_sex_Male_0-sex_Male_1',
-            'TPR_sex_Male_0/sex_Male_1',
-            'prob_pos_sex_Male_1',
-            'prob_pos_sex_Male_0',
-            'prob_pos_sex_Male_0-sex_Male_1',
-            'prob_pos_sex_Male_0/sex_Male_1',
-            'Theil_Index_sex_Male_1',
-            'Theil_Index_sex_Male_0',
-            'Theil_Index_sex_Male_0-sex_Male_1',
-            'Theil_Index_sex_Male_0/sex_Male_1',
-            'NMI',
-            'NMI_sex_Male_0',
-            'NMI_sex_Male_0-sex_Male_1',
-            'NMI_sex_Male_0/sex_Male_1',
-            'NMI_sex_Male_1',
-            'PPV',
-            'PPV_sex_Male_0',
-            'PPV_sex_Male_0-sex_Male_1',
-            'PPV_sex_Male_0/sex_Male_1',
-            'PPV_sex_Male_1',
-            'TNR',
-            'TNR_sex_Male_0',
-            'TNR_sex_Male_0-sex_Male_1',
-            'TNR_sex_Male_0/sex_Male_1',
-            'TNR_sex_Male_1',
-            'TPR'
-        ])
+    for clf in [LR()]:  # , Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
+        df = pd.DataFrame(
+            columns=[
+                "mix_factor",
+                "Accuracy",
+                "Theil_Index",
+                "TPR_sex_Male_1",
+                "TPR_sex_Male_0",
+                "TPR_sex_Male_0-sex_Male_1",
+                "TPR_sex_Male_0/sex_Male_1",
+                "prob_pos_sex_Male_1",
+                "prob_pos_sex_Male_0",
+                "prob_pos_sex_Male_0-sex_Male_1",
+                "prob_pos_sex_Male_0/sex_Male_1",
+                "Theil_Index_sex_Male_1",
+                "Theil_Index_sex_Male_0",
+                "Theil_Index_sex_Male_0-sex_Male_1",
+                "Theil_Index_sex_Male_0/sex_Male_1",
+                "NMI",
+                "NMI_sex_Male_0",
+                "NMI_sex_Male_0-sex_Male_1",
+                "NMI_sex_Male_0/sex_Male_1",
+                "NMI_sex_Male_1",
+                "PPV",
+                "PPV_sex_Male_0",
+                "PPV_sex_Male_0-sex_Male_1",
+                "PPV_sex_Male_0/sex_Male_1",
+                "PPV_sex_Male_1",
+                "TNR",
+                "TNR_sex_Male_0",
+                "TNR_sex_Male_0-sex_Male_1",
+                "TNR_sex_Male_0/sex_Male_1",
+                "TNR_sex_Male_1",
+                "TPR",
+            ]
+        )
         for mix_fact in [k / 100 for k in range(0, 105, 5)]:
             args = _Namespace()
             args.task_mixing_factor = mix_fact
@@ -59,11 +61,17 @@ def main():
             except:
                 print(f"{clf.name} failed on mix: {mix_fact}")
                 continue
-            metrics = run_metrics(preds, task, metrics=[Accuracy()], per_sens_metrics=[])
+            metrics = run_metrics(
+                preds, task, metrics=[Accuracy()], per_sens_metrics=[]
+            )
             print(f"{clf.name} Accuracy: {metrics['Accuracy']}")
-            res_dict = run_metrics(preds, task, metrics=[Accuracy(), Theil(), NMI(), TPR(), TNR(), PPV()],
-                                                per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), NMI(), PPV()])
-            res_dict['mix_factor'] = mix_fact
+            res_dict = run_metrics(
+                preds,
+                task,
+                metrics=[Accuracy(), Theil(), NMI(), TPR(), TNR(), PPV()],
+                per_sens_metrics=[Theil(), ProbPos(), TPR(), TNR(), NMI(), PPV()],
+            )
+            res_dict["mix_factor"] = mix_fact
 
             print(",".join(res_dict.keys()))
             print(",".join([str(val) for val in res_dict.values()]))
@@ -71,7 +79,7 @@ def main():
             df = df.append(res_dict, ignore_index=True)
             print(f"mix: {mix_fact}\t acc: {res_dict['Accuracy']}")
             print("----------------------")
-        df.to_csv(f'{clf.name}.csv', index=False)
+        df.to_csv(f"{clf.name}.csv", index=False)
 
 
 if __name__ == "__main__":

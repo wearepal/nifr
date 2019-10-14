@@ -13,7 +13,6 @@ from finn.data.misc import set_transform, RandomSampler
 
 
 class LdAugmentedDataset(Dataset):
-
     def __init__(
         self,
         source_dataset,
@@ -62,9 +61,7 @@ class LdAugmentedDataset(Dataset):
         num_samples = int(pcnt * len(self.source_dataset))
         inds = list(
             RandomSampler(
-                self.source_dataset,
-                num_samples=num_samples,
-                replacement=False,
+                self.source_dataset, num_samples=num_samples, replacement=False
             )
         )
         self.inds = inds
@@ -87,9 +84,7 @@ class LdAugmentedDataset(Dataset):
             yield (arg)
 
     def __getitem__(self, index):
-        return self._subroutine(
-            self.dataset.__getitem__(index)
-        )
+        return self._subroutine(self.dataset.__getitem__(index))
 
     def _augment(self, x, label):
         for aug in self.ld_augmentations:
@@ -134,7 +129,9 @@ class DataTupleDataset(Dataset):
         cont_features = source_dataset.continuous_features
         cont_features = [feat for feat in cont_features if feat in dataset.x.columns]
         self.cont_features = cont_features
-        self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
+        self.feature_groups = dict(
+            discrete=grouped_features_indexes(self.disc_features)
+        )
 
         self.x_disc = dataset.x[self.disc_features].to_numpy(dtype=np.float32)
         self.x_cont = dataset.x[self.cont_features].to_numpy(dtype=np.float32)
@@ -193,18 +190,18 @@ class DataTupleDataset(Dataset):
 
 
 class TripletDataset(Dataset):
-
     def __init__(self, root):
         super().__init__()
 
         self.root = root
         fn = partial(os.path.join, self.root)
-        filename = pd.read_csv(fn("filename.csv"), delim_whitespace=True,
-                               header=None, index_col=0)
+        filename = pd.read_csv(
+            fn("filename.csv"), delim_whitespace=True, header=None, index_col=0
+        )
         sens = pd.read_csv(fn("sens.csv"), delim_whitespace=True, header=None)
         target = pd.read_csv(fn("target.csv"), delim_whitespace=True, header=None)
 
-        assert(filename.shape[0] == sens.shape[0] == target.shape[0])
+        assert filename.shape[0] == sens.shape[0] == target.shape[0]
 
         self.filename = filename.index.values
         self.sens = torch.as_tensor(sens.values)
@@ -221,9 +218,8 @@ class TripletDataset(Dataset):
             tuple: (image, target) where target is index of the target class.
         """
         img = np.load(os.path.join(self.root, self.filename[index]))
-        img = torch.as_tensor(img['img'])
+        img = torch.as_tensor(img["img"])
         sens = self.sens[index]
         target = self.target[index]
 
         return img, sens, target
-

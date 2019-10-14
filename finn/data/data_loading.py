@@ -23,33 +23,48 @@ def load_dataset(args) -> DatasetTriplet:
     assert args.pretrain
 
     # =============== get whole dataset ===================
-    if args.dataset == 'cmnist':
-        to_tensor = transforms.ToTensor()
+    if args.dataset == "cmnist":
+        base_aug = [transforms.ToTensor()]
         data_aug = []
         if args.rotate_data:
             data_aug.append(transforms.RandomAffine(degrees=15))
         if args.shift_data:
             data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
+        if args.padding > 0:
+            base_aug.insert(0, transforms.Pad(args.padding))
 
         train_data = MNIST(root=args.root, download=True, train=True)
         pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
         test_data = MNIST(root=args.root, download=True, train=False)
 
-        colorizer = LdColorizer(scale=args.scale, background=args.background,
-                                black=args.black, binarize=args.binarize)
+        colorizer = LdColorizer(
+            scale=args.scale,
+            background=args.background,
+            black=args.black,
+            binarize=args.binarize,
+        )
 
-        pretrain_data = LdAugmentedDataset(pretrain_data, ld_augmentations=colorizer,
-                                           num_classes=10,
-                                           li_augmentation=True,
-                                           base_augmentations=data_aug + [to_tensor])
-        train_data = LdAugmentedDataset(train_data, ld_augmentations=colorizer,
-                                        num_classes=10,
-                                        li_augmentation=False,
-                                        base_augmentations=data_aug + [to_tensor])
-        test_data = LdAugmentedDataset(test_data, ld_augmentations=colorizer,
-                                       num_classes=10,
-                                       li_augmentation=True,
-                                       base_augmentations=[to_tensor])
+        pretrain_data = LdAugmentedDataset(
+            pretrain_data,
+            ld_augmentations=colorizer,
+            num_classes=10,
+            li_augmentation=True,
+            base_augmentations=data_aug + base_aug,
+        )
+        train_data = LdAugmentedDataset(
+            train_data,
+            ld_augmentations=colorizer,
+            num_classes=10,
+            li_augmentation=False,
+            base_augmentations=data_aug + base_aug,
+        )
+        test_data = LdAugmentedDataset(
+            test_data,
+            ld_augmentations=colorizer,
+            num_classes=10,
+            li_augmentation=True,
+            base_augmentations=base_aug,
+        )
 
         if 0 < args.data_pcnt < 1:
             pretrain_data.subsample(args.data_pcnt)

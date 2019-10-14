@@ -15,9 +15,7 @@ from finn.data import DatasetTriplet, get_data_tuples, load_dataset
 from finn.optimisation.evaluation import evaluate, encode_dataset
 from finn.optimisation.train import main as training_loop
 from finn.optimisation.config import parse_arguments
-from finn.optimisation.utils import (
-    log_images,
-)
+from finn.optimisation.utils import log_images
 
 
 def random_seed(seed_value, use_cuda) -> None:
@@ -34,17 +32,19 @@ def random_seed(seed_value, use_cuda) -> None:
 def log_sample_images(experiment, data, name):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
     x, s, y = next(iter(data_loader))
-    log_images(experiment, x, f"Samples from {name}", prefix='eval')
+    log_images(experiment, x, f"Samples from {name}", prefix="eval")
 
 
 def log_metrics(args, experiment, model, data, quick_eval=True):
     """Compute and log a variety of metrics"""
     ethicml_model = LR()
 
-    print('Encoding task dataset...')
+    print("Encoding task dataset...")
     task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
-    print('Encoding task train dataset...')
-    task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
+    print("Encoding task train dataset...")
+    task_train_repr = encode_dataset(
+        args, data.task_train, model, recon=True, subdir="task_train"
+    )
 
     repr = DatasetTriplet(
         pretrain=None,
@@ -54,8 +54,16 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
         output_dim=data.output_dim,
     )
 
-    print("===> Predict y from xy")
-    evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
+    evaluate(
+        args,
+        experiment,
+        task_train_repr["xy"],
+        task_repr["xy"],
+        name="xy",
+        pred_s=False,
+    )
+    # print("===> Predict y from xy")
+    # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
     # print("===> Predict s from xy")
     # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 
@@ -63,7 +71,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
         log_sample_images(experiment, data.task_train, "task_train")
     else:
 
-        if args.dataset == 'adult':
+        if args.dataset == "adult":
             task_data, task_train_data = get_data_tuples(data.task, data.task_train)
             data = DatasetTriplet(
                 pretrain=None,
@@ -77,10 +85,10 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
 
         # ===========================================================================
 
-        evaluate(args, experiment, repr.task_train['zy'], repr.task['zy'], name='zy')
-        evaluate(args, experiment, repr.task_train['zs'], repr.task['zs'], name='zs')
-        evaluate(args, experiment, repr.task_train['xy'], repr.task['xy'], name='xy')
-        evaluate(args, experiment, repr.task_train['xs'], repr.task['xs'], name='xs')
+        evaluate(args, experiment, repr.task_train["zy"], repr.task["zy"], name="zy")
+        evaluate(args, experiment, repr.task_train["zs"], repr.task["zs"], name="zs")
+        evaluate(args, experiment, repr.task_train["xy"], repr.task["xy"], name="xy")
+        evaluate(args, experiment, repr.task_train["xs"], repr.task["xs"], name="xs")
 
 
 def main(raw_args=None) -> None:

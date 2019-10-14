@@ -73,9 +73,7 @@ class RandomSampler(Sampler):
         return self.num_samples
 
 
-def data_tuple_to_dataset_sample(
-    data, sens, target, root: str, filename: str
-) -> None:
+def data_tuple_to_dataset_sample(data, sens, target, root: str, filename: str) -> None:
     """
 
     Args:
@@ -95,14 +93,14 @@ def data_tuple_to_dataset_sample(
         filename += ".npz"
     np.savez_compressed(os.path.join(root, filename), img=data.cpu().detach().numpy())
     # save filenames
-    with open(os.path.join(root, "filename.csv"), 'a', newline="") as f:
+    with open(os.path.join(root, "filename.csv"), "a", newline="") as f:
         writer = csv.writer(f, delimiter=" ")
         writer.writerow([filename])
     # save sensitive/nuisance labels
-    with open(os.path.join(root, 'sens.csv'), 'ab') as f:
+    with open(os.path.join(root, "sens.csv"), "ab") as f:
         sens = sens.view(-1)
         np.savetxt(f, sens.cpu().detach().numpy(), delimiter=",")
     # save targets
-    with open(os.path.join(root, 'target.csv'), 'ab') as f:
+    with open(os.path.join(root, "target.csv"), "ab") as f:
         target = target.view(-1)
         np.savetxt(f, target.cpu().detach().numpy(), delimiter=",")

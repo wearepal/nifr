@@ -8,13 +8,13 @@ class Permutation(Bijector):
 
     def __init__(self, permutation, dim=1):
         if permutation.dim() != 1:
-            raise ValueError('Permutation must be a 1D tensor.')
+            raise ValueError("Permutation must be a 1D tensor.")
         if not is_positive_int(dim):
-            raise ValueError('dim must be a positive integer.')
+            raise ValueError("dim must be a positive integer.")
 
         super().__init__()
         self._dim = dim
-        self.register_buffer('_permutation', permutation)
+        self.register_buffer("_permutation", permutation)
 
     def logdetjac(self):
         return 0
@@ -28,8 +28,11 @@ class Permutation(Bijector):
         if dim >= inputs.ndimension():
             raise ValueError("No dimension {} in inputs.".format(dim))
         if inputs.shape[dim] != len(permutation):
-            raise ValueError("Dimension {} in inputs must be of size {}."
-                             .format(dim, len(permutation)))
+            raise ValueError(
+                "Dimension {} in inputs must be of size {}.".format(
+                    dim, len(permutation)
+                )
+            )
         batch_size = inputs.shape[0]
         outputs = torch.index_select(inputs, dim, permutation)
 
@@ -57,7 +60,7 @@ class RandomPermutation(Permutation):
 
     def __init__(self, in_channels, dim=1):
         if not is_positive_int(in_channels):
-            raise ValueError('Number of features must be a positive integer.')
+            raise ValueError("Number of features must be a positive integer.")
         super().__init__(torch.randperm(in_channels), dim)
 
 
@@ -66,5 +69,5 @@ class ReversePermutation(Permutation):
 
     def __init__(self, in_channels, dim=1):
         if not is_positive_int(in_channels):
-            raise ValueError('Number of features must be a positive integer.')
+            raise ValueError("Number of features must be a positive integer.")
         super().__init__(torch.arange(in_channels - 1, -1, -1), dim)

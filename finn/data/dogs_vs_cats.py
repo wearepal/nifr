@@ -11,10 +11,10 @@ def format_data_folder(root: str):
     bright = pd.read_csv(f"{root}/list_bright.txt", header=None)
     dark = pd.read_csv(f"{root}/list_dark.txt", header=None)
 
-    bright_dogs = bright[bright[0].str.contains('dog')]
-    bright_cats = bright[bright[0].str.contains('cat')]
-    dark_dogs = dark[dark[0].str.contains('dog')]
-    dark_cats = dark[dark[0].str.contains('cat')]
+    bright_dogs = bright[bright[0].str.contains("dog")]
+    bright_cats = bright[bright[0].str.contains("cat")]
+    dark_dogs = dark[dark[0].str.contains("dog")]
+    dark_cats = dark[dark[0].str.contains("cat")]
 
     bright_dogs_dark_cats = pd.concat([bright_dogs, dark_cats], axis=0, sort=False)
     dark_dogs_bright_cats = pd.concat([dark_dogs, bright_cats], axis=0, sort=False)
@@ -59,11 +59,13 @@ def format_data_folder(root: str):
 def load_dvc_data(root: str):
     from torchvision.datasets import ImageFolder
 
-    tforms = transforms.Compose([
-        transforms.Resize(size=[224, 224]),
-        transforms.ToTensor(),
-        transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-    ])
+    tforms = transforms.Compose(
+        [
+            transforms.Resize(size=[224, 224]),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ]
+    )
     train = ImageFolder(root=f"{root}/bright_dogs_dark_cats", transform=tforms)
     test = ImageFolder(root=f"{root}/dark_dogs_bright_cats", transform=tforms)
 

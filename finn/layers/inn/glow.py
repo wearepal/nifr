@@ -23,25 +23,25 @@ class Invertible1x1Conv(Bijector):
         w_shape = (self.num_channels, self.num_channels)
         if not self.use_lr_decomp:
             w_init = np.linalg.qr(np.random.randn(*w_shape))[0]
-            w_init = torch.from_numpy(w_init.astype('float32'))
+            w_init = torch.from_numpy(w_init.astype("float32"))
             w_init = w_init.unsqueeze(-1).unsqueeze(-1)
             self.weight = nn.Parameter(w_init)
         else:
-            np_w = linalg.qr(np.random.randn(*w_shape))[0].astype('float32')
+            np_w = linalg.qr(np.random.randn(*w_shape))[0].astype("float32")
             np_p, np_l, np_u = linalg.lu(np_w)
             np_s = np.diag(np_u)
             np_sign_s = np.sign(np_s)
             np_log_s = np.log(np.abs(np_s))
             np_u = np.triu(np_u, k=1)
 
-            self.register_buffer('p', torch.as_tensor(np_p))
+            self.register_buffer("p", torch.as_tensor(np_p))
             self.l = nn.Parameter(torch.as_tensor(np_l))
-            self.register_buffer('sign_s', torch.as_tensor(np_sign_s))
+            self.register_buffer("sign_s", torch.as_tensor(np_sign_s))
             self.log_s = nn.Parameter(torch.as_tensor(np_log_s))
             self.u = nn.Parameter(torch.as_tensor(np_u))
 
             l_mask = np.tril(np.ones(w_shape, dtype=np.float32), -1)
-            self.register_buffer('l_mask', torch.as_tensor(l_mask))
+            self.register_buffer("l_mask", torch.as_tensor(l_mask))
 
     def get_w(self, reverse=False):
 
@@ -52,7 +52,9 @@ class Invertible1x1Conv(Bijector):
             else:
                 return self.weight
         else:
-            l = self.l * self.l_mask + torch.eye(self.num_channels, device=self.l.device)
+            l = self.l * self.l_mask + torch.eye(
+                self.num_channels, device=self.l.device
+            )
             u = self.u * self.l_mask.t() + torch.diag(self.sign_s * self.log_s.exp())
 
             if reverse:

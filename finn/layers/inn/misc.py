@@ -13,6 +13,7 @@ class Flatten(Bijector):
         self.orig_shape = x.shape
 
         y = x.flatten(start_dim=1)
+        self.flat_shape = y.shape
 
         if sum_logdet is None:
             return y

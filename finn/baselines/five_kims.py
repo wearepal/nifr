@@ -22,106 +22,176 @@ from finn.run import random_seed
 def restricted_float(x):
     x = float(x)
     if x <= 0.0 or x > 1.0:
-        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]"%(x,))
+        raise argparse.ArgumentTypeError("%r not in range [0.0, 1.0]" % (x,))
     return x
 
 
 def parse_arguments(raw_args=None):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', choices=['adult', 'cmnist'], default='cmnist')
-    parser.add_argument('--data-pcnt', type=restricted_float, metavar='P', default=1.0,
-                        help="data %% should be a real value > 0, and up to 1")
-    parser.add_argument('--task-mixing-factor', type=float, metavar='P', default=0.0,
-                        help='How much of meta train should be mixed into task train?')
+    parser.add_argument("--dataset", choices=["adult", "cmnist"], default="cmnist")
+    parser.add_argument(
+        "--data-pcnt",
+        type=restricted_float,
+        metavar="P",
+        default=1.0,
+        help="data %% should be a real value > 0, and up to 1",
+    )
+    parser.add_argument(
+        "--task-mixing-factor",
+        type=float,
+        metavar="P",
+        default=0.0,
+        help="How much of meta train should be mixed into task train?",
+    )
 
     # Colored MNIST settings
-    parser.add_argument('--scale', type=float, default=0.02)
-    parser.add_argument('-bg', '--background', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--black', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--binarize', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--rotate-data', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--shift-data', type=eval, default=False, choices=[True, False])
+    parser.add_argument("--scale", type=float, default=0.02)
+    parser.add_argument(
+        "-bg", "--background", type=eval, default=False, choices=[True, False]
+    )
+    parser.add_argument("--black", type=eval, default=True, choices=[True, False])
+    parser.add_argument("--binarize", type=eval, default=True, choices=[True, False])
+    parser.add_argument(
+        "--rotate-data", type=eval, default=False, choices=[True, False]
+    )
+    parser.add_argument("--shift-data", type=eval, default=False, choices=[True, False])
 
-    parser.add_argument('--prior-dist', type=str, default='normal', choices=['logistic', 'normal'])
-    parser.add_argument('--root', type=str, default="data")
+    parser.add_argument(
+        "--prior-dist", type=str, default="normal", choices=["logistic", "normal"]
+    )
+    parser.add_argument("--root", type=str, default="data")
 
-    parser.add_argument('--depth', type=int, default=10)
-    parser.add_argument('--dims', type=str, default="100-100")
-    parser.add_argument('--glow', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--batch-norm', type=eval, default=True, choices=[True, False])
-    parser.add_argument('--bn-lag', type=float, default=0)
-    parser.add_argument('--disc-hidden-dims', type=int, default=256)
+    parser.add_argument("--depth", type=int, default=10)
+    parser.add_argument("--dims", type=str, default="100-100")
+    parser.add_argument("--glow", type=eval, default=True, choices=[True, False])
+    parser.add_argument("--batch-norm", type=eval, default=True, choices=[True, False])
+    parser.add_argument("--bn-lag", type=float, default=0)
+    parser.add_argument("--disc-hidden-dims", type=int, default=256)
 
-    parser.add_argument('--early-stopping', type=int, default=30)
-    parser.add_argument('--epochs', type=int, default=250)
-    parser.add_argument('--batch-size', type=int, default=1000)
-    parser.add_argument('--test-batch-size', type=int, default=None)
-    parser.add_argument('--lr', type=float, default=3e-4)
-    parser.add_argument('--disc-lr', type=float, default=3e-4)
-    parser.add_argument('--weight-decay', type=float, default=0)
-    parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--data-split-seed', type=int, default=888)
+    parser.add_argument("--early-stopping", type=int, default=30)
+    parser.add_argument("--epochs", type=int, default=250)
+    parser.add_argument("--batch-size", type=int, default=1000)
+    parser.add_argument("--test-batch-size", type=int, default=None)
+    parser.add_argument("--lr", type=float, default=3e-4)
+    parser.add_argument("--disc-lr", type=float, default=3e-4)
+    parser.add_argument("--weight-decay", type=float, default=0)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--data-split-seed", type=int, default=888)
 
-    parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--save', type=str, default='experiments/finn')
-    parser.add_argument('--evaluate', action='store_true')
-    parser.add_argument('--super-val', type=eval, default=False, choices=[True, False],
-                        help='Train classifier on encodings as part of validation step.')
-    parser.add_argument('--val-freq', type=int, default=4)
-    parser.add_argument('--log-freq', type=int, default=10)
+    parser.add_argument("--resume", type=str, default=None)
+    parser.add_argument("--save", type=str, default="experiments/finn")
+    parser.add_argument("--evaluate", action="store_true")
+    parser.add_argument(
+        "--super-val",
+        type=eval,
+        default=False,
+        choices=[True, False],
+        help="Train classifier on encodings as part of validation step.",
+    )
+    parser.add_argument("--val-freq", type=int, default=4)
+    parser.add_argument("--log-freq", type=int, default=10)
 
-    parser.add_argument('--zs-frac', type=float, default=0.33)
-    parser.add_argument('--zy-frac', type=float, default=0.33)
+    parser.add_argument("--zs-frac", type=float, default=0.33)
+    parser.add_argument("--zy-frac", type=float, default=0.33)
 
-    parser.add_argument('--warmup-steps', type=int, default=0)
-    parser.add_argument('--log-px-weight', type=float, default=1.e-3)
-    parser.add_argument('-pyzyw', '--pred-y-weight', type=float, default=0.)
-    parser.add_argument('-pszyw', '--pred-s-from-zy-weight', type=float, default=1.)
-    parser.add_argument('-pszsw', '--pred-s-from-zs-weight', type=float, default=0.)
-    parser.add_argument('-elw', '--entropy-loss-weight', type=float, default=0.,
-                        help='Weight of the entropy loss for the adversarial discriminator')
-    parser.add_argument('--use-s', type=eval, default=False, choices=[True, False],
-                        help='Use s as input (if s is a separate feature)')
-    parser.add_argument('--spectral-norm', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--proj-grads', type=eval, default=True, choices=[True, False])
+    parser.add_argument("--warmup-steps", type=int, default=0)
+    parser.add_argument("--log-px-weight", type=float, default=1.0e-3)
+    parser.add_argument("-pyzyw", "--pred-y-weight", type=float, default=0.0)
+    parser.add_argument("-pszyw", "--pred-s-from-zy-weight", type=float, default=1.0)
+    parser.add_argument("-pszsw", "--pred-s-from-zs-weight", type=float, default=0.0)
+    parser.add_argument(
+        "-elw",
+        "--entropy-loss-weight",
+        type=float,
+        default=0.0,
+        help="Weight of the entropy loss for the adversarial discriminator",
+    )
+    parser.add_argument(
+        "--use-s",
+        type=eval,
+        default=False,
+        choices=[True, False],
+        help="Use s as input (if s is a separate feature)",
+    )
+    parser.add_argument(
+        "--spectral-norm", type=eval, default=False, choices=[True, False]
+    )
+    parser.add_argument("--proj-grads", type=eval, default=True, choices=[True, False])
     # classifier parameters (for computing fairness metrics)
-    parser.add_argument('--mlp-clf', type=eval, default=False, choices=[True, False])
-    parser.add_argument('--clf-epochs', type=int, metavar='N', default=50)
-    parser.add_argument('--clf-early-stopping', type=int, metavar='N', default=20)
-    parser.add_argument('--clf-val-ratio', type=float, metavar='R', default=0.2)
-    parser.add_argument('--clf-reg-weight', type=float, metavar='R', default=1.e-7)
+    parser.add_argument("--mlp-clf", type=eval, default=False, choices=[True, False])
+    parser.add_argument("--clf-epochs", type=int, metavar="N", default=50)
+    parser.add_argument("--clf-early-stopping", type=int, metavar="N", default=20)
+    parser.add_argument("--clf-val-ratio", type=float, metavar="R", default=0.2)
+    parser.add_argument("--clf-reg-weight", type=float, metavar="R", default=1.0e-7)
 
-    parser.add_argument('--gpu', type=int, default=0, help='Which GPU to use (if available)')
-    parser.add_argument('--use-comet', type=eval, default=False, choices=[True, False],
-                        help='whether to use the comet.ml logging')
-    parser.add_argument('--gamma', type=float, default=0.95,
-                        help='Gamma value for Exponential Learning Rate scheduler. '
-                             'Value of 0.95 arbitrarily chosen.')
-    parser.add_argument('--meta-learn', type=eval, default=True, choices=[True, False],
-                        help='Use meta learning procedure')
-    parser.add_argument('--drop-native', type=eval, default=True, choices=[True, False])
+    parser.add_argument(
+        "--gpu", type=int, default=0, help="Which GPU to use (if available)"
+    )
+    parser.add_argument(
+        "--use-comet",
+        type=eval,
+        default=False,
+        choices=[True, False],
+        help="whether to use the comet.ml logging",
+    )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        default=0.95,
+        help="Gamma value for Exponential Learning Rate scheduler. "
+        "Value of 0.95 arbitrarily chosen.",
+    )
+    parser.add_argument(
+        "--meta-learn",
+        type=eval,
+        default=True,
+        choices=[True, False],
+        help="Use meta learning procedure",
+    )
+    parser.add_argument("--drop-native", type=eval, default=True, choices=[True, False])
 
-    parser.add_argument('--task-pcnt', type=float, default=0.2)
-    parser.add_argument('--meta-pcnt', type=float, default=0.4)
+    parser.add_argument("--task-pcnt", type=float, default=0.2)
+    parser.add_argument("--meta-pcnt", type=float, default=0.4)
 
-    parser.add_argument('--drop-discrete', type=eval, default=False)
-    parser.add_argument('--save-to-csv', type=eval, default=False, choices=[True, False])
+    parser.add_argument("--drop-discrete", type=eval, default=False)
+    parser.add_argument(
+        "--save-to-csv", type=eval, default=False, choices=[True, False]
+    )
 
-    parser.add_argument('--save-dir', type=str, default='./')
-    parser.add_argument('--data-dir', type=str, default='./data/5kimsdata/')
-    parser.add_argument('--exp-name', type=str, default='experiments/5kims')
-    parser.add_argument('--train-baseline', type=eval, default=False, choices=[True, False])
+    parser.add_argument("--save-dir", type=str, default="./")
+    parser.add_argument("--data-dir", type=str, default="./data/5kimsdata/")
+    parser.add_argument("--exp-name", type=str, default="experiments/5kims")
+    parser.add_argument(
+        "--train-baseline", type=eval, default=False, choices=[True, False]
+    )
 
-    parser.add_argument('--save-step', type=int, default=10)
-    parser.add_argument('--log-step', type=int, default=50)
-    parser.add_argument('--max-step', type=int, default=100)
+    parser.add_argument("--save-step", type=int, default=10)
+    parser.add_argument("--log-step", type=int, default=50)
+    parser.add_argument("--max-step", type=int, default=100)
 
-    parser.add_argument('--checkpoint', default=None, help='checkpoint to resume')
-    parser.add_argument('--use-pretrain', type=eval, default=False, choices=[False, True], help='whether it use pre-trained parameters if exists')
-    parser.add_argument('--eval-only', type=eval, default=False, choices=[False, True], help='Skip the training step?')
-    parser.add_argument('--use-kims-data', type=eval, default=True, choices=[False, True],
-                        help='use the kims data? if False, use ours')
-    parser.add_argument('--num-workers', type=int, default=4)
+    parser.add_argument("--checkpoint", default=None, help="checkpoint to resume")
+    parser.add_argument(
+        "--use-pretrain",
+        type=eval,
+        default=False,
+        choices=[False, True],
+        help="whether it use pre-trained parameters if exists",
+    )
+    parser.add_argument(
+        "--eval-only",
+        type=eval,
+        default=False,
+        choices=[False, True],
+        help="Skip the training step?",
+    )
+    parser.add_argument(
+        "--use-kims-data",
+        type=eval,
+        default=True,
+        choices=[False, True],
+        help="use the kims data? if False, use ours",
+    )
+    parser.add_argument("--num-workers", type=int, default=4)
 
     return parser.parse_args(raw_args)
 
@@ -142,16 +212,21 @@ def main(raw_args=None):
     random_seed(args.seed, use_gpu)
 
     if args.use_kims_data:
-        args.data_split = 'train'
+        args.data_split = "train"
         custom_loader = WholeDataLoader(args)
-        trainval_loader = torch.utils.data.DataLoader(custom_loader,
-                                                      batch_size=args.batch_size,
-                                                      shuffle=True,
-                                                      num_workers=args.num_workers)
+        trainval_loader = torch.utils.data.DataLoader(
+            custom_loader,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers,
+        )
     else:
         our_datasets = load_dataset(args)
         trainval_loader = torch.utils.data.DataLoader(
-            our_datasets.task_train, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
+            our_datasets.task_train,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers,
         )
 
     trainer = Trainer(args)
@@ -167,17 +242,21 @@ def main(raw_args=None):
     trainer._validate(trainval_loader)
 
     if args.use_kims_data:
-        args.data_split = 'test'
+        args.data_split = "test"
         custom_loader = WholeDataLoader(args)
-        testval_loader = torch.utils.data.DataLoader(custom_loader,
-                                                      batch_size=args.batch_size,
-                                                      shuffle=True,
-                                                      num_workers=args.num_workers)
+        testval_loader = torch.utils.data.DataLoader(
+            custom_loader,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers,
+        )
     else:
         testval_loader = torch.utils.data.DataLoader(
-            our_datasets.task, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
+            our_datasets.task,
+            batch_size=args.batch_size,
+            shuffle=True,
+            num_workers=args.num_workers,
         )
-
 
     print("Performance on the test set")
     trainer._validate(testval_loader)
@@ -325,6 +404,7 @@ class Trainer:
 
         def _lr_lambda(step):
             return self.option.lr_decay_rate ** (step // self.option.lr_decay_period)
+
         self.scheduler = optim.lr_scheduler.LambdaLR(
             self.optim, lr_lambda=_lr_lambda, last_epoch=-1
         )
@@ -461,8 +541,10 @@ class Trainer:
                 )
                 print(msg)
         elapsed = time.monotonic() - start_time
-        print(f"[TRAIN] Epoch {step} done. Elapsed time: {elapsed:.1f}s. "
-              f"Batches per second: {len(data_loader) / elapsed:.1f}")
+        print(
+            f"[TRAIN] Epoch {step} done. Elapsed time: {elapsed:.1f}s. "
+            f"Batches per second: {len(data_loader) / elapsed:.1f}"
+        )
 
     def _train_step_baseline(self, data_loader, step):
         start_time = time.monotonic()
@@ -487,8 +569,10 @@ class Trainer:
                 )
                 print(msg)
         elapsed = time.monotonic() - start_time
-        print(f"[TRAIN] Epoch {step} done. Elapsed time: {elapsed:.1f}s. "
-              f"Batches per second: {len(data_loader) / elapsed:.1f}")
+        print(
+            f"[TRAIN] Epoch {step} done. Elapsed time: {elapsed:.1f}s. "
+            f"Batches per second: {len(data_loader) / elapsed:.1f}"
+        )
 
     def _validate(self, data_loader):
         self._mode_setting(is_train=False)
@@ -607,26 +691,29 @@ class WholeDataLoader(Dataset):
         self.data_split = option.data_split
         # data_dic = np.load(os.path.join(option.data_dir, 'mnist_10color_jitter_var_%.03f.npy' % option.scale),
         #                    encoding='latin1', allow_pickle=True).item()
-        data_dic = np.load(Path(option.data_dir) / f"mnist_10color_jitter_var_{option.scale:.03f}.npz")
-        if self.data_split == 'train':
-            self.image = data_dic['train_image']
-            self.label = data_dic['train_label']
-        elif self.data_split == 'test':
-            self.image = data_dic['test_image']
-            self.label = data_dic['test_label']
+        data_dic = np.load(
+            Path(option.data_dir) / f"mnist_10color_jitter_var_{option.scale:.03f}.npz"
+        )
+        if self.data_split == "train":
+            self.image = data_dic["train_image"]
+            self.label = data_dic["train_label"]
+        elif self.data_split == "test":
+            self.image = data_dic["test_image"]
+            self.label = data_dic["test_label"]
 
         color_var = option.scale
         self.color_std = color_var ** 0.5
 
-        self.T = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2023, 0.1994, 0.2010)),
-        ])
+        self.T = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                ),
+            ]
+        )
 
-        self.ToPIL = transforms.Compose([
-            transforms.ToPILImage(),
-        ])
+        self.ToPIL = transforms.Compose([transforms.ToPILImage()])
 
     def __getitem__(self, index):
         label = self.label[index]
@@ -637,7 +724,7 @@ class WholeDataLoader(Dataset):
         label_image = image.resize((14, 14), Image.NEAREST)
 
         label_image = torch.from_numpy(np.transpose(label_image, (2, 0, 1)))
-        mask_image = torch.lt(label_image.float() - 0.00001, 0.) * 255
+        mask_image = torch.lt(label_image.float() - 0.00001, 0.0) * 255
         label_image = torch.div(label_image, 32)
         label_image = label_image + mask_image
         label_image = label_image.long()

@@ -13,12 +13,7 @@ class Classifier(ModelBase):
     """ Wrapper for classifier models.
     """
 
-    def __init__(
-        self,
-        model,
-        num_classes: int,
-        optimizer_args: dict = None,
-    ) -> None:
+    def __init__(self, model, num_classes: int, optimizer_kwargs: dict = None) -> None:
         """Build classifier model.
 
         Args:).
@@ -30,19 +25,18 @@ class Classifier(ModelBase):
             None
         """
         if num_classes < 2:
-            raise ValueError(f"Invalid number of classes: must equal 2 or more,"
-                             f" {num_classes} given.")
+            raise ValueError(
+                f"Invalid number of classes: must equal 2 or more,"
+                f" {num_classes} given."
+            )
         if num_classes == 2:
             self.criterion = "bce"
         else:
             self.criterion = "ce"
 
-        self.out_dim = num_classes if self.criterion == 'ce' else 1
+        self.out_dim = num_classes if self.criterion == "ce" else 1
 
-        super().__init__(
-            model,
-            optimizer_args=optimizer_args,
-        )
+        super().__init__(model, optimizer_args=optimizer_kwargs)
 
     def apply_criterion(self, logits, targets):
         if self.criterion == "bce":
@@ -68,7 +62,7 @@ class Classifier(ModelBase):
             Class predictions (tensor) for the given data samples.
         """
         outputs = super().__call__(inputs)
-        if self.criterion == 'bce':
+        if self.criterion == "bce":
             pred = torch.round(outputs.sigmoid())
         else:
             _, pred = outputs.topk(top, 1, True, True)
@@ -77,8 +71,9 @@ class Classifier(ModelBase):
 
     def predict_dataset(self, data, device, batch_size=100):
         if not isinstance(data, DataLoader):
-            data = DataLoader(data, batch_size=batch_size,
-                              shuffle=False, pin_memory=True)
+            data = DataLoader(
+                data, batch_size=batch_size, shuffle=False, pin_memory=True
+            )
         preds, actual, sens = [], [], []
         with torch.set_grad_enabled(False):
             for x, s, y in data:
@@ -115,7 +110,7 @@ class Classifier(ModelBase):
             Accuracy of the predictions (float).
         """
 
-        if self.criterion == 'bce':
+        if self.criterion == "bce":
             pred = torch.round(outputs.sigmoid())
         else:
             _, pred = outputs.topk(top, 1, True, True)
@@ -152,17 +147,31 @@ class Classifier(ModelBase):
 
         return loss, acc
 
-    def fit(self, train_data, epochs, device, test_data=None,
-            pred_s=False, batch_size=256, test_batch_size=1000,
-            lr_milestones: dict = None, verbose=False):
+    def fit(
+        self,
+        train_data,
+        epochs,
+        device,
+        test_data=None,
+        pred_s=False,
+        batch_size=256,
+        test_batch_size=1000,
+        lr_milestones: dict = None,
+        verbose=False,
+    ):
 
         if not isinstance(train_data, DataLoader):
-            train_data = DataLoader(train_data, batch_size=batch_size,
-                                    shuffle=True, pin_memory=True)
+            train_data = DataLoader(
+                train_data, batch_size=batch_size, shuffle=True, pin_memory=True
+            )
         if test_data is not None:
             if not isinstance(test_data, DataLoader):
-                train_data = DataLoader(test_data, batch_size=test_batch_size,
-                                        shuffle=False, pin_memory=True)
+                train_data = DataLoader(
+                    test_data,
+                    batch_size=test_batch_size,
+                    shuffle=False,
+                    pin_memory=True,
+                )
 
         scheduler = None
         if lr_milestones is not None:
@@ -189,9 +198,8 @@ class Classifier(ModelBase):
                 loss.backward()
                 self.optimizer.step()
 
-            if test_data is not None:
-                if verbose:
-                    print(f"===> Testing classifier")
+            if test_data is not None and verbose:
+                print(f"===> Testing classifier")
 
                 self.model.eval()
                 avg_test_acc = 0.0
@@ -211,8 +219,8 @@ class Classifier(ModelBase):
                         avg_test_acc += acc
 
                 avg_test_acc /= len(test_data)
-                if verbose:
-                    print(f"Average test accuracy: {avg_test_acc:.2f}")
+
+                print(f"Average test accuracy: {avg_test_acc:.2f}")
 
             if scheduler is not None:
                 scheduler.step(epoch)
