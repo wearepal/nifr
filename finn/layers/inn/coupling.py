@@ -32,12 +32,13 @@ class CouplingLayer(Bijector):
 
 class AffineCouplingLayer(CouplingLayer):
     def __init__(
-        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5
+        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5, clamp=5.
     ):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
+        self.clamp = clamp
 
         self.net_s_t = ConvResidualNet(
             in_channels=self.d,
@@ -55,7 +56,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _scale_and_shift_fn(self, inputs):
         s_t = self.net_s_t(inputs)
         scale, shift = s_t.chunk(2, dim=1)
-        scale = scale.sigmoid() + 0.5
+        scale = torch.exp(self.clamp * 0.636 * torch.atan(scale))
         return scale, shift
 
     def _forward(self, x, sum_ldj=None):
