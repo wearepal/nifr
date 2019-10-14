@@ -18,10 +18,14 @@ def build_fc_inn(args, input_dim, level_depth: int = None):
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
         if args.glow:
             chain += [layers.InvertibleLinear(input_dim)]
-        chain += [layers.MaskedCouplingLayer(input_dim,
-                                             2 * [args.coupling_dims],
-                                             'alternate',
-                                             swap=(i % 2 == 0) and not args.glow)]
+        chain += [
+            layers.MaskedCouplingLayer(
+                input_dim,
+                2 * [args.coupling_dims],
+                "alternate",
+                swap=(i % 2 == 0) and not args.glow,
+            )
+        ]
 
     chain += [layers.InvertibleLinear(input_dim)]
 
@@ -35,7 +39,11 @@ def build_conv_inn(args, input_shape):
     def _block(_input_dim):
         _chain = []
         if args.idf:
-            _chain += [layers.IntegerDiscreteFlow(_input_dim, hidden_channels=args.coupling_channels)]
+            _chain += [
+                layers.IntegerDiscreteFlow(
+                    _input_dim, hidden_channels=args.coupling_channels
+                )
+            ]
             _chain += [layers.RandomPermutation(_input_dim)]
         else:
             if args.batch_norm:
@@ -46,14 +54,22 @@ def build_conv_inn(args, input_shape):
                 _chain += [layers.RandomPermutation(_input_dim)]
 
             if args.no_scaling:
-                _chain += [layers.AdditiveCouplingLayer(_input_dim,
-                                                        hidden_channels=args.coupling_channels,
-                                                        num_blocks=args.coupling_depth,
-                                                        pcnt_to_transform=0.25)]
+                _chain += [
+                    layers.AdditiveCouplingLayer(
+                        _input_dim,
+                        hidden_channels=args.coupling_channels,
+                        num_blocks=args.coupling_depth,
+                        pcnt_to_transform=0.25,
+                    )
+                ]
             else:
-                _chain += [layers.AffineCouplingLayer(_input_dim,
-                                                      num_blocks=args.coupling_depth,
-                                                      hidden_channels=args.coupling_channels)]
+                _chain += [
+                    layers.AffineCouplingLayer(
+                        _input_dim,
+                        num_blocks=args.coupling_depth,
+                        hidden_channels=args.coupling_channels,
+                    )
+                ]
 
         return layers.BijectorChain(_chain)
 
@@ -84,9 +100,9 @@ def build_conv_inn(args, input_shape):
     return model
 
 
-def build_discriminator(args, input_shape, frac_enc,
-                        model_fn, model_kwargs,
-                        optimizer_kwargs=None):
+def build_discriminator(
+    args, input_shape, frac_enc, model_fn, model_kwargs, optimizer_kwargs=None
+):
 
     in_dim = input_shape[0]
 
@@ -97,8 +113,7 @@ def build_discriminator(args, input_shape, frac_enc,
     discriminator = Classifier(
         model_fn(in_dim, args.y_dim, **model_kwargs),
         num_classes=num_classes,
-        optimizer_kwargs=optimizer_kwargs
+        optimizer_kwargs=optimizer_kwargs,
     )
 
     return discriminator
-

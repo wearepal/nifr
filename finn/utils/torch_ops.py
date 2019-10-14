@@ -3,7 +3,6 @@ from torch.nn import functional as F
 
 
 class RoundSTE(torch.autograd.Function):
-
     @staticmethod
     def forward(ctx, inputs):
         return inputs.round()
@@ -24,8 +23,8 @@ def to_discrete(inputs, dim=1):
 
 
 def logit(p, eps=1e-8):
-    p = p.clamp(min=eps, max=1.-eps)
-    return torch.log(p / (1. - p))
+    p = p.clamp(min=eps, max=1.0 - eps)
+    return torch.log(p / (1.0 - p))
 
 
 def sum_except_batch(x, keepdim=False):

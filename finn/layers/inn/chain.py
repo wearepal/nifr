@@ -41,14 +41,14 @@ class FactorOut(BijectorChain):
     def _frac_split_channelwise(self, tensor, frac):
         assert 0 <= frac <= 1
         split_point = self._compute_split_point(tensor, frac)
-        return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
+        return tensor.split(
+            split_size=[tensor.size(1) - split_point, split_point], dim=1
+        )
 
     def __init__(self, layer_list, splits=None):
         super().__init__(layer_list)
         self.splits: dict = splits or {}
-        self._factor_layers = {
-            key: Flatten() for key in self.splits.keys()
-        }
+        self._factor_layers = {key: Flatten() for key in self.splits.keys()}
         self._final_flatten = Flatten()
 
     def _forward(self, x, logpx, inds=None):
@@ -74,13 +74,15 @@ class FactorOut(BijectorChain):
     def _reverse(self, x, logpx=None, inds=None):
         len_chain = len(self.chain)
         if inds is None:
-            inds = range(len_chain-1, -1, -1)
+            inds = range(len_chain - 1, -1, -1)
 
         components = {}
         for block_ind, frac in self.splits.items():
             factor_layer = self._factor_layers[block_ind]
             split_point = factor_layer.flat_shape[1]
-            x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
+            x_removed_flat, x = x.split(
+                split_size=[split_point, x.size(1) - split_point], dim=1
+            )
             components[block_ind] = factor_layer(x_removed_flat, reverse=True)
 
         x = self._final_flatten(x, reverse=True)

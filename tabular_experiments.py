@@ -21,8 +21,11 @@ args.dataset = "adult"
 args.y_dim = 10
 args.cuda = False
 
-device = torch.device("cuda") if torch.cuda.is_available() and args.cuda\
+device = (
+    torch.device("cuda")
+    if torch.cuda.is_available() and args.cuda
     else torch.device("cpu")
+)
 
 
 def to_device(device, *tensors):
@@ -43,22 +46,28 @@ args.batch_norm = False
 args.batch_size = 256
 
 inn = build_fc_inn(args, input_dim=input_shape[0])
-inn: PartitionedInn = PartitionedInn(args, input_shape=input_shape, model=inn,
-                                     feature_groups=datasets.pretrain.feature_groups)
+inn: PartitionedInn = PartitionedInn(
+    args,
+    input_shape=input_shape,
+    model=inn,
+    feature_groups=datasets.pretrain.feature_groups,
+)
 inn.to(device)
 
 
 disc_kwargs = {}
-disc_optimizer_args = {'lr': args.disc_lr}
+disc_optimizer_args = {"lr": args.disc_lr}
 
 args.disc_hidden_dim = 100
-discriminator = build_discriminator(args,
-                                    (inn.zy_dim,),
-                                    model_fn=fc_net,
-                                    model_kwargs=disc_kwargs,
-                                    flatten=True,
-                                    frac_enc=1 - args.zs_frac,
-                                    optimizer_kwargs=disc_optimizer_args)
+discriminator = build_discriminator(
+    args,
+    (inn.zy_dim,),
+    model_fn=fc_net,
+    model_kwargs=disc_kwargs,
+    flatten=True,
+    frac_enc=1 - args.zs_frac,
+    optimizer_kwargs=disc_optimizer_args,
+)
 discriminator.to(device)
 
 inn.model.train()
@@ -66,10 +75,9 @@ discriminator.train()
 
 pretrain_data = datasets.pretrain
 features = datasets.pretrain.disc_features + datasets.pretrain.cont_features
-pretrain_data = DataLoader(pretrain_data,
-                           batch_size=args.batch_size,
-                           pin_memory=True,
-                           shuffle=True)
+pretrain_data = DataLoader(
+    pretrain_data, batch_size=args.batch_size, pin_memory=True, shuffle=True
+)
 
 for epoch in range(100):
 
@@ -97,18 +105,24 @@ for epoch in range(100):
             with torch.set_grad_enabled(False):
                 x_recon, xy, xs = inn.decode(z, partials=True, discretize=False)
 
-                plot_contrastive(original=x[:50],
-                                 recon=xy[:50],
-                                 columns=features,
-                                 filename="adult_xy-x")
-                plot_contrastive(original=x[:50],
-                                 recon=xs[:50],
-                                 columns=features,
-                                 filename="adult_xs-x")
-                plot_contrastive(original=x[:50],
-                                 recon=x_recon[:50],
-                                 columns=features,
-                                 filename="adult_x_recon-x")
+                plot_contrastive(
+                    original=x[:50],
+                    recon=xy[:50],
+                    columns=features,
+                    filename="adult_xy-x",
+                )
+                plot_contrastive(
+                    original=x[:50],
+                    recon=xs[:50],
+                    columns=features,
+                    filename="adult_xs-x",
+                )
+                plot_contrastive(
+                    original=x[:50],
+                    recon=x_recon[:50],
+                    columns=features,
+                    filename="adult_x_recon-x",
+                )
                 saved = True
 
                 recon_error = F.l1_loss(x_recon, x).item()

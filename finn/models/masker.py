@@ -15,10 +15,10 @@ class Masker(nn.Module):
     def __init__(self, shape, optimizer_args=None, prob_1=0.5):
         super().__init__()
 
-        if not (0. <= prob_1 <= 1.):
+        if not (0.0 <= prob_1 <= 1.0):
             raise ValueError(f"{prob_1} is not a valid probability.")
 
-        optimizer_args = optimizer_args or self.default_args['optimizer_args']
+        optimizer_args = optimizer_args or self.default_args["optimizer_args"]
         self.shape = shape
         self.prob_1 = prob_1
         self.mask = nn.Parameter(torch.empty(shape))

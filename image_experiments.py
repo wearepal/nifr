@@ -17,27 +17,35 @@ from finn.optimisation import parse_arguments, grad_reverse
 
 def convnet(in_dim, target_dim):
     layers = []
-    layers.extend([
-        nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
-        nn.BatchNorm2d(256),
-        nn.LeakyReLU(inplace=True)
-    ])
-    layers.extend([
-        nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
-        nn.BatchNorm2d(256),
-        nn.LeakyReLU(inplace=True)
-    ])
+    layers.extend(
+        [
+            nn.Conv2d(in_dim, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(inplace=True),
+        ]
+    )
+    layers.extend(
+        [
+            nn.Conv2d(256, 256, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(inplace=True),
+        ]
+    )
 
-    layers.extend([
-        nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-        nn.BatchNorm2d(512),
-        nn.LeakyReLU(inplace=True)
-    ])
-    layers.extend([
-        nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
-        nn.BatchNorm2d(512),
-        nn.LeakyReLU(inplace=True)
-    ])
+    layers.extend(
+        [
+            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(inplace=True),
+        ]
+    )
+    layers.extend(
+        [
+            nn.Conv2d(512, 512, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(inplace=True),
+        ]
+    )
 
     layers.append(nn.Conv2d(512, target_dim, kernel_size=1, stride=1, padding=0))
     layers.append(nn.Flatten())
@@ -57,15 +65,15 @@ def to_device(device, *tensors):
         yield tensor.to(device)
 
 
-transforms = [
-    ToTensor()
-]
+transforms = [ToTensor()]
 transforms = Compose(transforms)
 
 mnist = MNIST(root="data", train=True, download=True, transform=transforms)
 mnist, _ = random_split(mnist, lengths=(50000, 10000))
 colorizer = LdColorizer(scale=0.0, black=True, background=False)
-data = LdAugmentedDataset(mnist, ld_augmentations=colorizer, num_classes=10, li_augmentation=True)
+data = LdAugmentedDataset(
+    mnist, ld_augmentations=colorizer, num_classes=10, li_augmentation=True
+)
 data = DataLoader(data, batch_size=128, pin_memory=True, shuffle=True)
 
 input_shape = (3, 28, 28)
@@ -87,7 +95,7 @@ inn: PartitionedInn = PartitionedInn(args, input_shape=input_shape, model=model)
 inn.to(device)
 
 disc_kwargs = {}
-disc_optimizer_args = {'lr': args.disc_lr}
+disc_optimizer_args = {"lr": args.disc_lr}
 
 args.disc_hidden_dims = [1024]
 args.train_on_recon = False
@@ -95,13 +103,15 @@ args.train_on_recon = False
 use_conv_disc = True
 model_fn = convnet if use_conv_disc else fc_net
 
-discriminator: Classifier = build_discriminator(args,
-                                                input_shape,
-                                                frac_enc=1,
-                                                model_fn=model_fn,
-                                                model_kwargs=disc_kwargs,
-                                                flatten=not use_conv_disc,
-                                                optimizer_kwargs=disc_optimizer_args)
+discriminator: Classifier = build_discriminator(
+    args,
+    input_shape,
+    frac_enc=1,
+    model_fn=model_fn,
+    model_kwargs=disc_kwargs,
+    flatten=not use_conv_disc,
+    optimizer_kwargs=disc_optimizer_args,
+)
 
 discriminator.to(device)
 

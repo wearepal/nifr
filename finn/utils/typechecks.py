@@ -1,4 +1,3 @@
-
 def is_bool(x):
     return isinstance(x, bool)
 

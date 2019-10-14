@@ -5,7 +5,7 @@ from torch.nn import Parameter
 from finn.utils import sum_except_batch, is_positive_int
 from .misc import Bijector
 
-__all__ = ['MovingBatchNorm1d', 'MovingBatchNorm2d', 'ActNorm']
+__all__ = ["MovingBatchNorm1d", "MovingBatchNorm2d", "ActNorm"]
 
 
 class MovingBatchNormNd(Bijector):
@@ -16,15 +16,15 @@ class MovingBatchNormNd(Bijector):
         self.eps = eps
         self.decay = decay
         self.bn_lag = bn_lag
-        self.register_buffer('step', torch.zeros(1))
+        self.register_buffer("step", torch.zeros(1))
         if self.affine:
             self.weight = Parameter(torch.zeros(num_features))
             self.bias = Parameter(torch.zeros(num_features))
         else:
-            self.register_parameter('weight', None)
-            self.register_parameter('bias', None)
-        self.register_buffer('running_mean', torch.zeros(num_features))
-        self.register_buffer('running_var', torch.ones(num_features))
+            self.register_parameter("weight", None)
+            self.register_parameter("bias", None)
+        self.register_buffer("running_mean", torch.zeros(num_features))
+        self.register_buffer("running_var", torch.ones(num_features))
         self.reset_parameters()
 
     @property
@@ -51,9 +51,13 @@ class MovingBatchNormNd(Bijector):
 
             # moving average
             if self.bn_lag > 0:
-                used_mean = batch_mean - (1 - self.bn_lag) * (batch_mean - used_mean.detach())
+                used_mean = batch_mean - (1 - self.bn_lag) * (
+                    batch_mean - used_mean.detach()
+                )
                 used_mean /= 1.0 - self.bn_lag ** (self.step[0] + 1)
-                used_var = batch_var - (1 - self.bn_lag) * (batch_var - used_var.detach())
+                used_var = batch_var - (1 - self.bn_lag) * (
+                    batch_var - used_var.detach()
+                )
                 used_var /= 1.0 - self.bn_lag ** (self.step[0] + 1)
 
             # update running estimates
@@ -105,8 +109,8 @@ class MovingBatchNormNd(Bijector):
 
     def __repr__(self):
         return (
-            '{name}({num_features}, eps={eps}, decay={decay}, bn_lag={bn_lag},'
-            ' affine={affine})'.format(name=self.__class__.__name__, **self.__dict__)
+            "{name}({num_features}, eps={eps}, decay={decay}, bn_lag={bn_lag},"
+            " affine={affine})".format(name=self.__class__.__name__, **self.__dict__)
         )
 
 
@@ -144,7 +148,7 @@ class ActNorm(Bijector):
         > D. Kingma et. al., Glow: Generative flow with invertible 1x1 convolutions, NeurIPS 2018.
         """
         if not is_positive_int(features):
-            raise TypeError('Number of features must be a positive integer.')
+            raise TypeError("Number of features must be a positive integer.")
         super().__init__()
 
         self.initialized = False
@@ -171,7 +175,7 @@ class ActNorm(Bijector):
 
     def _forward(self, x, sum_ldj=None):
         if x.dim() not in [2, 4]:
-            raise ValueError('Expecting inputs to be a 2D or a 4D tensor.')
+            raise ValueError("Expecting inputs to be a 2D or a 4D tensor.")
 
         if self.training and not self.initialized:
             self._initialize(x)
@@ -186,7 +190,7 @@ class ActNorm(Bijector):
 
     def _inverse(self, y, sum_ldj=None):
         if y.dim() not in [2, 4]:
-            raise ValueError('Expecting inputs to be a 2D or a 4D tensor.')
+            raise ValueError("Expecting inputs to be a 2D or a 4D tensor.")
 
         scale, shift = self._broadcastable_scale_shift(y)
         x = (y - shift) / scale

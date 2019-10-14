@@ -40,12 +40,11 @@ class BipartiteInn(ModelBase):
         self.feature_groups = feature_groups
 
         if args.idf:
-            probs = 5 * [1/5]
+            probs = 5 * [1 / 5]
             dist_params = [(0, 0.5), (2, 0.5), (-2, 0.5), (4, 0.5), (-4, 0.5)]
             components = [DLogistic(loc, scale) for loc, scale in dist_params]
             self.base_density: td.Distribution = MixtureDistribution(
-                probs=probs,
-                components=components
+                probs=probs, components=components
             )
         else:
             self.base_density: td.Distribution = td.Normal(0, 1)
@@ -60,10 +59,7 @@ class BipartiteInn(ModelBase):
             self.x_dim: int = x_dim
             self.output_shape = int(np.product(self.input_shape))
 
-        super().__init__(
-            model,
-            optimizer_args=optimizer_args,
-        )
+        super().__init__(model, optimizer_args=optimizer_args)
 
     def invert(self, z, discretize: bool = True) -> Tensor:
         x = self.forward(z, reverse=True)
@@ -88,7 +84,7 @@ class BipartiteInn(ModelBase):
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        log_px = (log_pz.sum() - sum_logdet.sum())
+        log_px = log_pz.sum() - sum_logdet.sum()
         # if z.dim() > 2:
         #     log_px_per_dim = log_px / z.nelement()
         #     bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
@@ -98,8 +94,7 @@ class BipartiteInn(ModelBase):
         return nll
 
     def forward(
-        self, inputs: Tensor, logdet: Tensor = None,
-        reverse: bool = False
+        self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False
     ) -> Tensor:
         outputs = self.model(inputs, logpx=logdet, reverse=reverse)
 
@@ -135,7 +130,7 @@ class PartitionedInn(BipartiteInn):
             model,
             input_shape,
             optimizer_args=optimizer_args,
-            feature_groups=feature_groups
+            feature_groups=feature_groups,
         )
 
         self.zs_dim = round(args.zs_frac * self.output_shape)
@@ -198,7 +193,6 @@ class PartitionedInn(BipartiteInn):
 
 
 class PartitionedAeInn(PartitionedInn):
-
     def __init__(
         self,
         args: Namespace,
@@ -208,11 +202,7 @@ class PartitionedAeInn(PartitionedInn):
         optimizer_args: dict = None,
         feature_groups: Optional[List[slice]] = None,
     ) -> None:
-        super().__init__(args,
-                         model,
-                         input_shape,
-                         optimizer_args,
-                         feature_groups)
+        super().__init__(args, model, input_shape, optimizer_args, feature_groups)
         self.autoencoder = autoencoder
 
     def train(self):
@@ -230,8 +220,7 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.eval()
 
     def forward(
-        self, inputs: Tensor, logdet: Tensor = None,
-        reverse: bool = False
+        self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False
     ) -> Tensor:
         if reverse:
             outputs = self.model(inputs, logpx=logdet, reverse=reverse)
@@ -244,7 +233,6 @@ class PartitionedAeInn(PartitionedInn):
 
 
 class MaskedInn(BipartiteInn):
-
     def __init__(
         self,
         args: Namespace,
@@ -252,7 +240,7 @@ class MaskedInn(BipartiteInn):
         input_shape: Sequence[int],
         optimizer_args: dict = None,
         feature_groups: Optional[List[slice]] = None,
-        masker_optimizer_args: dict = None
+        masker_optimizer_args: dict = None,
     ) -> None:
         """
 
@@ -268,12 +256,12 @@ class MaskedInn(BipartiteInn):
             model=model,
             input_shape=input_shape,
             optimizer_args=optimizer_args,
-            feature_groups=feature_groups
+            feature_groups=feature_groups,
         )
         self.masker: Masker = Masker(
             shape=self.output_shape,
-            prob_1=(1. - args.zs_frac),
-            optimizer_args=masker_optimizer_args
+            prob_1=(1.0 - args.zs_frac),
+            optimizer_args=masker_optimizer_args,
         )
 
     def mask_train(self) -> None:

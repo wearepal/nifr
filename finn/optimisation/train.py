@@ -15,9 +15,7 @@ from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminato
 from finn.models.inn import PartitionedInn, PartitionedAeInn
 from finn.utils import utils
 from .loss import grad_reverse
-from .utils import (
-    get_data_dim,
-    log_images)
+from .utils import get_data_dim, log_images
 
 NDECS = 0
 ARGS = None
@@ -26,10 +24,12 @@ SUMMARY = None
 
 
 def save_model(save_dir, inn, discriminator) -> str:
-    filename = save_dir / 'checkpt.pth'
-    save_dict = {'ARGS': ARGS,
-                 'model': inn.state_dict(),
-                 'discriminator': discriminator.state_dict()}
+    filename = save_dir / "checkpt.pth"
+    save_dict = {
+        "ARGS": ARGS,
+        "model": inn.state_dict(),
+        "discriminator": discriminator.state_dict(),
+    }
 
     torch.save(save_dict, filename)
 
@@ -38,8 +38,8 @@ def save_model(save_dir, inn, discriminator) -> str:
 
 def restore_model(filename, model, discriminator):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    model.load_state_dict(checkpt['model'])
-    discriminator.load_state_dict(checkpt['discriminator'])
+    model.load_state_dict(checkpt["model"])
+    discriminator.load_state_dict(checkpt["discriminator"])
 
     return model, discriminator
 
@@ -65,9 +65,7 @@ def train(inn, discriminator, dataloader, epoch):
 
         if ARGS.train_on_recon:
             enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-            # enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
             enc_y = inn.invert(enc_y_m).clamp(min=0, max=1)
-            # enc_s = inn.invert(enc_s_m)
 
         enc_y = grad_reverse(enc_y)
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
@@ -76,7 +74,9 @@ def train(inn, discriminator, dataloader, epoch):
 
         pred_s_weight = ARGS.pred_s_weight
         if ARGS.warmup_steps:
-            pred_s_weight = min((itr / ARGS.warmup_steps) * pred_s_weight, pred_s_weight)
+            pred_s_weight = min(
+                (itr / ARGS.warmup_steps) * pred_s_weight, pred_s_weight
+            )
 
         disc_loss *= pred_s_weight
 
@@ -95,25 +95,21 @@ def train(inn, discriminator, dataloader, epoch):
         time_meter.update(time.time() - end)
 
         SUMMARY.set_step(itr)
-        SUMMARY.log_metric('Loss NLL', nll.item())
-        SUMMARY.log_metric('Loss Adversarial', disc_loss.item())
+        SUMMARY.log_metric("Loss NLL", nll.item())
+        SUMMARY.log_metric("Loss Adversarial", disc_loss.item())
         end = time.time()
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                log_images(SUMMARY, x, 'original_x')
+                log_images(SUMMARY, x, "original_x")
 
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                # save_image(recon_all[:64], filename="cmnist_recon_x.png")
-                # save_image(recon_y[:64], filename="cmnist_recon_xy.png")
-                # save_image(recon_s[:64], filename="cmnist_recon_xs.png")
-
-                log_images(SUMMARY, recon_all, 'reconstruction_all')
-                log_images(SUMMARY, recon_y, 'reconstruction_y')
-                log_images(SUMMARY, recon_s, 'reconstruction_s')
+                log_images(SUMMARY, recon_all, "reconstruction_all")
+                log_images(SUMMARY, recon_y, "reconstruction_y")
+                log_images(SUMMARY, recon_s, "reconstruction_s")
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -156,19 +152,19 @@ def validate(inn, discriminator, val_loader):
 
     SUMMARY.log_metric("Loss", loss_meter.avg)
 
-    if ARGS.dataset == 'cmnist':
+    if ARGS.dataset == "cmnist":
         z = inn(x_val[:64])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(SUMMARY, x_val, 'original_x', prefix='test')
-        log_images(SUMMARY, recon_all, 'reconstruction_all', prefix='test')
-        log_images(SUMMARY, recon_y, 'reconstruction_y', prefix='test')
-        log_images(SUMMARY, recon_s, 'reconstruction_s', prefix='test')
+        log_images(SUMMARY, x_val, "original_x", prefix="test")
+        log_images(SUMMARY, recon_all, "reconstruction_all", prefix="test")
+        log_images(SUMMARY, recon_y, "reconstruction_y", prefix="test")
+        log_images(SUMMARY, recon_s, "reconstruction_s", prefix="test")
     else:
         z = inn(x_val[:1000])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(SUMMARY, x_val, 'original_x', prefix='test')
-        log_images(SUMMARY, recon_y, 'reconstruction_yn', prefix='test')
-        log_images(SUMMARY, recon_s, 'reconstruction_yn', prefix='test')
+        log_images(SUMMARY, x_val, "original_x", prefix="test")
+        log_images(SUMMARY, recon_y, "reconstruction_yn", prefix="test")
+        log_images(SUMMARY, recon_s, "reconstruction_yn", prefix="test")
         x_recon = inn(inn(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")
@@ -178,7 +174,7 @@ def validate(inn, discriminator, val_loader):
 
 
 def to_device(*tensors):
-    """Put tensors on the correct device and set type to float32"""
+    """Place tensors on the correct device and set type to float32"""
     moved = [tensor.to(ARGS.device, non_blocking=True) for tensor in tensors]
     if len(moved) == 1:
         return moved[0]
@@ -215,19 +211,29 @@ def main(args, datasets, metric_callback):
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = utils.get_logger(logpath=save_dir / 'logs', filepath=Path(__file__).resolve())
+    LOGGER = utils.get_logger(
+        logpath=save_dir / "logs", filepath=Path(__file__).resolve()
+    )
     LOGGER.info(ARGS)
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS.device = torch.device(
-        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
+        f"cuda:{ARGS.gpu}"
+        if (torch.cuda.is_available() and not ARGS.gpu < 0)
+        else "cpu"
     )
-    LOGGER.info('{} GPUs available. Using GPU {}', torch.cuda.device_count(), ARGS.gpu)
+    LOGGER.info("{} GPUs available. Using GPU {}", torch.cuda.device_count(), ARGS.gpu)
 
     # ==== construct dataset ====
-    ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
-    val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
+    ARGS.test_batch_size = (
+        ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
+    )
+    train_loader = DataLoader(
+        datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size
+    )
+    val_loader = DataLoader(
+        datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size
+    )
 
     # ==== construct networks ====
     input_shape = get_data_dim(train_loader)
@@ -246,9 +252,11 @@ def main(args, datasets, metric_callback):
             disc_kwargs = {"use_bn": not ARGS.spectral_norm}
         else:
             disc_fn = linear_disciminator
-            disc_kwargs = {"hidden_channels": ARGS.disc_channels,
-                           "num_blocks": ARGS.disc_depth,
-                           "use_bn": not ARGS.spectral_norm}
+            disc_kwargs = {
+                "hidden_channels": ARGS.disc_channels,
+                "num_blocks": ARGS.disc_depth,
+                "use_bn": not ARGS.spectral_norm,
+            }
     else:
         inn_fn = build_fc_inn
         disc_fn = fc_net
@@ -256,21 +264,27 @@ def main(args, datasets, metric_callback):
 
     #  Model arguments
     inn_kwargs = {
-        'args': args,
-        'optimizer_args': optimizer_args,
-        'feature_groups': feature_groups,
+        "args": args,
+        "optimizer_args": optimizer_args,
+        "feature_groups": feature_groups,
     }
 
     # Initialise INN
     if ARGS.autoencode:
         if is_image_data:
-            encoder, decoder, enc_shape = conv_autoencoder(input_shape, ARGS.ae_channels,
-                                                           encoded_dim=ARGS.ae_enc_dim,
-                                                           levels=ARGS.ae_levels)
+            encoder, decoder, enc_shape = conv_autoencoder(
+                input_shape,
+                ARGS.ae_channels,
+                encoded_dim=ARGS.ae_enc_dim,
+                levels=ARGS.ae_levels,
+            )
         else:
-            encoder, decoder, enc_shape = fc_autoencoder(input_shape, ARGS.ae_channels,
-                                                         encoded_dim=ARGS.ae_enc_dim,
-                                                         levels=ARGS.ae_levels)
+            encoder, decoder, enc_shape = fc_autoencoder(
+                input_shape,
+                ARGS.ae_channels,
+                encoded_dim=ARGS.ae_enc_dim,
+                levels=ARGS.ae_levels,
+            )
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
 
         inn_kwargs["input_shape"] = enc_shape
@@ -279,7 +293,22 @@ def main(args, datasets, metric_callback):
 
         inn = PartitionedAeInn(**inn_kwargs)
         inn.to(args.device)
-        inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=torch.nn.MSELoss())
+
+        if ARGS.ae_loss == "l1":
+            ae_loss_fn = nn.L1Loss()
+        elif ARGS.ae_loss == "l2":
+            ae_loss_fn = nn.MSELoss()
+        elif ARGS.ae_loss == "huber":
+            ae_loss_fn = nn.SmoothL1Loss()
+        else:
+            raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
+
+        inn.fit_ae(
+            train_loader,
+            epochs=ARGS.ae_epochs,
+            device=ARGS.device,
+            loss_fn=ae_loss_fn,
+        )
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
@@ -287,16 +316,19 @@ def main(args, datasets, metric_callback):
         inn.to(args.device)
 
     # Initialise Discriminator
-    dis_optimizer_kwargs = {'lr': args.disc_lr}
-    discriminator = build_discriminator(args,
-                                        inn_kwargs["input_shape"],
-                                        frac_enc=1 - args.zs_frac,
-                                        model_fn=disc_fn,
-                                        model_kwargs=disc_kwargs,
-                                        optimizer_kwargs=dis_optimizer_kwargs)
+    dis_optimizer_kwargs = {"lr": args.disc_lr}
+    discriminator = build_discriminator(
+        args,
+        inn_kwargs["input_shape"],
+        frac_enc=1 - args.zs_frac,
+        model_fn=disc_fn,
+        model_kwargs=disc_kwargs,
+        optimizer_kwargs=dis_optimizer_kwargs,
+    )
     discriminator.to(args.device)
 
     if ARGS.spectral_norm:
+
         def spectral_norm(m):
             if hasattr(m, "weight"):
                 return torch.nn.utils.spectral_norm(m)
@@ -305,21 +337,22 @@ def main(args, datasets, metric_callback):
         discriminator.apply(spectral_norm)
 
     # Save initial parameters
-    # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
 
     # Resume from checkpoint
     if ARGS.resume is not None:
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        metric_callback(ARGS, SUMMARY, inn, discriminator, datasets, check_originals=False)
+        metric_callback(
+            ARGS, SUMMARY, inn, discriminator, datasets, check_originals=False
+        )
         return
 
     # Logging
     SUMMARY.set_model_graph(str(inn))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(inn))
 
-    best_loss = float('inf')
+    best_loss = float("inf")
     n_vals_without_improvement = 0
-
 
     # Train INN for N epochs
     for epoch in range(ARGS.epochs):
@@ -327,12 +360,7 @@ def main(args, datasets, metric_callback):
             break
 
         with SUMMARY.train():
-            train(
-                inn,
-                discriminator,
-                train_loader,
-                epoch,
-            )
+            train(inn, discriminator, train_loader, epoch)
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             with SUMMARY.test():
@@ -348,19 +376,19 @@ def main(args, datasets, metric_callback):
                     n_vals_without_improvement += 1
 
                 LOGGER.info(
-                    '[VAL] Epoch {:04d} | Val Loss {:.6f} | '
-                    'No improvement during validation: {:02d}',
+                    "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
+                    "No improvement during validation: {:02d}",
                     epoch,
                     val_loss,
                     n_vals_without_improvement,
                 )
 
-    LOGGER.info('Training has finished.')
-    # inn, discriminator = restore_model(save_dir / 'checkpt.pth', inn, discriminator)
-    # metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
-    # save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
-    # inn.eval()
+    LOGGER.info("Training has finished.")
+    inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
+    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
+    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    inn.eval()
 
 
-if __name__ == '__main__':
-    print('This file cannot be run directly.')
+if __name__ == "__main__":
+    print("This file cannot be run directly.")

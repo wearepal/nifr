@@ -13,7 +13,6 @@ from finn.utils.typechecks import is_probability
 
 
 class CouplingLayer(Bijector):
-
     def __init__(self):
         super().__init__()
         self.d: int
@@ -32,20 +31,23 @@ class CouplingLayer(Bijector):
 
 
 class AffineCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
+    def __init__(
+        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5
+    ):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
         self.net_s_t = ConvResidualNet(
-                in_channels=self.d,
-                out_channels=(in_channels - self.d) * 2,
-                hidden_channels=hidden_channels,
-                num_blocks=num_blocks,
-                activation=F.relu,
-                dropout_probability=0,
-                use_batch_norm=False)
+            in_channels=self.d,
+            out_channels=(in_channels - self.d) * 2,
+            hidden_channels=hidden_channels,
+            num_blocks=num_blocks,
+            activation=F.relu,
+            dropout_probability=0,
+            use_batch_norm=False,
+        )
 
     def logdetjac(self, scale):
         return sum_except_batch(torch.log(scale), keepdim=True)
@@ -80,20 +82,23 @@ class AffineCouplingLayer(CouplingLayer):
 
 
 class AdditiveCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
+    def __init__(
+        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5
+    ):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
         self.net_t = ConvResidualNet(
-                in_channels=self.d,
-                out_channels=(in_channels - self.d),
-                hidden_channels=hidden_channels,
-                num_blocks=num_blocks,
-                activation=F.relu,
-                dropout_probability=0,
-                use_batch_norm=False)
+            in_channels=self.d,
+            out_channels=(in_channels - self.d),
+            hidden_channels=hidden_channels,
+            num_blocks=num_blocks,
+            activation=F.relu,
+            dropout_probability=0,
+            use_batch_norm=False,
+        )
 
     def logdetjac(self):
         return 0
@@ -138,9 +143,10 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
             num_blocks=2,
             activation=F.relu,
             dropout_probability=0,
-            use_batch_norm=False)
+            use_batch_norm=False,
+        )
 
-    def _shift_fn(self, inputs):
+    def _get_shift_param(self, inputs):
         shift = self.net_t(inputs)
         # Round with straight-through-estimator
         return RoundSTE.apply(shift)
@@ -172,10 +178,10 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
 class MaskedCouplingLayer(Bijector):
     """Used in the tabular experiments."""
 
-    def __init__(self, d, hidden_dims, mask_type='alternate', swap=False):
+    def __init__(self, d, hidden_dims, mask_type="alternate", swap=False):
         nn.Module.__init__(self)
         self.d = d
-        self.register_buffer('mask', sample_mask(d, mask_type, swap).view(1, d))
+        self.register_buffer("mask", sample_mask(d, mask_type, swap).view(1, d))
         self.net_scale = build_net(d, hidden_dims, activation="tanh")
         self.net_shift = build_net(d, hidden_dims, activation="relu")
 
@@ -213,14 +219,14 @@ class MaskedCouplingLayer(Bijector):
 
 
 def sample_mask(dim, mask_type, swap):
-    if mask_type == 'alternate':
+    if mask_type == "alternate":
         # Index-based masking in MAF paper.
         mask = torch.zeros(dim)
         mask[::2] = 1
         if swap:
             mask = 1 - mask
         return mask
-    elif mask_type == 'channel':
+    elif mask_type == "channel":
         # Masking type used in Real NVP paper.
         mask = torch.zeros(dim)
         mask[: dim // 2] = 1
@@ -228,7 +234,7 @@ def sample_mask(dim, mask_type, swap):
             mask = 1 - mask
         return mask
     else:
-        raise ValueError('Unknown mask_type {}'.format(mask_type))
+        raise ValueError("Unknown mask_type {}".format(mask_type))
 
 
 def build_net(input_dim, hidden_dims, activation="relu"):

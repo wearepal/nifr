@@ -22,11 +22,13 @@ def load_adult_data(args):
             [
                 col
                 for col in data.x.columns
-                if col.startswith('nat') and col != "native-country_United-States"
+                if col.startswith("nat") and col != "native-country_United-States"
             ],
             axis=1,
         )
-        new_x["native-country_not_United-States"] = 1 - new_x["native-country_United-States"]
+        new_x["native-country_not_United-States"] = (
+            1 - new_x["native-country_United-States"]
+        )
 
         disc_feats = Adult().discrete_features
         cont_feats = Adult().continuous_features
@@ -34,7 +36,7 @@ def load_adult_data(args):
         countries = [
             col
             for col in disc_feats
-            if (col.startswith('nat') and col != "native-country_United-States")
+            if (col.startswith("nat") and col != "native-country_United-States")
         ]
         disc_feats = [col for col in disc_feats if col not in countries]
         disc_feats += ["native-country_not_United-States"]
@@ -67,7 +69,9 @@ def load_adult_data(args):
         )
 
         # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
-        mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
+        mix_fact = (
+            args.task_mixing_factor
+        )  # how much of sy_opp should be mixed into task train set
 
         sy_equal_fraction = 1 - mix_fact
         sy_opp_fraction = mix_fact
@@ -76,14 +80,17 @@ def load_adult_data(args):
         sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=sy_opp_fraction)
 
         task_train_tuple = concat_dt(
-            [sy_equal_task_train, sy_opp_task_train], axis='index', ignore_index=True
+            [sy_equal_task_train, sy_opp_task_train], axis="index", ignore_index=True
         )
         # meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
         #                              axis='index', ignore_index=True)
 
         if mix_fact == 0:
             # s & y should be very correlated in the task train set
-            assert task_train_tuple.s['sex_Male'].corr(task_train_tuple.y['salary_>50K']) > 0.99
+            assert (
+                task_train_tuple.s["sex_Male"].corr(task_train_tuple.y["salary_>50K"])
+                > 0.99
+            )
 
         # old nomenclature:
         meta_train = meta
@@ -94,8 +101,8 @@ def load_adult_data(args):
         meta_train = None
         task_train, task = domain_split(
             datatup=data,
-            tr_cond='education_Masters == 0. & education_Doctorate == 0.',
-            te_cond='education_Masters == 1. | education_Doctorate == 1.',
+            tr_cond="education_Masters == 0. & education_Doctorate == 0.",
+            te_cond="education_Masters == 1. | education_Doctorate == 1.",
         )
     else:
         task_train, task = train_test_split(data)
@@ -108,7 +115,9 @@ def load_adult_data(args):
     task_train_scaled = task_train.x
     task_train_scaled[cont_feats] = scaler.fit_transform(task_train.x[cont_feats])
     if args.drop_discrete:
-        task_train = DataTuple(x=task_train_scaled[cont_feats], s=task_train.s, y=task_train.y)
+        task_train = DataTuple(
+            x=task_train_scaled[cont_feats], s=task_train.s, y=task_train.y
+        )
     else:
         task_train = DataTuple(x=task_train_scaled, s=task_train.s, y=task_train.y)
 
@@ -123,7 +132,9 @@ def load_adult_data(args):
         meta_train_scaled = meta_train.x
         meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
         if args.drop_discrete:
-            meta_train = DataTuple(x=meta_train_scaled[cont_feats], s=meta_train.s, y=meta_train.y)
+            meta_train = DataTuple(
+                x=meta_train_scaled[cont_feats], s=meta_train.s, y=meta_train.y
+            )
         else:
             meta_train = DataTuple(x=meta_train_scaled, s=meta_train.s, y=meta_train.y)
 
@@ -133,8 +144,11 @@ def load_adult_data(args):
 def get_data_tuples(*pytorch_datasets):
     """Convert pytorch datasets to datatuples"""
     # FIXME: this is needed because the information about feature names got lost
-    sens_attrs = Adult().feature_split['s']
-    return (pytorch_data_to_dataframe(data, sens_attrs=sens_attrs) for data in pytorch_datasets)
+    sens_attrs = Adult().feature_split["s"]
+    return (
+        pytorch_data_to_dataframe(data, sens_attrs=sens_attrs)
+        for data in pytorch_datasets
+    )
 
 
 def pytorch_data_to_dataframe(dataset, sens_attrs=None):
@@ -160,8 +174,9 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
 def group_features(disc_feats):
     """Group discrete features names according to the first segment of their name
     """
+
     def _first_segment(feature_name):
-        return feature_name.split('_')[0]
+        return feature_name.split("_")[0]
 
     group_iter = groupby(disc_feats, _first_segment)
     return [list(group) for _, group in group_iter]
@@ -171,8 +186,9 @@ def grouped_features_indexes(disc_feats):
     """Group discrete features names according to the first segment of their name
     and return a list of their corresponding slices (assumes order is maintained).
     """
+
     def _first_segment(feature_name):
-        return feature_name.split('_')[0]
+        return feature_name.split("_")[0]
 
     group_iter = groupby(disc_feats, _first_segment)
 

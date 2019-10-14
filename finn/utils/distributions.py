@@ -7,7 +7,6 @@ import torch.nn.functional as F
 
 
 class DLogistic(td.Distribution):
-
     def __init__(self, loc, scale):
         super().__init__()
         self.loc = loc
@@ -19,7 +18,7 @@ class DLogistic(td.Distribution):
 
     @property
     def variance(self):
-        return self.scale**2
+        return self.scale ** 2
 
     def log_prob(self, value):
         upper = ((value + 0.5 - self.loc) / self.scale).sigmoid()
@@ -28,7 +27,6 @@ class DLogistic(td.Distribution):
 
 
 class MixtureDistribution(td.Distribution):
-
     def __init__(self, probs: Sequence[float], components: Sequence[td.Distribution]):
         assert len(probs) == len(components)
         assert all(prob >= 0 for prob in probs)
@@ -39,7 +37,7 @@ class MixtureDistribution(td.Distribution):
         self.components = components
 
     def log_prob(self, value):
-        log_prob = 0.
+        log_prob = 0.0
         for prob, dist in zip(self.probs, self.components):
             log_prob += prob * dist.log_prob(value)
         return log_prob

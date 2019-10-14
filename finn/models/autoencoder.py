@@ -4,7 +4,6 @@ from .base import ModelBase
 
 
 class AutoEncoder(nn.Module):
-
     def __init__(self, encoder, decoder, optimizer_args=None):
         super(AutoEncoder, self).__init__()
 

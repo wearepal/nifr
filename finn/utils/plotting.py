@@ -28,6 +28,6 @@ def plot_contrastive(original, recon, columns, filename):
     fig.colorbar(im, cax=cax)
     ax.set_title("Difference between Gender reconstructions")
     fig.tight_layout()
-    fig.savefig(f'{filename}.png')
+    fig.savefig(f"{filename}.png")
 
     plt.close(fig)
