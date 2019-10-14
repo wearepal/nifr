@@ -71,6 +71,7 @@ def parse_arguments(raw_args=None):
     )
     parser.add_argument("--levels", type=int, default=3)
     parser.add_argument("--level-depth", type=int, default=3)
+    parser.add_argument("--reshape-method", type=str, choices=["squeeze", "haar"], default="haar")
     parser.add_argument("--coupling-channels", type=int, default=256)
     parser.add_argument("--coupling-depth", type=int, default=2)
     parser.add_argument("--glow", type=eval, default=True, choices=[True, False])

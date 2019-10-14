@@ -38,7 +38,7 @@ class MovingBatchNormNd(Bijector):
             self.weight.data.zero_()
             self.bias.data.zero_()
 
-    def _forward(self, x, sum_logdet=None):
+    def _forward(self, x, sum_ldj=None):
         c = x.size(1)
         used_mean = self.running_mean.clone().detach()
         used_var = self.running_var.clone().detach()
@@ -76,10 +76,10 @@ class MovingBatchNormNd(Bijector):
             bias = self.bias.view(*self.shape).expand_as(x)
             y = y * torch.exp(weight) + bias
 
-        if sum_logdet is None:
+        if sum_ldj is None:
             return y
         else:
-            return y, sum_logdet - self.logdetgrad(x, used_var)
+            return y, sum_ldj - self.logdetgrad(x, used_var)
 
     def _inverse(self, y, logpy=None):
         used_mean = self.running_mean

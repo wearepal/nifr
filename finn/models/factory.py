@@ -78,7 +78,10 @@ def build_conv_inn(args, input_shape):
 
     chain = []
     for i in range(args.levels):
-        level = [layers.SqueezeLayer(2)]
+        if args.reshape_method == "haar":
+            level = [layers.HaarDownsampling(input_dim)]
+        else:
+            level = [layers.SqueezeLayer(2)]
         input_dim *= 4
 
         level.extend([_block(input_dim) for _ in range(args.level_depth)])

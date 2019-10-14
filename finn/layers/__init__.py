@@ -14,4 +14,4 @@ from finn.layers.inn.coupling import (
 from finn.layers.inn.glow import Invertible1x1Conv, InvertibleLinear
 from finn.layers.inn.misc import Flatten
 from finn.layers.inn.permutation import RandomPermutation, ReversePermutation
-from finn.layers.inn.squeeze import SqueezeLayer, UnsqueezeLayer
+from finn.layers.inn.reshape import *

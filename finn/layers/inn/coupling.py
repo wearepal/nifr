@@ -23,7 +23,7 @@ class CouplingLayer(Bijector):
     def _split(self, x):
         return x.split(split_size=(self.d, x.size(1) - self.d), dim=1)
 
-    def _forward(self, x: Tensor, sum_logdet=None) -> Tuple[Tensor, Tensor]:
+    def _forward(self, x: Tensor, sum_ldj=None) -> Tuple[Tensor, Tensor]:
         pass
 
     def _inverse(self, y: Tensor, sum_ldj=None) -> Tuple[Tensor, Tensor]:
