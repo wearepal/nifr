@@ -304,10 +304,7 @@ def main(args, datasets, metric_callback):
             raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
         inn.fit_ae(
-            train_loader,
-            epochs=ARGS.ae_epochs,
-            device=ARGS.device,
-            loss_fn=ae_loss_fn,
+            train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn
         )
     else:
         inn_kwargs["input_shape"] = input_shape
