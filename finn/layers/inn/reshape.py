@@ -136,7 +136,7 @@ class HaarDownsampling(Bijector):
         if sum_ldj is None:
             return out
         else:
-            return out, sum_ldj + self.logdetjac(x)
+            return out, sum_ldj - self.logdetjac(x, False)
 
     def _inverse(self, x, sum_ldj=None):
 
@@ -151,4 +151,4 @@ class HaarDownsampling(Bijector):
         if sum_ldj is None:
             return out
         else:
-            return out, sum_ldj + self.logdetjac(x)
+            return out, sum_ldj + self.logdetjac(x, True)
