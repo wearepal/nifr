@@ -7,6 +7,7 @@ import torch.distributions as td
 from torch import Tensor
 
 from finn.utils import to_discrete
+from .autoencoder import AutoEncoder
 from finn.utils.distributions import MixtureDistribution, DLogistic, logistic_distribution
 from .base import ModelBase
 from .masker import Masker
@@ -40,37 +41,29 @@ class BipartiteInn(ModelBase):
         self.base_density: td.Distribution
 
         if args.idf:
-            probs = 5 * [1/5]
+            probs = 5 * [1 / 5]
             dist_params = [(0, 0.5), (2, 0.5), (-2, 0.5), (4, 0.5), (-4, 0.5)]
             components = [DLogistic(loc, scale) for loc, scale in dist_params]
             self.base_density = MixtureDistribution(
-                probs=probs,
-                components=components
+                probs=probs, components=components
             )
         else:
-            if args.base_density == 'logisitc':
+            if args.base_density == "logistic":
                 self.base_density = logistic_distribution(0, 1)
             else:
                 self.base_density = td.Normal(0, 1)
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 
+        self.x_dim: int = x_dim
         if len(input_shape) < 2:
-            self.x_dim: int = x_dim
             z_channels += args.s_dim
             self.output_shape = self.input_shape
-
         else:
             self.x_dim: int = x_dim
-            z_channels *= args.squeeze_factor ** 2
-            h = self.input_shape[1] // args.squeeze_factor
-            w = self.input_shape[2] // args.squeeze_factor
-            self.output_shape = (z_channels, w, h)
+            self.output_shape = int(np.product(self.input_shape))
 
-        super().__init__(
-            model,
-            optimizer_args=optimizer_args,
-        )
+        super().__init__(model, optimizer_args=optimizer_args)
 
     def invert(self, z, discretize: bool = True) -> Tensor:
         x = self.forward(z, reverse=True)
@@ -95,18 +88,12 @@ class BipartiteInn(ModelBase):
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        log_px = (log_pz.sum() - sum_logdet.sum())
-        if z.dim() > 2:
-            log_px_per_dim = log_px / z.nelement()
-            bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
-            return bits_per_dim
-        else:
-            nll = -log_px / z.size(0)
-            return nll
+        log_px = log_pz.sum() - sum_logdet.sum()
+        nll = -log_px / z.size(0)
+        return nll
 
     def forward(
-        self, inputs: Tensor, logdet: Tensor = None,
-        reverse: bool = False
+        self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False
     ) -> Tensor:
         outputs = self.model(inputs, logpx=logdet, reverse=reverse)
 
@@ -142,11 +129,11 @@ class PartitionedInn(BipartiteInn):
             model,
             input_shape,
             optimizer_args=optimizer_args,
-            feature_groups=feature_groups
+            feature_groups=feature_groups,
         )
 
-        self.zs_dim = round(args.zs_frac * self.output_shape[0])
-        self.zy_dim = self.output_shape[0] - self.zs_dim
+        self.zs_dim = round(args.zs_frac * self.output_shape)
+        self.zy_dim = self.output_shape - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)
@@ -204,8 +191,47 @@ class PartitionedInn(BipartiteInn):
         return z, nll
 
 
-class MaskedInn(BipartiteInn):
+class PartitionedAeInn(PartitionedInn):
+    def __init__(
+        self,
+        args: Namespace,
+        model: torch.nn.Module,
+        autoencoder: AutoEncoder,
+        input_shape: Sequence[int],
+        optimizer_args: dict = None,
+        feature_groups: Optional[List[slice]] = None,
+    ) -> None:
+        super().__init__(args, model, input_shape, optimizer_args, feature_groups)
+        self.autoencoder = autoencoder
 
+    def train(self):
+        self.model.train()
+        self.autoencoder.eval()
+
+    def eval(self):
+        self.model.eval()
+        self.autoencoder.eval()
+
+    def fit_ae(self, train_data, epochs, device, loss_fn=torch.nn.MSELoss()):
+        print("===> Fitting Auto-encoder to the training data....")
+        self.autoencoder.train()
+        self.autoencoder.fit(train_data, epochs, device, loss_fn)
+        self.autoencoder.eval()
+
+    def forward(
+        self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False
+    ) -> Tensor:
+        if reverse:
+            outputs = self.model(inputs, logpx=logdet, reverse=reverse)
+            outputs = self.autoencoder.decode(outputs)
+        else:
+            outputs = self.autoencoder.encode(inputs)
+            outputs = self.model(outputs, logpx=logdet, reverse=reverse)
+
+        return outputs
+
+
+class MaskedInn(BipartiteInn):
     def __init__(
         self,
         args: Namespace,
@@ -213,7 +239,7 @@ class MaskedInn(BipartiteInn):
         input_shape: Sequence[int],
         optimizer_args: dict = None,
         feature_groups: Optional[List[slice]] = None,
-        masker_optimizer_args: dict = None
+        masker_optimizer_args: dict = None,
     ) -> None:
         """
 
@@ -229,12 +255,12 @@ class MaskedInn(BipartiteInn):
             model=model,
             input_shape=input_shape,
             optimizer_args=optimizer_args,
-            feature_groups=feature_groups
+            feature_groups=feature_groups,
         )
         self.masker: Masker = Masker(
             shape=self.output_shape,
-            prob_1=(1. - args.zs_frac),
-            optimizer_args=masker_optimizer_args
+            prob_1=(1.0 - args.zs_frac),
+            optimizer_args=masker_optimizer_args,
         )
 
     def mask_train(self) -> None:
