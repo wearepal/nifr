@@ -75,7 +75,6 @@ class VAE(AutoEncoder):
 
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
-        self.posterior: td.Distribution
         self.kl_weight = kl_weight
 
     def compute_kl(self, sample, posterior):
@@ -87,17 +86,22 @@ class VAE(AutoEncoder):
 
         return kld
 
-    def encode(self, x, stochastic=True):
+    def encode(self, x, stochastic=True, return_posterior=False):
         loc, scale = self.encoder(x).chunk(2, dim=1)
-        scale = F.softplus(scale)
-        posterior = self.posterior_fn(loc, scale)
-        if stochastic:
-            return posterior.rsample(), posterior
+
+        if stochastic or return_posterior:
+            scale = F.softplus(scale)
+            posterior = self.posterior_fn(loc, scale)
+
+        sample = posterior.rsample() if stochastic else loc
+
+        if return_posterior:
+            return sample, posterior
         else:
-            return loc, posterior
+            return sample
 
     def routine(self, x, recon_loss_fn, stochastic=True):
-        sample, posterior = self.encode(x, stochastic=stochastic)
+        sample, posterior = self.encode(x, stochastic=stochastic, return_posterior=True)
         kld = self.compute_kl(sample, posterior)
         recon = self.decoder(sample)
         recon_loss = recon_loss_fn(recon, x)
