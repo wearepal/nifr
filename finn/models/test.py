@@ -19,10 +19,7 @@ test = shrink_dataset(test, pcnt=0.1)
 
 augment = LdColorizer(black=True, background=False, scale=0)
 train = LdAugmentedDataset(
-    source_dataset=train,
-    ld_augmentations=augment,
-    li_augmentation=False,
-    num_classes=10,
+    source_dataset=train, ld_augmentations=augment, li_augmentation=False, num_classes=10
 )
 
 test = LdAugmentedDataset(

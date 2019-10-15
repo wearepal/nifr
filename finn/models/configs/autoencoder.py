@@ -6,18 +6,12 @@ def _down_conv_block(in_channels, out_channels, kernel_size, stride, padding):
         nn.BatchNorm2d(in_channels),
         nn.ReLU(inplace=True),
         nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
+            in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding
         ),
     )
 
 
-def _up_conv_block(
-    in_channels, out_channels, kernel_size, stride, padding, output_padding
-):
+def _up_conv_block(in_channels, out_channels, kernel_size, stride, padding, output_padding):
     return nn.Sequential(
         nn.BatchNorm2d(in_channels),
         nn.ReLU(inplace=True),
@@ -48,20 +42,14 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoded_dim):
 
         decoder += [_down_conv_block(c_out, c_in, kernel_size=3, stride=1, padding=1)]
         decoder += [
-            _up_conv_block(
-                c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0
-            )
+            _up_conv_block(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
         ]
 
         h //= 2
         w //= 2
 
-    encoder += [
-        _down_conv_block(c_out, encoded_dim, kernel_size=3, stride=1, padding=1)
-    ]
-    decoder += [
-        _down_conv_block(encoded_dim, c_out, kernel_size=3, stride=1, padding=1)
-    ]
+    encoder += [_down_conv_block(c_out, encoded_dim, kernel_size=3, stride=1, padding=1)]
+    decoder += [_down_conv_block(encoded_dim, c_out, kernel_size=3, stride=1, padding=1)]
     decoder = decoder[::-1]
 
     encoder = nn.Sequential(*encoder)

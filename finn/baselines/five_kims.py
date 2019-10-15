@@ -46,19 +46,13 @@ def parse_arguments(raw_args=None):
 
     # Colored MNIST settings
     parser.add_argument("--scale", type=float, default=0.02)
-    parser.add_argument(
-        "-bg", "--background", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("-bg", "--background", type=eval, default=False, choices=[True, False])
     parser.add_argument("--black", type=eval, default=True, choices=[True, False])
     parser.add_argument("--binarize", type=eval, default=True, choices=[True, False])
-    parser.add_argument(
-        "--rotate-data", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--rotate-data", type=eval, default=False, choices=[True, False])
     parser.add_argument("--shift-data", type=eval, default=False, choices=[True, False])
 
-    parser.add_argument(
-        "--prior-dist", type=str, default="normal", choices=["logistic", "normal"]
-    )
+    parser.add_argument("--prior-dist", type=str, default="normal", choices=["logistic", "normal"])
     parser.add_argument("--root", type=str, default="data")
 
     parser.add_argument("--depth", type=int, default=10)
@@ -113,9 +107,7 @@ def parse_arguments(raw_args=None):
         choices=[True, False],
         help="Use s as input (if s is a separate feature)",
     )
-    parser.add_argument(
-        "--spectral-norm", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--spectral-norm", type=eval, default=False, choices=[True, False])
     parser.add_argument("--proj-grads", type=eval, default=True, choices=[True, False])
     # classifier parameters (for computing fairness metrics)
     parser.add_argument("--mlp-clf", type=eval, default=False, choices=[True, False])
@@ -124,9 +116,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--clf-val-ratio", type=float, metavar="R", default=0.2)
     parser.add_argument("--clf-reg-weight", type=float, metavar="R", default=1.0e-7)
 
-    parser.add_argument(
-        "--gpu", type=int, default=0, help="Which GPU to use (if available)"
-    )
+    parser.add_argument("--gpu", type=int, default=0, help="Which GPU to use (if available)")
     parser.add_argument(
         "--use-comet",
         type=eval,
@@ -154,16 +144,12 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--meta-pcnt", type=float, default=0.4)
 
     parser.add_argument("--drop-discrete", type=eval, default=False)
-    parser.add_argument(
-        "--save-to-csv", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--save-to-csv", type=eval, default=False, choices=[True, False])
 
     parser.add_argument("--save-dir", type=str, default="./")
     parser.add_argument("--data-dir", type=str, default="./data/5kimsdata/")
     parser.add_argument("--exp-name", type=str, default="experiments/5kims")
-    parser.add_argument(
-        "--train-baseline", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--train-baseline", type=eval, default=False, choices=[True, False])
 
     parser.add_argument("--save-step", type=int, default=10)
     parser.add_argument("--log-step", type=int, default=50)
@@ -215,10 +201,7 @@ def main(raw_args=None):
         args.data_split = "train"
         custom_loader = WholeDataLoader(args)
         trainval_loader = torch.utils.data.DataLoader(
-            custom_loader,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=args.num_workers,
+            custom_loader, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
         )
     else:
         our_datasets = load_dataset(args)
@@ -245,10 +228,7 @@ def main(raw_args=None):
         args.data_split = "test"
         custom_loader = WholeDataLoader(args)
         testval_loader = torch.utils.data.DataLoader(
-            custom_loader,
-            batch_size=args.batch_size,
-            shuffle=True,
-            num_workers=args.num_workers,
+            custom_loader, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers
         )
     else:
         testval_loader = torch.utils.data.DataLoader(
@@ -265,9 +245,7 @@ def main(raw_args=None):
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
-    return nn.Conv2d(
-        in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False
-    )
+    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
 
 
 class convnet(nn.Module):
@@ -309,14 +287,10 @@ class convnet(nn.Module):
 class Predictor(nn.Module):
     def __init__(self, input_ch=32, num_classes=8):
         super(Predictor, self).__init__()
-        self.pred_conv1 = nn.Conv2d(
-            input_ch, input_ch, kernel_size=3, stride=1, padding=1
-        )
+        self.pred_conv1 = nn.Conv2d(input_ch, input_ch, kernel_size=3, stride=1, padding=1)
         self.pred_bn1 = nn.BatchNorm2d(input_ch)
         self.relu = nn.ReLU(inplace=True)
-        self.pred_conv2 = nn.Conv2d(
-            input_ch, num_classes, kernel_size=3, stride=1, padding=1
-        )
+        self.pred_conv2 = nn.Conv2d(input_ch, num_classes, kernel_size=3, stride=1, padding=1)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -484,15 +458,9 @@ class Trainer:
             # loss for self.net
             loss_pred = self.loss(pred_label, torch.squeeze(labels))
 
-            loss_pseudo_pred_r = torch.mean(
-                torch.sum(pseudo_pred_r * torch.log(pseudo_pred_r), 1)
-            )
-            loss_pseudo_pred_g = torch.mean(
-                torch.sum(pseudo_pred_g * torch.log(pseudo_pred_g), 1)
-            )
-            loss_pseudo_pred_b = torch.mean(
-                torch.sum(pseudo_pred_b * torch.log(pseudo_pred_b), 1)
-            )
+            loss_pseudo_pred_r = torch.mean(torch.sum(pseudo_pred_r * torch.log(pseudo_pred_r), 1))
+            loss_pseudo_pred_g = torch.mean(torch.sum(pseudo_pred_g * torch.log(pseudo_pred_g), 1))
+            loss_pseudo_pred_b = torch.mean(torch.sum(pseudo_pred_b * torch.log(pseudo_pred_b), 1))
 
             loss_pred_ps_color = (
                 loss_pseudo_pred_r + loss_pseudo_pred_g + loss_pseudo_pred_b
@@ -529,15 +497,12 @@ class Trainer:
             self.optim_b.step()
 
             if i % self.option.log_step == 0:
-                msg = (
-                    "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d)"
-                    % (
-                        loss_pred,
-                        loss_pred_color / 3.0,
-                        loss_pred_ps_color,
-                        step,
-                        int(100 * i / len(data_loader)),
-                    )
+                msg = "[TRAIN] cls loss : %.6f, rgb : %.6f, MI : %.6f  (epoch %d.%02d)" % (
+                    loss_pred,
+                    loss_pred_color / 3.0,
+                    loss_pred_ps_color,
+                    step,
+                    int(100 * i / len(data_loader)),
                 )
                 print(msg)
         elapsed = time.monotonic() - start_time
@@ -642,9 +607,7 @@ class Trainer:
                 "net_state_dict": self.net.state_dict(),
             },
             os.path.join(
-                self.option.save_dir,
-                self.option.exp_name,
-                "checkpoint_step_%04d.pth" % step,
+                self.option.save_dir, self.option.exp_name, "checkpoint_step_%04d.pth" % step
             ),
         )
         print("checkpoint saved. step : %d" % step)
@@ -671,11 +634,7 @@ class Trainer:
             self.scheduler_g.step()
             self.scheduler_b.step()
 
-            if (
-                step == 1
-                or step % self.option.save_step == 0
-                or step == (self.option.max_step - 1)
-            ):
+            if step == 1 or step % self.option.save_step == 0 or step == (self.option.max_step - 1):
                 if val_loader is not None:
                     self._validate(val_loader)
                 self._save_model(step)
@@ -707,9 +666,7 @@ class WholeDataLoader(Dataset):
         self.T = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
-                ),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
             ]
         )
 

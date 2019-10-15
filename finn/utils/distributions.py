@@ -12,6 +12,7 @@ def logistic_distribution(loc: Tensor, scale: Tensor):
     logistic = td.TransformedDistribution(base_distribution, transforms)
     return logistic
 
+
 class DLogistic(td.Distribution):
     def __init__(self, loc, scale):
         super().__init__()

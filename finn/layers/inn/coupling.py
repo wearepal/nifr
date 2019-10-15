@@ -31,9 +31,7 @@ class CouplingLayer(Bijector):
 
 
 class AffineCouplingLayer(CouplingLayer):
-    def __init__(
-        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5
-    ):
+    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()
@@ -82,9 +80,7 @@ class AffineCouplingLayer(CouplingLayer):
 
 
 class AdditiveCouplingLayer(CouplingLayer):
-    def __init__(
-        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5
-    ):
+    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
 
         super().__init__()

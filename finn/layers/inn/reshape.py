@@ -70,12 +70,7 @@ def squeeze(input, downscale_factor=2):
     out_width = in_width // downscale_factor
 
     input_view = input.contiguous().view(
-        batch_size,
-        in_channels,
-        out_height,
-        downscale_factor,
-        out_width,
-        downscale_factor,
+        batch_size, in_channels, out_height, downscale_factor, out_width, downscale_factor
     )
 
     output = input_view.permute(0, 1, 3, 5, 2, 4).contiguous()
@@ -83,10 +78,10 @@ def squeeze(input, downscale_factor=2):
 
 
 class HaarDownsampling(Bijector):
-    '''Uses Haar wavelets to split each channel into 4 channels, with half the
-    width and height.'''
+    """Uses Haar wavelets to split each channel into 4 channels, with half the
+    width and height."""
 
-    def __init__(self, in_channels, order_by_wavelet=False, rebalance=1.):
+    def __init__(self, in_channels, order_by_wavelet=False, rebalance=1.0):
         super().__init__()
 
         self.in_channels = in_channels
@@ -103,7 +98,7 @@ class HaarDownsampling(Bijector):
         self.haar_weights[3, 0, 1, 0] = -1
         self.haar_weights[3, 0, 0, 1] = -1
 
-        self.haar_weights = torch.cat([self.haar_weights]*self.in_channels, 0)
+        self.haar_weights = torch.cat([self.haar_weights] * self.in_channels, 0)
         self.haar_weights = nn.Parameter(self.haar_weights)
         self.haar_weights.requires_grad = False
 
@@ -113,7 +108,7 @@ class HaarDownsampling(Bijector):
         if self.permute:
             permutation = []
             for i in range(4):
-                permutation += [i+4*j for j in range(self.in_channels)]
+                permutation += [i + 4 * j for j in range(self.in_channels)]
 
             self.perm = torch.LongTensor(permutation)
             self.perm_inv = torch.LongTensor(permutation)
@@ -123,11 +118,10 @@ class HaarDownsampling(Bijector):
 
     def logdetjac(self, x, reverse):
         fac = self.fac_rev if reverse else self.fac_fwd
-        return x[0].nelement() / 4 * (np.log(16.) + 4 * np.log(fac))
+        return x[0].nelement() / 4 * (np.log(16.0) + 4 * np.log(fac))
 
     def _forward(self, x, sum_ldj=None):
-        out = F.conv2d(x, self.haar_weights,
-                       bias=None, stride=2, groups=self.in_channels)
+        out = F.conv2d(x, self.haar_weights, bias=None, stride=2, groups=self.in_channels)
 
         if self.permute:
             out = out[:, self.perm]
@@ -145,8 +139,9 @@ class HaarDownsampling(Bijector):
         else:
             x_perm = x
 
-        out = F.conv_transpose2d(x_perm * self.fac_rev, self.haar_weights,
-                                 bias=None, stride=2, groups=self.in_channels)
+        out = F.conv_transpose2d(
+            x_perm * self.fac_rev, self.haar_weights, bias=None, stride=2, groups=self.in_channels
+        )
 
         if sum_ldj is None:
             return out

@@ -24,9 +24,7 @@ class StyleAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
 
-def get_logger(
-    logpath, filepath, package_files=None, displaying=True, saving=True, debug=False
-):
+def get_logger(logpath, filepath, package_files=None, displaying=True, saving=True, debug=False):
     global LOGGER
     if LOGGER is not None:
         return LOGGER

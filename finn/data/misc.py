@@ -61,11 +61,7 @@ class RandomSampler(Sampler):
     def __iter__(self):
         n = len(self.data_source)
         if self.replacement:
-            return iter(
-                torch.randint(
-                    high=n, size=(self.num_samples,), dtype=torch.int64
-                ).tolist()
-            )
+            return iter(torch.randint(high=n, size=(self.num_samples,), dtype=torch.int64).tolist())
 
         return iter(torch.randperm(n)[: self.num_samples].tolist())
 

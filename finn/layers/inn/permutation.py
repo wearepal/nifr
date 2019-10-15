@@ -29,9 +29,7 @@ class Permutation(Bijector):
             raise ValueError("No dimension {} in inputs.".format(dim))
         if inputs.shape[dim] != len(permutation):
             raise ValueError(
-                "Dimension {} in inputs must be of size {}.".format(
-                    dim, len(permutation)
-                )
+                "Dimension {} in inputs must be of size {}.".format(dim, len(permutation))
             )
         batch_size = inputs.shape[0]
         outputs = torch.index_select(inputs, dim, permutation)

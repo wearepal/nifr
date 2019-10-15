@@ -4,9 +4,7 @@ import torch.nn.functional as F
 from finn.layers.resnet import ResidualNet, ConvResidualNet
 
 
-def linear_disciminator(
-    in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False
-):
+def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
 
     act = F.relu if use_bn else F.selu
     layers = [
@@ -27,9 +25,7 @@ def mp_32x32_net(input_dim, target_dim, use_bn=True):
     def conv_block(in_dim, out_dim, kernel_size, stride, padding):
         _block = []
         _block += [
-            nn.Conv2d(
-                in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=padding
-            )
+            nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=padding)
         ]
         if use_bn:
             _block += [nn.BatchNorm2d(out_dim)]
@@ -58,11 +54,7 @@ def mp_32x32_net(input_dim, target_dim, use_bn=True):
 def mp_28x28_net(input_dim, target_dim, use_bn=True):
     def conv_block(in_dim, out_dim, kernel_size, stride):
         _block = []
-        _block += [
-            nn.Conv2d(
-                in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1
-            )
-        ]
+        _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
         if use_bn:
             _block += [nn.BatchNorm2d(out_dim)]
         _block += [nn.LeakyReLU()]
@@ -90,11 +82,7 @@ def mp_28x28_net(input_dim, target_dim, use_bn=True):
 def strided_28x28_net(input_dim, target_dim):
     def conv_block(in_dim, out_dim, kernel_size, stride):
         _block = []
-        _block += [
-            nn.Conv2d(
-                in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1
-            )
-        ]
+        _block += [nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=1)]
         _block += [nn.BatchNorm2d(out_dim)]
         _block += [nn.ReLU()]
         return _block

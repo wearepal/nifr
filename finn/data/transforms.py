@@ -138,13 +138,7 @@ class LdColorizer(LdAugmentation):
     __constants__ = ["color_space", "binarize", "black", "background", "seed"]
 
     def __init__(
-        self,
-        scale=0.02,
-        binarize=False,
-        color_space="rgb",
-        background=False,
-        black=True,
-        seed=42,
+        self, scale=0.02, binarize=False, color_space="rgb", background=False, black=True, seed=42
     ):
         super(LdColorizer, self).__init__()
         self.scale = scale
@@ -213,14 +207,10 @@ class LdColorizer(LdAugmentation):
 
     def _sample_color(self, mean_color_values):
         if self.color_space == "hsv":
-            return np.clip(
-                self.random_state.normal(mean_color_values, self.scale), 0, 1
-            )
+            return np.clip(self.random_state.normal(mean_color_values, self.scale), 0, 1)
         else:
             return np.clip(
-                self.random_state.multivariate_normal(mean_color_values, self.scale),
-                0,
-                1,
+                self.random_state.multivariate_normal(mean_color_values, self.scale), 0, 1
             )
 
     def _augment(self, data, labels):
@@ -240,36 +230,28 @@ class LdColorizer(LdAugmentation):
         if self.color_space == "hsv":
             data = data.numpy().squeeze()
             if len(data.shape) == 2:
-                data = data[
-                    None, ...
-                ]  # re-add the batch dimension in case it was removed
+                data = data[None, ...]  # re-add the batch dimension in case it was removed
             colorized_data = self._hsv_colorize(
-                data,
-                np.array(colors_per_sample),
-                background=self.background,
-                black=self.black,
+                data, np.array(colors_per_sample), background=self.background, black=self.black
             )
         else:
             if self.background:
                 if self.black:
                     # colorful background, black digits
-                    colorized_data = (1 - data) * torch.Tensor(
-                        colors_per_sample
-                    ).unsqueeze(-1).unsqueeze(-1)
+                    colorized_data = (1 - data) * torch.Tensor(colors_per_sample).unsqueeze(
+                        -1
+                    ).unsqueeze(-1)
                 else:
                     # colorful background, white digits
                     colorized_data = torch.clamp(
-                        data
-                        + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1),
-                        0,
-                        1,
+                        data + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1
                     )
             else:
                 if self.black:
                     # black background, colorful digits
-                    colorized_data = data * torch.Tensor(colors_per_sample).unsqueeze(
+                    colorized_data = data * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(
                         -1
-                    ).unsqueeze(-1)
+                    )
                 else:
                     # white background, colorful digits
                     colorized_data = 1 - data * (

@@ -38,10 +38,7 @@ def load_dataset(args) -> DatasetTriplet:
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
-            scale=args.scale,
-            background=args.background,
-            black=args.black,
-            binarize=args.binarize,
+            scale=args.scale, background=args.background, black=args.black, binarize=args.binarize
         )
 
         pretrain_data = LdAugmentedDataset(

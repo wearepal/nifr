@@ -21,24 +21,14 @@ from finn.models.configs.classifiers import fc_net, mp_32x32_net
 from finn.models.inn import BipartiteInn
 
 
-def compute_metrics(
-    experiment, predictions, actual, name, run_all=False
-) -> Dict[str, float]:
+def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
         metrics = run_metrics(
             predictions,
             actual,
-            metrics=[
-                Accuracy(),
-                Theil(),
-                TPR(),
-                TNR(),
-                PPV(),
-                NMI(base="y"),
-                NMI(base="s"),
-            ],
+            metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
             per_sens_metrics=[
                 Theil(),
                 ProbPos(),
@@ -62,33 +52,21 @@ def compute_metrics(
         experiment.log_metric(f"{name} Theil|s=1", metrics["Theil_Index_sex_Male_1.0"])
         experiment.log_metric(f"{name} Theil|s=0", metrics["Theil_Index_sex_Male_0.0"])
         experiment.log_metric(
-            f"{name} P(Y=1|s=0) Ratio s0/s1",
-            metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"],
+            f"{name} P(Y=1|s=0) Ratio s0/s1", metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]
         )
         experiment.log_metric(
-            f"{name} P(Y=1|s=0) Diff s0-s1",
-            metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"],
+            f"{name} P(Y=1|s=0) Diff s0-s1", metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]
         )
 
         experiment.log_metric(f"{name} TPR|s=1", metrics["TPR_sex_Male_1.0"])
         experiment.log_metric(f"{name} TPR|s=0", metrics["TPR_sex_Male_0.0"])
-        experiment.log_metric(
-            f"{name} TPR Ratio s0/s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"]
-        )
-        experiment.log_metric(
-            f"{name} TPR Diff s0-s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"]
-        )
+        experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"])
+        experiment.log_metric(f"{name} TPR Diff s0-s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"])
 
-        experiment.log_metric(
-            f"{name} PPV Ratio s0/s1", metrics["PPV_sex_Male_0.0/sex_Male_1.0"]
-        )
-        experiment.log_metric(
-            f"{name} TNR Ratio s0/s1", metrics["TNR_sex_Male_0.0/sex_Male_1.0"]
-        )
+        experiment.log_metric(f"{name} PPV Ratio s0/s1", metrics["PPV_sex_Male_0.0/sex_Male_1.0"])
+        experiment.log_metric(f"{name} TNR Ratio s0/s1", metrics["TNR_sex_Male_0.0/sex_Male_1.0"])
     else:
-        metrics = run_metrics(
-            predictions, actual, metrics=[Accuracy()], per_sens_metrics=[]
-        )
+        metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
     for key, value in metrics.items():
         print(f"\t\t{key}: {value:.4f}")
@@ -103,9 +81,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
         clf = fc_net(input_dim, target_dim=args.y_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
-    clf: Classifier = Classifier(
-        clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr}
-    )
+    clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
     clf.to(args.device)
     clf.fit(
         train_data,
@@ -130,10 +106,7 @@ def make_tuple_from_data(train, test, pred_s):
         train_y = train.y
         test_y = test.y
 
-    return (
-        DataTuple(x=train_x, s=train.s, y=train_y),
-        DataTuple(x=test_x, s=test.s, y=test_y),
-    )
+    return (DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y))
 
 
 def evaluate(
@@ -174,17 +147,13 @@ def evaluate(
         if not isinstance(train_data, DataTuple):
             train_data, test_data = get_data_tuples(train_data, test_data)
 
-        train_data, test_data = make_tuple_from_data(
-            train_data, test_data, pred_s=pred_s
-        )
+        train_data, test_data = make_tuple_from_data(train_data, test_data, pred_s=pred_s)
         clf = LR()
         preds = clf.run(train_data, test_data)
         actual = test_data
 
     print("\nComputing metrics...")
-    metrics = compute_metrics(
-        experiment, preds, actual, name, run_all=args.dataset == "adult"
-    )
+    metrics = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == "adult")
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
         res_type = "recon" if train_on_recon else "encoding"
@@ -209,9 +178,7 @@ def encode_dataset(
     all_s = []
     all_y = []
 
-    data = DataLoader(
-        data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False
-    )
+    data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
 
     with torch.set_grad_enabled(False):
         for i, (x, s, y) in enumerate(data):
@@ -230,9 +197,7 @@ def encode_dataset(
             encodings["xy"].append(xy.cpu())
 
     encodings["xy"] = TensorDataset(
-        torch.cat(encodings["xy"], dim=0),
-        torch.cat(all_s, dim=0),
-        torch.cat(all_y, dim=0),
+        torch.cat(encodings["xy"], dim=0), torch.cat(all_s, dim=0), torch.cat(all_y, dim=0)
     )
 
     return encodings

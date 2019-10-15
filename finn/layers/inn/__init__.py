@@ -1,9 +1,4 @@
-from .activations import (
-    SigmoidTransform,
-    SoftplusTransform,
-    LogitTransform,
-    ZeroMeanTransform,
-)
+from .activations import SigmoidTransform, SoftplusTransform, LogitTransform, ZeroMeanTransform
 from .normalization import MovingBatchNorm1d, MovingBatchNorm2d, ActNorm
 from .chain import BijectorChain, FactorOut
 from .coupling import (

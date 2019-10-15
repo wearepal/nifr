@@ -26,8 +26,7 @@ class Classifier(ModelBase):
         """
         if num_classes < 2:
             raise ValueError(
-                f"Invalid number of classes: must equal 2 or more,"
-                f" {num_classes} given."
+                f"Invalid number of classes: must equal 2 or more," f" {num_classes} given."
             )
         if num_classes == 2:
             self.criterion = "bce"
@@ -71,9 +70,7 @@ class Classifier(ModelBase):
 
     def predict_dataset(self, data, device, batch_size=100):
         if not isinstance(data, DataLoader):
-            data = DataLoader(
-                data, batch_size=batch_size, shuffle=False, pin_memory=True
-            )
+            data = DataLoader(data, batch_size=batch_size, shuffle=False, pin_memory=True)
         preds, actual, sens = [], [], []
         with torch.set_grad_enabled(False):
             for x, s, y in data:
@@ -92,11 +89,7 @@ class Classifier(ModelBase):
         return preds, actual, sens
 
     def compute_accuracy(
-        self,
-        outputs: torch.Tensor,
-        targets: torch.Tensor,
-        labeled: torch.Tensor,
-        top: int = 1,
+        self, outputs: torch.Tensor, targets: torch.Tensor, labeled: torch.Tensor, top: int = 1
     ) -> float:
         """Computes the classification accuracy.
 
@@ -121,9 +114,7 @@ class Classifier(ModelBase):
 
         return accuracy.detach().item()
 
-    def routine(
-        self, data: torch.Tensor, targets: torch.Tensor
-    ) -> Tuple[torch.Tensor, float]:
+    def routine(self, data: torch.Tensor, targets: torch.Tensor) -> Tuple[torch.Tensor, float]:
         """Classifier routine.
 
         Args:
@@ -167,10 +158,7 @@ class Classifier(ModelBase):
         if test_data is not None:
             if not isinstance(test_data, DataLoader):
                 train_data = DataLoader(
-                    test_data,
-                    batch_size=test_batch_size,
-                    shuffle=False,
-                    pin_memory=True,
+                    test_data, batch_size=test_batch_size, shuffle=False, pin_memory=True
                 )
 
         scheduler = None

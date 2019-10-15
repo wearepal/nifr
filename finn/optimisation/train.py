@@ -207,29 +207,19 @@ def main(args, datasets, metric_callback):
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = utils.get_logger(
-        logpath=save_dir / "logs", filepath=Path(__file__).resolve()
-    )
+    LOGGER = utils.get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS.device = torch.device(
-        f"cuda:{ARGS.gpu}"
-        if (torch.cuda.is_available() and not ARGS.gpu < 0)
-        else "cpu"
+        f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
     )
     LOGGER.info("{} GPUs available. Using GPU {}", torch.cuda.device_count(), ARGS.gpu)
 
     # ==== construct dataset ====
-    ARGS.test_batch_size = (
-        ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    )
-    train_loader = DataLoader(
-        datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size
-    )
-    val_loader = DataLoader(
-        datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size
-    )
+    ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
+    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
+    val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
 
     # ==== construct networks ====
     input_shape = get_data_dim(train_loader)
@@ -259,27 +249,17 @@ def main(args, datasets, metric_callback):
         disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
     #  Model arguments
-    inn_kwargs = {
-        "args": args,
-        "optimizer_args": optimizer_args,
-        "feature_groups": feature_groups,
-    }
+    inn_kwargs = {"args": args, "optimizer_args": optimizer_args, "feature_groups": feature_groups}
 
     # Initialise INN
     if ARGS.autoencode:
         if is_image_data:
             encoder, decoder, enc_shape = conv_autoencoder(
-                input_shape,
-                ARGS.ae_channels,
-                encoded_dim=ARGS.ae_enc_dim,
-                levels=ARGS.ae_levels,
+                input_shape, ARGS.ae_channels, encoded_dim=ARGS.ae_enc_dim, levels=ARGS.ae_levels
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
-                input_shape,
-                ARGS.ae_channels,
-                encoded_dim=ARGS.ae_enc_dim,
-                levels=ARGS.ae_levels,
+                input_shape, ARGS.ae_channels, encoded_dim=ARGS.ae_enc_dim, levels=ARGS.ae_levels
             )
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
 
@@ -299,9 +279,7 @@ def main(args, datasets, metric_callback):
         else:
             raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
-        inn.fit_ae(
-            train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn
-        )
+        inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
@@ -337,9 +315,7 @@ def main(args, datasets, metric_callback):
     # Resume from checkpoint
     if ARGS.resume is not None:
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        metric_callback(
-            ARGS, SUMMARY, inn, discriminator, datasets, check_originals=False
-        )
+        metric_callback(ARGS, SUMMARY, inn, discriminator, datasets, check_originals=False)
         return
 
     # Logging
@@ -380,9 +356,7 @@ def main(args, datasets, metric_callback):
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    metric_callback(
-        ARGS, experiment=SUMMARY, model=inn, data=datasets, save_to_csv=Path(ARGS.save)
-    )
+    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets, save_to_csv=Path(ARGS.save))
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
 

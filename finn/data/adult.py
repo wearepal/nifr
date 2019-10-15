@@ -26,9 +26,7 @@ def load_adult_data(args):
             ],
             axis=1,
         )
-        new_x["native-country_not_United-States"] = (
-            1 - new_x["native-country_United-States"]
-        )
+        new_x["native-country_not_United-States"] = 1 - new_x["native-country_United-States"]
 
         disc_feats = Adult().discrete_features
         cont_feats = Adult().continuous_features
@@ -69,9 +67,7 @@ def load_adult_data(args):
         )
 
         # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
-        mix_fact = (
-            args.task_mixing_factor
-        )  # how much of sy_opp should be mixed into task train set
+        mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
 
         sy_equal_fraction = 1 - mix_fact
         sy_opp_fraction = mix_fact
@@ -87,10 +83,7 @@ def load_adult_data(args):
 
         if mix_fact == 0:
             # s & y should be very correlated in the task train set
-            assert (
-                task_train_tuple.s["sex_Male"].corr(task_train_tuple.y["salary_>50K"])
-                > 0.99
-            )
+            assert task_train_tuple.s["sex_Male"].corr(task_train_tuple.y["salary_>50K"]) > 0.99
 
         # old nomenclature:
         meta_train = meta
@@ -115,9 +108,7 @@ def load_adult_data(args):
     task_train_scaled = task_train.x
     task_train_scaled[cont_feats] = scaler.fit_transform(task_train.x[cont_feats])
     if args.drop_discrete:
-        task_train = DataTuple(
-            x=task_train_scaled[cont_feats], s=task_train.s, y=task_train.y
-        )
+        task_train = DataTuple(x=task_train_scaled[cont_feats], s=task_train.s, y=task_train.y)
     else:
         task_train = DataTuple(x=task_train_scaled, s=task_train.s, y=task_train.y)
 
@@ -132,9 +123,7 @@ def load_adult_data(args):
         meta_train_scaled = meta_train.x
         meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
         if args.drop_discrete:
-            meta_train = DataTuple(
-                x=meta_train_scaled[cont_feats], s=meta_train.s, y=meta_train.y
-            )
+            meta_train = DataTuple(x=meta_train_scaled[cont_feats], s=meta_train.s, y=meta_train.y)
         else:
             meta_train = DataTuple(x=meta_train_scaled, s=meta_train.s, y=meta_train.y)
 
@@ -145,10 +134,7 @@ def get_data_tuples(*pytorch_datasets):
     """Convert pytorch datasets to datatuples"""
     # FIXME: this is needed because the information about feature names got lost
     sens_attrs = Adult().feature_split["s"]
-    return (
-        pytorch_data_to_dataframe(data, sens_attrs=sens_attrs)
-        for data in pytorch_datasets
-    )
+    return (pytorch_data_to_dataframe(data, sens_attrs=sens_attrs) for data in pytorch_datasets)
 
 
 def pytorch_data_to_dataframe(dataset, sens_attrs=None):

@@ -21,9 +21,7 @@ def parse_arguments(raw_args=None):
     parser = argparse.ArgumentParser()
 
     # General data set settings
-    parser.add_argument(
-        "--dataset", choices=["adult", "cmnist", "celeba"], default="cmnist"
-    )
+    parser.add_argument("--dataset", choices=["adult", "cmnist", "celeba"], default="cmnist")
     parser.add_argument(
         "--data-pcnt",
         type=restricted_float,
@@ -54,14 +52,10 @@ def parse_arguments(raw_args=None):
 
     # Colored MNIST settings
     parser.add_argument("--scale", type=float, default=0.02)
-    parser.add_argument(
-        "-bg", "--background", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("-bg", "--background", type=eval, default=False, choices=[True, False])
     parser.add_argument("--black", type=eval, default=True, choices=[True, False])
     parser.add_argument("--binarize", type=eval, default=True, choices=[True, False])
-    parser.add_argument(
-        "--rotate-data", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--rotate-data", type=eval, default=False, choices=[True, False])
     parser.add_argument("--shift-data", type=eval, default=False, choices=[True, False])
     parser.add_argument("--padding", type=int, default=2)
 
@@ -71,7 +65,9 @@ def parse_arguments(raw_args=None):
     )
     parser.add_argument("--levels", type=int, default=3)
     parser.add_argument("--level-depth", type=int, default=3)
-    parser.add_argument("--reshape-method", type=str, choices=["squeeze", "haar"], default="squeeze")
+    parser.add_argument(
+        "--reshape-method", type=str, choices=["squeeze", "haar"], default="squeeze"
+    )
     parser.add_argument("--coupling-channels", type=int, default=256)
     parser.add_argument("--coupling-depth", type=int, default=1)
     parser.add_argument("--glow", type=eval, default=True, choices=[True, False])
@@ -82,14 +78,10 @@ def parse_arguments(raw_args=None):
         default=0,
         help="fraction of current statistics to incorporate into moving average",
     )
-    parser.add_argument(
-        "--factor-splits", action=StoreDictKeyPair, nargs="+", default={}
-    )
+    parser.add_argument("--factor-splits", action=StoreDictKeyPair, nargs="+", default={})
     parser.add_argument("--idf", type=eval, default=False, choices=[True, False])
     parser.add_argument("--no-scaling", type=eval, default=False, choices=[True, False])
-    parser.add_argument(
-        "--spectral-norm", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--spectral-norm", type=eval, default=False, choices=[True, False])
     parser.add_argument("--zs-frac", type=float, default=0.02)
 
     # Auto-encoder settings
@@ -98,9 +90,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--ae-enc-dim", type=int, default=3)
     parser.add_argument("--ae-channels", type=int, default=64)
     parser.add_argument("--ae-epochs", type=int, default=3)
-    parser.add_argument(
-        "--ae-loss", type=str, choices=["l1", "l2", "huber"], default="huber"
-    )
+    parser.add_argument("--ae-loss", type=str, choices=["l1", "l2", "huber"], default="huber")
 
     # Discriminator settings
     parser.add_argument("--disc-lr", type=float, default=3e-4)
@@ -129,8 +119,7 @@ def parse_arguments(raw_args=None):
         type=eval,
         default=False,
         choices=[True, False],
-        help="whether to train the discriminator on the reconstructions"
-        "of the encodings.",
+        help="whether to train the discriminator on the reconstructions" "of the encodings.",
     )
     parser.add_argument("--nll-weight", type=float, default=1e-2)
     parser.add_argument("--pred-s-weight", type=float, default=1)
@@ -140,9 +129,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--eval-lr", type=float, default=1e-3)
 
     # Misc
-    parser.add_argument(
-        "--gpu", type=int, default=0, help="which GPU to use (if available)"
-    )
+    parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--save", type=str, default="experiments/finn")
     parser.add_argument("--evaluate", action="store_true")
@@ -164,10 +151,7 @@ def parse_arguments(raw_args=None):
         help="whether to use the comet.ml logging",
     )
     parser.add_argument(
-        "--results-csv",
-        type=str,
-        default="",
-        help="name of CSV file to save results to",
+        "--results-csv", type=str, default="", help="name of CSV file to save results to"
     )
 
     return parser.parse_args(raw_args)

@@ -44,12 +44,7 @@ class ImdbData(Dataset):
     _sens_attributes = ["age", "gender"]
 
     def __init(
-        self,
-        path_to_biased_data,
-        image_data_root,
-        train=True,
-        sens_attr="gender",
-        transform=None,
+        self, path_to_biased_data, image_data_root, train=True, sens_attr="gender", transform=None
     ):
 
         self.transform = transform or None

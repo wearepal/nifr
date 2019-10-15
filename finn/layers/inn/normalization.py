@@ -51,13 +51,9 @@ class MovingBatchNormNd(Bijector):
 
             # moving average
             if self.bn_lag > 0:
-                used_mean = batch_mean - (1 - self.bn_lag) * (
-                    batch_mean - used_mean.detach()
-                )
+                used_mean = batch_mean - (1 - self.bn_lag) * (batch_mean - used_mean.detach())
                 used_mean /= 1.0 - self.bn_lag ** (self.step[0] + 1)
-                used_var = batch_var - (1 - self.bn_lag) * (
-                    batch_var - used_var.detach()
-                )
+                used_var = batch_var - (1 - self.bn_lag) * (batch_var - used_var.detach())
                 used_var /= 1.0 - self.bn_lag ** (self.step[0] + 1)
 
             # update running estimates

@@ -59,11 +59,7 @@ class LdAugmentedDataset(Dataset):
         if not 0 <= pcnt <= 1.0:
             raise ValueError(f"{pcnt} should be in the range (0, 1]")
         num_samples = int(pcnt * len(self.source_dataset))
-        inds = list(
-            RandomSampler(
-                self.source_dataset, num_samples=num_samples, replacement=False
-            )
-        )
+        inds = list(RandomSampler(self.source_dataset, num_samples=num_samples, replacement=False))
         self.inds = inds
         subset = self._sample_from_inds(inds)
         self.dataset = subset
@@ -129,9 +125,7 @@ class DataTupleDataset(Dataset):
         cont_features = source_dataset.continuous_features
         cont_features = [feat for feat in cont_features if feat in dataset.x.columns]
         self.cont_features = cont_features
-        self.feature_groups = dict(
-            discrete=grouped_features_indexes(self.disc_features)
-        )
+        self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
 
         self.x_disc = dataset.x[self.disc_features].to_numpy(dtype=np.float32)
         self.x_cont = dataset.x[self.cont_features].to_numpy(dtype=np.float32)
@@ -195,9 +189,7 @@ class TripletDataset(Dataset):
 
         self.root = root
         fn = partial(os.path.join, self.root)
-        filename = pd.read_csv(
-            fn("filename.csv"), delim_whitespace=True, header=None, index_col=0
-        )
+        filename = pd.read_csv(fn("filename.csv"), delim_whitespace=True, header=None, index_col=0)
         sens = pd.read_csv(fn("sens.csv"), delim_whitespace=True, header=None)
         target = pd.read_csv(fn("target.csv"), delim_whitespace=True, header=None)
 

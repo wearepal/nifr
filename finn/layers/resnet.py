@@ -26,9 +26,7 @@ class ResidualBlock(nn.Module):
             )
         if context_features is not None:
             self.context_layer = nn.Linear(context_features, features)
-        self.linear_layers = nn.ModuleList(
-            [nn.Linear(features, features) for _ in range(2)]
-        )
+        self.linear_layers = nn.ModuleList([nn.Linear(features, features) for _ in range(2)])
         self.dropout = nn.Dropout(p=dropout_probability)
         if zero_initialization:
             init.uniform_(self.linear_layers[-1].weight, -1e-3, 1e-3)
@@ -68,9 +66,7 @@ class ResidualNet(nn.Module):
         self.hidden_features = hidden_features
         self.context_features = context_features
         if context_features is not None:
-            self.initial_layer = nn.Linear(
-                in_features + context_features, hidden_features
-            )
+            self.initial_layer = nn.Linear(in_features + context_features, hidden_features)
         else:
             self.initial_layer = nn.Linear(in_features, hidden_features)
         self.blocks = nn.ModuleList(
@@ -113,10 +109,7 @@ class ConvResidualBlock(nn.Module):
 
         if context_channels is not None:
             self.context_layer = nn.Conv2d(
-                in_channels=context_channels,
-                out_channels=channels,
-                kernel_size=1,
-                padding=0,
+                in_channels=context_channels, out_channels=channels, kernel_size=1, padding=0
             )
         self.use_batch_norm = use_batch_norm
         if use_batch_norm:
@@ -171,10 +164,7 @@ class ConvResidualNet(nn.Module):
             )
         else:
             self.initial_layer = nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=hidden_channels,
-                kernel_size=1,
-                padding=0,
+                in_channels=in_channels, out_channels=hidden_channels, kernel_size=1, padding=0
             )
         self.blocks = nn.ModuleList(
             [
@@ -188,9 +178,7 @@ class ConvResidualNet(nn.Module):
                 for _ in range(num_blocks)
             ]
         )
-        self.final_layer = nn.Conv2d(
-            hidden_channels, out_channels, kernel_size=1, padding=0
-        )
+        self.final_layer = nn.Conv2d(hidden_channels, out_channels, kernel_size=1, padding=0)
 
     def forward(self, inputs, context=None):
         if context is None:

@@ -43,14 +43,11 @@ class BipartiteInn(ModelBase):
             probs = 5 * [1 / 5]
             dist_params = [(0, 0.5), (2, 0.5), (-2, 0.5), (4, 0.5), (-4, 0.5)]
             components = [DLogistic(loc, scale) for loc, scale in dist_params]
-            self.base_density = MixtureDistribution(
-                probs=probs, components=components
-            )
+            self.base_density = MixtureDistribution(probs=probs, components=components)
         else:
             if args.base_density == "logistic":
                 self.base_density = logistic_distribution(
-                    torch.zeros(1, device=args.device),
-                    torch.ones(1, device=args.device)
+                    torch.zeros(1, device=args.device), torch.ones(1, device=args.device)
                 )
             else:
                 self.base_density = td.Normal(0, 1)
@@ -99,9 +96,7 @@ class BipartiteInn(ModelBase):
         nll = -log_px / z.size(0)
         return nll
 
-    def forward(
-        self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False
-    ) -> Tensor:
+    def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
         outputs = self.model(inputs, logpx=logdet, reverse=reverse)
 
         return outputs
@@ -132,11 +127,7 @@ class PartitionedInn(BipartiteInn):
         """
 
         super().__init__(
-            args,
-            model,
-            input_shape,
-            optimizer_args=optimizer_args,
-            feature_groups=feature_groups,
+            args, model, input_shape, optimizer_args=optimizer_args, feature_groups=feature_groups
         )
 
         self.zs_dim = round(args.zs_frac * self.output_shape)
@@ -225,9 +216,7 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.fit(train_data, epochs, device, loss_fn)
         self.autoencoder.eval()
 
-    def forward(
-        self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False
-    ) -> Tensor:
+    def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
         if reverse:
             outputs = self.model(inputs, logpx=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(outputs)
@@ -317,9 +306,7 @@ class MaskedInn(BipartiteInn):
         else:
             return x
 
-    def routine(
-        self, data: Tensor, threshold: bool = True
-    ) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+    def routine(self, data: Tensor, threshold: bool = True) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
         """Training routine for the MaskedINN.
 
         Args:

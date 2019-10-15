@@ -40,9 +40,7 @@ def build_conv_inn(args, input_shape):
         _chain = []
         if args.idf:
             _chain += [
-                layers.IntegerDiscreteFlow(
-                    _input_dim, hidden_channels=args.coupling_channels
-                )
+                layers.IntegerDiscreteFlow(_input_dim, hidden_channels=args.coupling_channels)
             ]
             _chain += [layers.RandomPermutation(_input_dim)]
         else:
@@ -100,9 +98,7 @@ def build_conv_inn(args, input_shape):
     return model
 
 
-def build_discriminator(
-    args, input_shape, frac_enc, model_fn, model_kwargs, optimizer_kwargs=None
-):
+def build_discriminator(args, input_shape, frac_enc, model_fn, model_kwargs, optimizer_kwargs=None):
 
     in_dim = input_shape[0]
 

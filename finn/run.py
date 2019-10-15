@@ -37,18 +37,14 @@ def log_sample_images(experiment, data, name):
     log_images(experiment, x, f"Samples from {name}", prefix="eval")
 
 
-def log_metrics(
-    args, experiment, model, data, quick_eval=True, save_to_csv: Optional[Path] = None
-):
+def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Optional[Path] = None):
     """Compute and log a variety of metrics"""
     ethicml_model = LR()
 
     print("Encoding task dataset...")
     task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
     print("Encoding task train dataset...")
-    task_train_repr = encode_dataset(
-        args, data.task_train, model, recon=True, subdir="task_train"
-    )
+    task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
 
     repr = DatasetTriplet(
         pretrain=None,
