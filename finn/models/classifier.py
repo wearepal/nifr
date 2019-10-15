@@ -1,5 +1,7 @@
 from typing import Tuple
 
+from tqdm import trange
+
 import torch
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import MultiStepLR
@@ -165,9 +167,11 @@ class Classifier(ModelBase):
         if lr_milestones is not None:
             scheduler = MultiStepLR(optimizer=self.optimizer, **lr_milestones)
 
-        for epoch in range(epochs):
-            if verbose:
-                print(f"===> Epoch {epoch} of classifier training")
+        print("Training classifier...")
+        pbar = trange(epochs)
+        for epoch in pbar:
+            # if verbose:
+            #     print(f"===> Epoch {epoch} of classifier training")
 
             self.model.train()
 
@@ -187,7 +191,7 @@ class Classifier(ModelBase):
                 self.optimizer.step()
 
             if test_data is not None and verbose:
-                print(f"===> Testing classifier")
+                # print(f"===> Testing classifier")
 
                 self.model.eval()
                 avg_test_acc = 0.0
@@ -208,7 +212,11 @@ class Classifier(ModelBase):
 
                 avg_test_acc /= len(test_data)
 
-                print(f"Average test accuracy: {avg_test_acc:.2f}")
+                # print(f"Average test accuracy: {avg_test_acc:.2f}")
+                pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
+            else:
+                pbar.set_postfix(epoch=epoch + 1)
 
             if scheduler is not None:
                 scheduler.step(epoch)
+        pbar.close()

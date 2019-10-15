@@ -68,10 +68,10 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
     evaluate(
         args,
         experiment,
-        task_repr["zy"],
-        task_repr["zy"],
-        name="zy",
-        train_on_recon=False,
+        task_repr["xy"],
+        task_train_repr["xy"],
+        name="xy",
+        train_on_recon=True,
         pred_s=True,
         save_to_csv=save_to_csv,
     )

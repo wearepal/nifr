@@ -149,17 +149,17 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    metrics = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == "adult")
-    res_type = "s" if pred_s else "y"
-    res_type += "_on_recons" if train_on_recon else "_on_encodings"
-    print(f"Results for '{name}', {res_type}:")
+    full_name = name
+    full_name += "_s" if pred_s else "_y"
+    full_name += "_on_recons" if train_on_recon else "_on_encodings"
+    metrics = compute_metrics(experiment, preds, actual, full_name, run_all=args.dataset == "adult")
+    print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
 
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
-        res_type = "recon" if train_on_recon else "encoding"
-        results_path = save_to_csv / f"{name}_{res_type}_{args.results_csv}"
+        results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
         if results_path.is_file():
             with results_path.open("a") as f:
@@ -173,10 +173,17 @@ def evaluate(
 
 
 def encode_dataset(
-    args: Namespace, data: Dataset, model: BipartiteInn, recon: bool, subdir: str
+    args: Namespace,
+    data: Dataset,
+    model: BipartiteInn,
+    recon: bool,
+    subdir: str,
+    get_zy: bool = False,
 ) -> dict:
 
-    encodings = {"xy": [], "zy": []}
+    encodings = {"xy": []}
+    if get_zy:
+        encodings["zy"] = []
     all_s = []
     all_y = []
 
@@ -197,13 +204,15 @@ def encode_dataset(
                 xy = xy.clamp(min=0, max=1)
 
             encodings["xy"].append(xy.detach().cpu())
-            encodings["zy"].append(zy.detach().cpu())
+            if get_zy:
+                encodings["zy"].append(zy.detach().cpu())
 
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
     encodings["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
-    encodings["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
+    if get_zy:
+        encodings["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
 
     return encodings
 
