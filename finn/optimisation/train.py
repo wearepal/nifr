@@ -382,7 +382,9 @@ def main(args, datasets, metric_callback):
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
+    metric_callback(
+        ARGS, experiment=SUMMARY, model=inn, data=datasets, save_to_csv=Path(ARGS.save)
+    )
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
 
