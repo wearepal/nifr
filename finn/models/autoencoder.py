@@ -47,15 +47,15 @@ class AutoEncoder(nn.Module):
 
         self.train()
 
-        with trange(self.epochs) as pbar:
+        with trange(epochs) as pbar:
             for epoch in pbar:
 
                 for x, _, _ in train_data:
 
-                    x = x.to(self.device)
+                    x = x.to(device)
 
                     self.zero_grad()
                     loss = self.routine(x, loss_fn=loss_fn)
                     loss.backward()
                     self.step()
-                pbar.set_postfix(MSE_loss=loss)
+                pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())

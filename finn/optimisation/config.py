@@ -71,9 +71,9 @@ def parse_arguments(raw_args=None):
     )
     parser.add_argument("--levels", type=int, default=3)
     parser.add_argument("--level-depth", type=int, default=3)
-    parser.add_argument("--reshape-method", type=str, choices=["squeeze", "haar"], default="haar")
+    parser.add_argument("--reshape-method", type=str, choices=["squeeze", "haar"], default="squeeze")
     parser.add_argument("--coupling-channels", type=int, default=256)
-    parser.add_argument("--coupling-depth", type=int, default=2)
+    parser.add_argument("--coupling-depth", type=int, default=1)
     parser.add_argument("--glow", type=eval, default=True, choices=[True, False])
     parser.add_argument("--batch-norm", type=eval, default=False, choices=[True, False])
     parser.add_argument(
@@ -94,12 +94,12 @@ def parse_arguments(raw_args=None):
 
     # Auto-encoder settings
     parser.add_argument("--autoencode", type=eval, default=True, choices=[True, False])
-    parser.add_argument("--ae-levels", type=int, default=1)
+    parser.add_argument("--ae-levels", type=int, default=2)
     parser.add_argument("--ae-enc-dim", type=int, default=3)
     parser.add_argument("--ae-channels", type=int, default=64)
     parser.add_argument("--ae-epochs", type=int, default=3)
     parser.add_argument(
-        "--ae-loss", type=str, choices=["l1", "l2", "huber"], default="l1"
+        "--ae-loss", type=str, choices=["l1", "l2", "huber"], default="huber"
     )
 
     # Discriminator settings
@@ -163,6 +163,11 @@ def parse_arguments(raw_args=None):
         choices=[True, False],
         help="whether to use the comet.ml logging",
     )
-    parser.add_argument("--results-csv", "", help="name of CSV file to save results to")
+    parser.add_argument(
+        "--results-csv",
+        type=str,
+        default="",
+        help="name of CSV file to save results to",
+    )
 
     return parser.parse_args(raw_args)
