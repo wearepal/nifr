@@ -26,7 +26,7 @@ def _up_conv_block(in_channels, out_channels, kernel_size, stride, padding, outp
     )
 
 
-def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoded_dim):
+def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoded_dim, vae):
     encoder = []
     decoder = []
     c_in, h, w = input_shape
@@ -48,7 +48,9 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoded_dim):
         h //= 2
         w //= 2
 
-    encoder += [_down_conv_block(c_out, encoded_dim, kernel_size=3, stride=1, padding=1)]
+    encoder_out_dim = 2 * encoded_dim if vae else encoded_dim
+
+    encoder += [_down_conv_block(c_out, encoder_out_dim, kernel_size=3, stride=1, padding=1)]
     decoder += [_down_conv_block(encoded_dim, c_out, kernel_size=3, stride=1, padding=1)]
     decoder = decoder[::-1]
 
@@ -64,7 +66,7 @@ def _linear_block(in_channels, out_channels):
     return nn.Sequential(nn.SELU(), nn.Linear(in_channels, out_channels))
 
 
-def fc_autoencoder(input_shape, hidden_channels, levels, encoded_dim):
+def fc_autoencoder(input_shape, hidden_channels, levels, encoded_dim, vae):
     encoder = []
     decoder = []
 
@@ -76,7 +78,9 @@ def fc_autoencoder(input_shape, hidden_channels, levels, encoded_dim):
         decoder += [_linear_block(c_out, c_in)]
         c_in = c_out
 
-    encoder += [_linear_block(c_out, encoded_dim)]
+    encoder_out_dim = 2 * encoded_dim if vae else encoded_dim
+
+    encoder += [_linear_block(c_out, encoder_out_dim)]
     decoder += [_linear_block(encoded_dim, c_out)]
     decoder = decoder[::-1]
 
@@ -85,4 +89,4 @@ def fc_autoencoder(input_shape, hidden_channels, levels, encoded_dim):
 
     enc_shape = (encoded_dim,)
 
-    return encoded_dim, decoder, enc_shape
+    return encoder, decoder, enc_shape
