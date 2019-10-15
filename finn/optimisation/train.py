@@ -74,9 +74,10 @@ def train(inn, discriminator, dataloader, epoch):
 
         pred_s_weight = ARGS.pred_s_weight
         if ARGS.warmup_steps:
-            pred_s_weight = min(
-                (itr / ARGS.warmup_steps) * pred_s_weight, pred_s_weight
-            )
+            # pred_s_weight = min(
+            #     (itr / ARGS.warmup_steps) * pred_s_weight, pred_s_weight
+            # )
+            pred_s_weight = 0
 
         disc_loss *= pred_s_weight
 
@@ -312,6 +313,8 @@ def main(args, datasets, metric_callback):
         inn = PartitionedInn(**inn_kwargs)
         inn.to(args.device)
 
+    print(f"zs dim: {inn.zs_dim}")
+    print(f"zy dim: {inn.zy_dim}")
     # Initialise Discriminator
     dis_optimizer_kwargs = {"lr": args.disc_lr}
     discriminator = build_discriminator(

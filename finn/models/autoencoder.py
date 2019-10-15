@@ -1,3 +1,5 @@
+from tqdm import trange
+
 import torch.nn as nn
 
 from .base import ModelBase
@@ -24,7 +26,7 @@ class AutoEncoder(nn.Module):
     def decode(self, encoding):
         return self.decoder(encoding)
 
-    def forward(self, inputs, reverse=False):
+    def forward(self, inputs, reverse: bool = True):
         if reverse:
             return self.decode(inputs)
         else:
@@ -45,13 +47,15 @@ class AutoEncoder(nn.Module):
 
         self.train()
 
-        for epoch in range(epochs):
+        with trange(self.epochs) as pbar:
+            for epoch in pbar:
 
-            for x, _, _ in train_data:
+                for x, _, _ in train_data:
 
-                x = x.to(device)
+                    x = x.to(self.device)
 
-                self.zero_grad()
-                loss = self.routine(x, loss_fn=loss_fn)
-                loss.backward()
-                self.step()
+                    self.zero_grad()
+                    loss = self.routine(x, loss_fn=loss_fn)
+                    loss.backward()
+                    self.step()
+                pbar.set_postfix(MSE_loss=loss)
