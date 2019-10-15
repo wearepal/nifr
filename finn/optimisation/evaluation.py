@@ -1,27 +1,24 @@
 from pathlib import Path
 from typing import Optional, Dict
-import shutil
 from argparse import Namespace
-import torch.nn.functional as F
 import pandas as pd
-import torch
+import wandb
+
 from ethicml.algorithms.inprocess import LR
-from ethicml.evaluators.evaluate_models import run_metrics
+from ethicml.evaluators import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
-from ethicml.utility.data_structures import DataTuple
+from ethicml.utility import DataTuple
+
+import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
-from torchvision.utils import save_image
 
 from finn.data import get_data_tuples
-from finn.data.dataset_wrappers import TripletDataset
-from finn.data.misc import data_tuple_to_dataset_sample
 from finn.models.classifier import Classifier
-from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net, mp_32x32_net
 from finn.models.inn import BipartiteInn
 
 
-def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dict[str, float]:
+def compute_metrics(predictions, actual, name, step, run_all=False) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
@@ -39,35 +36,37 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dic
                 NMI(base="s"),
             ],
         )
-        experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
-        experiment.log_metric(f"{name} TPR", metrics["TPR"])
-        experiment.log_metric(f"{name} TNR", metrics["TNR"])
-        experiment.log_metric(f"{name} PPV", metrics["PPV"])
-        experiment.log_metric(f"{name} Theil_Index", metrics["Theil_Index"])
-        # experiment.log_metric(f"{name} TPR, metrics['Theil_Index'])
-        experiment.log_metric(f"{name} Theil|s=1", metrics["Theil_Index_sex_Male_1.0"])
-        experiment.log_metric(f"{name} Theil_Index", metrics["Theil_Index"])
-        experiment.log_metric(f"{name} P(Y=1|s=0)", metrics["prob_pos_sex_Male_0.0"])
-        experiment.log_metric(f"{name} P(Y=1|s=1)", metrics["prob_pos_sex_Male_1.0"])
-        experiment.log_metric(f"{name} Theil|s=1", metrics["Theil_Index_sex_Male_1.0"])
-        experiment.log_metric(f"{name} Theil|s=0", metrics["Theil_Index_sex_Male_0.0"])
-        experiment.log_metric(
-            f"{name} P(Y=1|s=0) Ratio s0/s1", metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]
+        wandb.log({f"{name} Accuracy": metrics["Accuracy"]}, step=step)
+        wandb.log({f"{name} TPR": metrics["TPR"]}, step=step)
+        wandb.log({f"{name} TNR": metrics["TNR"]}, step=step)
+        wandb.log({f"{name} PPV": metrics["PPV"]}, step=step)
+        wandb.log({f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
+        # wandb.log_metric(f"{name} TPR, metrics['Theil_Index'])
+        wandb.log({f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
+        wandb.log({f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"]}, step=step)
+        wandb.log({f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"]}, step=step)
+        wandb.log(
+            {f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]},
+            step=step,
         )
-        experiment.log_metric(
-            f"{name} P(Y=1|s=0) Diff s0-s1", metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]
+        wandb.log(
+            {f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]},
+            step=step,
         )
 
-        experiment.log_metric(f"{name} TPR|s=1", metrics["TPR_sex_Male_1.0"])
-        experiment.log_metric(f"{name} TPR|s=0", metrics["TPR_sex_Male_0.0"])
-        experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"])
-        experiment.log_metric(f"{name} TPR Diff s0-s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"])
+        wandb.log({f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"]}, step=step)
+        wandb.log({f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
 
-        experiment.log_metric(f"{name} PPV Ratio s0/s1", metrics["PPV_sex_Male_0.0/sex_Male_1.0"])
-        experiment.log_metric(f"{name} TNR Ratio s0/s1", metrics["TNR_sex_Male_0.0/sex_Male_1.0"])
+        wandb.log({f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
-        experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
+        wandb.log({f"{name} Accuracy": metrics["Accuracy"]}, step=step)
     return metrics
 
 
@@ -108,7 +107,7 @@ def make_tuple_from_data(train, test, pred_s):
 
 def evaluate(
     args,
-    experiment,
+    step,
     train_data,
     test_data,
     name,
@@ -152,7 +151,7 @@ def evaluate(
     full_name = name
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
-    metrics = compute_metrics(experiment, preds, actual, full_name, run_all=args.dataset == "adult")
+    metrics = compute_metrics(preds, actual, full_name, run_all=args.dataset == "adult", step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
@@ -168,6 +167,8 @@ def evaluate(
             with results_path.open("w") as f:
                 f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
+        for name, value in metrics.items():
+            wandb.run.summary[name] = value
 
     return metrics
 

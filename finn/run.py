@@ -2,16 +2,15 @@
 # import sys
 # from pathlib import Path
 
-import comet_ml
 import random
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import torch
-from ethicml.algorithms.inprocess.logistic_regression import LR
 from torch.utils.data import DataLoader
-from torchvision.utils import save_image
+
+from ethicml.algorithms.inprocess import LR
 
 from finn.data import DatasetTriplet, get_data_tuples, load_dataset
 from finn.optimisation.evaluation import evaluate, encode_dataset
@@ -31,13 +30,13 @@ def random_seed(seed_value, use_cuda) -> None:
         torch.backends.cudnn.benchmark = False
 
 
-def log_sample_images(experiment, data, name):
+def log_sample_images(data, name, step):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
-    x, s, y = next(iter(data_loader))
-    log_images(experiment, x, f"Samples from {name}", prefix="eval")
+    x, _, _ = next(iter(data_loader))
+    log_images(x, f"Samples from {name}", prefix="eval", step=step)
 
 
-def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Optional[Path] = None):
+def log_metrics(args, model, data, step, quick_eval=True, save_to_csv: Optional[Path] = None):
     """Compute and log a variety of metrics"""
     ethicml_model = LR()
 
@@ -57,7 +56,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
     print("\nComputing metrics...")
     evaluate(
         args,
-        experiment,
+        step,
         task_train_repr["xy"],
         task_repr["xy"],
         name="xy",
@@ -71,7 +70,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
     # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 
     if quick_eval:
-        log_sample_images(experiment, data.task_train, "task_train")
+        log_sample_images(data.task_train, "task_train", step=step)
     else:
 
         if args.dataset == "adult":
@@ -84,14 +83,12 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
                 output_dim=data.output_dim,
             )
 
-        experiment.log_other("evaluation model", ethicml_model.name)
-
         # ===========================================================================
 
-        evaluate(args, experiment, repr.task_train["zy"], repr.task["zy"], name="zy")
-        evaluate(args, experiment, repr.task_train["zs"], repr.task["zs"], name="zs")
-        evaluate(args, experiment, repr.task_train["xy"], repr.task["xy"], name="xy")
-        evaluate(args, experiment, repr.task_train["xs"], repr.task["xs"], name="xs")
+        evaluate(args, step, repr.task_train["zy"], repr.task["zy"], name="zy")
+        evaluate(args, step, repr.task_train["zs"], repr.task["zs"], name="zs")
+        evaluate(args, step, repr.task_train["xy"], repr.task["xy"], name="xy")
+        evaluate(args, step, repr.task_train["xs"], repr.task["xs"], name="xs")
 
 
 def main(raw_args=None) -> None:
