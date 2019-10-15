@@ -87,7 +87,7 @@ class VAE(AutoEncoder):
 
         return kld
 
-    def encode(self, x, stochastic=True, return_posterior=False):
+    def encode(self, x, stochastic=False, return_posterior=False):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
@@ -101,8 +101,8 @@ class VAE(AutoEncoder):
         else:
             return sample
 
-    def routine(self, x, recon_loss_fn, stochastic=True):
-        sample, posterior = self.encode(x, stochastic=stochastic, return_posterior=True)
+    def routine(self, x, recon_loss_fn):
+        sample, posterior = self.encode(x, stochastic=True, return_posterior=True)
         kld = self.compute_kl(sample, posterior)
         recon = self.decoder(sample)
         recon_loss = recon_loss_fn(recon, x)
