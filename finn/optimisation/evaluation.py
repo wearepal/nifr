@@ -185,7 +185,7 @@ def evaluate(
     metrics = compute_metrics(
         experiment, preds, actual, name, run_all=args.dataset == "adult"
     )
-    if save_to_csv and args.results_csv:
+    if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
         res_type = "recon" if train_on_recon else "encoding"
         results_path = save_to_csv / f"{name}_{res_type}_{args.results_csv}"
