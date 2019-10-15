@@ -14,7 +14,7 @@ do
 		--scale 0.02 --eval-epochs 40 --batch-size 128 \
 		--weight-decay 1e-6 --zs-frac 0.025 --padding 2 \
 		--autoencode True --ae-epochs 5 --ae-levels 2 \
-		--results-csv aelevels2_huber --epochs $epochs \
+		--results-csv aelevels2_huber.csv --epochs $epochs \
 		--reshape-method squeeze --ae-loss huber --val-freq 1 \
 		--scale $scale
 done
