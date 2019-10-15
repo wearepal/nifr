@@ -1,3 +1,4 @@
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -116,11 +117,12 @@ def fc_net(input_shape, target_dim, hidden_dims=None):
         return _block
 
     layers = [nn.Flatten()]
+    input_dim = int(np.product(input_shape))
 
     for output_dim in hidden_dims:
-        layers.extend(fc_block(input_shape[0], output_dim))
+        layers.extend(fc_block(input_dim, output_dim))
         input_dim = output_dim
 
-    layers.append(nn.Linear(input_shape[0], target_dim))
+    layers.append(nn.Linear(input_dim, target_dim))
 
     return nn.Sequential(*layers)

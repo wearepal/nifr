@@ -68,9 +68,6 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dic
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
-    for key, value in metrics.items():
-        print(f"\t\t{key}: {value:.4f}")
-    print()  # empty line
     return metrics
 
 
@@ -78,7 +75,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
     if train_on_recon or args.train_on_recon:
         clf = mp_32x32_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
-        clf = fc_net(input_dim, target_dim=args.y_dim)
+        clf = fc_net((input_dim,), target_dim=args.y_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
@@ -141,7 +138,7 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
         preds = pd.DataFrame(preds)
-        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(actual))
+        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(sens if pred_s else actual))
 
     else:
         if not isinstance(train_data, DataTuple):
@@ -152,12 +149,17 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    print("\nComputing metrics...")
-    metrics = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == "adult")
+    full_name = name
+    full_name += "_s" if pred_s else "_y"
+    full_name += "_on_recons" if train_on_recon else "_on_encodings"
+    metrics = compute_metrics(experiment, preds, actual, full_name, run_all=args.dataset == "adult")
+    print(f"Results for {full_name}:")
+    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
+    print()  # empty line
+
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
-        res_type = "recon" if train_on_recon else "encoding"
-        results_path = save_to_csv / f"{name}_{res_type}_{args.results_csv}"
+        results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
         if results_path.is_file():
             with results_path.open("a") as f:
@@ -171,10 +173,17 @@ def evaluate(
 
 
 def encode_dataset(
-    args: Namespace, data: Dataset, model: BipartiteInn, recon: bool, subdir: str
+    args: Namespace,
+    data: Dataset,
+    model: BipartiteInn,
+    recon: bool,
+    subdir: str,
+    get_zy: bool = False,
 ) -> dict:
 
     encodings = {"xy": []}
+    if get_zy:
+        encodings["zy"] = []
     all_s = []
     all_y = []
 
@@ -194,11 +203,16 @@ def encode_dataset(
             if x.dim() > 2:
                 xy = xy.clamp(min=0, max=1)
 
-            encodings["xy"].append(xy.cpu())
+            encodings["xy"].append(xy.detach().cpu())
+            if get_zy:
+                encodings["zy"].append(zy.detach().cpu())
 
-    encodings["xy"] = TensorDataset(
-        torch.cat(encodings["xy"], dim=0), torch.cat(all_s, dim=0), torch.cat(all_y, dim=0)
-    )
+    all_s = torch.cat(all_s, dim=0)
+    all_y = torch.cat(all_y, dim=0)
+
+    encodings["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
+    if get_zy:
+        encodings["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
 
     return encodings
 

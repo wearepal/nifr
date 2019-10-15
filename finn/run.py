@@ -54,6 +54,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
         output_dim=data.output_dim,
     )
 
+    print("\nComputing metrics...")
     evaluate(
         args,
         experiment,
