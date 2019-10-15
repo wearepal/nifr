@@ -72,12 +72,7 @@ def train(inn, discriminator, dataloader, epoch):
 
         nll *= ARGS.nll_weight
 
-        pred_s_weight = ARGS.pred_s_weight
-        if ARGS.warmup_steps:
-            # pred_s_weight = min(
-            #     (itr / ARGS.warmup_steps) * pred_s_weight, pred_s_weight
-            # )
-            pred_s_weight = 0
+        pred_s_weight = 0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
 
         disc_loss *= pred_s_weight
 
