@@ -109,3 +109,4 @@ venv.bak/
 # project-specific
 experiments/
 /data/
+wandb/

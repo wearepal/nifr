@@ -1,4 +1,4 @@
-from tqdm import trange
+from tqdm import tqdm
 
 import torch.nn as nn
 
@@ -47,8 +47,8 @@ class AutoEncoder(nn.Module):
 
         self.train()
 
-        with trange(epochs) as pbar:
-            for epoch in pbar:
+        with tqdm(total=epochs * len(train_data)) as pbar:
+            for epoch in range(epochs):
 
                 for x, _, _ in train_data:
 
@@ -58,4 +58,5 @@ class AutoEncoder(nn.Module):
                     loss = self.routine(x, loss_fn=loss_fn)
                     loss.backward()
                     self.step()
-                pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+                    pbar.update()
+                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
