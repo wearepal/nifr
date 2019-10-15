@@ -54,6 +54,7 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
         output_dim=data.output_dim,
     )
 
+    print("\nComputing metrics...")
     evaluate(
         args,
         experiment,
@@ -62,6 +63,16 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
         name="xy",
         train_on_recon=True,
         pred_s=False,
+        save_to_csv=save_to_csv,
+    )
+    evaluate(
+        args,
+        experiment,
+        task_repr["zy"],
+        task_repr["zy"],
+        name="zy",
+        train_on_recon=False,
+        pred_s=True,
         save_to_csv=save_to_csv,
     )
     # print("===> Predict y from xy")

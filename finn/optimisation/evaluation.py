@@ -68,9 +68,6 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dic
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
-    for key, value in metrics.items():
-        print(f"\t\t{key}: {value:.4f}")
-    print()  # empty line
     return metrics
 
 
@@ -152,8 +149,13 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    print("\nComputing metrics...")
     metrics = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == "adult")
+    res_type = "s" if pred_s else "y"
+    res_type += "_on_recons" if train_on_recon else "_on_encodings"
+    print(f"Results for '{name}', {res_type}:")
+    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
+    print()  # empty line
+
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
         res_type = "recon" if train_on_recon else "encoding"
