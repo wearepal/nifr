@@ -75,7 +75,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
     if train_on_recon or args.train_on_recon:
         clf = mp_32x32_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
-        clf = fc_net(input_dim, target_dim=args.y_dim)
+        clf = fc_net((input_dim,), target_dim=args.y_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
@@ -138,7 +138,7 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
         preds = pd.DataFrame(preds)
-        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(actual))
+        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(sens if pred_s else actual))
 
     else:
         if not isinstance(train_data, DataTuple):
@@ -176,7 +176,7 @@ def encode_dataset(
     args: Namespace, data: Dataset, model: BipartiteInn, recon: bool, subdir: str
 ) -> dict:
 
-    encodings = {"xy": []}
+    encodings = {"xy": [], "zy": []}
     all_s = []
     all_y = []
 
@@ -196,11 +196,14 @@ def encode_dataset(
             if x.dim() > 2:
                 xy = xy.clamp(min=0, max=1)
 
-            encodings["xy"].append(xy.cpu())
+            encodings["xy"].append(xy.detach().cpu())
+            encodings["zy"].append(zy.detach().cpu())
 
-    encodings["xy"] = TensorDataset(
-        torch.cat(encodings["xy"], dim=0), torch.cat(all_s, dim=0), torch.cat(all_y, dim=0)
-    )
+    all_s = torch.cat(all_s, dim=0)
+    all_y = torch.cat(all_y, dim=0)
+
+    encodings["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
+    encodings["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
 
     return encodings
 
