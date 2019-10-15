@@ -163,8 +163,6 @@ def parse_arguments(raw_args=None):
         choices=[True, False],
         help="whether to use the comet.ml logging",
     )
-    parser.add_argument(
-        "--save-to-csv", type=eval, default=False, choices=[True, False]
-    )
+    parser.add_argument("--results-csv", "", help="name of CSV file to save results to")
 
     return parser.parse_args(raw_args)

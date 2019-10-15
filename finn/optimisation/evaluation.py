@@ -1,6 +1,5 @@
-import os
-import os
 from pathlib import Path
+from typing import Optional, Dict
 import shutil
 from argparse import Namespace
 import torch.nn.functional as F
@@ -22,7 +21,9 @@ from finn.models.configs.classifiers import fc_net, mp_32x32_net
 from finn.models.inn import BipartiteInn
 
 
-def compute_metrics(experiment, predictions, actual, name, run_all=False):
+def compute_metrics(
+    experiment, predictions, actual, name, run_all=False
+) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
@@ -136,7 +137,14 @@ def make_tuple_from_data(train, test, pred_s):
 
 
 def evaluate(
-    args, experiment, train_data, test_data, name, train_on_recon=True, pred_s=False
+    args,
+    experiment,
+    train_data,
+    test_data,
+    name,
+    train_on_recon=True,
+    pred_s=False,
+    save_to_csv: Optional[Path] = None,
 ):
     input_dim = next(iter(train_data))[0].shape[0]
 
@@ -174,9 +182,23 @@ def evaluate(
         actual = test_data
 
     print("\nComputing metrics...")
-    _ = compute_metrics(
+    metrics = compute_metrics(
         experiment, preds, actual, name, run_all=args.dataset == "adult"
     )
+    if save_to_csv and args.results_csv:
+        assert isinstance(save_to_csv, Path)
+        res_type = "recon" if train_on_recon else "encoding"
+        results_path = save_to_csv / f"{name}_{res_type}_{args.results_csv}"
+        value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
+        if results_path.is_file():
+            with results_path.open("a") as f:
+                f.write(value_list + "\n")
+        else:
+            with results_path.open("w") as f:
+                f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
+                f.write(value_list + "\n")
+
+    return metrics
 
 
 def encode_dataset(

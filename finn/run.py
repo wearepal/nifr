@@ -4,6 +4,8 @@
 
 import comet_ml
 import random
+from pathlib import Path
+from typing import Optional
 
 import numpy as np
 import torch
@@ -35,7 +37,9 @@ def log_sample_images(experiment, data, name):
     log_images(experiment, x, f"Samples from {name}", prefix="eval")
 
 
-def log_metrics(args, experiment, model, data, quick_eval=True):
+def log_metrics(
+    args, experiment, model, data, quick_eval=True, save_to_csv: Optional[Path] = None
+):
     """Compute and log a variety of metrics"""
     ethicml_model = LR()
 
@@ -60,7 +64,9 @@ def log_metrics(args, experiment, model, data, quick_eval=True):
         task_train_repr["xy"],
         task_repr["xy"],
         name="xy",
+        train_on_recon=True,
         pred_s=False,
+        save_to_csv=save_to_csv,
     )
     # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
