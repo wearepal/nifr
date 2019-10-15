@@ -65,16 +65,6 @@ def log_metrics(args, experiment, model, data, quick_eval=True, save_to_csv: Opt
         pred_s=False,
         save_to_csv=save_to_csv,
     )
-    evaluate(
-        args,
-        experiment,
-        task_repr["xy"],
-        task_train_repr["xy"],
-        name="xy",
-        train_on_recon=True,
-        pred_s=True,
-        save_to_csv=save_to_csv,
-    )
     # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
     # print("===> Predict s from xy")
