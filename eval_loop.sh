@@ -12,9 +12,10 @@ do
 		--use-comet True --nll-weight 1e-2 --base-density normal \
 		--no-scaling False --data-pcnt 1 --val-freq 3 --super-val True \
 		--scale 0.02 --eval-epochs 40 --batch-size 128 \
-		--weight-decay 1e-6 --zs-frac 0.025 --padding 2 \
+		--weight-decay 1e-4 --zs-frac 0.025 --padding 2 \
 		--autoencode True --ae-epochs 5 --ae-levels 2 \
+		--ae-enc-dim 3
 		--results-csv aelevels2_huber.csv --epochs $epochs \
-		--reshape-method squeeze --ae-loss huber --val-freq 1 \
+		--reshape-method squeeze --ae-loss huber \
 		--scale $scale
 done

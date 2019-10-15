@@ -9,6 +9,7 @@ from torch.utils.data import DataLoader
 
 from finn.data import DatasetTriplet
 from finn.models import AutoEncoder
+from finn.models.autoencoder import VAE
 from finn.models.configs import conv_autoencoder, fc_autoencoder
 from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
@@ -253,6 +254,9 @@ def main(args, datasets, metric_callback):
 
     # Initialise INN
     if ARGS.autoencode:
+        if ARGS.vae:
+            ARGS.ae_enc_dim *= 2
+
         if is_image_data:
             encoder, decoder, enc_shape = conv_autoencoder(
                 input_shape, ARGS.ae_channels, encoded_dim=ARGS.ae_enc_dim, levels=ARGS.ae_levels
@@ -261,7 +265,11 @@ def main(args, datasets, metric_callback):
             encoder, decoder, enc_shape = fc_autoencoder(
                 input_shape, ARGS.ae_channels, encoded_dim=ARGS.ae_enc_dim, levels=ARGS.ae_levels
             )
-        autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
+
+        if ARGS.vae:
+            autoencoder = VAE(encoder=encoder, decoder=decoder, kl_weight=ARGS.kl_weight)
+        else:
+            autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
 
         inn_kwargs["input_shape"] = enc_shape
         inn_kwargs["autoencoder"] = autoencoder
