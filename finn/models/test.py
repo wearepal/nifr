@@ -60,5 +60,4 @@ clf.fit(
     epochs=30,
     device=torch.device("cpu"),
     pred_s=False,
-    verbose=True,
 )

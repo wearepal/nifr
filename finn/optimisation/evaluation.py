@@ -85,7 +85,6 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
         epochs=args.eval_epochs,
         device=args.device,
         pred_s=pred_s,
-        verbose=True,
     )
 
     return clf

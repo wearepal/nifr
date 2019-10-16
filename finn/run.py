@@ -2,11 +2,9 @@
 # import sys
 # from pathlib import Path
 
-import random
 from pathlib import Path
 from typing import Optional
 
-import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -17,17 +15,7 @@ from finn.optimisation.evaluation import evaluate, encode_dataset
 from finn.optimisation.train import main as training_loop
 from finn.optimisation.config import parse_arguments
 from finn.optimisation.utils import log_images
-
-
-def random_seed(seed_value, use_cuda) -> None:
-    np.random.seed(seed_value)  # cpu vars
-    torch.manual_seed(seed_value)  # cpu  vars
-    random.seed(seed_value)  # Python
-    if use_cuda:
-        torch.cuda.manual_seed(seed_value)
-        torch.cuda.manual_seed_all(seed_value)  # gpu vars
-        torch.backends.cudnn.deterministic = True  # needed
-        torch.backends.cudnn.benchmark = False
+from finn.utils import random_seed
 
 
 def log_sample_images(data, name, step):

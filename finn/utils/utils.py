@@ -1,5 +1,8 @@
 import os
 import logging
+import random
+
+import numpy as np
 import torch
 
 
@@ -117,3 +120,14 @@ def save_checkpoint(state, save, epoch):
 def count_parameters(model):
     """Count all parameters (that have a gradient) in the given model"""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+def random_seed(seed_value, use_cuda) -> None:
+    np.random.seed(seed_value)  # cpu vars
+    torch.manual_seed(seed_value)  # cpu  vars
+    random.seed(seed_value)  # Python
+    if use_cuda:
+        torch.cuda.manual_seed(seed_value)
+        torch.cuda.manual_seed_all(seed_value)  # gpu vars
+        torch.backends.cudnn.deterministic = True  # needed
+        torch.backends.cudnn.benchmark = False

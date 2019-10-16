@@ -4,7 +4,7 @@ from typing import Optional
 from ethicml.data import Adult
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, CelebA
 
 from finn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
 from finn.data.transforms import LdColorizer
@@ -32,13 +32,13 @@ def load_dataset(args) -> DatasetTriplet:
             data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
         if args.padding > 0:
             base_aug.insert(0, transforms.Pad(args.padding))
-
         train_data = MNIST(root=args.root, download=True, train=True)
         pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
-            scale=args.scale, background=args.background, black=args.black, binarize=args.binarize
+            scale=args.scale, background=args.background, black=args.black,
+            binarize=args.binarize, greyscale=args.greyscale
         )
 
         pretrain_data = LdAugmentedDataset(
@@ -71,7 +71,12 @@ def load_dataset(args) -> DatasetTriplet:
         args.y_dim = 10
         args.s_dim = 10
 
-    else:
+    elif args.dataset == 'celeba':
+        train_data = CelebA(root=args.root, download=True, split="train")
+        pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
+        test_data = CelebA(root=args.root, download=True, split="test")
+
+    elif args.dataset == "adult":
         pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
         source_dataset = Adult()
         pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
