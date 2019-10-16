@@ -1,4 +1,5 @@
 import torch.distributions as td
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import trange
@@ -69,11 +70,13 @@ class VAE(AutoEncoder):
         self.posterior_fn = td.Normal
         self.kl_weight = kl_weight
 
-    def compute_kl(self, sample, posterior):
+    def compute_kl(self, sample, posterior: td.Distribution):
         log_p = self.prior.log_prob(sample)
         log_q = posterior.log_prob(sample)
 
         kld = log_q.sum() - log_p.sum()
+
+        kld /= sample[0].nelement()
 
         return kld
 
