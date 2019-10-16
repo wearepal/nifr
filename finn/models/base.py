@@ -28,11 +28,5 @@ class ModelBase(nn.Module):
     def zero_grad(self):
         self.optimizer.zero_grad()
 
-    def train(self, *args):
-        self.model.train()
-
-    def eval(self):
-        self.model.eval()
-
     def forward(self, inputs):
         return self.model(inputs)

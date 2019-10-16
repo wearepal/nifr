@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from comet_ml import Experiment
 from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models import AutoEncoder
@@ -47,6 +48,7 @@ def restore_model(filename, model, discriminator):
 
 def train(inn, discriminator, dataloader, epoch):
     inn.train()
+    inn.eval()
 
     total_loss_meter = utils.AverageMeter()
     log_prob_meter = utils.AverageMeter()
@@ -98,12 +100,12 @@ def train(inn, discriminator, dataloader, epoch):
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                log_images(SUMMARY, x, "original_x")
 
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
+                log_images(SUMMARY, x[:64], "original_x")
                 log_images(SUMMARY, recon_all, "reconstruction_all")
                 log_images(SUMMARY, recon_y, "reconstruction_y")
                 log_images(SUMMARY, recon_s, "reconstruction_s")
