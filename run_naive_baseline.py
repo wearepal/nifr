@@ -70,7 +70,8 @@ def parse_arguments():
     parser.add_argument("--root", type=str, default="finn/data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
-    parser.add_argument("--save", type=str, default="finn/baselines/experiments")
+    parser.add_argument("--save", type=str,
+                        default=r"C:\Users\Myles\PycharmProjects\Fair-Invertible-Networks\finn\baselines\experiments")
 
     return parser.parse_args()
 
@@ -132,8 +133,11 @@ if __name__ == "__main__":
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()
 
-    save_to_csv = Path(args.save)
-    if save_to_csv is not None:
+    if args.save is not None:
+        save_to_csv = Path(args.save)
+        if not save_to_csv.exists():
+            save_to_csv.mkdir(exist_ok=True)
+
         assert isinstance(save_to_csv, Path)
         results_path = save_to_csv / full_name
         value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
