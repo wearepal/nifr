@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from finn.data import get_data_tuples
 from finn.models.classifier import Classifier
-from finn.models.configs.classifiers import fc_net, mp_32x32_net
+from finn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
 from finn.models.inn import BipartiteInn
 
 
@@ -71,8 +71,12 @@ def compute_metrics(predictions, actual, name, step, run_all=False) -> Dict[str,
 
 
 def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_data=None):
-    if train_on_recon or args.train_on_recon:
-        clf = mp_32x32_net(input_dim=input_dim, target_dim=args.y_dim)
+    if train_on_recon:
+        if args.dataset == "cmnist":
+            clf_fn = mp_32x32_net
+        else:
+            clf_fn = mp_64x64_net
+        clf = clf_fn(input_dim=input_dim, target_dim=args.y_dim)
     else:
         clf = fc_net((input_dim,), target_dim=args.y_dim)
 

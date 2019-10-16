@@ -40,7 +40,9 @@ class AutoEncoder(nn.Module):
         self.decoder.step()
 
     def routine(self, inputs, loss_fn):
-        return loss_fn(self.decoder(self.encoder(inputs)), inputs)
+        encoding = self.encoder(inputs)
+        decoding = self.decoder(encoding)
+        return loss_fn(decoding, inputs)
 
     def fit(self, train_data, epochs, device, loss_fn=nn.MSELoss()):
 
