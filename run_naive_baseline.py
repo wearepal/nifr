@@ -70,8 +70,7 @@ def parse_arguments():
     parser.add_argument("--root", type=str, default="finn/data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
-    parser.add_argument("--save", type=str,
-                        default=r"C:\Users\Myles\PycharmProjects\Fair-Invertible-Networks\finn\baselines\experiments")
+    parser.add_argument("--save", type=str, default="baselines/experiments")
 
     return parser.parse_args()
 
