@@ -4,7 +4,7 @@ from typing import Optional
 from ethicml.data import Adult
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
-from torchvision.datasets import MNIST, CelebA
+from torchvision.datasets import MNIST
 
 from finn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
 from finn.data.transforms import LdColorizer
@@ -74,11 +74,6 @@ def load_dataset(args) -> DatasetTriplet:
         args.y_dim = 10
         args.s_dim = 10
 
-    elif args.dataset == "celeba":
-        train_data = CelebA(root=args.root, download=True, split="train")
-        pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
-        test_data = CelebA(root=args.root, download=True, split="test")
-
     elif args.dataset == "adult":
         pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
         source_dataset = Adult()
@@ -93,6 +88,8 @@ def load_dataset(args) -> DatasetTriplet:
             pretrain_data.shrink(args.data_pcnt)
             train_data.shrink(args.data_pcnt)
             test_data.shrink(args.data_pcnt)
+    else:
+        raise ValueError("Invalid choice of dataset.")
 
     return DatasetTriplet(
         pretrain=pretrain_data,
