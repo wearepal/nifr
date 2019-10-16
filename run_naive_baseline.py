@@ -59,7 +59,7 @@ def parse_arguments():
     parser.add_argument("--greyscale", type=eval, choices=[True, False], default=True)
 
     # Optimization settings
-    parser.add_argument("--epochs", type=int, default=0)
+    parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--batch-size", type=int, default=128)
     parser.add_argument("--test-batch-size", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=1e-3)
@@ -70,7 +70,7 @@ def parse_arguments():
     parser.add_argument("--root", type=str, default="finn/data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
-    parser.add_argument("--save", type=str, default="baselines/experiments")
+    parser.add_argument("--save", type=str, default="finn/baselines/experiments")
 
     return parser.parse_args()
 
