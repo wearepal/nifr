@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 import wandb
 from torch.utils.data import DataLoader
+from torchvision.utils import save_image
 
 from finn.data import DatasetTriplet
 from finn.models import AutoEncoder
@@ -45,6 +46,7 @@ def restore_model(filename, model, discriminator):
 
 def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
+    inn.eval()
 
     total_loss_meter = utils.AverageMeter()
     log_prob_meter = utils.AverageMeter()
@@ -95,8 +97,6 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                log_images(x, "original_x", step=itr)
-
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
@@ -104,6 +104,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
                 log_images(recon_all, "reconstruction_all", step=itr)
                 log_images(recon_y, "reconstruction_y", step=itr)
                 log_images(recon_s, "reconstruction_s", step=itr)
+                log_images(x[:64], "original_x", step=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(

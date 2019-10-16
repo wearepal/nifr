@@ -12,14 +12,6 @@ class AutoEncoder(nn.Module):
         self.encoder: ModelBase = ModelBase(encoder, optimizer_args=optimizer_args)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_args=optimizer_args)
 
-    def train(self):
-        self.encoder.train()
-        self.decoder.train()
-
-    def eval(self):
-        self.encoder.eval()
-        self.decoder.eval()
-
     def encode(self, inputs):
         return self.encoder(inputs)
 
@@ -83,7 +75,6 @@ class VAE(AutoEncoder):
         log_q = posterior.log_prob(sample)
 
         kld = log_q.sum() - log_p.sum()
-        kld /= sample.size(0)
 
         return kld
 
