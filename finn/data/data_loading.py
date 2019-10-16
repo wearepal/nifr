@@ -85,14 +85,14 @@ def load_dataset(args) -> DatasetTriplet:
             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
         ])
 
-        pretrain_data = CelebA(args.root, download=False, split="valid", transform=transform)
-        train_data = CelebA(args.root, download=False, split="valid", transform=transform)
-        test_data = CelebA(args.root, download=False, split="test", transform=transform)
+        pretrain_data = CelebA(args.root, download=True, split="valid", transform=transform)
+        train_data = CelebA(args.root, download=True, split="valid", transform=transform)
+        test_data = CelebA(args.root, download=True, split="test", transform=transform)
 
         args.y_dim = 1
         args.s_dim = 1
 
-    elif args.dataset == "adult":
+    else:
         pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
         source_dataset = Adult()
         pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
