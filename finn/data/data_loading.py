@@ -37,8 +37,11 @@ def load_dataset(args) -> DatasetTriplet:
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
-            scale=args.scale, background=args.background, black=args.black,
-            binarize=args.binarize, greyscale=args.greyscale
+            scale=args.scale,
+            background=args.background,
+            black=args.black,
+            binarize=args.binarize,
+            greyscale=args.greyscale,
         )
 
         pretrain_data = LdAugmentedDataset(
@@ -71,7 +74,7 @@ def load_dataset(args) -> DatasetTriplet:
         args.y_dim = 10
         args.s_dim = 10
 
-    elif args.dataset == 'celeba':
+    elif args.dataset == "celeba":
         train_data = CelebA(root=args.root, download=True, split="train")
         pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
         test_data = CelebA(root=args.root, download=True, split="test")

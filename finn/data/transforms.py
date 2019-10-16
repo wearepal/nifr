@@ -138,8 +138,14 @@ class LdColorizer(LdAugmentation):
     __constants__ = ["color_space", "binarize", "black", "background", "seed"]
 
     def __init__(
-        self, scale=0.02, binarize=False, color_space="rgb", background=False,
-        black=True, seed=42, greyscale=False,
+        self,
+        scale=0.02,
+        binarize=False,
+        color_space="rgb",
+        background=False,
+        black=True,
+        seed=42,
+        greyscale=False,
     ):
         super(LdColorizer, self).__init__()
         self.scale = scale
