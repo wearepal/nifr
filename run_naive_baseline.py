@@ -67,10 +67,10 @@ def parse_arguments():
 
     # Misc settings
     parser.add_argument("--pred-s", type=eval, default=False, choices=[True, False])
-    parser.add_argument("--root", type=str, default="../data")
+    parser.add_argument("--root", type=str, default="finn/data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
-    parser.add_argument("--save", type=str, default="experiments")
+    parser.add_argument("--save", type=str, default="finn/baselines/experiments")
 
     return parser.parse_args()
 
