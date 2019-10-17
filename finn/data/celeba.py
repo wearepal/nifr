@@ -5,13 +5,17 @@ import os
 from PIL import Image
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import (
-    verify_str_arg, check_integrity, download_file_from_google_drive
+    verify_str_arg,
+    check_integrity,
+    download_file_from_google_drive,
 )
 from torchvision.transforms import ToTensor
 
 
 class CelebA(VisionDataset):
-    """`Large-scale CelebFaces Attributes (CelebA) Dataset <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>`_ Dataset.
+    """Large-scale CelebFaces Attributes (CelebA) Dataset
+
+    <http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html>
     Adapted from torchvision.datasets to enable the loading of data triplets
     while removing superfluous (for our purposes) elements of the dataset.
 
@@ -34,40 +38,48 @@ class CelebA(VisionDataset):
     base_folder = "celeba"
 
     file_list = [
-        # File ID                         MD5 Hash                            Filename
-        ("0B7EVK8r0v71pZjFTYXZWM3FlRnM", "00d2c5bc6d35e252742224ab0c1e8fcb", "img_align_celeba.zip"),
-        ("0B7EVK8r0v71pblRyaVFSWGxPY0U", "75e246fa4810816ffd6ee81facbd244c", "list_attr_celeba.txt"),
+        (
+            "0B7EVK8r0v71pZjFTYXZWM3FlRnM",  # File ID
+            "00d2c5bc6d35e252742224ab0c1e8fcb",  # MD5 Hash
+            "img_align_celeba.zip",  # Filename
+        ),
+        (
+            "0B7EVK8r0v71pblRyaVFSWGxPY0U",
+            "75e246fa4810816ffd6ee81facbd244c",
+            "list_attr_celeba.txt",
+        ),
     ]
 
-    def __init__(self, root, split="train",
-                 sens_attr="Male",
-                 target_attr="Attractive",
-                 transform=None,
-                 target_transform=None,
-                 download=False):
+    def __init__(
+        self,
+        root,
+        split="train",
+        sens_attr="Male",
+        target_attr="Attractive",
+        transform=None,
+        target_transform=None,
+        download=False,
+    ):
         import pandas
-        super(CelebA, self).__init__(root, transform=transform,
-                                     target_transform=target_transform)
+
+        super(CelebA, self).__init__(root, transform=transform, target_transform=target_transform)
         self.split = split
 
         if download:
             self.download()
 
         if not self._check_integrity():
-            raise RuntimeError('Dataset not found or corrupted.' +
-                               ' You can use download=True to download it')
+            raise RuntimeError(
+                "Dataset not found or corrupted." + " You can use download=True to download it"
+            )
 
-        split_map = {
-            "train": 0,
-            "valid": 1,
-            "test": 2,
-            "all": None,
-        }
-        split = split_map[verify_str_arg(split.lower(), "split",
-                                         ("train", "valid", "test", "all"))]
+        split_map = {"train": 0, "valid": 1, "test": 2, "all": None}
+        split = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
 
         fn = partial(os.path.join, self.root, self.base_folder)
-        splits = pandas.read_csv(fn("list_eval_partition.txt"), delim_whitespace=True, header=None, index_col=0)
+        splits = pandas.read_csv(
+            fn("list_eval_partition.txt"), delim_whitespace=True, header=None, index_col=0
+        )
         attr = pandas.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
         attr_names = list(attr.columns)
 
@@ -107,17 +119,23 @@ class CelebA(VisionDataset):
         import zipfile
 
         if self._check_integrity():
-            print('Files already downloaded and verified')
+            print("Files already downloaded and verified")
             return
 
         for (file_id, md5, filename) in self.file_list:
-            download_file_from_google_drive(file_id, os.path.join(self.root, self.base_folder), filename, md5)
+            download_file_from_google_drive(
+                file_id, os.path.join(self.root, self.base_folder), filename, md5
+            )
 
-        with zipfile.ZipFile(os.path.join(self.root, self.base_folder, "img_align_celeba.zip"), "r") as f:
+        with zipfile.ZipFile(
+            os.path.join(self.root, self.base_folder, "img_align_celeba.zip"), "r"
+        ) as f:
             f.extractall(os.path.join(self.root, self.base_folder))
 
     def __getitem__(self, index):
-        X = Image.open(os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index]))
+        X = Image.open(
+            os.path.join(self.root, self.base_folder, "img_align_celeba", self.filename[index])
+        )
         S = self.sens_attr[index]
         target = self.target_attr[index]
 
@@ -134,20 +152,17 @@ class CelebA(VisionDataset):
 
     def extra_repr(self):
         lines = ["Target type: {target_type}", "Split: {split}"]
-        return '\n'.join(lines).format(**self.__dict__)
+        return "\n".join(lines).format(**self.__dict__)
 
 
 if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
-    train_data = CelebA(root=r"..\..\..\datasets",
-                        split="train",
-                        download=False,
-                        transform=ToTensor())
+    train_data = CelebA(
+        root=r"..\..\..\datasets", split="train", download=False, transform=ToTensor()
+    )
 
     train_loader = DataLoader(train_data, batch_size=9)
     x, s, y = next(iter(train_loader))
     assert x.size(0) == 9
     assert x.size(0) == s.size(0) == y.size(0)
-
-

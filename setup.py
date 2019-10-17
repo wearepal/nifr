@@ -16,6 +16,7 @@ setup(
         "tqdm >= 4.31",
         "torch >= 1.2",
         "scipy >= 1.2.1",
-        "torchvision >= 0.4.0", 'PIL'
+        "torchvision >= 0.4.0",
+        "PIL",
     ],
 )

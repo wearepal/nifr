@@ -78,12 +78,14 @@ def load_dataset(args) -> DatasetTriplet:
     elif args.dataset == "celeba":
 
         image_size = 64
-        transform = transforms.Compose([
-            transforms.Resize(image_size),
-            transforms.CenterCrop(image_size),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-        ])
+        transform = transforms.Compose(
+            [
+                transforms.Resize(image_size),
+                transforms.CenterCrop(image_size),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
 
         pretrain_data = CelebA(args.root, download=True, split="valid", transform=transform)
         train_data = CelebA(args.root, download=True, split="valid", transform=transform)
@@ -92,7 +94,7 @@ def load_dataset(args) -> DatasetTriplet:
         args.y_dim = 1
         args.s_dim = 1
 
-    else:
+    elif args.dataset == "adult":
         pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
         source_dataset = Adult()
         pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
