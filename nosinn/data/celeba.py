@@ -1,5 +1,5 @@
 from functools import partial
-
+import pandas as pd
 import torch
 import os
 from PIL import Image
@@ -10,6 +10,9 @@ from torchvision.datasets.utils import (
     download_file_from_google_drive,
 )
 from torchvision.transforms import ToTensor
+
+from ethicml.preprocessing import get_biased_subset
+from ethicml.utility import DataTuple
 
 
 class CelebA(VisionDataset):
@@ -58,17 +61,16 @@ class CelebA(VisionDataset):
     def __init__(
         self,
         root,
-        split="train",
+        biased,
+        mixing_factor,
+        unbiased_pcnt,
         sens_attr="Male",
         target_attr="Attractive",
         transform=None,
         target_transform=None,
         download=False,
     ):
-        import pandas
-
         super(CelebA, self).__init__(root, transform=transform, target_transform=target_transform)
-        self.split = split
 
         if download:
             self.download()
@@ -78,14 +80,11 @@ class CelebA(VisionDataset):
                 "Dataset not found or corrupted." + " You can use download=True to download it"
             )
 
-        split_map = {"train": 0, "valid": 1, "test": 2, "all": None}
-        split = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
-
         fn = partial(os.path.join, self.root, self.base_folder)
-        splits = pandas.read_csv(
-            fn("list_eval_partition.txt"), delim_whitespace=True, header=None, index_col=0
+        filename = pd.read_csv(
+            fn("list_eval_partition.txt"), delim_whitespace=True, header=None
         )
-        attr = pandas.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
+        attr = pd.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
         attr_names = list(attr.columns)
 
         sens_attr = sens_attr.capitalize()
@@ -96,16 +95,23 @@ class CelebA(VisionDataset):
         if target_attr not in attr_names:
             raise ValueError(f"{target_attr} does not exist as an attribute.")
 
-        mask = slice(None) if split is None else (splits[1] == split)
+        filename = pd.DataFrame(filename.iloc[:, 0]).reset_index(drop=True)
+        sens_attr = attr[[sens_attr]].reset_index(drop=True)
+        target_attr = attr[[target_attr]].reset_index(drop=True)
 
-        self.filename = splits[mask].index.values
-        sens_attr = attr[sens_attr]
-        target_attr = attr[target_attr]
+        dtuple = DataTuple(x=filename, s=sens_attr, y=target_attr)
+        biased, unbiased = get_biased_subset(data=dtuple, mixing_factor=mixing_factor, unbiased_pcnt=unbiased_pcnt)
 
-        self.sens_attr = torch.as_tensor(sens_attr[mask].values)
+        if self.biased:
+            filename, sens_attr, target_attr = biased
+        else:
+            filename, sens_attr, target_attr = unbiased
+
+        self.filename = filename.values
+        self.sens_attr = torch.as_tensor(sens_attr.values)
         self.sens_attr = (self.sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
-        self.target_attr = torch.as_tensor(target_attr[mask].values)
+        self.target_attr = torch.as_tensor(target_attr.values)
         self.target_attr = (self.target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
     def _check_integrity(self):
@@ -164,10 +170,11 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
 
     train_data = CelebA(
-        root=r"..\..\..\datasets", split="train", download=False, transform=ToTensor()
+        root=r"./data", biased=True, mixing_factor=0, unbiased_pcnt=0.4, download=False, transform=ToTensor()
     )
 
     train_loader = DataLoader(train_data, batch_size=9)
     x, s, y = next(iter(train_loader))
+
     assert x.size(0) == 9
     assert x.size(0) == s.size(0) == y.size(0)
