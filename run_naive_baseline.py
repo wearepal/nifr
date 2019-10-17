@@ -97,10 +97,10 @@ if __name__ == "__main__":
     else:
         classifier_fn = mp_64x64_net
 
-    train_loader = DataLoader(train_data, batch_size=args.batch_size,
-                              pin_memory=True, shuffle=True)
-    test_loader = DataLoader(test_data, batch_size=args.test_batch_size,
-                             pin_memory=True, shuffle=False)
+    train_loader = DataLoader(train_data, batch_size=args.batch_size, pin_memory=True, shuffle=True)
+    test_loader = DataLoader(
+        test_data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False
+    )
 
     input_shape = get_data_dim(train_loader)
     target_dim = args.s_dim if args.pred_s else args.y_dim
@@ -108,16 +108,12 @@ if __name__ == "__main__":
     classifier: Classifier = Classifier(
         classifier_fn(input_shape[0], target_dim),
         num_classes=target_dim,
-        optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay}
+        optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
     )
     classifier.to(args.device)
 
     classifier.fit(
-        train_loader,
-        test_data=test_loader,
-        epochs=args.epochs,
-        device=args.device,
-        pred_s=False,
+        train_loader, test_data=test_loader, epochs=args.epochs, device=args.device, pred_s=False
     )
 
     preds, ground_truths, sens = classifier.predict_dataset(test_data, device=args.device)
