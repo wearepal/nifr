@@ -8,7 +8,6 @@ setup(
     description="Invertible Networks for Learning Fair Representations",
     python_requires=">=3.6",
     install_requires=[
-        "comet-ml >= 1.0.51",
         "numpy >= 1.15",
         "pandas >= 0.24",
         "scikit-learn >= 0.20",

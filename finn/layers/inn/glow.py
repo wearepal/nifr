@@ -99,7 +99,7 @@ class Invertible1x1Conv(Bijector):
 class InvertibleLinear(Bijector):
     def __init__(self, dim):
         super(InvertibleLinear, self).__init__()
-        self.weight = nn.Parameter(torch.eye(dim))
+        self.weight = nn.Parameter(torch.eye(dim), requires_grad=True)
 
     def logdetjac(self):
         return torch.log(torch.abs(torch.det(self.weight.double()))).float()
