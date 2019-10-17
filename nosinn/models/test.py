@@ -5,11 +5,11 @@ from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 from torchvision.utils import save_image
 
-from finn.data import LdColorizer
-from finn.data.dataset_wrappers import LdAugmentedDataset
-from finn.data.misc import shrink_dataset
-from finn.models import Classifier
-from finn.models.configs import fc_net, mp_28x28_net
+from nosinn.data import LdColorizer
+from nosinn.data.dataset_wrappers import LdAugmentedDataset
+from nosinn.data.misc import shrink_dataset
+from nosinn.models import Classifier
+from nosinn.models.configs import fc_net, mp_28x28_net
 import torch.nn.functional as F
 
 train = MNIST(root="data", download=True, train=True, transform=ToTensor())

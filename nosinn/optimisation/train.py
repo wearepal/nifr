@@ -8,14 +8,19 @@ import wandb
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
-from finn.data import DatasetTriplet
-from finn.models import AutoEncoder
-from finn.models.autoencoder import VAE
-from finn.models.configs import conv_autoencoder, fc_autoencoder
-from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
-from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
-from finn.models.inn import PartitionedInn, PartitionedAeInn
-from finn.utils import utils
+from nosinn.data import DatasetTriplet
+from nosinn.models import AutoEncoder
+from nosinn.models.autoencoder import VAE
+from nosinn.models.configs import conv_autoencoder, fc_autoencoder
+from nosinn.models.configs.classifiers import (
+    fc_net,
+    linear_disciminator,
+    mp_32x32_net,
+    mp_64x64_net,
+)
+from nosinn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
+from nosinn.models.inn import PartitionedInn, PartitionedAeInn
+from nosinn.utils import utils
 from .loss import grad_reverse, PixelCrossEntropy
 from .utils import get_data_dim, log_images
 

@@ -6,7 +6,7 @@ from ethicml.algorithms.inprocess import LR, SVM, Majority, Kamiran, Agarwal
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, CV, Theil, TPR, ProbPos, NMI, TNR, PPV
 
-from finn.data.data_loading import load_adult_data
+from nosinn.data.data_loading import load_adult_data
 
 
 def main():

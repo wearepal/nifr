@@ -10,12 +10,12 @@ from torch.utils.data import DataLoader
 
 from ethicml.algorithms.inprocess import LR
 
-from finn.data import DatasetTriplet, get_data_tuples, load_dataset
-from finn.optimisation.evaluation import evaluate, encode_dataset
-from finn.optimisation.train import main as training_loop
-from finn.optimisation.config import parse_arguments
-from finn.optimisation.utils import log_images
-from finn.utils import random_seed
+from nosinn.data import DatasetTriplet, get_data_tuples, load_dataset
+from nosinn.optimisation.evaluation import evaluate, encode_dataset
+from nosinn.optimisation.train import main as training_loop
+from nosinn.optimisation.config import parse_arguments
+from nosinn.optimisation.utils import log_images
+from nosinn.utils import random_seed
 
 
 def log_sample_images(data, name, step):

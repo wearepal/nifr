@@ -12,10 +12,10 @@ from ethicml.utility import DataTuple
 import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 
-from finn.data import get_data_tuples
-from finn.models.classifier import Classifier
-from finn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from finn.models.inn import BipartiteInn
+from nosinn.data import get_data_tuples
+from nosinn.models.classifier import Classifier
+from nosinn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from nosinn.models.inn import BipartiteInn
 
 
 def compute_metrics(predictions, actual, name, step, run_all=False) -> Dict[str, float]:

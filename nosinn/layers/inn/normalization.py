@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn import Parameter
 
-from finn.utils import sum_except_batch, is_positive_int
+from nosinn.utils import sum_except_batch, is_positive_int
 from .misc import Bijector
 
 __all__ = ["MovingBatchNorm1d", "MovingBatchNorm2d", "ActNorm"]

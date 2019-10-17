@@ -7,8 +7,8 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 
 from .celeba import CelebA
-from finn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
-from finn.data.transforms import LdColorizer
+from nosinn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
+from nosinn.data.transforms import LdColorizer
 from .adult import load_adult_data
 
 

@@ -17,6 +17,6 @@ setup(
         "torch >= 1.2",
         "scipy >= 1.2.1",
         "torchvision >= 0.4.0",
-        "PIL",
+        "pillow",
     ],
 )

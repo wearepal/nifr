@@ -1,7 +1,7 @@
 import numpy as np
 
-from finn import layers
-from finn.models.classifier import Classifier
+from nosinn import layers
+from nosinn.models.classifier import Classifier
 
 
 def build_fc_inn(args, input_shape, level_depth: int = None):

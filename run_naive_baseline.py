@@ -8,11 +8,11 @@ from ethicml.metrics import Accuracy
 from ethicml.utility import DataTuple
 from torch.utils.data import DataLoader
 
-from finn.data import load_dataset
-from finn.models import Classifier
-from finn.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
-from finn.optimisation import get_data_dim
-from finn.utils import random_seed
+from nosinn.data import load_dataset
+from nosinn.models import Classifier
+from nosinn.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net
+from nosinn.optimisation import get_data_dim
+from nosinn.utils import random_seed
 
 
 def parse_arguments():

@@ -15,8 +15,8 @@ from torch.utils.data import Dataset
 
 import torchvision.transforms as transforms
 
-from finn.data import load_dataset
-from finn.utils import random_seed
+from nosinn.data import load_dataset
+from nosinn.utils import random_seed
 
 
 def restricted_float(x):

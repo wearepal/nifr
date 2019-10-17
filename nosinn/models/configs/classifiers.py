@@ -2,7 +2,7 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-from finn.layers.resnet import ResidualNet, ConvResidualNet
+from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
 
 def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
