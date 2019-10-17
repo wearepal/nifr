@@ -138,13 +138,21 @@ class LdColorizer(LdAugmentation):
     __constants__ = ["color_space", "binarize", "black", "background", "seed"]
 
     def __init__(
-        self, scale=0.02, binarize=False, color_space="rgb", background=False, black=True, seed=42
+        self,
+        scale=0.02,
+        binarize=False,
+        color_space="rgb",
+        background=False,
+        black=True,
+        seed=42,
+        greyscale=False,
     ):
         super(LdColorizer, self).__init__()
         self.scale = scale
         self.binarize = binarize
         self.background = background
         self.black = black
+        self.greyscale = greyscale
 
         # create a local random state that won't affect the global random state of the training
         self.random_state = np.random.RandomState(seed)
@@ -231,34 +239,29 @@ class LdColorizer(LdAugmentation):
             data = data.numpy().squeeze()
             if len(data.shape) == 2:
                 data = data[None, ...]  # re-add the batch dimension in case it was removed
-            colorized_data = self._hsv_colorize(
+            augmented_data = self._hsv_colorize(
                 data, np.array(colors_per_sample), background=self.background, black=self.black
             )
         else:
+            color_tensor = torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
             if self.background:
                 if self.black:
                     # colorful background, black digits
-                    colorized_data = (1 - data) * torch.Tensor(colors_per_sample).unsqueeze(
-                        -1
-                    ).unsqueeze(-1)
+                    augmented_data = (1 - data) * color_tensor
                 else:
                     # colorful background, white digits
-                    colorized_data = torch.clamp(
-                        data + torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1), 0, 1
-                    )
+                    augmented_data = torch.clamp(data + color_tensor, 0, 1)
             else:
                 if self.black:
                     # black background, colorful digits
-                    colorized_data = data * torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(
-                        -1
-                    )
+                    augmented_data = data * color_tensor
                 else:
                     # white background, colorful digits
-                    colorized_data = 1 - data * (
-                        1 - torch.Tensor(colors_per_sample).unsqueeze(-1).unsqueeze(-1)
-                    )
+                    augmented_data = 1 - data * (1 - color_tensor)
+        if self.greyscale:
+            augmented_data = augmented_data.mean(dim=1, keepdim=True)
 
-        return colorized_data
+        return augmented_data
 
 
 class RandomChoice:

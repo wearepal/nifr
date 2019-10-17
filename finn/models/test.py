@@ -54,11 +54,4 @@ clf = Net()
 clf: Classifier = Classifier(clf, num_classes=10)
 
 
-clf.fit(
-    train_data=train,
-    test_data=test,
-    epochs=30,
-    device=torch.device("cpu"),
-    pred_s=False,
-    verbose=True,
-)
+clf.fit(train_data=train, test_data=test, epochs=30, device=torch.device("cpu"), pred_s=False)

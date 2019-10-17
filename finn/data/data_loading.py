@@ -32,13 +32,16 @@ def load_dataset(args) -> DatasetTriplet:
             data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
         if args.padding > 0:
             base_aug.insert(0, transforms.Pad(args.padding))
-
         train_data = MNIST(root=args.root, download=True, train=True)
         pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
-            scale=args.scale, background=args.background, black=args.black, binarize=args.binarize
+            scale=args.scale,
+            background=args.background,
+            black=args.black,
+            binarize=args.binarize,
+            greyscale=args.greyscale,
         )
 
         pretrain_data = LdAugmentedDataset(
@@ -71,7 +74,7 @@ def load_dataset(args) -> DatasetTriplet:
         args.y_dim = 10
         args.s_dim = 10
 
-    else:
+    elif args.dataset == "adult":
         pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
         source_dataset = Adult()
         pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
@@ -85,6 +88,8 @@ def load_dataset(args) -> DatasetTriplet:
             pretrain_data.shrink(args.data_pcnt)
             train_data.shrink(args.data_pcnt)
             test_data.shrink(args.data_pcnt)
+    else:
+        raise ValueError("Invalid choice of dataset.")
 
     return DatasetTriplet(
         pretrain=pretrain_data,

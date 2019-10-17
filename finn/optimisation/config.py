@@ -52,6 +52,7 @@ def parse_arguments(raw_args=None):
 
     # Colored MNIST settings
     parser.add_argument("--scale", type=float, default=0.02)
+    parser.add_argument("--greyscale", type=eval, default=False, choices=[True, False])
     parser.add_argument("-bg", "--background", type=eval, default=False, choices=[True, False])
     parser.add_argument("--black", type=eval, default=True, choices=[True, False])
     parser.add_argument("--binarize", type=eval, default=True, choices=[True, False])
@@ -127,7 +128,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--pred-s-weight", type=float, default=1)
 
     # Evaluation settings
-    parser.add_argument("--eval-epochs", type=int, metavar="N", default=25)
+    parser.add_argument("--eval-epochs", type=int, metavar="N", default=40)
     parser.add_argument("--eval-lr", type=float, default=1e-3)
 
     # Misc

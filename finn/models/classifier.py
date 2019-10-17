@@ -150,7 +150,6 @@ class Classifier(ModelBase):
         batch_size=256,
         test_batch_size=1000,
         lr_milestones: dict = None,
-        verbose=False,
     ):
 
         if not isinstance(train_data, DataLoader):
@@ -170,9 +169,6 @@ class Classifier(ModelBase):
         print("Training classifier...")
         pbar = trange(epochs)
         for epoch in pbar:
-            # if verbose:
-            #     print(f"===> Epoch {epoch} of classifier training")
-
             self.model.train()
 
             for x, s, y in train_data:
@@ -190,8 +186,7 @@ class Classifier(ModelBase):
                 loss.backward()
                 self.optimizer.step()
 
-            if test_data is not None and verbose:
-                # print(f"===> Testing classifier")
+            if test_data is not None:
 
                 self.model.eval()
                 avg_test_acc = 0.0
@@ -212,7 +207,6 @@ class Classifier(ModelBase):
 
                 avg_test_acc /= len(test_data)
 
-                # print(f"Average test accuracy: {avg_test_acc:.2f}")
                 pbar.set_postfix(epoch=epoch + 1, avg_test_acc=avg_test_acc)
             else:
                 pbar.set_postfix(epoch=epoch + 1)
