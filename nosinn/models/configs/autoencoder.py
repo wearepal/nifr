@@ -4,7 +4,11 @@ import torch.nn as nn
 def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
         nn.Conv2d(
-            in_channels, out_channels * 2, kernel_size=kernel_size, stride=stride, padding=padding
+            in_channels,
+            out_channels * 2,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding
         ),
         nn.GLU(dim=1),
     )
@@ -20,7 +24,7 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.GLU(dim=1),
+        nn.GLU(dim=1)
     )
 
 

@@ -1,0 +1,11 @@
+{
+    "python.linting.pylintEnabled": false,
+    "python.pythonPath": "C:\\Users\\Myles\\.conda\\envs\\skuld\\python.exe",
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "python.linting.flake8Args": [
+        "--max-line-length",
+        "100"
+    ]
+}
