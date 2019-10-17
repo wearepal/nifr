@@ -44,7 +44,7 @@ class AutoEncoder(nn.Module):
         decoding = self.decoder(encoding)
         loss = loss_fn(decoding, inputs)
         loss /= inputs.size(0)
-        
+
         return loss
 
     def fit(self, train_data, epochs, device, loss_fn):
