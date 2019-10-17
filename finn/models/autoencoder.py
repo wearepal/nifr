@@ -1,8 +1,6 @@
 import torch.distributions as td
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.utils import save_image
 from tqdm import trange
 
 from .base import ModelBase
@@ -78,7 +76,6 @@ class VAE(AutoEncoder):
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
         self.kl_weight = kl_weight
-        self.counter = 0
 
     def compute_divergence(self, sample, posterior: td.Distribution):
         log_p = self.prior.log_prob(sample)
@@ -106,10 +103,6 @@ class VAE(AutoEncoder):
         sample, posterior = self.encode(x, stochastic=True, return_posterior=True)
         kl = self.compute_divergence(sample, posterior)
         recon = self.decoder(sample)
-
-        if self.counter % 50 == 0:
-            save_image(recon, "decoding.png")
-
         recon_loss = recon_loss_fn(recon, x)
 
         recon_loss /= x.size(0)
@@ -135,5 +128,4 @@ class VAE(AutoEncoder):
                     loss.backward()
                     self.step()
 
-                    self.counter += 1
                 pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
