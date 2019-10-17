@@ -1,6 +1,6 @@
 import torch
-from finn.layers.inn import Bijector
-from finn.utils import is_positive_int
+from nosinn.layers.inn import Bijector
+from nosinn.utils import is_positive_int
 
 
 class Permutation(Bijector):

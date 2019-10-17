@@ -8,7 +8,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
-from finn.models.base import ModelBase
+from nosinn.models.base import ModelBase
 
 
 class Classifier(ModelBase):

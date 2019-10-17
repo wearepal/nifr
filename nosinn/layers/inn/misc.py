@@ -1,4 +1,4 @@
-from finn.layers.inn.bijector import Bijector
+from nosinn.layers.inn.bijector import Bijector
 
 
 class Flatten(Bijector):
