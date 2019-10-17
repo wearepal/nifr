@@ -4,11 +4,12 @@ from finn import layers
 from finn.models.classifier import Classifier
 
 
-def build_fc_inn(args, input_dim, level_depth: int = None):
+def build_fc_inn(args, input_shape, level_depth: int = None):
     """Build the model with ARGS.depth many layers
 
     If ARGS.glow is true, then each layer includes 1x1 convolutions.
     """
+    input_dim = input_shape[0]
     level_depth = level_depth or args.level_depth
     _batch_norm = args.batch_norm
 
@@ -21,7 +22,7 @@ def build_fc_inn(args, input_dim, level_depth: int = None):
         chain += [
             layers.MaskedCouplingLayer(
                 input_dim,
-                2 * [args.coupling_dims],
+                2 * [args.coupling_channels],
                 "alternate",
                 swap=(i % 2 == 0) and not args.glow,
             )
