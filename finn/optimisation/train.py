@@ -12,7 +12,7 @@ from finn.data import DatasetTriplet
 from finn.models import AutoEncoder
 from finn.models.autoencoder import VAE
 from finn.models.configs import conv_autoencoder, fc_autoencoder
-from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net
+from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from finn.models.inn import PartitionedInn, PartitionedAeInn
 from finn.utils import utils
@@ -232,7 +232,10 @@ def main(args, datasets, metric_callback):
     if is_image_data:
         inn_fn = build_conv_inn
         if args.train_on_recon:
-            disc_fn = mp_32x32_net
+            if args.dataset == "cmnist":
+                disc_fn = mp_32x32_net
+            else:
+                disc_fn = mp_64x64_net
             disc_kwargs = {"use_bn": not ARGS.spectral_norm}
         else:
             disc_fn = linear_disciminator

@@ -22,6 +22,39 @@ def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, u
     return nn.Sequential(*layers)
 
 
+def mp_64x64_net(input_dim, target_dim, use_bn=True):
+    def conv_block(in_dim, out_dim, kernel_size, stride, padding):
+        _block = []
+        _block += [
+            nn.Conv2d(in_dim, out_dim, kernel_size=kernel_size, stride=stride, padding=padding)
+        ]
+        if use_bn:
+            _block += [nn.BatchNorm2d(out_dim)]
+        _block += [nn.LeakyReLU()]
+        return _block
+
+    layers = []
+    layers.extend(conv_block(input_dim, 32, 5, 1, 0))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(32, 64, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(64, 128, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(128, 256, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers.extend(conv_block(256, 512, 3, 1, 1))
+    layers += [nn.MaxPool2d(2, 2)]
+
+    layers += [nn.Flatten()]
+    layers += [nn.Linear(512, target_dim)]
+
+    return nn.Sequential(*layers)
+
+
 def mp_32x32_net(input_dim, target_dim, use_bn=True):
     def conv_block(in_dim, out_dim, kernel_size, stride, padding):
         _block = []

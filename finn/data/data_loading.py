@@ -6,6 +6,7 @@ from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
+from .celeba import CelebA
 from finn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
 from finn.data.transforms import LdColorizer
 from .adult import load_adult_data
@@ -73,6 +74,25 @@ def load_dataset(args) -> DatasetTriplet:
 
         args.y_dim = 10
         args.s_dim = 10
+
+    elif args.dataset == "celeba":
+
+        image_size = 64
+        transform = transforms.Compose(
+            [
+                transforms.Resize(image_size),
+                transforms.CenterCrop(image_size),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+
+        pretrain_data = CelebA(args.root, download=True, split="valid", transform=transform)
+        train_data = CelebA(args.root, download=True, split="valid", transform=transform)
+        test_data = CelebA(args.root, download=True, split="test", transform=transform)
+
+        args.y_dim = 1
+        args.s_dim = 1
 
     elif args.dataset == "adult":
         pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
