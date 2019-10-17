@@ -21,4 +21,4 @@ jobs:
         pip install black
     - name: Format with black
       run: |
-        python -m black --check -l 100 -t py36 finn/
+        python -m black --check -l 100 -t py36 .
