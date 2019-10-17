@@ -103,7 +103,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-                
+
                 log_images(recon_all, "reconstruction_all", step=itr)
                 log_images(recon_y, "reconstruction_y", step=itr)
                 log_images(recon_s, "reconstruction_s", step=itr)

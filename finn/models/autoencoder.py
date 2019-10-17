@@ -1,4 +1,3 @@
-
 import torch.distributions as td
 from tqdm import tqdm
 import torch.nn as nn
@@ -60,7 +59,7 @@ class AutoEncoder(nn.Module):
 
                     loss.backward()
                     self.step()
-                    
+
                     pbar.update()
                     pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
 
@@ -127,6 +126,6 @@ class VAE(AutoEncoder):
                     loss = self.routine(x, recon_loss_fn=loss_fn)
                     loss.backward()
                     self.step()
-                    
+
                     pbar.update()
                     pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
