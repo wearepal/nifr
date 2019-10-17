@@ -101,12 +101,12 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                log_images(ARGS, x, "original_x", step=itr)
 
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
+                log_images(ARGS, x[:64], "original_x", step=itr)
                 log_images(ARGS, recon_all, "reconstruction_all", step=itr)
                 log_images(ARGS, recon_y, "reconstruction_y", step=itr)
                 log_images(ARGS, recon_s, "reconstruction_s", step=itr)

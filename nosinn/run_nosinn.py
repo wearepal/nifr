@@ -4,13 +4,13 @@ from typing import Optional, List
 import torch
 
 from nosinn.data import load_dataset
-from nosinn.optimisation.train import main as training_loop
-from nosinn.optimisation.config import parse_arguments
+from nosinn.optimisation.train_nosinn import main as training_loop
+from nosinn.optimisation.config import nosinn_args
 from nosinn.utils import random_seed
 
 
 def main(raw_args: Optional[List[str]] = None) -> None:
-    args = parse_arguments(raw_args)
+    args = nosinn_args(raw_args)
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
     datasets = load_dataset(args)

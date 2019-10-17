@@ -144,14 +144,15 @@ def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dic
 
 
 def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_data=None):
-    if train_on_recon:
-        if args.dataset == "cmnist":
-            clf_fn = mp_32x32_net
-        else:
-            clf_fn = mp_64x64_net
-        clf = clf_fn(input_dim=input_dim, target_dim=args.y_dim)
+
+    if args.dataset == "cmnist":
+        clf_fn = mp_32x32_net
+    elif args.dataset == "celeba":
+        clf_fn = mp_64x64_net
     else:
-        clf = fc_net((input_dim,), target_dim=args.y_dim)
+        clf_fn = fc_net
+        input_dim = (input_dim,)
+    clf = clf_fn(input_dim=input_dim, target_dim=args.y_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
