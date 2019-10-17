@@ -1,4 +1,8 @@
 import torch
+import torch.nn as nn
+from torch import Tensor
+import torch.nn.functional as F
+from torch.nn.modules.loss import _Loss
 
 
 class GradReverse(torch.autograd.Function):
@@ -58,3 +62,16 @@ def contrastive_gradient_penalty(network, input, penalty_amount=1.0):
     penalty = (gradient ** 2).sum(1).mean()
 
     return penalty * penalty_amount
+
+
+class PixelCrossEntropy(nn.CrossEntropyLoss):
+
+    def __init__(self, weight=None, size_average=None, ignore_index=-100,
+                 reduce=None, reduction='mean'):
+        super().__init__(weight, size_average, ignore_index, reduce, reduction)
+
+    def forward(self, input: Tensor, target: Tensor):
+        input = input.view(input.size(0), 256, *target.shape[1:])
+        # make integer class labels
+        target = (target * (256 - 1)).long()
+        return super().forward(input, target)
