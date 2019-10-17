@@ -65,9 +65,9 @@ def contrastive_gradient_penalty(network, input, penalty_amount=1.0):
 
 
 class PixelCrossEntropy(nn.CrossEntropyLoss):
-
-    def __init__(self, weight=None, size_average=None, ignore_index=-100,
-                 reduce=None, reduction='mean'):
+    def __init__(
+        self, weight=None, size_average=None, ignore_index=-100, reduce=None, reduction="mean"
+    ):
         super().__init__(weight, size_average, ignore_index, reduce, reduction)
 
     def forward(self, input: Tensor, target: Tensor):

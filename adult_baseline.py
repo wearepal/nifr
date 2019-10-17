@@ -61,9 +61,7 @@ def main():
             except:
                 print(f"{clf.name} failed on mix: {mix_fact}")
                 continue
-            metrics = run_metrics(
-                preds, task, metrics=[Accuracy()], per_sens_metrics=[]
-            )
+            metrics = run_metrics(preds, task, metrics=[Accuracy()], per_sens_metrics=[])
             print(f"{clf.name} Accuracy: {metrics['Accuracy']}")
             res_dict = run_metrics(
                 preds,
