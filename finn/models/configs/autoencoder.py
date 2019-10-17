@@ -20,7 +20,7 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
             padding=padding,
             output_padding=output_padding,
         ),
-        nn.GLU(dim=1)
+        nn.GLU(dim=1),
     )
 
 

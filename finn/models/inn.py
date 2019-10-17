@@ -254,9 +254,7 @@ class MaskedInn(BipartiteInn):
             feature_groups=feature_groups,
         )
         self.masker: Masker = Masker(
-            shape=self.output_dim,
-            prob_1=(1.0 - args.zs_frac),
-            optimizer_args=masker_optimizer_args,
+            shape=self.output_dim, prob_1=(1.0 - args.zs_frac), optimizer_args=masker_optimizer_args
         )
 
     def mask_train(self) -> None:

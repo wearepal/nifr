@@ -252,18 +252,20 @@ def main(args, datasets, metric_callback):
         if is_image_data:
             decoding_dim = input_shape[0] * 256 if args.ae_loss == "ce" else input_shape[0]
             encoder, decoder, enc_shape = conv_autoencoder(
-                input_shape, ARGS.ae_channels,
+                input_shape,
+                ARGS.ae_channels,
                 encoding_dim=ARGS.ae_enc_dim,
                 decoding_dim=decoding_dim,
                 levels=ARGS.ae_levels,
-                vae=ARGS.vae
+                vae=ARGS.vae,
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
-                input_shape, ARGS.ae_channels,
+                input_shape,
+                ARGS.ae_channels,
                 encoding_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
-                vae=ARGS.vae
+                vae=ARGS.vae,
             )
         autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
 
