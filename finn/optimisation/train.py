@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-from comet_ml import Experiment
+import wandb
 from torch.utils.data import DataLoader
 from torchvision.utils import save_image
 
@@ -22,7 +22,6 @@ from .utils import get_data_dim, log_images
 NDECS = 0
 ARGS = None
 LOGGER = None
-SUMMARY = None
 
 
 def save_model(save_dir, inn, discriminator) -> str:
@@ -46,7 +45,7 @@ def restore_model(filename, model, discriminator):
     return model, discriminator
 
 
-def train(inn, discriminator, dataloader, epoch):
+def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
     inn.eval()
 
@@ -93,22 +92,21 @@ def train(inn, discriminator, dataloader, epoch):
 
         time_meter.update(time.time() - end)
 
-        SUMMARY.set_step(itr)
-        SUMMARY.log_metric("Loss NLL", nll.item())
-        SUMMARY.log_metric("Loss Adversarial", disc_loss.item())
+        wandb.log({"Loss NLL": nll.item()}, step=itr)
+        wandb.log({"Loss Adversarial": disc_loss.item()}, step=itr)
         end = time.time()
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
+                log_images(x, "original_x", step=itr)
 
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-
-                log_images(SUMMARY, x[:64], "original_x")
-                log_images(SUMMARY, recon_all, "reconstruction_all")
-                log_images(SUMMARY, recon_y, "reconstruction_y")
-                log_images(SUMMARY, recon_s, "reconstruction_s")
+                
+                log_images(recon_all, "reconstruction_all", step=itr)
+                log_images(recon_y, "reconstruction_y", step=itr)
+                log_images(recon_s, "reconstruction_s", step=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -121,9 +119,10 @@ def train(inn, discriminator, dataloader, epoch):
         disc_loss_meter.avg,
         total_loss_meter.avg,
     )
+    return itr
 
 
-def validate(inn, discriminator, val_loader):
+def validate(inn, discriminator, val_loader, itr):
     inn.eval()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
@@ -149,25 +148,25 @@ def validate(inn, discriminator, val_loader):
 
             loss_meter.update(loss.item(), n=x_val.size(0))
 
-    SUMMARY.log_metric("Loss", loss_meter.avg)
+    wandb.log({"Loss": loss_meter.avg}, step=itr)
 
     if ARGS.dataset == "cmnist":
         z = inn(x_val[:64])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(SUMMARY, x_val, "original_x", prefix="test")
-        log_images(SUMMARY, recon_all, "reconstruction_all", prefix="test")
-        log_images(SUMMARY, recon_y, "reconstruction_y", prefix="test")
-        log_images(SUMMARY, recon_s, "reconstruction_s", prefix="test")
+        log_images(x_val, "original_x", prefix="test", step=itr)
+        log_images(recon_all, "reconstruction_all", prefix="test", step=itr)
+        log_images(recon_y, "reconstruction_y", prefix="test", step=itr)
+        log_images(recon_s, "reconstruction_s", prefix="test", step=itr)
     else:
         z = inn(x_val[:1000])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(SUMMARY, x_val, "original_x", prefix="test")
-        log_images(SUMMARY, recon_y, "reconstruction_yn", prefix="test")
-        log_images(SUMMARY, recon_s, "reconstruction_yn", prefix="test")
+        log_images(x_val, "original_x", prefix="test", step=itr)
+        log_images(recon_y, "reconstruction_yn", prefix="test", step=itr)
+        log_images(recon_s, "reconstruction_yn", prefix="test", step=itr)
         x_recon = inn(inn(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")
-        SUMMARY.log_metric("reconstruction MAE", x_diff)
+        wandb.log({"reconstruction MAE": x_diff}, step=itr)
 
     return loss_meter.avg
 
@@ -193,19 +192,15 @@ def main(args, datasets, metric_callback):
     """
     assert isinstance(datasets, DatasetTriplet)
     # ==== initialize globals ====
-    global ARGS, LOGGER, SUMMARY
+    global ARGS, LOGGER
     ARGS = args
 
-    SUMMARY = Experiment(
-        api_key="Mf1iuvHn2IxBGWnBYbnOqG23h",
-        project_name="finn",
-        workspace="olliethomas",
-        disabled=not ARGS.use_comet,
-        parse_args=False,
+    wandb.init(
+        project="nosinn",
+        # sync_tensorboard=True,
+        config=vars(ARGS),
     )
-    SUMMARY.disable_mp()
-    SUMMARY.log_parameters(vars(ARGS))
-    SUMMARY.log_dataset_info(name=ARGS.dataset)
+    # wandb.tensorboard.patch(save=False, pytorch=True)
 
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -335,11 +330,11 @@ def main(args, datasets, metric_callback):
     # Resume from checkpoint
     if ARGS.resume is not None:
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        metric_callback(ARGS, SUMMARY, inn, discriminator, datasets, check_originals=False)
+        metric_callback(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
         return
 
     # Logging
-    SUMMARY.set_model_graph(str(inn))
+    # wandb.set_model_graph(str(inn))
     LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(inn))
 
     best_loss = float("inf")
@@ -350,33 +345,31 @@ def main(args, datasets, metric_callback):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        with SUMMARY.train():
-            train(inn, discriminator, train_loader, epoch)
+        itr = train(inn, discriminator, train_loader, epoch)
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
-            with SUMMARY.test():
-                val_loss = validate(inn, discriminator, val_loader)
-                if args.super_val:
-                    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets)
+            val_loss = validate(inn, discriminator, val_loader, itr)
+            if args.super_val:
+                metric_callback(ARGS, model=inn, data=datasets, step=itr)
 
-                if val_loss < best_loss:
-                    best_loss = val_loss
-                    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
-                    n_vals_without_improvement = 0
-                else:
-                    n_vals_without_improvement += 1
+            if val_loss < best_loss:
+                best_loss = val_loss
+                save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+                n_vals_without_improvement = 0
+            else:
+                n_vals_without_improvement += 1
 
-                LOGGER.info(
-                    "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
-                    "No improvement during validation: {:02d}",
-                    epoch,
-                    val_loss,
-                    n_vals_without_improvement,
-                )
+            LOGGER.info(
+                "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
+                "No improvement during validation: {:02d}",
+                epoch,
+                val_loss,
+                n_vals_without_improvement,
+            )
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    metric_callback(ARGS, experiment=SUMMARY, model=inn, data=datasets, save_to_csv=Path(ARGS.save))
+    metric_callback(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=itr)
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
 

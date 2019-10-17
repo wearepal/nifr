@@ -146,13 +146,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--log-freq", type=int, default=10)
     parser.add_argument("--root", type=str, default="data")
     parser.add_argument(
-        "--use-comet",
-        type=eval,
-        default=False,
-        choices=[True, False],
-        help="whether to use the comet.ml logging",
-    )
-    parser.add_argument(
         "--results-csv", type=str, default="", help="name of CSV file to save results to"
     )
 

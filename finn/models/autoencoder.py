@@ -1,7 +1,8 @@
+
 import torch.distributions as td
+from tqdm import tqdm
 import torch.nn as nn
 import torch.nn.functional as F
-from tqdm import trange
 
 from .base import ModelBase
 
@@ -46,8 +47,8 @@ class AutoEncoder(nn.Module):
 
         self.train()
 
-        with trange(epochs) as pbar:
-            for epoch in pbar:
+        with tqdm(total=epochs * len(train_data)) as pbar:
+            for epoch in range(epochs):
 
                 for x, _, _ in train_data:
 
@@ -59,7 +60,9 @@ class AutoEncoder(nn.Module):
 
                     loss.backward()
                     self.step()
-                pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+                    
+                    pbar.update()
+                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
 
 
 class VAE(AutoEncoder):
@@ -113,8 +116,8 @@ class VAE(AutoEncoder):
 
         self.train()
 
-        with trange(epochs) as pbar:
-            for epoch in pbar:
+        with tqdm(total=epochs * len(train_data)) as pbar:
+            for epoch in range(epochs):
 
                 for x, _, _ in train_data:
 
@@ -124,5 +127,6 @@ class VAE(AutoEncoder):
                     loss = self.routine(x, recon_loss_fn=loss_fn)
                     loss.backward()
                     self.step()
-
-                pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+                    
+                    pbar.update()
+                    pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())

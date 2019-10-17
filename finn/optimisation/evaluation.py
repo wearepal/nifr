@@ -1,27 +1,24 @@
 from pathlib import Path
 from typing import Optional, Dict
-import shutil
 from argparse import Namespace
-import torch.nn.functional as F
 import pandas as pd
-import torch
+import wandb
+
 from ethicml.algorithms.inprocess import LR
-from ethicml.evaluators.evaluate_models import run_metrics
+from ethicml.evaluators import run_metrics
 from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
-from ethicml.utility.data_structures import DataTuple
+from ethicml.utility import DataTuple
+
+import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
-from torchvision.utils import save_image
 
 from finn.data import get_data_tuples
-from finn.data.dataset_wrappers import TripletDataset
-from finn.data.misc import data_tuple_to_dataset_sample
 from finn.models.classifier import Classifier
-from finn.models.configs import mp_28x28_net
 from finn.models.configs.classifiers import fc_net, mp_32x32_net
 from finn.models.inn import BipartiteInn
 
 
-def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dict[str, float]:
+def compute_metrics(predictions, actual, name, step, run_all=False) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
@@ -39,38 +36,37 @@ def compute_metrics(experiment, predictions, actual, name, run_all=False) -> Dic
                 NMI(base="s"),
             ],
         )
-        experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
-        experiment.log_metric(f"{name} TPR", metrics["TPR"])
-        experiment.log_metric(f"{name} TNR", metrics["TNR"])
-        experiment.log_metric(f"{name} PPV", metrics["PPV"])
-        experiment.log_metric(f"{name} Theil_Index", metrics["Theil_Index"])
-        # experiment.log_metric(f"{name} TPR, metrics['Theil_Index'])
-        experiment.log_metric(f"{name} Theil|s=1", metrics["Theil_Index_sex_Male_1.0"])
-        experiment.log_metric(f"{name} Theil_Index", metrics["Theil_Index"])
-        experiment.log_metric(f"{name} P(Y=1|s=0)", metrics["prob_pos_sex_Male_0.0"])
-        experiment.log_metric(f"{name} P(Y=1|s=1)", metrics["prob_pos_sex_Male_1.0"])
-        experiment.log_metric(f"{name} Theil|s=1", metrics["Theil_Index_sex_Male_1.0"])
-        experiment.log_metric(f"{name} Theil|s=0", metrics["Theil_Index_sex_Male_0.0"])
-        experiment.log_metric(
-            f"{name} P(Y=1|s=0) Ratio s0/s1", metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]
+        wandb.log({f"{name} Accuracy": metrics["Accuracy"]}, step=step)
+        wandb.log({f"{name} TPR": metrics["TPR"]}, step=step)
+        wandb.log({f"{name} TNR": metrics["TNR"]}, step=step)
+        wandb.log({f"{name} PPV": metrics["PPV"]}, step=step)
+        wandb.log({f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
+        # wandb.log_metric(f"{name} TPR, metrics['Theil_Index'])
+        wandb.log({f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
+        wandb.log({f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"]}, step=step)
+        wandb.log({f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"]}, step=step)
+        wandb.log(
+            {f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]},
+            step=step,
         )
-        experiment.log_metric(
-            f"{name} P(Y=1|s=0) Diff s0-s1", metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]
+        wandb.log(
+            {f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]},
+            step=step,
         )
 
-        experiment.log_metric(f"{name} TPR|s=1", metrics["TPR_sex_Male_1.0"])
-        experiment.log_metric(f"{name} TPR|s=0", metrics["TPR_sex_Male_0.0"])
-        experiment.log_metric(f"{name} TPR Ratio s0/s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"])
-        experiment.log_metric(f"{name} TPR Diff s0-s1", metrics["TPR_sex_Male_0.0/sex_Male_1.0"])
+        wandb.log({f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"]}, step=step)
+        wandb.log({f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
 
-        experiment.log_metric(f"{name} PPV Ratio s0/s1", metrics["PPV_sex_Male_0.0/sex_Male_1.0"])
-        experiment.log_metric(f"{name} TNR Ratio s0/s1", metrics["TNR_sex_Male_0.0/sex_Male_1.0"])
+        wandb.log({f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"]}, step=step)
+        wandb.log({f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
-        experiment.log_metric(f"{name} Accuracy", metrics["Accuracy"])
-    for key, value in metrics.items():
-        print(f"\t\t{key}: {value:.4f}")
-    print()  # empty line
+        wandb.log({f"{name} Accuracy": metrics["Accuracy"]}, step=step)
     return metrics
 
 
@@ -78,7 +74,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
     if train_on_recon or args.train_on_recon:
         clf = mp_32x32_net(input_dim=input_dim, target_dim=args.y_dim)
     else:
-        clf = fc_net(input_dim, target_dim=args.y_dim)
+        clf = fc_net((input_dim,), target_dim=args.y_dim)
 
     n_classes = args.y_dim if args.y_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
@@ -111,7 +107,7 @@ def make_tuple_from_data(train, test, pred_s):
 
 def evaluate(
     args,
-    experiment,
+    step,
     train_data,
     test_data,
     name,
@@ -141,7 +137,7 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
         preds = pd.DataFrame(preds)
-        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(actual))
+        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(sens if pred_s else actual))
 
     else:
         if not isinstance(train_data, DataTuple):
@@ -152,12 +148,17 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    print("\nComputing metrics...")
-    metrics = compute_metrics(experiment, preds, actual, name, run_all=args.dataset == "adult")
+    full_name = name
+    full_name += "_s" if pred_s else "_y"
+    full_name += "_on_recons" if train_on_recon else "_on_encodings"
+    metrics = compute_metrics(preds, actual, full_name, run_all=args.dataset == "adult", step=step)
+    print(f"Results for {full_name}:")
+    print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
+    print()  # empty line
+
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
-        res_type = "recon" if train_on_recon else "encoding"
-        results_path = save_to_csv / f"{name}_{res_type}_{args.results_csv}"
+        results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
         if results_path.is_file():
             with results_path.open("a") as f:
@@ -166,15 +167,24 @@ def evaluate(
             with results_path.open("w") as f:
                 f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
+        for name, value in metrics.items():
+            wandb.run.summary[name] = value
 
     return metrics
 
 
 def encode_dataset(
-    args: Namespace, data: Dataset, model: BipartiteInn, recon: bool, subdir: str
+    args: Namespace,
+    data: Dataset,
+    model: BipartiteInn,
+    recon: bool,
+    subdir: str,
+    get_zy: bool = False,
 ) -> dict:
 
     encodings = {"xy": []}
+    if get_zy:
+        encodings["zy"] = []
     all_s = []
     all_y = []
 
@@ -194,11 +204,16 @@ def encode_dataset(
             if x.dim() > 2:
                 xy = xy.clamp(min=0, max=1)
 
-            encodings["xy"].append(xy.cpu())
+            encodings["xy"].append(xy.detach().cpu())
+            if get_zy:
+                encodings["zy"].append(zy.detach().cpu())
 
-    encodings["xy"] = TensorDataset(
-        torch.cat(encodings["xy"], dim=0), torch.cat(all_s, dim=0), torch.cat(all_y, dim=0)
-    )
+    all_s = torch.cat(all_s, dim=0)
+    all_y = torch.cat(all_y, dim=0)
+
+    encodings["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
+    if get_zy:
+        encodings["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
 
     return encodings
 
