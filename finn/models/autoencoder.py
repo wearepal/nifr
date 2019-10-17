@@ -56,13 +56,10 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(AutoEncoder):
-
     def __init__(self, encoder, decoder, kl_weight=0.1, optimizer_args=None):
         super(AutoEncoder, self).__init__()
 
-        super().__init__(encoder=encoder,
-                         decoder=decoder,
-                         optimizer_args=optimizer_args)
+        super().__init__(encoder=encoder, decoder=decoder, optimizer_args=optimizer_args)
         self.encoder: ModelBase = ModelBase(encoder, optimizer_args=optimizer_args)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_args=optimizer_args)
 

@@ -94,7 +94,6 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--vae", type=eval, choices=[True, False], default=False)
     parser.add_argument("--kl-weight", type=float, default=0.1)
 
-
     # Discriminator settings
     parser.add_argument("--disc-lr", type=float, default=3e-4)
     parser.add_argument("--disc-depth", type=int, default=2)

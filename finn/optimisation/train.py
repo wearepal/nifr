@@ -259,17 +259,19 @@ def main(args, datasets, metric_callback):
 
         if is_image_data:
             encoder, decoder, enc_shape = conv_autoencoder(
-                input_shape, ARGS.ae_channels,
+                input_shape,
+                ARGS.ae_channels,
                 encoded_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
-                vae=ARGS.vae
+                vae=ARGS.vae,
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
-                input_shape, ARGS.ae_channels,
+                input_shape,
+                ARGS.ae_channels,
                 encoded_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
-                vae=ARGS.vae
+                vae=ARGS.vae,
             )
 
         if ARGS.vae:
