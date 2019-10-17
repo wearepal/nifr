@@ -3,6 +3,9 @@ from tqdm import tqdm
 import torch.distributions as td
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torchvision.utils import save_image
+from tqdm import trange
 
 from .base import ModelBase
 
@@ -18,7 +21,13 @@ class AutoEncoder(nn.Module):
         return self.encoder(inputs)
 
     def decode(self, encoding):
-        return self.decoder(encoding)
+        decoding = self.decoder(encoding)
+        if decoding.dim() == 4 and decoding.size(1) > 3:
+            decoding = decoding[:64].view(decoding.size(0), -1, *decoding.shape[-2:])
+            fac = decoding.size(1) - 1
+            decoding = decoding.max(dim=1)[1].float() / fac
+
+        return decoding
 
     def forward(self, inputs, reverse: bool = True):
         if reverse:
@@ -34,8 +43,8 @@ class AutoEncoder(nn.Module):
         self.encoder.step()
         self.decoder.step()
 
-    def routine(self, inputs, loss_fn=nn.MSELoss()):
-        return loss_fn(self.decode(self.encode(inputs)), inputs)
+    def routine(self, inputs, loss_fn):
+        return loss_fn(self.decoder(self.encoder(inputs)), inputs)
 
     def fit(self, train_data, epochs, device, loss_fn=nn.MSELoss()):
 
@@ -50,6 +59,8 @@ class AutoEncoder(nn.Module):
 
                     self.zero_grad()
                     loss = self.routine(x, loss_fn=loss_fn)
+                    loss /= x.size(0)
+
                     loss.backward()
                     self.step()
 
@@ -71,18 +82,17 @@ class VAE(AutoEncoder):
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
         self.kl_weight = kl_weight
+        self.counter = 0
 
-    def compute_kl(self, sample, posterior: td.Distribution):
+    def compute_divergence(self, sample, posterior: td.Distribution):
         log_p = self.prior.log_prob(sample)
         log_q = posterior.log_prob(sample)
 
-        kld = log_q.sum() - log_p.sum()
+        kl = (log_q - log_p).sum()
 
-        kld /= sample[0].nelement()
+        return kl
 
-        return kld
-
-    def encode(self, x, stochastic=False, return_posterior=False):
+    def encode(self, x, stochastic=True, return_posterior=False):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
@@ -98,11 +108,18 @@ class VAE(AutoEncoder):
 
     def routine(self, x, recon_loss_fn):
         sample, posterior = self.encode(x, stochastic=True, return_posterior=True)
-        kld = self.compute_kl(sample, posterior)
+        kl = self.compute_divergence(sample, posterior)
         recon = self.decoder(sample)
+
+        if self.counter % 50 == 0:
+            save_image(recon, "decoding.png")
+
         recon_loss = recon_loss_fn(recon, x)
 
-        loss = recon_loss + self.kl_weight * kld
+        recon_loss /= x.size(0)
+        kl /= x.size(0)
+
+        loss = recon_loss + self.kl_weight * kl
 
         return loss
 
@@ -121,4 +138,6 @@ class VAE(AutoEncoder):
                     loss = self.routine(x, recon_loss_fn=loss_fn)
                     loss.backward()
                     self.step()
+
+                    self.counter += 1
                 pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())

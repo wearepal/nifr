@@ -89,8 +89,10 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--ae-levels", type=int, default=2)
     parser.add_argument("--ae-enc-dim", type=int, default=3)
     parser.add_argument("--ae-channels", type=int, default=64)
-    parser.add_argument("--ae-epochs", type=int, default=3)
-    parser.add_argument("--ae-loss", type=str, choices=["l1", "l2", "huber"], default="huber")
+    parser.add_argument("--ae-epochs", type=int, default=5)
+    parser.add_argument("--ae-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
+    parser.add_argument("--vae", type=eval, choices=[True, False], default=False)
+    parser.add_argument("--kl-weight", type=float, default=0.1)
 
     # Discriminator settings
     parser.add_argument("--disc-lr", type=float, default=3e-4)

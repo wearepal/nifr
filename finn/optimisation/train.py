@@ -15,7 +15,7 @@ from finn.models.configs.classifiers import fc_net, linear_disciminator, mp_32x3
 from finn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from finn.models.inn import PartitionedInn, PartitionedAeInn
 from finn.utils import utils
-from .loss import grad_reverse
+from .loss import grad_reverse, PixelCrossEntropy
 from .utils import get_data_dim, log_images
 
 NDECS = 0
@@ -250,16 +250,18 @@ def main(args, datasets, metric_callback):
     # Initialise INN
     if ARGS.autoencode:
         if is_image_data:
+            decoding_dim = input_shape[0] * 256 if args.ae_loss == "ce" else input_shape[0]
             encoder, decoder, enc_shape = conv_autoencoder(
                 input_shape, ARGS.ae_channels,
-                encoded_dim=ARGS.ae_enc_dim,
+                encoding_dim=ARGS.ae_enc_dim,
+                decoding_dim=decoding_dim,
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
                 input_shape, ARGS.ae_channels,
-                encoded_dim=ARGS.ae_enc_dim,
+                encoding_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae
             )
@@ -273,11 +275,13 @@ def main(args, datasets, metric_callback):
         inn.to(args.device)
 
         if ARGS.ae_loss == "l1":
-            ae_loss_fn = nn.L1Loss()
+            ae_loss_fn = nn.L1Loss(reduction="sum")
         elif ARGS.ae_loss == "l2":
-            ae_loss_fn = nn.MSELoss()
+            ae_loss_fn = nn.MSELoss(reduction="sum")
         elif ARGS.ae_loss == "huber":
-            ae_loss_fn = nn.SmoothL1Loss()
+            ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
+        elif ARGS.ae_loss == "ce":
+            ae_loss_fn = PixelCrossEntropy(reduction="sum")
         else:
             raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 

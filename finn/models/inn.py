@@ -57,10 +57,10 @@ class BipartiteInn(ModelBase):
         self.x_dim: int = x_dim
         if len(input_shape) < 2:
             z_channels += args.s_dim
-            self.output_shape = self.input_shape
+            self.output_dim = self.input_shape[0]
         else:
             self.x_dim: int = x_dim
-            self.output_shape = int(np.product(self.input_shape))
+            self.output_dim = int(np.product(self.input_shape))
 
         super().__init__(model, optimizer_args=optimizer_args)
 
@@ -130,8 +130,8 @@ class PartitionedInn(BipartiteInn):
             args, model, input_shape, optimizer_args=optimizer_args, feature_groups=feature_groups
         )
 
-        self.zs_dim = round(args.zs_frac * self.output_shape)
-        self.zy_dim = self.output_shape - self.zs_dim
+        self.zs_dim = round(args.zs_frac * self.output_dim)
+        self.zy_dim = self.output_dim - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)
@@ -254,7 +254,7 @@ class MaskedInn(BipartiteInn):
             feature_groups=feature_groups,
         )
         self.masker: Masker = Masker(
-            shape=self.output_shape,
+            shape=self.output_dim,
             prob_1=(1.0 - args.zs_frac),
             optimizer_args=masker_optimizer_args,
         )
