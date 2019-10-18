@@ -1,0 +1,28 @@
+{
+    "python.pythonPath": "/Volumes/LocalDataHD/mb715/anaconda3/envs/starry-sky/bin/python",
+    "python.linting.pylintEnabled": false,
+    "python.linting.mypyEnabled": false,
+    "python.linting.enabled": true,
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/.idea": true,
+        "**/.mypy_cache": true
+    },
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "editor.scrollBeyondLastColumn": 20,
+    "editor.rulers": [100],
+    "editor.tabCompletion": "on",
+    "editor.quickSuggestions": {
+        "other": true,
+        "comments": false,
+        "strings": false
+    },
+    "editor.acceptSuggestionOnEnter": "on",
+    "editor.quickSuggestionsDelay": 10,
+    "editor.suggestOnTriggerCharacters": true,
+    "editor.suggestSelection": "recentlyUsed",
+    "editor.wordBasedSuggestions": true,
+    "editor.parameterHints.enabled": true,
+    "python.linting.flake8Enabled": true,
+}
