@@ -7,12 +7,20 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from torch.utils.data import DataLoader, TensorDataset
+from torchvision.utils import save_image
 
 from nosinn.data import DatasetTriplet
+from nosinn.models import AutoEncoder
 from nosinn.models.autoencoder import VAE
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import linear_disciminator
-from nosinn.models.factory import build_discriminator
+from nosinn.models.configs.classifiers import (
+    fc_net,
+    linear_disciminator,
+    mp_32x32_net,
+    mp_64x64_net,
+)
+from nosinn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
+from nosinn.models.inn import PartitionedInn, PartitionedAeInn
 from nosinn.utils import utils
 from .loss import grad_reverse, PixelCrossEntropy
 from .utils import get_data_dim, log_images
@@ -73,16 +81,18 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
+                save_image(x[:64], "original_x.png")
+                # log_images(x, "original_x", step=itr)
+
                 z = vae.encode(x[:64], stochastic=False)
 
                 recon_all = vae.decode(z, s=s_oh[:64])
                 recon_y = vae.decode(z, s=torch.zeros_like(s_oh[:64]))
                 recon_s = vae.decode(torch.zeros_like(z), s=s_oh[:64])
 
-                log_images(recon_all, "original_x", step=itr)
-                log_images(recon_all, "reconstruction_all", step=itr)
-                log_images(recon_y, "reconstruction_y", step=itr)
-                log_images(recon_s, "reconstruction_s", step=itr)
+                save_image(recon_all, "recon_all.png")
+                save_image(recon_y, "recon_y.png")
+                save_image(recon_s, "recon_s.png")
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(

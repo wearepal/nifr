@@ -29,9 +29,7 @@ class AutoEncoder(nn.Module):
 
         if decoding.dim() == 4 and decoding.size(1) > 3:
             num_classes = 256
-            decoding = decoding[:64].view(
-                decoding.size(0), num_classes, -1, *decoding.shape[-2:]
-            )
+            decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
             fac = num_classes - 1
             decoding = decoding.max(dim=1)[1].float() / fac
 
@@ -83,9 +81,7 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(AutoEncoder):
-    def __init__(
-        self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_args=None
-    ):
+    def __init__(self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_args=None):
         super().__init__(
             encoder=encoder,
             decoder=decoder,

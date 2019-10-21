@@ -143,7 +143,7 @@ def nosinn_args(raw_args=None):
         choices=[True, False],
         help="Train classifier on encodings as part of validation step.",
     )
-    parser.add_argument("--val-freq", type=int, default=4)
+    parser.add_argument("--val-freq", type=int, default=5)
     parser.add_argument("--log-freq", type=int, default=10)
     parser.add_argument("--root", type=str, default="data")
     parser.add_argument(
@@ -247,7 +247,7 @@ def vae_args(raw_args=None):
     parser.add_argument(
         "--super-val",
         type=eval,
-        default=False,
+        default=True,
         choices=[True, False],
         help="Train classifier on encodings as part of validation step.",
     )
