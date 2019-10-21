@@ -75,14 +75,12 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
 
         time_meter.update(time.time() - end)
 
-        wandb.log({"Loss ELBO": elbo.item()}, step=itr)
+        wandb.log({"Loss NLL": elbo.item()}, step=itr)
         wandb.log({"Loss Adversarial": disc_loss.item()}, step=itr)
         end = time.time()
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                save_image(x[:64], "original_x.png")
-                # log_images(x, "original_x", step=itr)
 
                 z = vae.encode(x[:64], stochastic=False)
 
@@ -90,9 +88,10 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
                 recon_y = vae.decode(z, s=torch.zeros_like(s_oh[:64]))
                 recon_s = vae.decode(torch.zeros_like(z), s=s_oh[:64])
 
-                save_image(recon_all, "recon_all.png")
-                save_image(recon_y, "recon_y.png")
-                save_image(recon_s, "recon_s.png")
+                log_images(x[:64], "original_x", step=itr)
+                log_images(recon_all, "reconstruction_all", step=itr)
+                log_images(recon_y, "reconstruction_y", step=itr)
+                log_images(recon_s, "reconstruction_s", step=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
