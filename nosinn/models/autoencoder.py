@@ -1,3 +1,4 @@
+import torch
 import torch.distributions as td
 from tqdm import tqdm
 import torch.nn as nn
@@ -7,20 +8,29 @@ from .base import ModelBase
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, encoder, decoder, optimizer_args=None):
+    def __init__(self, encoder, decoder, decode_with_s=False, optimizer_args=None):
         super(AutoEncoder, self).__init__()
 
         self.encoder: ModelBase = ModelBase(encoder, optimizer_args=optimizer_args)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_args=optimizer_args)
+        self.decode_with_s = decode_with_s
 
     def encode(self, inputs):
         return self.encoder(inputs)
 
-    def decode(self, encoding):
-        decoding = self.decoder(encoding)
+    def decode(self, encoding, s=None):
+        decoder_input = encoding
+        if s is not None and self.decode_with_s:
+            if encoding.dim() == 4:
+                s = s.view(s.size(0), -1, 1, 1).float()
+                s = s.expand(-1, -1, decoder_input.size(-2), decoder_input.size(-1))
+                decoder_input = torch.cat([decoder_input, s], dim=1)
+        decoding = self.decoder(decoder_input)
+
         if decoding.dim() == 4 and decoding.size(1) > 3:
-            decoding = decoding[:64].view(decoding.size(0), -1, *decoding.shape[-2:])
-            fac = decoding.size(1) - 1
+            num_classes = 256
+            decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
+            fac = num_classes - 1
             decoding = decoding.max(dim=1)[1].float() / fac
 
         return decoding
@@ -39,9 +49,9 @@ class AutoEncoder(nn.Module):
         self.encoder.step()
         self.decoder.step()
 
-    def routine(self, inputs, loss_fn):
+    def routine(self, inputs, loss_fn, s=None):
         encoding = self.encoder(inputs)
-        decoding = self.decoder(encoding)
+        decoding = self.decoder(encoding, s=s)
         loss = loss_fn(decoding, inputs)
         loss /= inputs.size(0)
 
@@ -54,12 +64,14 @@ class AutoEncoder(nn.Module):
         with tqdm(total=epochs * len(train_data)) as pbar:
             for epoch in range(epochs):
 
-                for x, _, _ in train_data:
+                for x, s, _ in train_data:
 
                     x = x.to(device)
+                    if self.decode_with_s:
+                        s = s.to(device)
 
                     self.zero_grad()
-                    loss = self.routine(x, loss_fn=loss_fn)
+                    loss = self.routine(x, loss_fn=loss_fn, s=s)
 
                     loss.backward()
                     self.step()
@@ -69,10 +81,13 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(AutoEncoder):
-    def __init__(self, encoder, decoder, kl_weight=0.1, optimizer_args=None):
-        super(AutoEncoder, self).__init__()
-
-        super().__init__(encoder=encoder, decoder=decoder, optimizer_args=optimizer_args)
+    def __init__(self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_args=None):
+        super().__init__(
+            encoder=encoder,
+            decoder=decoder,
+            decode_with_s=decode_with_s,
+            optimizer_args=optimizer_args,
+        )
         self.encoder: ModelBase = ModelBase(encoder, optimizer_args=optimizer_args)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_args=optimizer_args)
 
@@ -88,7 +103,7 @@ class VAE(AutoEncoder):
 
         return kl
 
-    def encode(self, x, stochastic=True, return_posterior=False):
+    def encode(self, x, stochastic=False, return_posterior=False):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
@@ -102,10 +117,17 @@ class VAE(AutoEncoder):
         else:
             return sample
 
-    def routine(self, x, recon_loss_fn):
+    def routine(self, x, recon_loss_fn, s=None):
         sample, posterior = self.encode(x, stochastic=True, return_posterior=True)
         kl = self.compute_divergence(sample, posterior)
-        recon = self.decoder(sample)
+
+        decoder_input = sample
+        if s is not None and self.decode_with_s:
+            if sample.dim() == 4:
+                s = s.view(s.size(0), -1, 1, 1).float()
+                s = s.expand(-1, -1, sample.size(-2), sample.size(-1))
+                decoder_input = torch.cat([sample, s], dim=1)
+        recon = self.decoder(decoder_input)
         recon_loss = recon_loss_fn(recon, x)
 
         recon_loss /= x.size(0)
@@ -113,21 +135,23 @@ class VAE(AutoEncoder):
 
         loss = recon_loss + self.kl_weight * kl
 
-        return loss
+        return sample, recon, loss
 
-    def fit(self, train_data, epochs, device, loss_fn=nn.MSELoss()):
+    def fit(self, train_data, epochs, device, loss_fn):
 
         self.train()
 
         with tqdm(total=epochs * len(train_data)) as pbar:
             for epoch in range(epochs):
 
-                for x, _, _ in train_data:
+                for x, s, _ in train_data:
 
                     x = x.to(device)
+                    if self.decode_with_s:
+                        s = s.to(device)
 
                     self.zero_grad()
-                    loss = self.routine(x, recon_loss_fn=loss_fn)
+                    _, _, loss = self.routine(x, recon_loss_fn=loss_fn, s=s)
                     loss.backward()
                     self.step()
 
