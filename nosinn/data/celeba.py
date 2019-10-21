@@ -48,6 +48,11 @@ class CelebA(VisionDataset):
             "75e246fa4810816ffd6ee81facbd244c",
             "list_attr_celeba.txt",
         ),
+        (
+            "0B7EVK8r0v71pY0NSMzRuSXJEVkk",
+            "d32c9cbf5e040fd4025c592c306e6668",
+            "list_eval_partition.txt",
+        ),
     ]
 
     def __init__(

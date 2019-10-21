@@ -46,7 +46,7 @@ class AutoEncoder(nn.Module):
         loss /= inputs.size(0)
 
         return loss
-
+      
     def fit(self, train_data, epochs, device, loss_fn):
 
         self.train()
@@ -88,7 +88,7 @@ class VAE(AutoEncoder):
 
         return kl
 
-    def encode(self, x, stochastic=True, return_posterior=False):
+    def encode(self, x, stochastic=False, return_posterior=False):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
@@ -115,7 +115,7 @@ class VAE(AutoEncoder):
 
         return loss
 
-    def fit(self, train_data, epochs, device, loss_fn=nn.MSELoss()):
+    def fit(self, train_data, epochs, device, loss_fn):
 
         self.train()
 
