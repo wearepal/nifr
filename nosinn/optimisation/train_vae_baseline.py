@@ -7,20 +7,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from torch.utils.data import DataLoader, TensorDataset
-from torchvision.utils import save_image
 
 from nosinn.data import DatasetTriplet
-from nosinn.models import AutoEncoder
 from nosinn.models.autoencoder import VAE
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import (
-    fc_net,
-    linear_disciminator,
-    mp_32x32_net,
-    mp_64x64_net,
-)
-from nosinn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
-from nosinn.models.inn import PartitionedInn, PartitionedAeInn
+from nosinn.models.configs.classifiers import linear_disciminator
+from nosinn.models.factory import build_discriminator
 from nosinn.utils import utils
 from .loss import grad_reverse, PixelCrossEntropy
 from .utils import get_data_dim, log_images
