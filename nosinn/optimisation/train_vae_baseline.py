@@ -231,6 +231,8 @@ def main(args, datasets, metric_callback):
         "use_bn": True,
     }
 
+    ARGS.s_dim = ARGS.s_dim if ARGS.s_dim > 1 else 2
+
     if is_image_data:
         decoding_dim = INPUT_SHAPE[0] * 256 if args.recon_loss == "ce" else INPUT_SHAPE[0]
         encoder, decoder, enc_shape = conv_autoencoder(
@@ -249,7 +251,7 @@ def main(args, datasets, metric_callback):
             encoding_dim=ARGS.enc_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS.s_dim,
+            s_dim=ARGS.s_dims,
         )
 
     if ARGS.recon_loss == "l1":
