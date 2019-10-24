@@ -105,6 +105,7 @@ venv.bak/
 
 # IDEs
 .idea/
+.vscode/
 
 # project-specific
 experiments/
