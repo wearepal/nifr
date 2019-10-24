@@ -149,9 +149,6 @@ def encode_dataset(args, vae, data_loader):
 
             xy = vae.decode(z, s=x.new_zeros(x.size(0), args.s_dim))
 
-            if x.dim() > 2:
-                xy = xy.clamp(min=0, max=1)
-
             all_xy.append(xy.detach().cpu())
 
     all_xy = torch.cat(all_xy, dim=0)
