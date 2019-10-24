@@ -24,7 +24,9 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
     )
 
 
-def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoding_dim, decoding_dim, vae):
+def conv_autoencoder(
+    input_shape, initial_hidden_channels, levels, encoding_dim, decoding_dim, vae, s_dim=0
+):
     encoder = []
     decoder = []
     c_in, h, w = input_shape
@@ -49,7 +51,7 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoding_dim,
     encoder_out_dim = 2 * encoding_dim if vae else encoding_dim
 
     encoder += [nn.Conv2d(c_out, encoder_out_dim, kernel_size=1, stride=1, padding=0)]
-    decoder += [nn.Conv2d(encoding_dim, c_out, kernel_size=1, stride=1, padding=0)]
+    decoder += [nn.Conv2d(encoding_dim + s_dim, c_out, kernel_size=1, stride=1, padding=0)]
     decoder = decoder[::-1]
     decoder += [nn.Conv2d(input_shape[0], decoding_dim, kernel_size=1, stride=1, padding=0)]
 
@@ -65,7 +67,7 @@ def _linear_block(in_channels, out_channels):
     return nn.Sequential(nn.SELU(), nn.Linear(in_channels, out_channels))
 
 
-def fc_autoencoder(input_shape, hidden_channels, levels, encoding_dim, vae):
+def fc_autoencoder(input_shape, hidden_channels, levels, encoding_dim, vae, s_dim=0):
     encoder = []
     decoder = []
 
@@ -80,7 +82,7 @@ def fc_autoencoder(input_shape, hidden_channels, levels, encoding_dim, vae):
     encoder_out_dim = 2 * encoding_dim if vae else encoding_dim
 
     encoder += [_linear_block(c_out, encoder_out_dim)]
-    decoder += [_linear_block(encoding_dim, c_out)]
+    decoder += [_linear_block(encoding_dim + s_dim, c_out)]
     decoder = decoder[::-1]
 
     encoder = nn.Sequential(*encoder)

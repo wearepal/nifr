@@ -12,8 +12,8 @@ from ethicml.algorithms.inprocess import LR
 
 from nosinn.data import DatasetTriplet, get_data_tuples, load_dataset
 from nosinn.optimisation.evaluation import evaluate, encode_dataset
-from nosinn.optimisation.train import main as training_loop
-from nosinn.optimisation.config import parse_arguments
+from nosinn.optimisation.train_nosinn import main as training_loop
+from nosinn.optimisation.config import nosinn_args
 from nosinn.optimisation.utils import log_images
 from nosinn.utils import random_seed
 
@@ -80,7 +80,7 @@ def log_metrics(args, model, data, step, quick_eval=True, save_to_csv: Optional[
 
 
 def main(raw_args=None) -> None:
-    args = parse_arguments(raw_args)
+    args = nosinn_args(raw_args)
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
     datasets = load_dataset(args)
