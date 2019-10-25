@@ -175,7 +175,7 @@ def encode_dataset(args, vae, data_loader):
                 s_oh = x.new_zeros(x.size(0), args.s_dim)
 
             if ARGS.enc_s_dim > 0:
-                enc_y, enc_s = enc.split(split_size=(ARGS.y_dim, ARGS.s_dim), dim=1)
+                enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
                 enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
             else:
                 enc_y_m = enc
