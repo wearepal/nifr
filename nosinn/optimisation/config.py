@@ -198,8 +198,8 @@ def vae_args(raw_args=None):
 
     # VAEsettings
     parser.add_argument("--levels", type=int, default=4)
-    parser.add_argument("--enc_y_dim", type=int, default=64)
-    parser.add_argument("--enc_s_dim", type=int, default=8)
+    parser.add_argument("--enc-y-dim", type=int, default=64)
+    parser.add_argument("--enc-s-dim", type=int, default=8)
     parser.add_argument("--cond-decoder", type=eval, choices=[True, False], default=False)
     parser.add_argument("--init-channels", type=int, default=32)
     parser.add_argument("--recon-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
