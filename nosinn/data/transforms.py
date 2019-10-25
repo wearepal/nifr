@@ -269,13 +269,13 @@ class Augmentation:
     """
 
     def _augment(self, data: torch.Tensor) -> torch.Tensor:
-        """Augment the input data in a label-dependent fashion
+        """Augment the input data
 
         Args:
             data: Tensor. Input data to be augmented.
-            labels: Tensor. Labels on which the augmentations are conditioned.
 
-        Returns: Tensor. Augmented Data.
+        Returns:
+            Tensor, augmented data
         """
         return data
 
@@ -284,9 +284,9 @@ class Augmentation:
 
         Args:
             data: Tensor. Input data to be augmented.
-            labels: Tensor. Labels on which the augmentations are conditioned.
 
-        Returns: Tensor. Augmented data.
+        Returns:
+            Tensor, augmented data
         """
         return self._augment(data)
 
