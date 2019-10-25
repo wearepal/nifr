@@ -6,7 +6,7 @@ from torchvision.datasets import MNIST
 from ethicml.data import Adult
 
 from nosinn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
-from nosinn.data.transforms import LdColorizer
+from nosinn.data.transforms import LdColorizer, NoisyDequantize, Quantize
 from .adult import load_adult_data
 from .celeba import CelebA
 
@@ -35,6 +35,10 @@ def load_dataset(args) -> DatasetTriplet:
             data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
         if args.padding > 0:
             base_aug.insert(0, transforms.Pad(args.padding))
+        if args.quant_level != 8:
+            base_aug.append(Quantize(args.quant_level))
+        if args.input_noise:
+            base_aug.append(NoisyDequantize(args.quant_level))
         train_data = MNIST(root=args.root, download=True, train=True)
         pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
         test_data = MNIST(root=args.root, download=True, train=False)

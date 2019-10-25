@@ -59,6 +59,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--rotate-data", type=eval, default=False, choices=[True, False])
     parser.add_argument("--shift-data", type=eval, default=False, choices=[True, False])
     parser.add_argument("--padding", type=int, default=2)
+    parser.add_argument("--quant-level", type=int, default=8, choices=[3, 5, 8])
+    parser.add_argument("--input-noise", type=eval, default=True, choices=[True, False])
 
     # INN settings
     parser.add_argument(
