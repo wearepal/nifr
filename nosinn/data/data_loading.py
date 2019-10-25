@@ -34,8 +34,8 @@ def load_dataset(args) -> DatasetTriplet:
         if args.padding > 0:
             base_aug.insert(0, transforms.Pad(args.padding))
         train_data = MNIST(root=args.root, download=True, train=True)
-        _, train_data = random_split(train_data, lengths=(50000, 10000))
-        pretrain_data = KMNIST(root=args.root, download=True, train=True)
+        pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
+        # pretrain_data = KMNIST(root=args.root, download=True, train=True)
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(

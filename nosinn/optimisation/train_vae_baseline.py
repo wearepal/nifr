@@ -1,5 +1,6 @@
 """Main training file"""
 import time
+from os.path import split
 from pathlib import Path
 
 import torch
@@ -14,9 +15,10 @@ from nosinn.models.configs import conv_autoencoder, fc_autoencoder
 from nosinn.models.configs.classifiers import linear_disciminator
 from nosinn.models.factory import build_discriminator
 from nosinn.utils import utils
-from .loss import grad_reverse, PixelCrossEntropy
-from .utils import get_data_dim, log_images
+
 from .evaluation import fit_classifier
+from .loss import PixelCrossEntropy, grad_reverse
+from .utils import get_data_dim, log_images
 
 NDECS = 0
 ARGS = None
@@ -40,12 +42,15 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        # enc_y = vae.encode(x)
-        # recon = vae.decoder(enc_y)
+        s_oh = None
+        if ARGS.cond_decoder:
+            s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
+        enc, recon, elbo = vae.routine(x, recon_loss_fn=recon_loss_fn, s=s_oh)
 
-        # elbo = recon_loss_fn(recon, x) / x.size(0)
-        s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
-        enc_y, recon, elbo = vae.routine(x, recon_loss_fn=recon_loss_fn, s=s_oh)
+        if ARGS.enc_s_dim > 0:
+            enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+        else:
+            enc_y = enc_s = enc
 
         enc_y = grad_reverse(enc_y)
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
@@ -74,11 +79,22 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
 
-                z = vae.encode(x[:64], stochastic=False)
+                enc = vae.encode(x[:64], stochastic=False)
 
-                recon_all = vae.decode(z, s=s_oh[:64])
-                recon_y = vae.decode(z, s=torch.zeros_like(s_oh[:64]))
-                recon_s = vae.decode(torch.zeros_like(z), s=s_oh[:64])
+                if s_oh is not None:
+                    s_oh = s_oh[:64]
+
+                if ARGS.enc_s_dim > 0:
+                    enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+                    enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+                    enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
+
+                else:
+                    enc_y_m = enc_s_m = enc
+
+                recon_all = vae.decode(enc, s=s_oh)
+                recon_y = vae.decode(enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None)
+                recon_s = vae.decode(enc_s_m, s=s_oh)
 
                 log_images(x[:64], "original_x", step=itr)
                 log_images(recon_all, "reconstruction_all", step=itr)
@@ -107,8 +123,15 @@ def validate(vae, discriminator, val_loader, itr, recon_loss_fn):
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
-            enc_y, recon, elbo = vae.routine(x_val, recon_loss_fn=recon_loss_fn, s=s_oh)
+            s_oh = None
+            if ARGS.cond_decoder:
+                s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
+            enc, recon, elbo = vae.routine(x_val, recon_loss_fn=recon_loss_fn, s=s_oh)
+
+            if ARGS.s_dim > 0:
+                enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+            else:
+                enc_y = enc
 
             enc_y = grad_reverse(enc_y)
             disc_loss, disc_acc = discriminator.routine(enc_y, s_val)
@@ -145,10 +168,19 @@ def encode_dataset(args, vae, data_loader):
             all_s.append(s)
             all_y.append(y)
 
-            z = vae.encode(x, stochastic=False)
+            enc = vae.encode(x, stochastic=False)
 
-            xy = vae.decode(z, s=x.new_zeros(x.size(0), args.s_dim))
+            s_oh = None
+            if ARGS.cond_decoder:
+                s_oh = x.new_zeros(x.size(0), args.s_dim)
 
+            if ARGS.enc_s_dim > 0:
+                enc_y, enc_s = enc.split(split_size=(ARGS.y_dim, ARGS.s_dim), dim=1)
+                enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+            else:
+                enc_y_m = enc
+
+            xy = vae.decode(enc_y_m, s=s_oh)
             all_xy.append(xy.detach().cpu())
 
     all_xy = torch.cat(all_xy, dim=0)
@@ -235,20 +267,20 @@ def main(args, datasets, metric_callback):
         encoder, decoder, enc_shape = conv_autoencoder(
             INPUT_SHAPE,
             ARGS.init_channels,
-            encoding_dim=ARGS.enc_dim,
+            encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
             vae=True,
-            s_dim=ARGS.s_dim,
+            s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
         )
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
             INPUT_SHAPE,
             ARGS.init_channels,
-            encoding_dim=ARGS.enc_dim,
+            encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS.s_dims,
+            s_dim=ARGS.s_dim if ARGS.cond_decoder else 0
         )
 
     if ARGS.recon_loss == "l1":
@@ -277,7 +309,7 @@ def main(args, datasets, metric_callback):
     discriminator = build_discriminator(
         args,
         enc_shape,
-        frac_enc=1,
+        frac_enc=ARGS.enc_y_dim / enc_shape[0],
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=dis_optimizer_kwargs,
