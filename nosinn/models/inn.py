@@ -1,5 +1,6 @@
 from argparse import Namespace
-from typing import Tuple, Union, List, Optional, Sequence
+from typing import Tuple, Union, List, Optional, Sequence, overload
+from typing_extensions import Literal
 
 import numpy as np
 import torch
@@ -13,8 +14,7 @@ from .masker import Masker
 
 
 class BipartiteInn(ModelBase):
-    """ Base wrapper class for INN models.
-    """
+    """Base wrapper class for INN models."""
 
     def __init__(
         self,
@@ -22,14 +22,13 @@ class BipartiteInn(ModelBase):
         model: torch.nn.Module,
         input_shape: Sequence[int],
         feature_groups: Optional[List[slice]] = None,
-        optimizer_args: dict = None,
+        optimizer_args: Optional[dict] = None,
     ) -> None:
         """
         Args:
             args: Namespace. Runtime arguments.
             model: nn.Module. INN model to wrap around.
-            input_shape: Tuple or List. Shape (excluding batch dimension) of the
-            input data.
+            input_shape: Tuple or List. Shape (excluding batch dimension) of the input data.
             optimizer_args: Dictionary. Arguments to pass to the optimizer.
 
         Returns:
@@ -59,7 +58,7 @@ class BipartiteInn(ModelBase):
             z_channels += args.s_dim
             self.output_dim = self.input_shape[0]
         else:
-            self.x_dim: int = x_dim
+            self.x_dim = x_dim
             self.output_dim = int(np.product(self.input_shape))
 
         super().__init__(model, optimizer_args=optimizer_args)
@@ -74,7 +73,17 @@ class BipartiteInn(ModelBase):
 
         return x
 
-    def encode(self, data, partials: bool = True) -> Tensor:
+    @overload
+    def encode(self, data: Tensor, partials: Literal[False] = ...) -> Tensor:
+        ...
+
+    @overload
+    def encode(self, data: Tensor, partials: Literal[True]) -> Tuple[Tensor, Tensor, Tensor]:
+        ...
+
+    def encode(
+        self, data: Tensor, partials: bool = False
+    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
         return self.forward(data, reverse=False)
 
     def decode(self, z, partials: bool = True, discretize: bool = True) -> Tensor:
@@ -148,6 +157,14 @@ class PartitionedInn(BipartiteInn):
         zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
 
         return zy_m, zs_m
+
+    @overload
+    def encode(self, data: Tensor, partials: Literal[False] = ...) -> Tensor:
+        ...
+
+    @overload
+    def encode(self, data: Tensor, partials: Literal[True]) -> Tuple[Tensor, Tensor, Tensor]:
+        ...
 
     def encode(
         self, data: Tensor, partials: bool = False

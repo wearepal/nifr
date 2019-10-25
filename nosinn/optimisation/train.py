@@ -23,6 +23,7 @@ from nosinn.models.inn import PartitionedInn, PartitionedAeInn
 from nosinn.utils import utils
 from .loss import grad_reverse, PixelCrossEntropy
 from .utils import get_data_dim, log_images
+from .evaluation import log_metrics as metric_callback
 
 NDECS = 0
 ARGS = None
@@ -184,13 +185,12 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def main(args, datasets, metric_callback):
+def main(args, datasets):
     """Main function
 
     Args:
         args: commandline arguments
         datasets: a Dataset object
-        metric_callback: a function that computes metrics
 
     Returns:
         the trained model
@@ -279,6 +279,7 @@ def main(args, datasets, metric_callback):
                 vae=ARGS.vae,
             )
 
+        autoencoder: AutoEncoder
         if ARGS.vae:
             autoencoder = VAE(encoder=encoder, decoder=decoder, kl_weight=ARGS.kl_weight)
         else:
@@ -291,6 +292,7 @@ def main(args, datasets, metric_callback):
         inn = PartitionedAeInn(**inn_kwargs)
         inn.to(args.device)
 
+        ae_loss_fn: nn.Module
         if ARGS.ae_loss == "l1":
             ae_loss_fn = nn.L1Loss(reduction="sum")
         elif ARGS.ae_loss == "l2":

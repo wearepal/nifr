@@ -1,5 +1,6 @@
 import os
 import random
+from pathlib import Path
 from functools import partial
 
 import numpy as np
@@ -137,10 +138,6 @@ class DataTupleDataset(Dataset):
     def __len__(self):
         return self.s.shape[0]
 
-    @property
-    def transform(self):
-        return self.__transform
-
     def shrink(self, pcnt):
         if not 0.0 <= pcnt <= 1.0:
             raise ValueError(f"{pcnt} is not a valid percentage")
@@ -150,6 +147,10 @@ class DataTupleDataset(Dataset):
         self.x_cont = self.x_cont[inds]
         self.s = self.s[inds]
         self.y = self.y[inds]
+
+    @property
+    def transform(self):
+        return self.__transform
 
     @transform.setter
     def transform(self, t):
@@ -188,10 +189,15 @@ class TripletDataset(Dataset):
         super().__init__()
 
         self.root = root
-        fn = partial(os.path.join, self.root)
-        filename = pd.read_csv(fn("filename.csv"), delim_whitespace=True, header=None, index_col=0)
-        sens = pd.read_csv(fn("sens.csv"), delim_whitespace=True, header=None)
-        target = pd.read_csv(fn("target.csv"), delim_whitespace=True, header=None)
+
+        def _abs(file_name: str) -> Path:
+            return Path(self.root) / file_name
+
+        filename = pd.read_csv(
+            _abs("filename.csv"), delim_whitespace=True, header=None, index_col=0
+        )
+        sens = pd.read_csv(_abs("sens.csv"), delim_whitespace=True, header=None)
+        target = pd.read_csv(_abs("target.csv"), delim_whitespace=True, header=None)
 
         assert filename.shape[0] == sens.shape[0] == target.shape[0]
 

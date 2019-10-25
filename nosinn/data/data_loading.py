@@ -1,27 +1,29 @@
-from typing import NamedTuple, Union
-from typing import Optional
+from typing import NamedTuple, Optional
 
-from ethicml.data import Adult
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
+from ethicml.data import Adult
 
-from .celeba import CelebA
 from nosinn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
 from nosinn.data.transforms import LdColorizer
 from .adult import load_adult_data
+from .celeba import CelebA
 
 
 class DatasetTriplet(NamedTuple):
     pretrain: Optional[Dataset]
-    task: Union[Dataset, dict]
-    task_train: Union[Dataset, dict]
-    input_dim: Optional[int]
-    output_dim: Optional[int]
+    task: Dataset
+    task_train: Dataset
+    input_dim: Optional[int] = None
+    output_dim: Optional[int] = None
 
 
 def load_dataset(args) -> DatasetTriplet:
     assert args.pretrain
+    pretrain_data: Dataset
+    test_data: Dataset
+    train_data: Dataset
 
     # =============== get whole dataset ===================
     if args.dataset == "cmnist":
