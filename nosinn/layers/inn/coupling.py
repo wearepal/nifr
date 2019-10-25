@@ -1,3 +1,5 @@
+from builtins import hasattr
+from os.path import split, splitext
 from typing import Tuple
 
 import torch
@@ -5,9 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from nosinn.layers.inn.bijector import Bijector
 from nosinn.layers.conv import BottleneckConvBlock
-from nosinn.layers.resnet import ResidualNet, ConvResidualNet
+from nosinn.layers.inn.bijector import Bijector
+from nosinn.layers.resnet import ConvResidualNet, ResidualNet
 from nosinn.utils import RoundSTE, sum_except_batch
 from nosinn.utils.typechecks import is_probability
 
@@ -33,18 +35,14 @@ class CouplingLayer(Bijector):
 class AffineCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
-
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        self.net_s_t = ConvResidualNet(
+        self.net_s_t = BottleneckConvBlock(
             in_channels=self.d,
             out_channels=(in_channels - self.d) * 2,
             hidden_channels=hidden_channels,
-            num_blocks=num_blocks,
-            activation=F.relu,
-            dropout_probability=0,
-            use_batch_norm=False,
+            use_bn=False,
         )
 
     def logdetjac(self, scale):
@@ -86,14 +84,11 @@ class AdditiveCouplingLayer(CouplingLayer):
         super().__init__()
         self.d = in_channels - round(pcnt_to_transform * in_channels)
 
-        self.net_t = ConvResidualNet(
+        self.net_t = BottleneckConvBlock(
             in_channels=self.d,
             out_channels=(in_channels - self.d),
             hidden_channels=hidden_channels,
-            num_blocks=num_blocks,
-            activation=F.relu,
-            dropout_probability=0,
-            use_batch_norm=False,
+            use_bn=False,
         )
 
     def logdetjac(self):
