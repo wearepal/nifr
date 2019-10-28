@@ -206,9 +206,9 @@ def vae_args(raw_args=None):
 
     # Discriminator settings
     parser.add_argument("--disc-enc-y-depth", type=int, default=1)
-    parser.add_argument("--disc-enc-y-channels", type=int, default=128)
+    parser.add_argument("--disc-enc-y-channels", type=int, default=256)
     parser.add_argument("--disc-enc-s-depth", type=int, default=1)
-    parser.add_argument("--disc-enc-s-channels", type=int, default=64)
+    parser.add_argument("--disc-enc-s-channels", type=int, default=128)
 
     # Optimization settings
     parser.add_argument("--early-stopping", type=int, default=30)

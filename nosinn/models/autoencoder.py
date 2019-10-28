@@ -127,7 +127,7 @@ class VAE(AutoEncoder):
         kl = self.compute_divergence(sample, posterior)
 
         decoder_input = sample
-        decoding = self.decode(decoder_input, s)
+        recon = self.decode(decoder_input, s)
         recon_loss = recon_loss_fn(decoding, s)
 
         recon_loss /= x.size(0)
