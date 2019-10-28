@@ -138,17 +138,32 @@ def validate(vae, discriminator, val_loader, itr, recon_loss_fn):
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
             s_oh = None
-            if ARGS.cond_decoder:
-                s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
-            enc, recon, elbo = vae.routine(x_val, recon_loss_fn=recon_loss_fn, s=s_oh)
+        if ARGS.cond_decoder:
+            s_oh = F.one_hot(s_va;, num_classes=ARGS.s_dim)
+        encoding, posterior = vae.encode(x_val, stochastic=True, return_posterior=True)
+        kl = vae.compute_divergence(encoding, posterior)
 
-            if ARGS.s_dim > 0:
-                enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
-            else:
-                enc_y = enc
+        if ARGS.enc_s_dim > 0:
+            enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+            decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
+        else:
+            enc_y = encoding
+            decoder_input = encoding
 
-            enc_y = grad_reverse(enc_y)
-            disc_loss, disc_acc = discriminator.routine(enc_y, s_val)
+        decoding = vae.decode(decoder_input, s_oh)
+        recon_loss = recon_loss_fn(decoding, x_val)
+
+        recon_loss /= x.size(0)
+        kl /= x.size(0)
+
+        elbo = recon_loss + vae.kl_weight * kl
+
+        enc_y = grad_reverse(enc_y)
+        disc_loss, acc = disc_enc_y.routine(enc_y, s)
+
+        if ARGS.enc_s_dim > 0:
+            disc_loss += disc_enc_s.routine(enc_s, s)[0]
+
 
             elbo *= ARGS.elbo_weight
             disc_loss *= ARGS.pred_s_weight
