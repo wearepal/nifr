@@ -1,11 +1,11 @@
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from argparse import Namespace
 import pandas as pd
-import wandb
 
 import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+import wandb
 
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
@@ -16,13 +16,14 @@ from nosinn.data import get_data_tuples, DatasetTriplet
 from nosinn.models.classifier import Classifier
 from nosinn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
 from nosinn.models.inn import BipartiteInn
+from nosinn.utils import wandb_log
 from .utils import log_images
 
 
-def log_sample_images(data, name, step):
+def log_sample_images(args, data, name, step):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
     x, _, _ = next(iter(data_loader))
-    log_images(x, f"Samples from {name}", prefix="eval", step=step)
+    log_images(args, x, f"Samples from {name}", prefix="eval", step=step)
 
 
 def log_metrics(
@@ -59,7 +60,7 @@ def log_metrics(
     # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
 
     if quick_eval:
-        log_sample_images(data.task_train, "task_train", step=step)
+        log_sample_images(args, data.task_train, "task_train", step=step)
     else:
 
         if args.dataset == "adult":
@@ -80,7 +81,7 @@ def log_metrics(
         evaluate(args, step, task_train_repr["xs"], task_repr["xs"], name="xs")
 
 
-def compute_metrics(predictions, actual, name, step, run_all=False) -> Dict[str, float]:
+def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
@@ -98,37 +99,47 @@ def compute_metrics(predictions, actual, name, step, run_all=False) -> Dict[str,
                 NMI(base="s"),
             ],
         )
-        wandb.log({f"{name} Accuracy": metrics["Accuracy"]}, step=step)
-        wandb.log({f"{name} TPR": metrics["TPR"]}, step=step)
-        wandb.log({f"{name} TNR": metrics["TNR"]}, step=step)
-        wandb.log({f"{name} PPV": metrics["PPV"]}, step=step)
-        wandb.log({f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
-        # wandb.log_metric(f"{name} TPR, metrics['Theil_Index'])
-        wandb.log({f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
-        wandb.log({f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
-        wandb.log({f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"]}, step=step)
-        wandb.log({f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"]}, step=step)
-        wandb.log({f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
-        wandb.log({f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"]}, step=step)
-        wandb.log(
+        wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
+        wandb_log(args, {f"{name} TPR": metrics["TPR"]}, step=step)
+        wandb_log(args, {f"{name} TNR": metrics["TNR"]}, step=step)
+        wandb_log(args, {f"{name} PPV": metrics["PPV"]}, step=step)
+        wandb_log(args, {f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
+        # wandb_log(f"{name} TPR, metrics['Theil_Index'])
+        wandb_log(args, {f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
+        wandb_log(args, {f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
+        wandb_log(args, {f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"]}, step=step)
+        wandb_log(args, {f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"]}, step=step)
+        wandb_log(args, {f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
+        wandb_log(args, {f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"]}, step=step)
+        wandb_log(
+            args,
             {f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]},
             step=step,
         )
-        wandb.log(
+        wandb_log(
+            args,
             {f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]},
             step=step,
         )
 
-        wandb.log({f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"]}, step=step)
-        wandb.log({f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"]}, step=step)
-        wandb.log({f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
-        wandb.log({f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
+        wandb_log(args, {f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"]}, step=step)
+        wandb_log(args, {f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"]}, step=step)
+        wandb_log(
+            args, {f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step
+        )
+        wandb_log(
+            args, {f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step
+        )
 
-        wandb.log({f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"]}, step=step)
-        wandb.log({f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"]}, step=step)
+        wandb_log(
+            args, {f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"]}, step=step
+        )
+        wandb_log(
+            args, {f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"]}, step=step
+        )
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
-        wandb.log({f"{name} Accuracy": metrics["Accuracy"]}, step=step)
+        wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
     return metrics
 
 
@@ -212,7 +223,9 @@ def evaluate(
     full_name = name
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
-    metrics = compute_metrics(preds, actual, full_name, run_all=args.dataset == "adult", step=step)
+    metrics = compute_metrics(
+        args, preds, actual, full_name, run_all=args.dataset == "adult", step=step
+    )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
@@ -228,8 +241,9 @@ def evaluate(
             with results_path.open("w") as f:
                 f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
-        for name, value in metrics.items():
-            wandb.run.summary[name] = value
+        if args.use_wandb:
+            for name, value in metrics.items():
+                wandb.run.summary[name] = value
 
     return metrics
 
@@ -241,9 +255,9 @@ def encode_dataset(
     recon: bool,
     subdir: str,
     get_zy: bool = False,
-) -> dict:
+) -> Dict[str, torch.utils.data.Dataset]:
 
-    encodings = {"xy": []}
+    encodings: Dict[str, List[torch.Tensor]] = {"xy": []}
     if get_zy:
         encodings["zy"] = []
     all_s = []
@@ -252,13 +266,13 @@ def encode_dataset(
     data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
 
     with torch.set_grad_enabled(False):
-        for i, (x, s, y) in enumerate(data):
+        for _, (x, s, y) in enumerate(data):
 
             x = x.to(args.device)
             all_s.append(s)
             all_y.append(y)
 
-            z, zy, zs = model.encode(x, partials=True)
+            _, zy, zs = model.encode(x, partials=True)
 
             zs_m = torch.cat([zy, torch.zeros_like(zs)], dim=1)
             xy = model.invert(zs_m)
@@ -272,11 +286,12 @@ def encode_dataset(
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encodings["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
+    encodings_dt: Dict[str, torch.utils.data.Dataset] = {}
+    encodings_dt["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
     if get_zy:
-        encodings["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
+        encodings_dt["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
 
-    return encodings
+    return encodings_dt
 
     # path = Path("data", "encodings", subdir)
     # if os.path.exists(path):

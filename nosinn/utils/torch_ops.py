@@ -1,6 +1,8 @@
 import torch
 from torch.nn import functional as F
 
+__all__ = ["RoundSTE", "logit", "sum_except_batch", "to_discrete"]
+
 
 class RoundSTE(torch.autograd.Function):
     @staticmethod

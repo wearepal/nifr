@@ -5,6 +5,8 @@ import torch
 from torch import Tensor
 import torch.distributions as td
 
+__all__ = ["DLogistic", "MixtureDistribution", "logistic_distribution", "uniform_bernoulli"]
+
 
 def logistic_distribution(loc: Tensor, scale: Tensor):
     base_distribution = td.Uniform(loc.new_zeros(1), scale.new_zeros(1))

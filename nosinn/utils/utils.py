@@ -1,12 +1,31 @@
 import os
 import logging
 import random
+from typing import Dict, Any, Optional
 
 import numpy as np
 import torch
+import wandb
 
 
 LOGGER = None
+
+__all__ = [
+    "AverageMeter",
+    "RunningAverageMeter",
+    "count_parameters",
+    "get_logger",
+    "inf_generator",
+    "random_seed",
+    "save_checkpoint",
+    "wandb_log",
+]
+
+
+def wandb_log(args, row: Dict[str, Any], commit: bool = True, step: Optional[int] = None):
+    """Wrapper around wandb's log function"""
+    if args.use_wandb:
+        wandb.log(row, commit=commit, step=step)
 
 
 class BraceString(str):

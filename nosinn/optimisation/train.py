@@ -4,9 +4,8 @@ from pathlib import Path
 
 import torch
 import torch.nn as nn
-import wandb
 from torch.utils.data import DataLoader
-from torchvision.utils import save_image
+import wandb
 
 from nosinn.data import DatasetTriplet
 from nosinn.models import AutoEncoder
@@ -20,7 +19,7 @@ from nosinn.models.configs.classifiers import (
 )
 from nosinn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
 from nosinn.models.inn import PartitionedInn, PartitionedAeInn
-from nosinn.utils import utils
+from nosinn.utils import AverageMeter, wandb_log, get_logger, count_parameters
 from .loss import grad_reverse, PixelCrossEntropy
 from .utils import get_data_dim, log_images
 from .evaluation import log_metrics as metric_callback
@@ -55,11 +54,11 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
     inn.eval()
 
-    total_loss_meter = utils.AverageMeter()
-    log_prob_meter = utils.AverageMeter()
-    disc_loss_meter = utils.AverageMeter()
+    total_loss_meter = AverageMeter()
+    log_prob_meter = AverageMeter()
+    disc_loss_meter = AverageMeter()
 
-    time_meter = utils.AverageMeter()
+    time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
     start_itr = start = epoch * len(dataloader)
@@ -98,21 +97,21 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         time_meter.update(time.time() - end)
 
-        wandb.log({"Loss NLL": nll.item()}, step=itr)
-        wandb.log({"Loss Adversarial": disc_loss.item()}, step=itr)
+        wandb_log(ARGS, {"Loss NLL": nll.item()}, step=itr)
+        wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
         end = time.time()
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                log_images(x, "original_x", step=itr)
+                log_images(ARGS, x, "original_x", step=itr)
 
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
-                log_images(recon_all, "reconstruction_all", step=itr)
-                log_images(recon_y, "reconstruction_y", step=itr)
-                log_images(recon_s, "reconstruction_s", step=itr)
+                log_images(ARGS, recon_all, "reconstruction_all", step=itr)
+                log_images(ARGS, recon_y, "reconstruction_y", step=itr)
+                log_images(ARGS, recon_s, "reconstruction_s", step=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -131,7 +130,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 def validate(inn, discriminator, val_loader, itr):
     inn.eval()
     with torch.no_grad():
-        loss_meter = utils.AverageMeter()
+        loss_meter = AverageMeter()
         for x_val, s_val, y_val in val_loader:
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
@@ -154,25 +153,25 @@ def validate(inn, discriminator, val_loader, itr):
 
             loss_meter.update(loss.item(), n=x_val.size(0))
 
-    wandb.log({"Loss": loss_meter.avg}, step=itr)
+    wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
     if ARGS.dataset == "cmnist":
         z = inn(x_val[:64])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(x_val, "original_x", prefix="test", step=itr)
-        log_images(recon_all, "reconstruction_all", prefix="test", step=itr)
-        log_images(recon_y, "reconstruction_y", prefix="test", step=itr)
-        log_images(recon_s, "reconstruction_s", prefix="test", step=itr)
+        log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
+        log_images(ARGS, recon_all, "reconstruction_all", prefix="test", step=itr)
+        log_images(ARGS, recon_y, "reconstruction_y", prefix="test", step=itr)
+        log_images(ARGS, recon_s, "reconstruction_s", prefix="test", step=itr)
     else:
         z = inn(x_val[:1000])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(x_val, "original_x", prefix="test", step=itr)
-        log_images(recon_y, "reconstruction_yn", prefix="test", step=itr)
-        log_images(recon_s, "reconstruction_yn", prefix="test", step=itr)
+        log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
+        log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
+        log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
         x_recon = inn(inn(x_val), reverse=True)
         x_diff = (x_recon - x_val).abs().mean().item()
         print(f"MAE of x and reconstructed x: {x_diff}")
-        wandb.log({"reconstruction MAE": x_diff}, step=itr)
+        wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
 
     return loss_meter.avg
 
@@ -200,17 +199,18 @@ def main(args, datasets):
     global ARGS, LOGGER
     ARGS = args
 
-    wandb.init(
-        project="nosinn",
-        # sync_tensorboard=True,
-        config=vars(ARGS),
-    )
-    # wandb.tensorboard.patch(save=False, pytorch=True)
+    if ARGS.use_wandb:
+        wandb.init(
+            project="nosinn",
+            # sync_tensorboard=True,
+            config=vars(ARGS),
+        )
+        # wandb.tensorboard.patch(save=False, pytorch=True)
 
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    LOGGER = utils.get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
+    LOGGER = get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
     LOGGER.info(ARGS)
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
@@ -345,7 +345,7 @@ def main(args, datasets):
 
     # Logging
     # wandb.set_model_graph(str(inn))
-    LOGGER.info("Number of trainable parameters: {}", utils.count_parameters(inn))
+    LOGGER.info("Number of trainable parameters: {}", count_parameters(inn))
 
     best_loss = float("inf")
     n_vals_without_improvement = 0
