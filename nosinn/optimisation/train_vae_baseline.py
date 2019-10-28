@@ -139,7 +139,7 @@ def validate(vae, discriminator, val_loader, itr, recon_loss_fn):
 
             s_oh = None
         if ARGS.cond_decoder:
-            s_oh = F.one_hot(s_va;, num_classes=ARGS.s_dim)
+            s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
         encoding, posterior = vae.encode(x_val, stochastic=True, return_posterior=True)
         kl = vae.compute_divergence(encoding, posterior)
 
