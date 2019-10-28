@@ -205,9 +205,10 @@ def vae_args(raw_args=None):
     parser.add_argument("--recon-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
 
     # Discriminator settings
-    parser.add_argument("--disc-depth", type=int, default=1)
-    parser.add_argument("--disc-channels", type=int, default=100)
-    parser.add_argument("--disc-hidden-dims", nargs="*", type=int, default=[])
+    parser.add_argument("--disc-enc-y-depth", type=int, default=1)
+    parser.add_argument("--disc-enc-y-channels", type=int, default=128)
+    parser.add_argument("--disc-enc-s-depth", type=int, default=1)
+    parser.add_argument("--disc-enc-s-channels", type=int, default=64)
 
     # Optimization settings
     parser.add_argument("--early-stopping", type=int, default=30)

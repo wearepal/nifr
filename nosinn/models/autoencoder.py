@@ -18,6 +18,17 @@ class AutoEncoder(nn.Module):
     def encode(self, inputs):
         return self.encoder(inputs)
 
+    def reconstruct(self, encoding, s=None):
+        decoding = self.decode(encoding, s)
+
+        if decoding.dim() == 4 and decoding.size(1) > 3:
+            num_classes = 256
+            decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
+            fac = num_classes - 1
+            decoding = decoding.max(dim=1)[1].float() / fac
+
+        return decoding
+
     def decode(self, encoding, s=None):
         decoder_input = encoding
         if s is not None and self.decode_with_s:
@@ -26,12 +37,6 @@ class AutoEncoder(nn.Module):
                 s = s.expand(-1, -1, decoder_input.size(-2), decoder_input.size(-1))
                 decoder_input = torch.cat([decoder_input, s], dim=1)
         decoding = self.decoder(decoder_input)
-
-        if decoding.dim() == 4 and decoding.size(1) > 3:
-            num_classes = 256
-            decoding = decoding[:64].view(decoding.size(0), num_classes, -1, *decoding.shape[-2:])
-            fac = num_classes - 1
-            decoding = decoding.max(dim=1)[1].float() / fac
 
         return decoding
 
@@ -122,13 +127,8 @@ class VAE(AutoEncoder):
         kl = self.compute_divergence(sample, posterior)
 
         decoder_input = sample
-        if s is not None and self.decode_with_s:
-            if sample.dim() == 4:
-                s = s.view(s.size(0), -1, 1, 1).float()
-                s = s.expand(-1, -1, sample.size(-2), sample.size(-1))
-                decoder_input = torch.cat([sample, s], dim=1)
-        recon = self.decoder(decoder_input)
-        recon_loss = recon_loss_fn(recon, x)
+        decoding = self.decode(decoder_input, s)
+        recon_loss = recon_loss_fn(decoding, s)
 
         recon_loss /= x.size(0)
         kl /= x.size(0)

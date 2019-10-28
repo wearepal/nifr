@@ -26,7 +26,7 @@ LOGGER = None
 INPUT_SHAPE = ()
 
 
-def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
+def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) -> int:
     vae.train()
     vae.eval()
 
@@ -45,15 +45,27 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
         s_oh = None
         if ARGS.cond_decoder:
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
-        enc, recon, elbo = vae.routine(x, recon_loss_fn=recon_loss_fn, s=s_oh)
+        encoding, posterior = vae.encode(x, stochastic=True, return_posterior=True)
+        kl = vae.compute_divergence(encoding, posterior)
 
         if ARGS.enc_s_dim > 0:
-            enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+            enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+            decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
         else:
-            enc_y = enc_s = enc
+            enc_y = encoding
+            decoder_input = encoding
+
+        decoding = vae.decode(decoder_input, s_oh)
+        recon_loss = recon_loss_fn(decoding, x)
+
+        recon_loss /= x.size(0)
+        kl /= x.size(0)
+
+        elbo = recon_loss + vae.kl_weight * kl
 
         enc_y = grad_reverse(enc_y)
-        disc_loss, disc_acc = discriminator.routine(enc_y, s)
+        disc_loss, acc = disc_enc_y.routine(enc_y, s)
+        disc_loss += disc_enc_s.routine(enc_s, s)[0]
 
         elbo *= ARGS.elbo_weight
         disc_loss *= ARGS.pred_s_weight
@@ -61,10 +73,10 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
         loss = elbo + disc_loss
 
         vae.zero_grad()
-        discriminator.zero_grad()
+        disc_enc_y.zero_grad()
         loss.backward()
         vae.step()
-        discriminator.step()
+        disc_enc_y.step()
 
         total_loss_meter.update(loss.item())
         elbo_meter.update(elbo.item())
@@ -92,9 +104,9 @@ def train(vae, discriminator, dataloader, epoch: int, recon_loss_fn) -> int:
                 else:
                     enc_y_m = enc_s_m = enc
 
-                recon_all = vae.decode(enc, s=s_oh)
-                recon_y = vae.decode(enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None)
-                recon_s = vae.decode(enc_s_m, s=s_oh)
+                recon_all = vae.reconstruct(enc, s=s_oh)
+                recon_y = vae.reconstruct(enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None)
+                recon_s = vae.reconstruct(enc_s_m, s=s_oh)
 
                 log_images(x[:64], "original_x", step=itr)
                 log_images(recon_all, "reconstruction_all", step=itr)
@@ -180,7 +192,7 @@ def encode_dataset(args, vae, data_loader):
             else:
                 enc_y_m = enc
 
-            xy = vae.decode(enc_y_m, s=s_oh)
+            xy = vae.reconstruct(enc_y_m, s=s_oh)
             all_xy.append(xy.detach().cpu())
 
     all_xy = torch.cat(all_xy, dim=0)
@@ -254,9 +266,16 @@ def main(args, datasets, metric_callback):
 
     # Model constructors and arguments
     disc_fn = linear_disciminator
-    disc_kwargs = {
-        "hidden_channels": ARGS.disc_channels,
-        "num_blocks": ARGS.disc_depth,
+
+    disc_enc_y_kwargs = {
+        "hidden_channels": ARGS.disc_enc_y_channels,
+        "num_blocks": ARGS.disc_enc_y_depth,
+        "use_bn": True,
+    }
+
+    disc_enc_s_kwargs = {
+        "hidden_channels": ARGS.disc_enc_s_channels,
+        "num_blocks": ARGS.disc_enc_s_depth,
         "use_bn": True,
     }
 
@@ -304,17 +323,27 @@ def main(args, datasets, metric_callback):
     vae.to(args.device)
 
     # Initialise Discriminator
-    dis_optimizer_kwargs = {"lr": args.disc_lr}
+    disc_optimizer_kwargs = {"lr": args.disc_lr}
 
-    discriminator = build_discriminator(
+    disc_enc_y = build_discriminator(
         args,
         enc_shape,
         frac_enc=ARGS.enc_y_dim / enc_shape[0],
         model_fn=disc_fn,
-        model_kwargs=disc_kwargs,
-        optimizer_kwargs=dis_optimizer_kwargs,
+        model_kwargs=disc_enc_y_kwargs,
+        optimizer_kwargs=disc_optimizer_kwargs,
     )
-    discriminator.to(args.device)
+    disc_enc_y.to(args.device)
+
+    disc_enc_s = build_discriminator(
+        args,
+        enc_shape,
+        frac_enc=ARGS.enc_s_dim / enc_shape[0],
+        model_fn=disc_fn,
+        model_kwargs=disc_enc_s_kwargs,
+        optimizer_kwargs=disc_optimizer_kwargs,
+    )
+    disc_enc_s.to(args.device)
 
     # Logging
     # wandb.set_model_graph(str(inn))
@@ -328,10 +357,10 @@ def main(args, datasets, metric_callback):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        itr = train(vae, discriminator, train_loader, epoch, recon_loss_fn)
+        itr = train(vae, disc_enc_y, disc_enc_s, train_loader, epoch, recon_loss_fn)
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
-            val_loss = validate(vae, discriminator, val_loader, itr, recon_loss_fn)
+            val_loss = validate(vae, disc_enc_y, val_loader, itr, recon_loss_fn)
             if args.super_val:
                 evaluate(args, vae=vae, train_loader=val_loader, test_loader=test_loader)
 
