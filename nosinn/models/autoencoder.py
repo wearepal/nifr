@@ -128,7 +128,7 @@ class VAE(AutoEncoder):
 
         decoder_input = sample
         recon = self.decode(decoder_input, s)
-        recon_loss = recon_loss_fn(decoding, s)
+        recon_loss = recon_loss_fn(recon, s)
 
         recon_loss /= x.size(0)
         kl /= x.size(0)
