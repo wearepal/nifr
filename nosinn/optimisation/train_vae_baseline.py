@@ -153,24 +153,20 @@ def validate(vae, discriminator, val_loader, itr, recon_loss_fn):
         decoding = vae.decode(decoder_input, s_oh)
         recon_loss = recon_loss_fn(decoding, x_val)
 
-        recon_loss /= x.size(0)
-        kl /= x.size(0)
+        recon_loss /= x_val.size(0)
+        kl /= x_val.size(0)
 
         elbo = recon_loss + vae.kl_weight * kl
 
         enc_y = grad_reverse(enc_y)
-        disc_loss, acc = disc_enc_y.routine(enc_y, s)
+        disc_loss, acc = discriminator.routine(enc_y, s_val)
 
-        if ARGS.enc_s_dim > 0:
-            disc_loss += disc_enc_s.routine(enc_s, s)[0]
+        elbo *= ARGS.elbo_weight
+        disc_loss *= ARGS.pred_s_weight
 
+        loss = elbo + disc_loss
 
-            elbo *= ARGS.elbo_weight
-            disc_loss *= ARGS.pred_s_weight
-
-            loss = elbo + disc_loss
-
-            loss_meter.update(loss.item(), n=x_val.size(0))
+        loss_meter.update(loss.item(), n=x_val.size(0))
 
     wandb.log({"Loss": loss_meter.avg}, step=itr)
 
