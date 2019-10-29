@@ -65,7 +65,7 @@ class CelebA(VisionDataset):
         mixing_factor,
         unbiased_pcnt,
         sens_attr="Male",
-        target_attr="Attractive",
+        target_attr="Smiling",
         transform=None,
         target_transform=None,
         download=False,
@@ -95,24 +95,26 @@ class CelebA(VisionDataset):
         if target_attr not in attr_names:
             raise ValueError(f"{target_attr} does not exist as an attribute.")
 
-        filename = pd.DataFrame(filename.iloc[:, 0]).reset_index(drop=True)
+        filename = filename.iloc[:, [0]].reset_index(drop=True)
         sens_attr = attr[[sens_attr]].reset_index(drop=True)
+        sens_attr = (sens_attr + 1) // 2    # map from {-1, 1} to {0, 1}
         target_attr = attr[[target_attr]].reset_index(drop=True)
+        target_attr = (target_attr + 1) // 2    # map from {-1, 1} to {0, 1}
 
-        dtuple = DataTuple(x=filename, s=sens_attr, y=target_attr)
-        biased, unbiased = get_biased_subset(data=dtuple, mixing_factor=mixing_factor, unbiased_pcnt=unbiased_pcnt)
+        all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
+        biased_dt, unbiased_dt = get_biased_subset(
+            data=all_dt, mixing_factor=mixing_factor, unbiased_pcnt=unbiased_pcnt
+        )
 
-        if self.biased:
-            filename, sens_attr, target_attr = biased
+        if biased:
+            filename, sens_attr, target_attr = biased_dt
         else:
-            filename, sens_attr, target_attr = unbiased
+            filename, sens_attr, target_attr = unbiased_dt
 
-        self.filename = filename.values
+        self.filename = filename.to_numpy()[:, 0]
         self.sens_attr = torch.as_tensor(sens_attr.values)
-        self.sens_attr = (self.sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
         self.target_attr = torch.as_tensor(target_attr.values)
-        self.target_attr = (self.target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
     def _check_integrity(self):
         for (_, md5, filename) in self.file_list:
@@ -167,12 +169,22 @@ class CelebA(VisionDataset):
 
 
 if __name__ == "__main__":
-    from torch.utils.data import DataLoader
+    from torch.utils.data import DataLoader, random_split
 
     train_data = CelebA(
-        root=r"./data", biased=True, mixing_factor=0, unbiased_pcnt=0.4, download=False, transform=ToTensor()
+        root=r"./data", biased=True, mixing_factor=1., unbiased_pcnt=0.4, download=False, transform=ToTensor()
     )
 
+    # print(train_data.sens_attr.float().mean())
+    # print(train_data.target_attr.float().mean())
+    # # print((train_data.target_attr == train_data.sens_attr).float().mean())
+    # print(((train_data.target_attr == 0) & (train_data.sens_attr == 0)).float().mean())
+    # print(((train_data.target_attr == 0) & (train_data.sens_attr == 1)).float().mean())
+    # print(((train_data.target_attr == 1) & (train_data.sens_attr == 0)).float().mean())
+    # print(((train_data.target_attr == 1) & (train_data.sens_attr == 1)).float().mean())
+    split_size = round(0.4 * len(train_data))
+    train_data, _ = random_split(train_data, lengths=(split_size, len(train_data) - split_size))
+    assert(len(train_data) == split_size)
     train_loader = DataLoader(train_data, batch_size=9)
     x, s, y = next(iter(train_loader))
 

@@ -40,7 +40,11 @@ def load_dataset(args) -> DatasetTriplet:
         if args.input_noise:
             base_aug.append(NoisyDequantize(args.quant_level))
         train_data = MNIST(root=args.root, download=True, train=True)
-        pretrain_data, train_data = random_split(train_data, lengths=(50000, 10000))
+
+        pretrain_len = round(args.pretrain_pcnt * len(train_data))
+        train_len = len(train_data) - pretrain_len
+        pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
+
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
@@ -93,9 +97,28 @@ def load_dataset(args) -> DatasetTriplet:
             ]
         )
 
-        pretrain_data = CelebA(args.root, download=True, split="valid", transform=transform)
-        train_data = CelebA(args.root, download=True, split="valid", transform=transform)
-        test_data = CelebA(args.root, download=True, split="test", transform=transform)
+        unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
+        unbiased_data = CelebA(
+            root="/Volumes/LocalDataHD/mb715/PycharmProjects/Fair-Invertible-Networks/data",
+            biased=False,
+            mixing_factor=args.task_mixing_factor,
+            unbiased_pcnt=unbiased_pcnt,
+            download=False,
+            transform=transform
+        )
+
+        pretrain_len = round(args.pretrain_pcnt * len(unbiased_data))
+        test_len = len(unbiased_data) - pretrain_len
+        pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
+
+        train_data = CelebA(
+            root="/Volumes/LocalDataHD/mb715/PycharmProjects/Fair-Invertible-Networks/data",
+            biased=True,
+            mixing_factor=args.task_mixing_factor,
+            unbiased_pcnt=unbiased_pcnt,
+            download=False,
+            transform=transform
+        )
 
         args.y_dim = 1
         args.s_dim = 1
