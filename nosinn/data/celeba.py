@@ -1,5 +1,5 @@
 from functools import partial
-
+import pandas as pd
 import torch
 import os
 from PIL import Image
@@ -10,6 +10,9 @@ from torchvision.datasets.utils import (
     download_file_from_google_drive,
 )
 from torchvision.transforms import ToTensor
+
+from ethicml.preprocessing import get_biased_subset, SequentiallSplit
+from ethicml.utility import DataTuple
 
 
 class CelebA(VisionDataset):
@@ -58,17 +61,17 @@ class CelebA(VisionDataset):
     def __init__(
         self,
         root,
-        split="train",
+        biased,
+        mixing_factor,
+        unbiased_pcnt,
         sens_attr="Male",
-        target_attr="Attractive",
+        target_attr="Smiling",
         transform=None,
         target_transform=None,
         download=False,
+        seed=42,
     ):
-        import pandas
-
-        super(CelebA, self).__init__(root, transform=transform, target_transform=target_transform)
-        self.split = split
+        super().__init__(root, transform=transform, target_transform=target_transform)
 
         if download:
             self.download()
@@ -78,14 +81,9 @@ class CelebA(VisionDataset):
                 "Dataset not found or corrupted." + " You can use download=True to download it"
             )
 
-        split_map = {"train": 0, "valid": 1, "test": 2, "all": None}
-        split = split_map[verify_str_arg(split.lower(), "split", ("train", "valid", "test", "all"))]
-
         fn = partial(os.path.join, self.root, self.base_folder)
-        splits = pandas.read_csv(
-            fn("list_eval_partition.txt"), delim_whitespace=True, header=None, index_col=0
-        )
-        attr = pandas.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
+        filename = pd.read_csv(fn("list_eval_partition.txt"), delim_whitespace=True, header=None)
+        attr = pd.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
         attr_names = list(attr.columns)
 
         sens_attr = sens_attr.capitalize()
@@ -96,17 +94,30 @@ class CelebA(VisionDataset):
         if target_attr not in attr_names:
             raise ValueError(f"{target_attr} does not exist as an attribute.")
 
-        mask = slice(None) if split is None else (splits[1] == split)
+        filename = filename.iloc[:, [0]]
+        sens_attr = attr[[sens_attr]]
+        sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
+        target_attr = attr[[target_attr]]
+        target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
-        self.filename = splits[mask].index.values
-        sens_attr = attr[sens_attr]
-        target_attr = attr[target_attr]
+        all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
 
-        self.sens_attr = torch.as_tensor(sens_attr[mask].values)
-        self.sens_attr = (self.sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
+        # TODO: make the disjoint splitting more robust
+        splitter = SequentialSplit(train_percentage=unbiased_pcnt)
+        unbiased_dt, biased_dt = splitter(all_dt)
 
-        self.target_attr = torch.as_tensor(target_attr[mask].values)
-        self.target_attr = (self.target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
+        if biased:
+            biased_dt, _ = get_biased_subset(
+                data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
+            )
+            filename, sens_attr, target_attr = biased_dt
+        else:
+            filename, sens_attr, target_attr = unbiased_dt
+
+        self.filename = filename.to_numpy()[:, 0]
+        self.sens_attr = torch.as_tensor(sens_attr.to_numpy())
+
+        self.target_attr = torch.as_tensor(target_attr.to_numpy())
 
     def _check_integrity(self):
         for (_, md5, filename) in self.file_list:
@@ -161,13 +172,22 @@ class CelebA(VisionDataset):
 
 
 if __name__ == "__main__":
-    from torch.utils.data import DataLoader
+    from torch.utils.data import DataLoader, random_split
 
     train_data = CelebA(
-        root=r"..\..\..\datasets", split="train", download=False, transform=ToTensor()
+        root=r"./data",
+        biased=True,
+        mixing_factor=1.0,
+        unbiased_pcnt=0.4,
+        download=False,
+        transform=ToTensor(),
     )
 
+    split_size = round(0.4 * len(train_data))
+    train_data, _ = random_split(train_data, lengths=(split_size, len(train_data) - split_size))
+    assert len(train_data) == split_size
     train_loader = DataLoader(train_data, batch_size=9)
     x, s, y = next(iter(train_loader))
+
     assert x.size(0) == 9
     assert x.size(0) == s.size(0) == y.size(0)
