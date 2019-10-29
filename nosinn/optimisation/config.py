@@ -221,7 +221,6 @@ def vae_args(raw_args=None):
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data-split-seed", type=int, default=888)
     parser.add_argument("--warmup-steps", type=int, default=0)
-    parser.add_argument("--s-pretraining-steps", type=int, default=1000)
     parser.add_argument(
         "--gamma",
         type=float,
