@@ -117,7 +117,7 @@ class CelebA(VisionDataset):
         self.filename = filename.to_numpy()[:, 0]
         self.sens_attr = torch.as_tensor(sens_attr.to_numpy())
 
-        self.target_attr = torch.as_tensor(target_attr.values)
+        self.target_attr = torch.as_tensor(target_attr.to_numpy())
 
     def _check_integrity(self):
         for (_, md5, filename) in self.file_list:
