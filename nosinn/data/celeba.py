@@ -11,7 +11,7 @@ from torchvision.datasets.utils import (
 )
 from torchvision.transforms import ToTensor
 
-from ethicml.preprocessing import get_biased_subset
+from ethicml.preprocessing import get_biased_subset, SequentiallSplit
 from ethicml.utility import DataTuple
 
 
@@ -69,8 +69,9 @@ class CelebA(VisionDataset):
         transform=None,
         target_transform=None,
         download=False,
+        seed=42,
     ):
-        super(CelebA, self).__init__(root, transform=transform, target_transform=target_transform)
+        super().__init__(root, transform=transform, target_transform=target_transform)
 
         if download:
             self.download()
@@ -93,18 +94,22 @@ class CelebA(VisionDataset):
         if target_attr not in attr_names:
             raise ValueError(f"{target_attr} does not exist as an attribute.")
 
-        filename = filename.iloc[:, [0]].reset_index(drop=True)
-        sens_attr = attr[[sens_attr]].reset_index(drop=True)
+        filename = filename.iloc[:, [0]]
+        sens_attr = attr[[sens_attr]]
         sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
-        target_attr = attr[[target_attr]].reset_index(drop=True)
+        target_attr = attr[[target_attr]]
         target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
-        biased_dt, unbiased_dt = get_biased_subset(
-            data=all_dt, mixing_factor=mixing_factor, unbiased_pcnt=unbiased_pcnt
-        )
+
+        # TODO: make the disjoint splitting more robust
+        splitter = SequentialSplit(train_percentage=unbiased_pcnt)
+        unbiased_dt, biased_dt = splitter(all_dt)
 
         if biased:
+            biased_dt, _ = get_biased_subset(
+                data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
+            )
             filename, sens_attr, target_attr = biased_dt
         else:
             filename, sens_attr, target_attr = unbiased_dt
@@ -178,13 +183,6 @@ if __name__ == "__main__":
         transform=ToTensor(),
     )
 
-    # print(train_data.sens_attr.float().mean())
-    # print(train_data.target_attr.float().mean())
-    # # print((train_data.target_attr == train_data.sens_attr).float().mean())
-    # print(((train_data.target_attr == 0) & (train_data.sens_attr == 0)).float().mean())
-    # print(((train_data.target_attr == 0) & (train_data.sens_attr == 1)).float().mean())
-    # print(((train_data.target_attr == 1) & (train_data.sens_attr == 0)).float().mean())
-    # print(((train_data.target_attr == 1) & (train_data.sens_attr == 1)).float().mean())
     split_size = round(0.4 * len(train_data))
     train_data, _ = random_split(train_data, lengths=(split_size, len(train_data) - split_size))
     assert len(train_data) == split_size

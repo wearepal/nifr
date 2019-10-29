@@ -99,12 +99,13 @@ def load_dataset(args) -> DatasetTriplet:
 
         unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
         unbiased_data = CelebA(
-            root="/Volumes/LocalDataHD/mb715/PycharmProjects/Fair-Invertible-Networks/data",
+            root=args.root,
             biased=False,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
-            download=False,
+            download=True,
             transform=transform,
+            seed=args.data_split_seed
         )
 
         pretrain_len = round(args.pretrain_pcnt * len(unbiased_data))
@@ -112,12 +113,13 @@ def load_dataset(args) -> DatasetTriplet:
         pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
 
         train_data = CelebA(
-            root="/Volumes/LocalDataHD/mb715/PycharmProjects/Fair-Invertible-Networks/data",
+            root=args.root,
             biased=True,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
-            download=False,
+            download=True,
             transform=transform,
+            seed=args.data_split_seed
         )
 
         args.y_dim = 1
