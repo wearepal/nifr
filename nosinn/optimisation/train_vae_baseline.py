@@ -46,7 +46,6 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         if ARGS.cond_decoder:
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
         encoding, posterior = vae.encode(x, stochastic=True, return_posterior=True)
-        kl = vae.compute_divergence(encoding, posterior)
 
         if ARGS.enc_s_dim > 0:
             enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
@@ -56,6 +55,8 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             decoder_input = encoding
 
         decoding = vae.decode(decoder_input, s_oh)
+
+        kl = vae.compute_divergence(enc_y, posterior)
         recon_loss = recon_loss_fn(decoding, x)
 
         recon_loss /= x.size(0)
