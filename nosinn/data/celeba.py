@@ -11,7 +11,7 @@ from torchvision.datasets.utils import (
 )
 from torchvision.transforms import ToTensor
 
-from ethicml.preprocessing import get_biased_subset, SequentiallSplit
+from ethicml.preprocessing import get_biased_subset, SequentialSplit
 from ethicml.utility import DataTuple
 
 
