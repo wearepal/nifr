@@ -104,7 +104,7 @@ def load_dataset(args) -> DatasetTriplet:
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
             download=False,
-            transform=transform
+            transform=transform,
         )
 
         pretrain_len = round(args.pretrain_pcnt * len(unbiased_data))
@@ -117,7 +117,7 @@ def load_dataset(args) -> DatasetTriplet:
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
             download=False,
-            transform=transform
+            transform=transform,
         )
 
         args.y_dim = 1

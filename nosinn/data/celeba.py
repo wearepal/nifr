@@ -81,9 +81,7 @@ class CelebA(VisionDataset):
             )
 
         fn = partial(os.path.join, self.root, self.base_folder)
-        filename = pd.read_csv(
-            fn("list_eval_partition.txt"), delim_whitespace=True, header=None
-        )
+        filename = pd.read_csv(fn("list_eval_partition.txt"), delim_whitespace=True, header=None)
         attr = pd.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
         attr_names = list(attr.columns)
 
@@ -97,9 +95,9 @@ class CelebA(VisionDataset):
 
         filename = filename.iloc[:, [0]].reset_index(drop=True)
         sens_attr = attr[[sens_attr]].reset_index(drop=True)
-        sens_attr = (sens_attr + 1) // 2    # map from {-1, 1} to {0, 1}
+        sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
         target_attr = attr[[target_attr]].reset_index(drop=True)
-        target_attr = (target_attr + 1) // 2    # map from {-1, 1} to {0, 1}
+        target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
         biased_dt, unbiased_dt = get_biased_subset(
@@ -172,7 +170,12 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader, random_split
 
     train_data = CelebA(
-        root=r"./data", biased=True, mixing_factor=1., unbiased_pcnt=0.4, download=False, transform=ToTensor()
+        root=r"./data",
+        biased=True,
+        mixing_factor=1.0,
+        unbiased_pcnt=0.4,
+        download=False,
+        transform=ToTensor(),
     )
 
     # print(train_data.sens_attr.float().mean())
@@ -184,7 +187,7 @@ if __name__ == "__main__":
     # print(((train_data.target_attr == 1) & (train_data.sens_attr == 1)).float().mean())
     split_size = round(0.4 * len(train_data))
     train_data, _ = random_split(train_data, lengths=(split_size, len(train_data) - split_size))
-    assert(len(train_data) == split_size)
+    assert len(train_data) == split_size
     train_loader = DataLoader(train_data, batch_size=9)
     x, s, y = next(iter(train_loader))
 
