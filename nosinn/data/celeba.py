@@ -115,7 +115,7 @@ class CelebA(VisionDataset):
             filename, sens_attr, target_attr = unbiased_dt
 
         self.filename = filename.to_numpy()[:, 0]
-        self.sens_attr = torch.as_tensor(sens_attr.values)
+        self.sens_attr = torch.as_tensor(sens_attr.to_numpy())
 
         self.target_attr = torch.as_tensor(target_attr.values)
 
