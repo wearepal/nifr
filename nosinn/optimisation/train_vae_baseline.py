@@ -56,8 +56,9 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
         if itr > ARGS.s_pretraining_steps or ARGS.s_dim <= 0:
             decoding = vae.decode(decoder_input, s_oh)
+            recon_loss = recon_loss_fn(decoding, x)
 
-            kl = vae.compute_divergence(encoding, posterior)
+            kl = vae.compute_divergence(decoder_input, posterior)
             recon_loss = recon_loss_fn(decoding, x)
 
             recon_loss /= x.size(0)
