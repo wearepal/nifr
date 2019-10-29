@@ -82,7 +82,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         loss.backward()
         vae.step()
         disc_enc_y.step()
-        disc_enc_s.step
+        disc_enc_s.step()
 
         total_loss_meter.update(loss.item())
         elbo_meter.update(elbo.item())
