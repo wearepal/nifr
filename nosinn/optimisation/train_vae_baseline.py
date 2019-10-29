@@ -54,26 +54,25 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             enc_y = encoding
             decoder_input = encoding
 
-        decoding = vae.decode(decoder_input, s_oh)
+        if itr > ARGS.s_pretraining_steps or ARGS.s_dim <= 0:
+            decoding = vae.decode(decoder_input, s_oh)
 
-        kl = vae.compute_divergence(encoding, posterior)
-        recon_loss = recon_loss_fn(decoding, x)
+            kl = vae.compute_divergence(encoding, posterior)
+            recon_loss = recon_loss_fn(decoding, x)
 
-        recon_loss /= x.size(0)
-        kl /= x.size(0)
+            recon_loss /= x.size(0)
+            kl /= x.size(0)
 
-        elbo = recon_loss + vae.kl_weight * kl
+            elbo = recon_loss + vae.kl_weight * kl
 
-        enc_y = grad_reverse(enc_y)
-        disc_loss, acc = disc_enc_y.routine(enc_y, s)
+            enc_y = grad_reverse(enc_y)
+            disc_loss, acc = disc_enc_y.routine(enc_y, s)
 
-        if ARGS.enc_s_dim > 0:
-            disc_loss += disc_enc_s.routine(enc_s, s)[0]
-
-        elbo *= ARGS.elbo_weight
-        disc_loss *= ARGS.pred_s_weight
-
-        loss = elbo + disc_loss
+            elbo *= ARGS.elbo_weight
+            disc_loss *= ARGS.pred_s_weight
+            loss = elbo + disc_loss
+        else:
+            loss += disc_enc_s.routine(enc_s, s)[0]
 
         vae.zero_grad()
         disc_enc_y.zero_grad()
