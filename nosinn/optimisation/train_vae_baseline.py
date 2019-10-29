@@ -73,7 +73,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             disc_loss *= ARGS.pred_s_weight
             loss = elbo + disc_loss
         else:
-            loss += disc_enc_s.routine(enc_s, s)[0]
+            loss = disc_enc_s.routine(enc_s, s)[0]
 
         vae.zero_grad()
         disc_enc_y.zero_grad()
