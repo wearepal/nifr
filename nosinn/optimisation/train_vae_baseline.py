@@ -56,7 +56,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
         decoding = vae.decode(decoder_input, s_oh)
 
-        kl = vae.compute_divergence(encoding, posterior)
+        kl = vae.compute_divergence(torch.cat([enc_y, enc_s.detach()], posterior)
         recon_loss = recon_loss_fn(decoding, x)
 
         recon_loss /= x.size(0)
