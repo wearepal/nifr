@@ -105,7 +105,7 @@ def load_dataset(args) -> DatasetTriplet:
             unbiased_pcnt=unbiased_pcnt,
             download=True,
             transform=transform,
-            seed=args.data_split_seed
+            seed=args.data_split_seed,
         )
 
         pretrain_len = round(args.pretrain_pcnt * len(unbiased_data))
@@ -119,7 +119,7 @@ def load_dataset(args) -> DatasetTriplet:
             unbiased_pcnt=unbiased_pcnt,
             download=True,
             transform=transform,
-            seed=args.data_split_seed
+            seed=args.data_split_seed,
         )
 
         args.y_dim = 1
