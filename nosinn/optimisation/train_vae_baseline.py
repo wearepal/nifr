@@ -72,8 +72,17 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             elbo *= ARGS.elbo_weight
             disc_loss *= ARGS.pred_s_weight
             loss = elbo + disc_loss
+            wandb.log({"Loss NLL": elbo.item()}, step=itr)
+            wandb.log({"Loss Adversarial": disc_loss.item()}, step=itr)
+
+            total_loss_meter.update(loss.item())
+            elbo_meter.update(elbo.item())
+            disc_loss_meter.update(disc_loss.item())
         else:
             loss = disc_enc_s.routine(enc_s, s)[0]
+
+            disc_loss_meter.update(loss.item())
+            wandb.log({"Loss Adversarial": loss.item()}, step=itr)
 
         vae.zero_grad()
         disc_enc_y.zero_grad()
@@ -84,14 +93,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         disc_enc_y.step()
         disc_enc_s.step()
 
-        total_loss_meter.update(loss.item())
-        elbo_meter.update(elbo.item())
-        disc_loss_meter.update(disc_loss.item())
-
         time_meter.update(time.time() - end)
-
-        wandb.log({"Loss NLL": elbo.item()}, step=itr)
-        wandb.log({"Loss Adversarial": disc_loss.item()}, step=itr)
         end = time.time()
 
         if itr % 50 == 0:
