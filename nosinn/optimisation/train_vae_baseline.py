@@ -1,6 +1,5 @@
 """Main training file"""
 import time
-from os.path import split
 from pathlib import Path
 
 import torch
@@ -8,7 +7,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import wandb
 from torch.utils.data import DataLoader, TensorDataset
-from torchvision.utils import save_image
 
 from nosinn.data import DatasetTriplet
 from nosinn.models.autoencoder import VAE
@@ -125,8 +123,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                         else:
                             s_oh_flipped = s_oh[torch.randperm(s_oh.size(0))]
                         recon_s_flipped = vae.reconstruct(enc, s_oh_flipped)
-                        # log_images(recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
-                        save_image(recon_s_flipped, "recon_s_flipped.png")
+                        log_images(recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
 
                 recon_all = vae.reconstruct(enc, s=s_oh)
                 recon_y = vae.reconstruct(
@@ -142,10 +139,8 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                 log_images(x[:64], "original_x", step=itr)
                 log_images(recon_all, "reconstruction_all", step=itr)
                 log_images(recon_y, "reconstruction_y", step=itr)
-                save_image(recon_y, "recon_y.png")
                 log_images(recon_s, "reconstruction_s", step=itr)
                 log_images(recon_null, "reconstruction_null", step=itr)
-                save_image(recon_null, "recon_null.png")
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
