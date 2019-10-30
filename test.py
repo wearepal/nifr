@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 
-
 scale = [0, 0.01, 0.02, 0.03, 0.04, 0.05]
 nosinn = [
     96.05,
@@ -32,4 +31,3 @@ plt.ylim(90, 100)
 ax.legend()
 fig.savefig("cmnist.pdf")
 plt.show()
-
