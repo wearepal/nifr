@@ -18,11 +18,20 @@ def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, u
 
     act = F.relu if use_bn else F.selu
     layers = [
+        ResidualNet(
+            in_features=in_dim,
+            out_features=hidden_channels,
+            hidden_features=hidden_channels,
+            num_blocks=num_blocks,
+            activation=act,
+            dropout_probability=0.0,
+            use_batch_norm=use_bn,
+        ),
         GlobalAvgPool(),
         ResidualNet(
             in_features=1,
             out_features=target_dim,
-            hidden_features=hidden_channels,
+            hidden_features=512,
             num_blocks=num_blocks,
             activation=act,
             dropout_probability=0.0,
