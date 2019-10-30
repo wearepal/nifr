@@ -94,7 +94,7 @@ class ResidualNet(nn.Module):
         return outputs
 
 
-class ConvResidualBlock(nn.Module):
+class ConvResidualBlockDown(nn.Module):
     def __init__(
         self,
         channels,
@@ -168,7 +168,7 @@ class ConvResidualNet(nn.Module):
             )
         self.blocks = nn.ModuleList(
             [
-                ConvResidualBlock(
+                ConvResidualBlockDown(
                     channels=hidden_channels,
                     context_channels=context_channels,
                     activation=activation,

@@ -1,6 +1,72 @@
 import torch.nn as nn
 
 
+class _ResidualDownBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super().__init__()
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride,
+                               padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=1,
+                               padding=1, bias=False)
+        self.downsample = downsample
+
+    def forward(self, x):
+        residual = x
+
+        out = self.bn1(x)
+        out = self.conv1(out)
+        out = self.relu(out)
+
+        out = self.bn2(out)
+        out = self.conv2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
+class _ResidualUpBlock(nn.Module):
+    expansion = 1
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None):
+        super().__init__()
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv1 = nn.ConvTranspose2d(inplanes, planes, kernel_size=3, stride=stride,
+                                        padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=1,
+                               padding=1, bias=False)
+        self.downsample = downsample
+
+    def forward(self, x):
+        residual = x
+
+        out = self.bn1(x)
+        out = self.conv1(out)
+        out = self.relu(out)
+
+        out = self.bn2(out)
+        out = self.conv2(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
+
+
 def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
         nn.Conv2d(
@@ -35,13 +101,17 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoding_dim,
             c_in = c_out
             c_out *= 2
 
-        encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
-        encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
+        # encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
+        # encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
+        encoder += [_ResidualDownBlock(c_in, c_out)]
+        encoder += [_ResidualDownBlock(c_in, c_out, stride=2)]
 
-        decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
-        decoder += [
-            gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
-        ]
+        # decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
+        # decoder += [
+        #     gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
+        # ]
+        decoder += [_ResidualDownBlock(c_in, c_out)]
+        decoder += [_ResidualUpBlock(c_in, c_out, stride=2)]
 
         h //= 2
         w //= 2
