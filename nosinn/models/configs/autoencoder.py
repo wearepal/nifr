@@ -6,12 +6,12 @@ class _ResidualDownBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super().__init__()
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = nn.BatchNorm2d(inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=stride,
                                padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=1,
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
         self.downsample = downsample
 
@@ -39,12 +39,12 @@ class _ResidualUpBlock(nn.Module):
 
     def __init__(self, inplanes, planes, stride=1, downsample=None):
         super().__init__()
-        self.bn1 = nn.BatchNorm2d(planes)
+        self.bn1 = nn.BatchNorm2d(inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.conv1 = nn.ConvTranspose2d(inplanes, planes, kernel_size=3, stride=stride,
                                         padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(inplanes, planes, kernel_size=3, stride=1,
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
         self.downsample = downsample
 
