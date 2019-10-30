@@ -57,7 +57,7 @@ class AutoEncoder(nn.Module):
 
                     self.zero_grad()
                     loss = self.routine(x, loss_fn=loss_fn)
-                    loss /= x.size(0)
+                    loss /= x[0].nelement()
 
                     loss.backward()
                     self.step()
@@ -106,8 +106,9 @@ class VAE(AutoEncoder):
         recon = self.decoder(sample)
         recon_loss = recon_loss_fn(recon, x)
 
-        recon_loss /= x.size(0)
-        kl /= x.size(0)
+        denom = x.nelement()
+        recon_loss /= denom
+        kl /= denom
 
         loss = recon_loss + self.kl_weight * kl
 

@@ -102,7 +102,7 @@ class BipartiteInn(ModelBase):
         #     bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
         #     return bits_per_dim
         # else:
-        nll = -log_px / z.size(0)
+        nll = -log_px / z.nelement()
         return nll
 
     def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
