@@ -18,7 +18,7 @@ def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, u
 
     act = F.relu if use_bn else F.selu
     layers = [
-        GlobalAvgPool,
+        GlobalAvgPool(),
         ResidualNet(
             in_features=1,
             out_features=target_dim,
