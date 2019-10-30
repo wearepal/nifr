@@ -6,7 +6,7 @@ from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
 
 class GlobalAvgPool(nn.Module):
-    def __init__(self, keepdim=False):
+    def __init__(self, keepdim=True):
         super().__init__()
         self.keepdim = keepdim
 
