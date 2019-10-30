@@ -4,7 +4,7 @@ import torch.nn as nn
 class _ResidualDownBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
+    def __init__(self, inplanes, planes, stride=1):
         super().__init__()
         self.bn1 = nn.BatchNorm2d(inplanes)
         self.relu = nn.ReLU(inplace=True)
@@ -13,7 +13,10 @@ class _ResidualDownBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
-        self.downsample = downsample
+
+        self.downsample = None
+        if inplanes != planes or stride != 1:
+            self.downsample = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride)
 
     def forward(self, x):
         residual = x
@@ -46,7 +49,10 @@ class _ResidualUpBlock(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=1,
                                padding=1, bias=False)
-        self.downsample = downsample
+
+        self.upsample = None
+        if inplanes != planes or stride != 1:
+            self.upsample = nn.ConvTranspose2d(inplanes, planes, kernel_size=1, stride=stride)
 
     def forward(self, x):
         residual = x
@@ -58,8 +64,8 @@ class _ResidualUpBlock(nn.Module):
         out = self.bn2(out)
         out = self.conv2(out)
 
-        if self.downsample is not None:
-            residual = self.downsample(x)
+        if self.upsample is not None:
+            residual = self.upsample(x)
 
         out += residual
         out = self.relu(out)
