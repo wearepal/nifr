@@ -1,14 +1,12 @@
-from functools import partial
-import pandas as pd
-import torch
 import os
+from pathlib import Path
+
+import pandas as pd
 from PIL import Image
+
+import torch
 from torchvision.datasets import VisionDataset
-from torchvision.datasets.utils import (
-    verify_str_arg,
-    check_integrity,
-    download_file_from_google_drive,
-)
+from torchvision.datasets.utils import check_integrity, download_file_from_google_drive
 from torchvision.transforms import ToTensor
 
 from ethicml.preprocessing import get_biased_subset, SequentialSplit
@@ -64,8 +62,8 @@ class CelebA(VisionDataset):
         biased,
         mixing_factor,
         unbiased_pcnt,
-        sens_attr="Male",
-        target_attr="Smiling",
+        sens_attr: str = "Male",
+        target_attr: str = "Smiling",
         transform=None,
         target_transform=None,
         download=False,
@@ -81,9 +79,9 @@ class CelebA(VisionDataset):
                 "Dataset not found or corrupted." + " You can use download=True to download it"
             )
 
-        fn = partial(os.path.join, self.root, self.base_folder)
-        filename = pd.read_csv(fn("list_eval_partition.txt"), delim_whitespace=True, header=None)
-        attr = pd.read_csv(fn("list_attr_celeba.txt"), delim_whitespace=True, header=1)
+        base = Path(self.root) / self.base_folder
+        filename = pd.read_csv(base / "list_eval_partition.txt", delim_whitespace=True, header=None)
+        attr = pd.read_csv(base / "list_attr_celeba.txt", delim_whitespace=True, header=1)
         attr_names = list(attr.columns)
 
         sens_attr = sens_attr.capitalize()
@@ -102,9 +100,8 @@ class CelebA(VisionDataset):
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
 
-        # TODO: make the disjoint splitting more robust
-        splitter = SequentialSplit(train_percentage=unbiased_pcnt)
-        unbiased_dt, biased_dt = splitter(all_dt)
+        # NOTE: the sequential split does not shuffle
+        unbiased_dt, biased_dt, _ = SequentialSplit(train_percentage=unbiased_pcnt)(all_dt)
 
         if biased:
             biased_dt, _ = get_biased_subset(
@@ -120,16 +117,17 @@ class CelebA(VisionDataset):
         self.target_attr = torch.as_tensor(target_attr.to_numpy())
 
     def _check_integrity(self):
+        base = Path(self.root) / self.base_folder
         for (_, md5, filename) in self.file_list:
-            fpath = os.path.join(self.root, self.base_folder, filename)
-            _, ext = os.path.splitext(filename)
+            fpath = base / filename
+            ext = fpath.suffix
             # Allow original archive to be deleted (zip and 7z)
             # Only need the extracted images
-            if ext not in [".zip", ".7z"] and not check_integrity(fpath, md5):
+            if ext not in [".zip", ".7z"] and not check_integrity(str(fpath), md5):
                 return False
 
         # Should check a hash of the images
-        return os.path.isdir(os.path.join(self.root, self.base_folder, "img_align_celeba"))
+        return (base / "img_align_celeba").is_dir()
 
     def download(self):
         import zipfile
