@@ -116,7 +116,8 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                     enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
                     enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
                 else:
-                    enc_y_m = enc_s_m = enc
+                    enc_y_m = enc
+                    enc_s_m = torch.zeros_like(enc)
                     if ARGS.cond_decoder:
                         if ARGS.s_dim == 2:
                             s_oh_flipped = 1 - s_oh
