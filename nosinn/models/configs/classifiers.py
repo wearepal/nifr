@@ -5,11 +5,20 @@ import torch.nn.functional as F
 from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
 
+class GlobalAvgPool(nn.Module):
+    def __init__(self, keepdim=False):
+        super().__init__()
+        self.keepdim = keepdim
+
+    def forward(self, x):
+        return x.flatten(start_dim=1).mean(dim=1, keepdim=self.keepdim)
+
+
 def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, use_bn=False):
 
     act = F.relu if use_bn else F.selu
     layers = [
-        nn.AdaptiveAvgPool1d(1),
+        GlobalAvgPool,
         ResidualNet(
             in_features=1,
             out_features=target_dim,
