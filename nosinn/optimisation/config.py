@@ -137,6 +137,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--save", type=str, default="experiments/finn")
+    parser.add_argument("--path-to-ae", type=str, default="")
     parser.add_argument("--evaluate", action="store_true")
     parser.add_argument(
         "--super-val",

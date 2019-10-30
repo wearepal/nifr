@@ -1,28 +1,26 @@
 """Main training file"""
 import time
+from os.path import altsep
 from pathlib import Path
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 import wandb
+from torch.utils.data import DataLoader
 
 from nosinn.data import DatasetTriplet
 from nosinn.models import AutoEncoder
 from nosinn.models.autoencoder import VAE
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import (
-    fc_net,
-    linear_disciminator,
-    mp_32x32_net,
-    mp_64x64_net,
-)
-from nosinn.models.factory import build_fc_inn, build_conv_inn, build_discriminator
-from nosinn.models.inn import PartitionedInn, PartitionedAeInn
-from nosinn.utils import AverageMeter, wandb_log, get_logger, count_parameters
-from .loss import grad_reverse, PixelCrossEntropy
-from .utils import get_data_dim, log_images
+from nosinn.models.configs.classifiers import (fc_net, linear_disciminator, mp_32x32_net,
+                                               mp_64x64_net)
+from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
+from nosinn.models.inn import PartitionedAeInn, PartitionedInn
+from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
+
 from .evaluation import log_metrics as metric_callback
+from .loss import PixelCrossEntropy, grad_reverse
+from .utils import get_data_dim, log_images
 
 NDECS = 0
 ARGS = None
@@ -291,20 +289,26 @@ def main(args, datasets):
 
         inn = PartitionedAeInn(**inn_kwargs)
         inn.to(args.device)
-
-        ae_loss_fn: nn.Module
-        if ARGS.ae_loss == "l1":
-            ae_loss_fn = nn.L1Loss(reduction="sum")
-        elif ARGS.ae_loss == "l2":
-            ae_loss_fn = nn.MSELoss(reduction="sum")
-        elif ARGS.ae_loss == "huber":
-            ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
-        elif ARGS.ae_loss == "ce":
-            ae_loss_fn = PixelCrossEntropy(reduction="sum")
+        
+        if ARGS.path_to_ae:
+            state_dict = torch.load(ARGS.path_to_ae, map_location=lambda storage, loc: storage)
+            autoencoder.load_state_dict(state_dict)
         else:
-            raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
+            ae_loss_fn: nn.Module
+            if ARGS.ae_loss == "l1":
+                ae_loss_fn = nn.L1Loss(reduction="sum")
+            elif ARGS.ae_loss == "l2":
+                ae_loss_fn = nn.MSELoss(reduction="sum")
+            elif ARGS.ae_loss == "huber":
+                ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
+            elif ARGS.ae_loss == "ce":
+                ae_loss_fn = PixelCrossEntropy(reduction="sum")
+            else:
+                raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
-        inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
+            inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
+            torch.save(autoencoder.state_dict(), save_dir / "autoencoder")
+  
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
