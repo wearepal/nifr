@@ -104,7 +104,7 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoding_dim,
         # encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
         # encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
         encoder += [_ResidualDownBlock(c_in, c_out)]
-        encoder += [_ResidualDownBlock(c_in, c_out, stride=2)]
+        encoder += [_ResidualDownBlock(c_out, c_out, stride=2)]
 
         # decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
         # decoder += [
