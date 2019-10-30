@@ -83,13 +83,13 @@ class CelebA(VisionDataset):
         partition_file = base / "list_eval_partition.txt"
         # partition: information about which samples belong to train, val or test
         partition = pd.read_csv(
-            partition_file, delim_whitespace=True, header=None, index_col=0, names=['partition']
+            partition_file, delim_whitespace=True, header=None, index_col=0, names=["partition"]
         )
         # raw_attr: all attributes with filenames as index
         raw_attr = pd.read_csv(base / "list_attr_celeba.txt", delim_whitespace=True, header=1)
         attr = pd.concat([partition, raw_attr], axis="columns", sort=False)
         # the filenames are used for indexing; here we turn them into a regular column
-        attr = attr.reset_index(drop=False).rename(columns={'index': "filenames"})
+        attr = attr.reset_index(drop=False).rename(columns={"index": "filenames"})
 
         attr_names = list(attr.columns)
 
