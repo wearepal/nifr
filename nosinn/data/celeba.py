@@ -80,8 +80,17 @@ class CelebA(VisionDataset):
             )
 
         base = Path(self.root) / self.base_folder
-        filename = pd.read_csv(base / "list_eval_partition.txt", delim_whitespace=True, header=None)
-        attr = pd.read_csv(base / "list_attr_celeba.txt", delim_whitespace=True, header=1)
+        partition_file = base / "list_eval_partition.txt"
+        # partition: information about which samples belong to train, val or test
+        partition = pd.read_csv(
+            partition_file, delim_whitespace=True, header=None, index_col=0, names=['partition']
+        )
+        # raw_attr: all attributes with filenames as index
+        raw_attr = pd.read_csv(base / "list_attr_celeba.txt", delim_whitespace=True, header=1)
+        attr = pd.concat([partition, raw_attr], axis="columns", sort=False)
+        # the filenames are used for indexing; here we turn them into a regular column
+        attr = attr.reset_index(drop=False).rename(columns={'index': "filenames"})
+
         attr_names = list(attr.columns)
 
         sens_attr = sens_attr.capitalize()
@@ -92,7 +101,7 @@ class CelebA(VisionDataset):
         if target_attr not in attr_names:
             raise ValueError(f"{target_attr} does not exist as an attribute.")
 
-        filename = filename.iloc[:, [0]]
+        filename = attr[["filenames"]]
         sens_attr = attr[[sens_attr]]
         sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
         target_attr = attr[[target_attr]]
