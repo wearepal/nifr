@@ -112,7 +112,7 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoding_dim,
         # encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
         encoder += [_ResidualDownBlock(c_in, c_out)]
         encoder += [_ResidualDownBlock(c_out, c_out)]
-        encoder += [nn.Conv2d(c_out, c_in, kernel_size=4, stride=2, padding=1)]
+        encoder += [nn.Conv2d(c_out, c_out, kernel_size=4, stride=2, padding=1)]
 
         # decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
         # decoder += [
@@ -120,7 +120,7 @@ def conv_autoencoder(input_shape, initial_hidden_channels, levels, encoding_dim,
         # ]
         decoder += [_ResidualDownBlock(c_out, c_in)]
         decoder += [_ResidualDownBlock(c_out, c_out)]
-        decoder += [nn.ConvTranspose2d(c_out, c_in, kernel_size=4, stride=2, padding=1)]
+        decoder += [nn.ConvTranspose2d(c_out, c_out, kernel_size=4, stride=2, padding=1)]
 
 
         h //= 2
