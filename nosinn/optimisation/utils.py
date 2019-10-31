@@ -1,8 +1,9 @@
 import torchvision
-from torch import autograd
 import wandb
 
 from nosinn.utils import wandb_log
+
+__all__ = ["get_data_dim", "log_images"]
 
 
 def get_data_dim(data_loader):

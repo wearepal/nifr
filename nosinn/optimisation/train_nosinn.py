@@ -1,26 +1,31 @@
 """Main training file"""
 import time
-from os.path import altsep
 from pathlib import Path
 
 import torch
 import torch.nn as nn
-import wandb
 from torch.utils.data import DataLoader
+import wandb
 
 from nosinn.data import DatasetTriplet
 from nosinn.models import AutoEncoder
 from nosinn.models.autoencoder import VAE
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import (fc_net, linear_disciminator, mp_32x32_net,
-                                               mp_64x64_net)
+from nosinn.models.configs.classifiers import (
+    fc_net,
+    linear_disciminator,
+    mp_32x32_net,
+    mp_64x64_net,
+)
 from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
 from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
-from .evaluation import log_metrics as metric_callback
+from .evaluation import log_metrics
 from .loss import PixelCrossEntropy, grad_reverse
 from .utils import get_data_dim, log_images
+
+__all__ = ["main"]
 
 NDECS = 0
 ARGS = None
@@ -101,12 +106,12 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         if itr % 50 == 0:
             with torch.set_grad_enabled(False):
-                log_images(ARGS, x, "original_x", step=itr)
 
                 z = inn(x[:64])
 
                 recon_all, recon_y, recon_s = inn.decode(z, partials=True)
 
+                log_images(ARGS, x[:64], "original_x", step=itr)
                 log_images(ARGS, recon_all, "reconstruction_all", step=itr)
                 log_images(ARGS, recon_y, "reconstruction_y", step=itr)
                 log_images(ARGS, recon_s, "reconstruction_s", step=itr)
@@ -257,6 +262,8 @@ def main(args, datasets):
 
     # Initialise INN
     if ARGS.autoencode:
+        if ARGS.input_noise:
+            LOGGER.warn("WARNING: autoencoder and input noise are both turned on!")
 
         if is_image_data:
             decoding_dim = input_shape[0] * 256 if args.ae_loss == "ce" else input_shape[0]
@@ -289,7 +296,7 @@ def main(args, datasets):
 
         inn = PartitionedAeInn(**inn_kwargs)
         inn.to(args.device)
-        
+
         if ARGS.path_to_ae:
             state_dict = torch.load(ARGS.path_to_ae, map_location=lambda storage, loc: storage)
             autoencoder.load_state_dict(state_dict)
@@ -308,7 +315,7 @@ def main(args, datasets):
 
             inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
             torch.save(autoencoder.state_dict(), save_dir / "autoencoder")
-  
+
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
@@ -344,7 +351,7 @@ def main(args, datasets):
     # Resume from checkpoint
     if ARGS.resume is not None:
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        metric_callback(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
+        log_metrics(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
         return
 
     # Logging
@@ -364,7 +371,7 @@ def main(args, datasets):
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             val_loss = validate(inn, discriminator, val_loader, itr)
             if args.super_val:
-                metric_callback(ARGS, model=inn, data=datasets, step=itr)
+                log_metrics(ARGS, model=inn, data=datasets, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
@@ -383,7 +390,7 @@ def main(args, datasets):
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    metric_callback(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=itr)
+    log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=itr)
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
 

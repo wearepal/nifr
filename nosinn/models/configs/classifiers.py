@@ -18,6 +18,7 @@ def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, u
 
     act = F.relu if use_bn else F.selu
     layers = [
+        nn.Flatten(),
         ResidualNet(
             in_features=in_dim,
             out_features=target_dim,
@@ -26,7 +27,7 @@ def linear_disciminator(in_dim, target_dim, hidden_channels=512, num_blocks=4, u
             activation=act,
             dropout_probability=0.0,
             use_batch_norm=use_bn,
-        )
+        ),
     ]
     return nn.Sequential(*layers)
 
