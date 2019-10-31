@@ -104,7 +104,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
         end = time.time()
 
-        if itr % 50 == 0:
+        if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
 
                 z = inn(x[:64])

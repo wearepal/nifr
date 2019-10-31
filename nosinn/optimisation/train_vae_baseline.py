@@ -106,7 +106,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         end = time.time()
 
         # Log images
-        if itr % 50 == 0:
+        if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
 
                 enc = vae.encode(x[:64], stochastic=False)
@@ -270,12 +270,13 @@ def main_vae(args, datasets):
     global ARGS, LOGGER, INPUT_SHAPE
     ARGS = args
 
-    wandb.init(
-        project="nosinn",
-        # sync_tensorboard=True,
-        config=vars(ARGS),
-    )
-    # wandb.tensorboard.patch(save=False, pytorch=True)
+    if ARGS.use_wandb:
+        wandb.init(
+            project="nosinn",
+            # sync_tensorboard=True,
+            config=vars(ARGS),
+        )
+        # wandb.tensorboard.patch(save=False, pytorch=True)
 
     save_dir = Path(ARGS.save) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
