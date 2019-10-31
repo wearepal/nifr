@@ -12,8 +12,12 @@ from nosinn.data import DatasetTriplet
 from nosinn.models import AutoEncoder
 from nosinn.models.autoencoder import VAE
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import (fc_net, linear_disciminator, mp_32x32_net,
-                                               mp_64x64_net)
+from nosinn.models.configs.classifiers import (
+    fc_net,
+    linear_disciminator,
+    mp_32x32_net,
+    mp_64x64_net,
+)
 from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
 from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
@@ -289,7 +293,7 @@ def main(args, datasets):
 
         inn = PartitionedAeInn(**inn_kwargs)
         inn.to(args.device)
-        
+
         if ARGS.path_to_ae:
             state_dict = torch.load(ARGS.path_to_ae, map_location=lambda storage, loc: storage)
             autoencoder.load_state_dict(state_dict)
@@ -308,7 +312,7 @@ def main(args, datasets):
 
             inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
             torch.save(autoencoder.state_dict(), save_dir / "autoencoder")
-  
+
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)

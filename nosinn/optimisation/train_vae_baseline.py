@@ -42,7 +42,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         x, s, y = to_device(x, s, y)
 
         s_oh = None
-        if ARGS.cond_decoder:   # One-hot encode the sensitive attribute
+        if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
 
         # Encode the data
@@ -128,12 +128,10 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
                 recon_all = vae.reconstruct(enc, s=s_oh)
                 recon_y = vae.reconstruct(
-                    enc_y_m, s=torch.zeros_like(s_oh)
-                    if s_oh is not None else None
+                    enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None
                 )
                 recon_null = vae.reconstruct(
-                    torch.zeros_like(enc), s=torch.zeros_like(s_oh)
-                    if s_oh is not None else None
+                    torch.zeros_like(enc), s=torch.zeros_like(s_oh) if s_oh is not None else None
                 )
                 recon_s = vae.reconstruct(enc_s_m, s=s_oh)
 
@@ -325,7 +323,7 @@ def main(args, datasets, metric_callback):
             encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
             levels=ARGS.levels,
             vae=ARGS.vae,
-            s_dim=ARGS.s_dim if ARGS.cond_decoder else 0
+            s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
         )
 
     if ARGS.recon_loss == "l1":
@@ -352,7 +350,7 @@ def main(args, datasets, metric_callback):
     disc_fn = linear_disciminator
 
     disc_optimizer_kwargs = {"lr": args.disc_lr}
-    
+
     disc_enc_y_kwargs = {
         "hidden_channels": ARGS.disc_enc_y_channels,
         "num_blocks": ARGS.disc_enc_y_depth,
@@ -371,7 +369,7 @@ def main(args, datasets, metric_callback):
 
     disc_enc_s = None
     if ARGS.enc_s_dim > 0:
-        
+
         disc_enc_s_kwargs = {
             "hidden_channels": ARGS.disc_enc_s_channels,
             "num_blocks": ARGS.disc_enc_s_depth,
