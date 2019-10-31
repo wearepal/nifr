@@ -1,7 +1,7 @@
 """Main training file"""
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Callable
 
 import torch
 import torch.nn as nn
@@ -17,7 +17,7 @@ from nosinn.models.factory import build_discriminator
 from nosinn.utils import utils
 
 from .evaluation import evaluate
-from .loss import PixelCrossEntropy, grad_reverse
+from .loss import PixelCrossEntropy, grad_reverse, VGGLoss
 from .utils import get_data_dim, log_images
 
 __all__ = ["main_vae"]
@@ -49,7 +49,12 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
 
         # Encode the data
-        encoding, posterior = vae.encode(x, stochastic=ARGS.stochastic, return_posterior=True)
+        if ARGS.stochastic:
+            encoding, posterior = vae.encode(x, stochastic=True, return_posterior=True)
+            kl = vae.compute_divergence(encoding, posterior)
+        else:
+            encoding = vae.encode(x, stochastic=False, return_posterior=False)
+            kl = 0
 
         if ARGS.enc_s_dim > 0:
             enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
@@ -61,7 +66,6 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         recon = vae.decode(decoder_input, s_oh)
 
         # Compute losses
-        kl = vae.compute_divergence(encoding, posterior)
         recon_loss = recon_loss_fn(recon, x)
 
         recon_loss /= x.size(0)
@@ -324,17 +328,28 @@ def main_vae(args, datasets):
             vae=ARGS.vae,
             s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
         )
+    LOGGER.info("Encoding shape: {}", enc_shape)
 
+    recon_loss_fn_: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
     if ARGS.recon_loss == "l1":
-        recon_loss_fn = nn.L1Loss(reduction="sum")
+        recon_loss_fn_ = nn.L1Loss(reduction="sum")
     elif ARGS.recon_loss == "l2":
-        recon_loss_fn = nn.MSELoss(reduction="sum")
+        recon_loss_fn_ = nn.MSELoss(reduction="sum")
     elif ARGS.recon_loss == "huber":
-        recon_loss_fn = nn.SmoothL1Loss(reduction="sum")
+        recon_loss_fn_ = nn.SmoothL1Loss(reduction="sum")
     elif ARGS.recon_loss == "ce":
-        recon_loss_fn = PixelCrossEntropy(reduction="sum")
+        recon_loss_fn_ = PixelCrossEntropy(reduction="sum")
     else:
         raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction loss")
+
+    recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+    if ARGS.vgg_loss != 0:
+        vgg_loss = VGGLoss(prefactor=ARGS.vgg_loss)
+
+        def recon_loss_fn(input, target):
+            return recon_loss_fn_(input, target) + vgg_loss(input, target)
+    else:
+        recon_loss_fn = recon_loss_fn_
 
     vae = VAE(
         encoder=encoder,
