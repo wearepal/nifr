@@ -38,9 +38,11 @@ def conv_autoencoder(
             c_out *= 2
 
         encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
+        encoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
 
         decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
+        decoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         decoder += [
             gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
         ]

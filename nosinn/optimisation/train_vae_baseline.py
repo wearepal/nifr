@@ -49,7 +49,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
 
         # Encode the data
-        encoding, posterior = vae.encode(x, stochastic=True, return_posterior=True)
+        encoding, posterior = vae.encode(x, stochastic=ARGS.stochastic, return_posterior=True)
 
         if ARGS.enc_s_dim > 0:
             enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
