@@ -56,7 +56,7 @@ class AutoEncoder(nn.Module):
 
     def routine(self, x, recon_loss_fn, s=None):
         encoding = self.encoder(x)
-        decoding = self.decoder(encoding, s=s)
+        decoding = self.decode(encoding, s=s)
         loss = recon_loss_fn(decoding, x)
         loss /= x.size(0)
 

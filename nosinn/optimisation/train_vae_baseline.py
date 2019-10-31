@@ -127,7 +127,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                         else:
                             s_oh_flipped = s_oh[torch.randperm(s_oh.size(0))]
                         recon_s_flipped = vae.reconstruct(enc, s_oh_flipped)
-                        log_images(recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
+                        log_images(ARGS, recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
 
                 recon_all = vae.reconstruct(enc, s=s_oh)
                 recon_y = vae.reconstruct(
@@ -138,11 +138,11 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                 )
                 recon_s = vae.reconstruct(enc_s_m, s=s_oh)
 
-                log_images(x[:64], "original_x", step=itr)
-                log_images(recon_all, "reconstruction_all", step=itr)
-                log_images(recon_y, "reconstruction_y", step=itr)
-                log_images(recon_s, "reconstruction_s", step=itr)
-                log_images(recon_null, "reconstruction_null", step=itr)
+                log_images(ARGS, x[:64], "original_x", step=itr)
+                log_images(ARGS, recon_all, "reconstruction_all", step=itr)
+                log_images(ARGS, recon_y, "reconstruction_y", step=itr)
+                log_images(ARGS, recon_s, "reconstruction_s", step=itr)
+                log_images(ARGS, recon_null, "reconstruction_null", step=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -211,6 +211,7 @@ def to_device(*tensors):
 
 
 def encode_dataset(args, vae, data_loader):
+    LOGGER.info("Encoding dataset...")
     all_xy = []
     all_s = []
     all_y = []
@@ -242,6 +243,7 @@ def encode_dataset(args, vae, data_loader):
     all_y = torch.cat(all_y, dim=0)
 
     encoded_dataset = TensorDataset(all_xy, all_s, all_y)
+    LOGGER.info("Done.")
 
     return encoded_dataset
 

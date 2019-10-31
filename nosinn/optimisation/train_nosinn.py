@@ -262,6 +262,8 @@ def main(args, datasets):
 
     # Initialise INN
     if ARGS.autoencode:
+        if ARGS.input_noise:
+            LOGGER.warn("WARNING: autoencoder and input noise are both turned on!")
 
         if is_image_data:
             decoding_dim = input_shape[0] * 256 if args.ae_loss == "ce" else input_shape[0]
