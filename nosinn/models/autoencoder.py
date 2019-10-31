@@ -1,6 +1,6 @@
+from tqdm import tqdm
 import torch
 import torch.distributions as td
-from tqdm import tqdm
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -54,13 +54,13 @@ class AutoEncoder(nn.Module):
         self.encoder.step()
         self.decoder.step()
 
-    def routine(self, inputs, loss_fn, s=None):
-        encoding = self.encoder(inputs)
+    def routine(self, x, recon_loss_fn, s=None):
+        encoding = self.encoder(x)
         decoding = self.decoder(encoding, s=s)
-        loss = loss_fn(decoding, inputs)
-        loss /= inputs.size(0)
+        loss = recon_loss_fn(decoding, x)
+        loss /= x.size(0)
 
-        return loss
+        return encoding, decoding, loss
 
     def fit(self, train_data, epochs, device, loss_fn):
 
@@ -76,7 +76,7 @@ class AutoEncoder(nn.Module):
                         s = s.to(device)
 
                     self.zero_grad()
-                    loss = self.routine(x, loss_fn=loss_fn, s=s)
+                    _, _, loss = self.routine(x, recon_loss_fn=loss_fn, s=s)
                     loss /= x[0].nelement()
 
                     loss.backward()

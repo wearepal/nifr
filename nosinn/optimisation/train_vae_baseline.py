@@ -1,12 +1,13 @@
 """Main training file"""
 import time
 from pathlib import Path
+from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
 from torch.utils.data import DataLoader, TensorDataset
+import wandb
 
 from nosinn.data import DatasetTriplet
 from nosinn.models.autoencoder import VAE
@@ -15,9 +16,11 @@ from nosinn.models.configs.classifiers import linear_disciminator
 from nosinn.models.factory import build_discriminator
 from nosinn.utils import utils
 
-from .evaluation import fit_classifier
+from .evaluation import evaluate
 from .loss import PixelCrossEntropy, grad_reverse
 from .utils import get_data_dim, log_images
+
+__all__ = ["main_vae"]
 
 NDECS = 0
 ARGS = None
@@ -243,20 +246,13 @@ def encode_dataset(args, vae, data_loader):
     return encoded_dataset
 
 
-def evaluate(args, vae, train_loader, test_loader):
-
-    train = encode_dataset(args, vae, train_loader)
-    train = DataLoader(train, batch_size=args.batch_size, pin_memory=True, shuffle=True)
-
-    test = encode_dataset(args, vae, test_loader)
-    test = DataLoader(test, batch_size=args.batch_size, pin_memory=True, shuffle=False)
-
-    fit_classifier(
-        args, INPUT_SHAPE[0], train_data=train, train_on_recon=True, pred_s=False, test_data=test
-    )
+def evaluate_vae(args, vae, train_loader, test_loader, step, save_to_csv: Optional[Path] = None):
+    train_data = encode_dataset(args, vae, train_loader)
+    test_data = encode_dataset(args, vae, test_loader)
+    evaluate(ARGS, step, train_data, test_data, "xy", pred_s=False, save_to_csv=save_to_csv)
 
 
-def main(args, datasets, metric_callback):
+def main_vae(args, datasets):
     """Main function
 
     Args:
@@ -402,7 +398,7 @@ def main(args, datasets, metric_callback):
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             val_loss = validate(vae, disc_enc_y, val_loader, itr, recon_loss_fn)
             if args.super_val:
-                evaluate(args, vae=vae, train_loader=val_loader, test_loader=test_loader)
+                evaluate_vae(args, vae, train_loader=val_loader, test_loader=test_loader, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
@@ -419,4 +415,11 @@ def main(args, datasets, metric_callback):
             )
 
     LOGGER.info("Training has finished.")
-    evaluate(args, vae=vae, train_loader=val_loader, test_loader=test_loader)
+    evaluate_vae(
+        args,
+        vae,
+        train_loader=val_loader,
+        test_loader=test_loader,
+        step=itr,
+        save_to_csv=Path(ARGS.save),
+    )

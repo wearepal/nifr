@@ -1,5 +1,7 @@
 import argparse
 
+__all__ = ["nosinn_args", "vae_args"]
+
 
 def restricted_float(x):
     x = float(x)

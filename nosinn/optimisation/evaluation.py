@@ -36,8 +36,6 @@ def log_metrics(
     check_originals: bool = False,
 ):
     """Compute and log a variety of metrics"""
-    ethicml_model = LR()
-
     print("Encoding task dataset...")
     task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
     print("Encoding task train dataset...")
@@ -190,7 +188,7 @@ def evaluate(
 ):
     input_dim = next(iter(train_data))[0].shape[0]
 
-    if args.dataset == "cmnist":
+    if args.dataset in ("cmnist", "celeba"):
 
         train_data = DataLoader(
             train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True

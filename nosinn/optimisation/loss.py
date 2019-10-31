@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 from torch import Tensor
-import torch.nn.functional as F
-from torch.nn.modules.loss import _Loss
+
+__all__ = ["GradReverse", "grad_reverse", "contrastive_gradient_penalty", "PixelCrossEntropy"]
 
 
 class GradReverse(torch.autograd.Function):

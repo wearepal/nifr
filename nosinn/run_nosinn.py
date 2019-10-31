@@ -4,8 +4,7 @@ from typing import Optional, List
 import torch
 
 from nosinn.data import load_dataset
-from nosinn.optimisation.train_nosinn import main as training_loop
-from nosinn.optimisation.config import nosinn_args
+from nosinn.optimisation import main as training_loop, nosinn_args
 from nosinn.utils import random_seed
 
 

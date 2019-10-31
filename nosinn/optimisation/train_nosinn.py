@@ -1,12 +1,11 @@
 """Main training file"""
 import time
-from os.path import altsep
 from pathlib import Path
 
 import torch
 import torch.nn as nn
-import wandb
 from torch.utils.data import DataLoader
+import wandb
 
 from nosinn.data import DatasetTriplet
 from nosinn.models import AutoEncoder
@@ -22,9 +21,11 @@ from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_
 from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
-from .evaluation import log_metrics as metric_callback
+from .evaluation import log_metrics
 from .loss import PixelCrossEntropy, grad_reverse
 from .utils import get_data_dim, log_images
+
+__all__ = ["main"]
 
 NDECS = 0
 ARGS = None
@@ -348,7 +349,7 @@ def main(args, datasets):
     # Resume from checkpoint
     if ARGS.resume is not None:
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        metric_callback(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
+        log_metrics(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
         return
 
     # Logging
@@ -368,7 +369,7 @@ def main(args, datasets):
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             val_loss = validate(inn, discriminator, val_loader, itr)
             if args.super_val:
-                metric_callback(ARGS, model=inn, data=datasets, step=itr)
+                log_metrics(ARGS, model=inn, data=datasets, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
@@ -387,7 +388,7 @@ def main(args, datasets):
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    metric_callback(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=itr)
+    log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=itr)
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
 
