@@ -2,8 +2,10 @@
 import time
 from pathlib import Path
 
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import wandb
 
@@ -58,8 +60,9 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.eval()
 
     total_loss_meter = AverageMeter()
-    log_prob_meter = AverageMeter()
+    nll_meter = AverageMeter()
     disc_loss_meter = AverageMeter()
+    recon_loss_meter = AverageMeter()
 
     time_meter = AverageMeter()
     start_epoch_time = time.time()
@@ -75,18 +78,25 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         if ARGS.train_on_recon:
             enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-            enc_y = inn.invert(enc_y_m.detach()).clamp(min=0, max=1)
+            enc_y = inn.invert(enc_y_m.detach())
+            recon_loss = x.new_zeros(())
+            if ARGS.recon_stability_weight > 0:
+                recon_loss = F.l1_loss(enc_y, x)
+            enc_y = enc_y.clamp(min=0, max=1)
 
         enc_y = grad_reverse(enc_y)
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
 
         nll *= ARGS.nll_weight
 
-        pred_s_weight = 0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
+        if itr < ARGS.warmup_steps:
+            pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
+        else:
+            pred_s_weight = ARGS.pred_s_weight
 
         disc_loss *= pred_s_weight
 
-        loss = nll + disc_loss
+        loss = nll + disc_loss + recon_loss
 
         inn.zero_grad()
         discriminator.zero_grad()
@@ -95,13 +105,18 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         discriminator.step()
 
         total_loss_meter.update(loss.item())
-        log_prob_meter.update(nll.item())
+        nll_meter.update(nll.item())
         disc_loss_meter.update(disc_loss.item())
+        recon_loss_meter.update(recon_loss.item())
 
         time_meter.update(time.time() - end)
 
-        wandb_log(ARGS, {"Loss NLL": nll.item()}, step=itr)
-        wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
+        log_dict = {
+            "Loss NLL": nll.item(),
+            "Loss Adversarial": disc_loss.item(),
+            "Recon L1 loss": recon_loss.item(),
+        }
+        wandb_log(ARGS, log_dict, step=itr)
         end = time.time()
 
         if itr % 50 == 0:
@@ -119,12 +134,13 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
         "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-        "Loss NLL: {:.5g} | Loss Adv: {:.5g} ({:.5g})",
+        "Loss NLL: {:.5g} | Loss Adv: {:.5g} | Recon L1: {:.5g} | Total: {:.5g}",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
-        log_prob_meter.avg,
+        nll_meter.avg,
         disc_loss_meter.avg,
+        recon_loss.avg,
         total_loss_meter.avg,
     )
     return itr
