@@ -14,7 +14,8 @@ from nosinn.models.autoencoder import VAE, VaeResults
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
 from nosinn.models.configs.classifiers import linear_disciminator
 from nosinn.models.factory import build_discriminator
-from nosinn.utils import utils
+from nosinn.utils import wandb_log
+from nosinn import utils
 
 from .evaluation import evaluate
 from .loss import PixelCrossEntropy, grad_reverse, VGGLoss
@@ -58,7 +59,7 @@ def compute_losses(
     disc_loss, _ = disc_enc_y.routine(enc_y, s)
 
     # Discriminator for zs if partitioning the latent space
-    if disc_enc_s is not None:
+    if ARGS.enc_s_dim > 0:
         disc_loss += disc_enc_s.routine(enc_s, s)[0]
         disc_enc_s.zero_grad()
 
@@ -117,8 +118,8 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
         time_meter.update(time.time() - end)
 
-        wandb.log({"Loss NLL": elbo.item()}, step=itr)
-        wandb.log({"Loss Adversarial": disc_loss.item()}, step=itr)
+        wandb_log(ARGS, {"Loss NLL": elbo.item()}, step=itr)
+        wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
         end = time.time()
 
         # Log images
@@ -164,7 +165,7 @@ def validate(vae, disc_enc_y, disc_enc_s, val_loader, itr, recon_loss_fn):
 
             loss_meter.update(loss.item(), n=x_val.size(0))
 
-    wandb.log({"Loss": loss_meter.avg}, step=itr)
+    wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
     if ARGS.dataset in ("cmnist", "celeba"):
         log_recons(vae=vae, x=x_val, s_oh=s_oh, itr=itr, prefix="test")
@@ -342,11 +343,12 @@ def main_vae(args, datasets):
         raise ValueError(f"{ARGS.recon_loss} is an invalid reconstruction loss")
 
     recon_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
-    if ARGS.vgg_loss != 0:
-        vgg_loss = VGGLoss(prefactor=ARGS.vgg_loss)
+    if ARGS.vgg_weight != 0:
+        vgg_loss = VGGLoss()
+        vgg_loss.to(ARGS.device)
 
-        def recon_loss_fn(input, target):
-            return recon_loss_fn_(input, target) + vgg_loss(input, target)
+        def recon_loss_fn(input_, target):
+            return recon_loss_fn_(input_, target) + ARGS.vgg_weight * vgg_loss(input_, target)
 
     else:
         recon_loss_fn = recon_loss_fn_
@@ -413,6 +415,7 @@ def main_vae(args, datasets):
 
         itr = train(vae, disc_enc_y, disc_enc_s, train_loader, epoch, recon_loss_fn)
 
+        save_model(save_dir=save_dir, vae=vae, epoch=epoch, prefix="latest")
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             val_loss = validate(vae, disc_enc_y, None, val_loader, itr, recon_loss_fn)
             if args.super_val:
@@ -434,7 +437,6 @@ def main_vae(args, datasets):
             )
 
     LOGGER.info("Training has finished.")
-    save_model(save_dir=save_dir, vae=vae, epoch=epoch, prefix="last")
     evaluate_vae(
         args,
         vae,

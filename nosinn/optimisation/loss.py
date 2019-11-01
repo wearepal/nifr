@@ -93,7 +93,7 @@ class VGGLoss(nn.Module):
     image.
     """
 
-    vgg_feature_layer_default: int = 22  # VGG19 layer number from which to extract features
+    feature_layer_default: int = 22  # VGG19 layer number from which to extract features
 
     def __init__(self, feature_layer: Optional[int] = None, prefactor=0.006):
         """

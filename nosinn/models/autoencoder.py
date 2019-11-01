@@ -193,6 +193,7 @@ class VAE(AutoEncoder):
             decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
         else:
             enc_y = encoding
+            enc_s = None
             decoder_input = encoding
 
         recon = self.decode(decoder_input, s_oh)

@@ -179,7 +179,7 @@ def vae_args(raw_args=None):
     parser.add_argument("--init-channels", type=int, default=32)
     parser.add_argument("--recon-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
     parser.add_argument("--stochastic", type=eval, choices=[True, False], default=True)
-    parser.add_argument("--vgg-loss", type=float, default=0.006)
+    parser.add_argument("--vgg-weight", type=float, default=0)
 
     # Discriminator settings
     parser.add_argument("--disc-enc-y-depth", type=int, default=1)
