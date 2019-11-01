@@ -158,7 +158,7 @@ def validate(inn, discriminator, val_loader, itr):
 
     wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
-    if ARGS.dataset == "cmnist":
+    if ARGS.dataset in ("cmnist", "celeba"):
         z = inn(x_val[:64])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
         log_images(ARGS, x_val, "original_x", prefix="test", step=itr)

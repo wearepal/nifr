@@ -6,7 +6,11 @@ from torch import Tensor
 import torchvision
 
 __all__ = [
-    "GradReverse", "grad_reverse", "contrastive_gradient_penalty", "PixelCrossEntropy", "VGGLoss"
+    "GradReverse",
+    "PixelCrossEntropy",
+    "VGGLoss",
+    "contrastive_gradient_penalty",
+    "grad_reverse",
 ]
 
 
@@ -88,6 +92,7 @@ class VGGLoss(nn.Module):
     is calculated as the euclidean distance between the feature representations of a reconstructed
     image.
     """
+
     vgg_feature_layer_default: int = 22  # VGG19 layer number from which to extract features
 
     def __init__(self, feature_layer: Optional[int] = None, prefactor=0.006):

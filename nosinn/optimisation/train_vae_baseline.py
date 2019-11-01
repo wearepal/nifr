@@ -1,7 +1,7 @@
 """Main training file"""
 import time
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional, Callable, NamedTuple
 
 import torch
 import torch.nn as nn
@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import wandb
 
 from nosinn.data import DatasetTriplet
-from nosinn.models.autoencoder import VAE
+from nosinn.models.autoencoder import VAE, VaeResults
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
 from nosinn.models.configs.classifiers import linear_disciminator
 from nosinn.models.factory import build_discriminator
@@ -28,6 +28,47 @@ LOGGER = None
 INPUT_SHAPE = ()
 
 
+class Losses(NamedTuple):
+    total: torch.Tensor
+    elbo: torch.Tensor
+    disc: torch.Tensor
+
+
+def compute_losses(
+    x, s, s_oh: Optional[torch.Tensor], vae: VAE, disc_enc_y, disc_enc_s, recon_loss_fn
+) -> Losses:
+    """Compute all losses (this should happen in the VAE class actually)"""
+    vae_results: VaeResults = vae.standalone_routine(
+        x=x,
+        s_oh=s_oh,
+        recon_loss_fn=recon_loss_fn,
+        stochastic=ARGS.stochastic,
+        enc_y_dim=ARGS.enc_y_dim,
+        enc_s_dim=ARGS.enc_s_dim,
+    )
+    elbo, enc_y, enc_s, _ = (
+        vae_results.elbo,
+        vae_results.enc_y,
+        vae_results.enc_s,
+        vae_results.recon,
+    )
+
+    enc_y = grad_reverse(enc_y)
+    # Discriminator for zy
+    disc_loss, _ = disc_enc_y.routine(enc_y, s)
+
+    # Discriminator for zs if partitioning the latent space
+    if disc_enc_s is not None:
+        disc_loss += disc_enc_s.routine(enc_s, s)[0]
+        disc_enc_s.zero_grad()
+
+    elbo *= ARGS.elbo_weight
+    disc_loss *= ARGS.pred_s_weight
+
+    loss = elbo + disc_loss
+    return Losses(total=loss, elbo=elbo, disc=disc_loss)
+
+
 def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) -> int:
     vae.train()
     vae.eval()
@@ -39,53 +80,24 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
     time_meter = utils.AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    start_itr = start = epoch * len(dataloader)
+    start_itr = epoch * len(dataloader)
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
-
         s_oh = None
         if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
 
-        # Encode the data
-        if ARGS.stochastic:
-            encoding, posterior = vae.encode(x, stochastic=True, return_posterior=True)
-            kl = vae.compute_divergence(encoding, posterior)
-        else:
-            encoding = vae.encode(x, stochastic=False, return_posterior=False)
-            kl = 0
-
-        if ARGS.enc_s_dim > 0:
-            enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
-            decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
-        else:
-            enc_y = encoding
-            decoder_input = encoding
-
-        recon = vae.decode(decoder_input, s_oh)
-
-        # Compute losses
-        recon_loss = recon_loss_fn(recon, x)
-
-        recon_loss /= x.size(0)
-        kl /= x.size(0)
-
-        elbo = recon_loss + vae.kl_weight * kl
-
-        enc_y = grad_reverse(enc_y)
-        # Discriminator for zy
-        disc_loss, acc = disc_enc_y.routine(enc_y, s)
-
-        # Discriminator for zs if partitioning the latent space
-        if disc_enc_s is not None:
-            disc_loss += disc_enc_s.routine(enc_s, s)[0]
-            disc_enc_s.zero_grad()
-
-        elbo *= ARGS.elbo_weight
-        disc_loss *= ARGS.pred_s_weight
-
-        loss = elbo + disc_loss
+        losses = compute_losses(
+            x=x,
+            s=s,
+            s_oh=s_oh,
+            vae=vae,
+            disc_enc_y=disc_enc_y,
+            disc_enc_s=disc_enc_s,
+            recon_loss_fn=recon_loss_fn,
+        )
+        loss, elbo, disc_loss = losses.total, losses.elbo, losses.disc
 
         # Update model parameters
         vae.zero_grad()
@@ -112,41 +124,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-
-                enc = vae.encode(x[:64], stochastic=False)
-
-                if s_oh is not None:
-                    s_oh = s_oh[:64]
-
-                if ARGS.enc_s_dim > 0:
-                    enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
-                    enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-                    enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
-                else:
-                    enc_y_m = enc
-                    enc_s_m = torch.zeros_like(enc)
-                    if ARGS.cond_decoder:
-                        if ARGS.s_dim == 2:
-                            s_oh_flipped = 1 - s_oh
-                        else:
-                            s_oh_flipped = s_oh[torch.randperm(s_oh.size(0))]
-                        recon_s_flipped = vae.reconstruct(enc, s_oh_flipped)
-                        log_images(ARGS, recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
-
-                recon_all = vae.reconstruct(enc, s=s_oh)
-                recon_y = vae.reconstruct(
-                    enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None
-                )
-                recon_null = vae.reconstruct(
-                    torch.zeros_like(enc), s=torch.zeros_like(s_oh) if s_oh is not None else None
-                )
-                recon_s = vae.reconstruct(enc_s_m, s=s_oh)
-
-                log_images(ARGS, x[:64], "original_x", step=itr)
-                log_images(ARGS, recon_all, "reconstruction_all", step=itr)
-                log_images(ARGS, recon_y, "reconstruction_y", step=itr)
-                log_images(ARGS, recon_s, "reconstruction_s", step=itr)
-                log_images(ARGS, recon_null, "reconstruction_null", step=itr)
+                log_recons(vae=vae, x=x, s_oh=s_oh, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -162,46 +140,34 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
     return itr
 
 
-def validate(vae, discriminator, val_loader, itr, recon_loss_fn):
+def validate(vae, disc_enc_y, disc_enc_s, val_loader, itr, recon_loss_fn):
     vae.eval()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
         for x_val, s_val, y_val in val_loader:
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
-
             s_oh = None
-        if ARGS.cond_decoder:
-            s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
-        encoding, posterior = vae.encode(x_val, stochastic=True, return_posterior=True)
-        kl = vae.compute_divergence(encoding, posterior)
+            if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
+                s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
 
-        if ARGS.enc_s_dim > 0:
-            enc_y, enc_s = encoding.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
-            decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
-        else:
-            enc_y = encoding
-            decoder_input = encoding
+            losses = compute_losses(
+                x=x_val,
+                s=s_val,
+                s_oh=s_oh,
+                vae=vae,
+                disc_enc_y=disc_enc_y,
+                disc_enc_s=disc_enc_s,
+                recon_loss_fn=recon_loss_fn,
+            )
+            loss = losses.total
 
-        decoding = vae.decode(decoder_input, s_oh)
-        recon_loss = recon_loss_fn(decoding, x_val)
-
-        recon_loss /= x_val.size(0)
-        kl /= x_val.size(0)
-
-        elbo = recon_loss + vae.kl_weight * kl
-
-        enc_y = grad_reverse(enc_y)
-        disc_loss, acc = discriminator.routine(enc_y, s_val)
-
-        elbo *= ARGS.elbo_weight
-        disc_loss *= ARGS.pred_s_weight
-
-        loss = elbo + disc_loss
-
-        loss_meter.update(loss.item(), n=x_val.size(0))
+            loss_meter.update(loss.item(), n=x_val.size(0))
 
     wandb.log({"Loss": loss_meter.avg}, step=itr)
+
+    if ARGS.dataset in ("cmnist", "celeba"):
+        log_recons(vae=vae, x=x_val, s_oh=s_oh, itr=itr, prefix="test")
 
     return loss_meter.avg
 
@@ -212,6 +178,39 @@ def to_device(*tensors):
     if len(moved) == 1:
         return moved[0]
     return tuple(moved)
+
+
+def log_recons(vae: VAE, x, s_oh: Optional[torch.Tensor], itr, prefix=None):
+    """Log reconstructed images"""
+    enc = vae.encode(x[:64], stochastic=False)
+    if s_oh is not None:
+        s_oh = s_oh[:64]
+
+    if ARGS.enc_s_dim > 0:
+        enc_y, enc_s = enc.split(split_size=(ARGS.enc_y_dim, ARGS.enc_s_dim), dim=1)
+        enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+        enc_s_m = torch.cat([torch.zeros_like(enc_y), enc_s], dim=1)
+    else:
+        enc_y_m = enc
+        enc_s_m = torch.zeros_like(enc)
+        if ARGS.cond_decoder:
+            if ARGS.s_dim == 2:
+                s_oh_flipped = 1 - s_oh
+            else:
+                s_oh_flipped = s_oh[torch.randperm(s_oh.size(0))]
+            recon_s_flipped = vae.reconstruct(enc, s_oh_flipped)
+            log_images(ARGS, recon_s_flipped, "reconstruction_y_flipped_s", step=itr)
+    recon_all = vae.reconstruct(enc, s=s_oh)
+    recon_y = vae.reconstruct(enc_y_m, s=torch.zeros_like(s_oh) if s_oh is not None else None)
+    recon_null = vae.reconstruct(
+        torch.zeros_like(enc), s=torch.zeros_like(s_oh) if s_oh is not None else None
+    )
+    recon_s = vae.reconstruct(enc_s_m, s=s_oh)
+    log_images(ARGS, x[:64], "original_x", step=itr, prefix=prefix)
+    log_images(ARGS, recon_all, "reconstruction_all", step=itr, prefix=prefix)
+    log_images(ARGS, recon_y, "reconstruction_y", step=itr, prefix=prefix)
+    log_images(ARGS, recon_s, "reconstruction_s", step=itr, prefix=prefix)
+    log_images(ARGS, recon_null, "reconstruction_null", step=itr, prefix=prefix)
 
 
 def encode_dataset(args, vae, data_loader):
@@ -348,6 +347,7 @@ def main_vae(args, datasets):
 
         def recon_loss_fn(input, target):
             return recon_loss_fn_(input, target) + vgg_loss(input, target)
+
     else:
         recon_loss_fn = recon_loss_fn_
 
@@ -414,13 +414,14 @@ def main_vae(args, datasets):
         itr = train(vae, disc_enc_y, disc_enc_s, train_loader, epoch, recon_loss_fn)
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
-            val_loss = validate(vae, disc_enc_y, val_loader, itr, recon_loss_fn)
+            val_loss = validate(vae, disc_enc_y, None, val_loader, itr, recon_loss_fn)
             if args.super_val:
                 evaluate_vae(args, vae, train_loader=val_loader, test_loader=test_loader, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
                 n_vals_without_improvement = 0
+                save_model(save_dir=save_dir, vae=vae, epoch=epoch)
             else:
                 n_vals_without_improvement += 1
 
@@ -433,6 +434,7 @@ def main_vae(args, datasets):
             )
 
     LOGGER.info("Training has finished.")
+    save_model(save_dir=save_dir, vae=vae, epoch=epoch, prefix="last")
     evaluate_vae(
         args,
         vae,
@@ -441,3 +443,16 @@ def main_vae(args, datasets):
         step=itr,
         save_to_csv=Path(ARGS.save),
     )
+
+
+def save_model(save_dir, vae, epoch, prefix="best") -> str:
+    filename = save_dir / f"{prefix}_checkpt.pth"
+    save_dict = {
+        "ARGS": ARGS,
+        "model": vae.state_dict(),
+        "epoch": epoch,
+    }
+
+    torch.save(save_dict, filename)
+
+    return filename

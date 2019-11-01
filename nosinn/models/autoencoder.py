@@ -1,3 +1,5 @@
+from typing import NamedTuple, Optional
+
 from tqdm import tqdm
 import torch
 import torch.distributions as td
@@ -5,6 +7,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .base import ModelBase
+
+
+class VaeResults(NamedTuple):
+    elbo: torch.Tensor
+    enc_y: torch.Tensor
+    enc_s: torch.Tensor
+    recon: torch.Tensor
 
 
 class AutoEncoder(nn.Module):
@@ -159,3 +168,40 @@ class VAE(AutoEncoder):
 
                     pbar.update()
                     pbar.set_postfix(AE_loss=loss.detach().cpu().numpy())
+
+    def standalone_routine(
+        self,
+        x: torch.Tensor,
+        s_oh: Optional[torch.Tensor],
+        recon_loss_fn,
+        stochastic: bool,
+        enc_y_dim: int,
+        enc_s_dim: int,
+    ) -> VaeResults:
+        """Compute ELBO"""
+
+        # Encode the data
+        if stochastic:
+            encoding, posterior = self.encode(x, stochastic=True, return_posterior=True)
+            kl_div = self.compute_divergence(encoding, posterior)
+        else:
+            encoding = self.encode(x, stochastic=False, return_posterior=False)
+            kl_div = 0
+
+        if enc_s_dim > 0:
+            enc_y, enc_s = encoding.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
+            decoder_input = torch.cat([enc_y, enc_s.detach()], dim=1)
+        else:
+            enc_y = encoding
+            decoder_input = encoding
+
+        recon = self.decode(decoder_input, s_oh)
+
+        # Compute losses
+        recon_loss = recon_loss_fn(recon, x)
+
+        recon_loss /= x.size(0)
+        kl_div /= x.size(0)
+
+        elbo = recon_loss + self.kl_weight * kl_div
+        return VaeResults(elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon)
