@@ -140,7 +140,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         1 / time_meter.avg,
         nll_meter.avg,
         disc_loss_meter.avg,
-        recon_loss.avg,
+        recon_loss_meter.avg,
         total_loss_meter.avg,
     )
     return itr
