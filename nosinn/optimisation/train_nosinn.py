@@ -82,7 +82,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
             recon_loss = x.new_zeros((1))
             if ARGS.recon_stability_weight > 0:
                 recon_loss = F.l1_loss(enc_y, x)
-            enc_y = enc_y.clamp(min=0, max=1)
+            # enc_y = enc_y.clamp(min=0, max=1)
 
         enc_y = grad_reverse(enc_y)
         disc_loss, disc_acc = discriminator.routine(enc_y, s)
