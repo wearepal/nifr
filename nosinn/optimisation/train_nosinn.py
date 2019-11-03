@@ -315,7 +315,7 @@ def main(args, datasets):
 
         if ARGS.path_to_ae:
             state_dict = torch.load(ARGS.path_to_ae, map_location=lambda storage, loc: storage)
-            autoencoder.load_state_dict(state_dict)
+            autoencoder.load_state_dict(state_dict["model"])
         else:
             ae_loss_fn: nn.Module
             if ARGS.ae_loss == "l1":
@@ -330,7 +330,7 @@ def main(args, datasets):
                 raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
             inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
-            torch.save(autoencoder.state_dict(), save_dir / "autoencoder")
+            torch.save({"model": autoencoder.state_dict()}, save_dir / "autoencoder")
 
     else:
         inn_kwargs["input_shape"] = input_shape
