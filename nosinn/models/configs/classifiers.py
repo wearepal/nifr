@@ -4,6 +4,8 @@ import torch.nn.functional as F
 
 from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
+__all__ = ["mp_28x28_net", "fc_net"]
+
 
 class GlobalAvgPool(nn.Module):
     def __init__(self, keepdim=True):

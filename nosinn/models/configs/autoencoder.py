@@ -1,5 +1,7 @@
 import torch.nn as nn
 
+__all__ = ["conv_autoencoder", "fc_autoencoder"]
+
 
 def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
     return nn.Sequential(
@@ -25,7 +27,14 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
 
 
 def conv_autoencoder(
-    input_shape, initial_hidden_channels, levels, encoding_dim, decoding_dim, vae, s_dim=0
+    input_shape,
+    initial_hidden_channels,
+    levels,
+    encoding_dim,
+    decoding_dim,
+    vae,
+    s_dim=0,
+    level_depth=2,
 ):
     encoder = []
     decoder = []
@@ -38,11 +47,13 @@ def conv_autoencoder(
             c_out *= 2
 
         encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
-        # encoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
+        if level_depth == 3:
+            encoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
 
         decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
-        # decoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
+        if level_depth == 3:
+            decoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         decoder += [
             gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
         ]

@@ -56,7 +56,7 @@ def compute_losses(
     disc_loss *= ARGS.pred_s_weight
 
     loss = elbo + disc_loss
-    logging_dict = {'ELBO': elbo, 'Adv loss': disc_loss, 'KL divergence': vae_results.kl_div}
+    logging_dict = {"ELBO": elbo, "Adv loss": disc_loss, "KL divergence": vae_results.kl_div}
     return loss, logging_dict
 
 
@@ -66,9 +66,9 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
     total_loss_meter = utils.AverageMeter()
     loss_meters: Dict[str, utils.AverageMeter] = {
-        'ELBO': utils.AverageMeter(),
-        'Adv loss': utils.AverageMeter(),
-        'KL divergence': utils.AverageMeter(),
+        "ELBO": utils.AverageMeter(),
+        "Adv loss": utils.AverageMeter(),
+        "KL divergence": utils.AverageMeter(),
     }
 
     time_meter = utils.AverageMeter()
@@ -121,8 +121,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
     time_for_epoch = time.time() - start_epoch_time
     log_string = " | ".join(f"{meter.avg:.5g}" for meter in loss_meters.values())
     LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-        "{} ({:.5g})",
+        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
@@ -309,6 +308,7 @@ def main_vae(args, datasets):
             levels=ARGS.levels,
             vae=True,
             s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
+            level_depth=ARGS.level_depth,
         )
     else:
         encoder, decoder, enc_shape = fc_autoencoder(
