@@ -79,6 +79,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         recon_loss = x.new_zeros((1))
         if ARGS.train_on_recon:
             enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+            if ARGS.recon_detach:
+                enc_y_m = enc_y_m.detach()
             enc_y = inn.invert(enc_y_m)
             if ARGS.recon_stability_weight > 0:
                 recon_loss = F.l1_loss(enc_y, x)
