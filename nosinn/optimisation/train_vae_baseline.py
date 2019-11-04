@@ -119,7 +119,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                 log_recons(vae=vae, x=x, s_oh=s_oh, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
-    log_string = " | ".join(f"{meter.avg:.5g}" for meter in loss_meters.values())
+    log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
     LOGGER.info(
         "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
         epoch,

@@ -187,7 +187,7 @@ class VAE(AutoEncoder):
             kl_div = self.compute_divergence(encoding, posterior)
         else:
             encoding = self.encode(x, stochastic=False, return_posterior=False)
-            kl_div = 0
+            kl_div = x.new_zeros(())
 
         if enc_s_dim > 0:
             enc_y, enc_s = encoding.split(split_size=(enc_y_dim, enc_s_dim), dim=1)
