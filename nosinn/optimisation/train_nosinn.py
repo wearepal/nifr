@@ -100,8 +100,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         time_meter.update(time.time() - end)
 
-        wandb_log(ARGS, {"Loss NLL": nll.item()}, step=itr)
-        wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
+        logging_dict = {"Loss NLL": nll.item(), "Loss Adversarial": disc_loss.item()}
+        wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
 
         if itr % 50 == 0:

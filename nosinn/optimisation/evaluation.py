@@ -97,44 +97,28 @@ def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dic
                 NMI(base="s"),
             ],
         )
-        wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
-        wandb_log(args, {f"{name} TPR": metrics["TPR"]}, step=step)
-        wandb_log(args, {f"{name} TNR": metrics["TNR"]}, step=step)
-        wandb_log(args, {f"{name} PPV": metrics["PPV"]}, step=step)
-        wandb_log(args, {f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
-        # wandb_log(f"{name} TPR, metrics['Theil_Index'])
-        wandb_log(args, {f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
-        wandb_log(args, {f"{name} Theil_Index": metrics["Theil_Index"]}, step=step)
-        wandb_log(args, {f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"]}, step=step)
-        wandb_log(args, {f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"]}, step=step)
-        wandb_log(args, {f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"]}, step=step)
-        wandb_log(args, {f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"]}, step=step)
-        wandb_log(
-            args,
-            {f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"]},
-            step=step,
-        )
-        wandb_log(
-            args,
-            {f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"]},
-            step=step,
-        )
-
-        wandb_log(args, {f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"]}, step=step)
-        wandb_log(args, {f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"]}, step=step)
-        wandb_log(
-            args, {f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step
-        )
-        wandb_log(
-            args, {f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"]}, step=step
-        )
-
-        wandb_log(
-            args, {f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"]}, step=step
-        )
-        wandb_log(
-            args, {f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"]}, step=step
-        )
+        logging_dict = {
+            f"{name} Accuracy": metrics["Accuracy"],
+            f"{name} TPR": metrics["TPR"],
+            f"{name} TNR": metrics["TNR"],
+            f"{name} PPV": metrics["PPV"],
+            f"{name} Theil_Index": metrics["Theil_Index"],
+            f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"],
+            f"{name} Theil_Index": metrics["Theil_Index"],
+            f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"],
+            f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"],
+            f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"],
+            f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"],
+            f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"],
+            f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"],
+            f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"],
+            f"{name} TPR|s=0": metrics["TPR_sex_Male_0.0"],
+            f"{name} TPR Ratio s0/s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
+            f"{name} TPR Diff s0-s1": metrics["TPR_sex_Male_0.0/sex_Male_1.0"],
+            f"{name} PPV Ratio s0/s1": metrics["PPV_sex_Male_0.0/sex_Male_1.0"],
+            f"{name} TNR Ratio s0/s1": metrics["TNR_sex_Male_0.0/sex_Male_1.0"],
+        }
+        wandb_log(args, logging_dict, step=step)
     else:
         metrics = run_metrics(predictions, actual, metrics=[Accuracy()], per_sens_metrics=[])
         wandb_log(args, {f"{name} Accuracy": metrics["Accuracy"]}, step=step)
