@@ -76,6 +76,10 @@ def build_conv_inn(args, input_shape):
     factor_splits = {int(k): float(v) for k, v in factor_splits.items()}
 
     chain = []
+    if args.preliminary_level:
+        chain.append(layers.BijectorChain([_block(input_dim) for _ in range(args.level_depth)]))
+        if 0 in factor_splits:
+            input_dim = round(factor_splits[0] * input_dim)
     for i in range(args.levels):
         if args.reshape_method == "haar":
             level = [layers.HaarDownsampling(input_dim)]
@@ -86,13 +90,14 @@ def build_conv_inn(args, input_shape):
         level.extend([_block(input_dim) for _ in range(args.level_depth)])
 
         chain.append(layers.BijectorChain(level))
-        if i in factor_splits:
-            input_dim = round(factor_splits[i] * input_dim)
+        j = i if not args.preliminary_level else i + 1
+        if j in factor_splits:
+            input_dim = round(factor_splits[j] * input_dim)
 
     chain = [layers.FactorOut(chain, factor_splits)]
 
-    input_dim = int(np.product(input_shape))
-    chain += [layers.RandomPermutation(input_dim)]
+    # input_dim = int(np.product(input_shape))
+    # chain += [layers.RandomPermutation(input_dim)]
 
     model = layers.BijectorChain(chain)
 
