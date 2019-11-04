@@ -331,12 +331,13 @@ def main(args, datasets):
 
             inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
             torch.save({"model": autoencoder.state_dict()}, save_dir / "autoencoder")
-
+        disc_input_shape = input_shape if args.train_on_recon else enc_shape
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
         inn = PartitionedInn(**inn_kwargs)
         inn.to(args.device)
+        disc_input_shape = input_shape
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
@@ -344,7 +345,7 @@ def main(args, datasets):
     dis_optimizer_kwargs = {"lr": args.disc_lr}
     discriminator = build_discriminator(
         args,
-        inn_kwargs["input_shape"],
+        disc_input_shape,
         frac_enc=1 - args.zs_frac,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
