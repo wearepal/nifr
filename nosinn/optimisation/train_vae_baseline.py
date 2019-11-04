@@ -1,7 +1,7 @@
 """Main training file"""
 import time
 from pathlib import Path
-from typing import Optional, Callable, NamedTuple
+from typing import Optional, Callable, Dict, Tuple
 
 import torch
 import torch.nn as nn
@@ -29,15 +29,9 @@ LOGGER = None
 INPUT_SHAPE = ()
 
 
-class Losses(NamedTuple):
-    total: torch.Tensor
-    elbo: torch.Tensor
-    disc: torch.Tensor
-
-
 def compute_losses(
     x, s, s_oh: Optional[torch.Tensor], vae: VAE, disc_enc_y, disc_enc_s, recon_loss_fn
-) -> Losses:
+) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
     """Compute all losses (this should happen in the VAE class actually)"""
     vae_results: VaeResults = vae.standalone_routine(
         x=x,
@@ -47,12 +41,7 @@ def compute_losses(
         enc_y_dim=ARGS.enc_y_dim,
         enc_s_dim=ARGS.enc_s_dim,
     )
-    elbo, enc_y, enc_s, _ = (
-        vae_results.elbo,
-        vae_results.enc_y,
-        vae_results.enc_s,
-        vae_results.recon,
-    )
+    elbo, enc_y, enc_s = vae_results.elbo, vae_results.enc_y, vae_results.enc_s
 
     enc_y = grad_reverse(enc_y)
     # Discriminator for zy
@@ -67,7 +56,8 @@ def compute_losses(
     disc_loss *= ARGS.pred_s_weight
 
     loss = elbo + disc_loss
-    return Losses(total=loss, elbo=elbo, disc=disc_loss)
+    logging_dict = {'ELBO': elbo, 'Adv loss': disc_loss, 'KL divergence': vae_results.kl_div}
+    return loss, logging_dict
 
 
 def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) -> int:
@@ -75,8 +65,11 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
     vae.eval()
 
     total_loss_meter = utils.AverageMeter()
-    elbo_meter = utils.AverageMeter()
-    disc_loss_meter = utils.AverageMeter()
+    loss_meters: Dict[str, utils.AverageMeter] = {
+        'ELBO': utils.AverageMeter(),
+        'Adv loss': utils.AverageMeter(),
+        'KL divergence': utils.AverageMeter(),
+    }
 
     time_meter = utils.AverageMeter()
     start_epoch_time = time.time()
@@ -89,7 +82,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
             s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
 
-        losses = compute_losses(
+        loss, raw_logging_dict = compute_losses(
             x=x,
             s=s,
             s_oh=s_oh,
@@ -98,7 +91,6 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
             disc_enc_s=disc_enc_s,
             recon_loss_fn=recon_loss_fn,
         )
-        loss, elbo, disc_loss = losses.total, losses.elbo, losses.disc
 
         # Update model parameters
         vae.zero_grad()
@@ -113,13 +105,12 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
 
         # Log losses
         total_loss_meter.update(loss.item())
-        elbo_meter.update(elbo.item())
-        disc_loss_meter.update(disc_loss.item())
+        for key, meter in loss_meters.items():
+            meter.update(raw_logging_dict[key].item())
 
         time_meter.update(time.time() - end)
 
-        wandb_log(ARGS, {"Loss NLL": elbo.item()}, step=itr)
-        wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
+        wandb_log(ARGS, {key: value.item() for key, value in raw_logging_dict.items()}, step=itr)
         end = time.time()
 
         # Log images
@@ -128,14 +119,14 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
                 log_recons(vae=vae, x=x, s_oh=s_oh, itr=itr)
 
     time_for_epoch = time.time() - start_epoch_time
+    log_string = " | ".join(f"{meter.avg:.5g}" for meter in loss_meters.values())
     LOGGER.info(
         "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-        "Loss ELBO: {:.5g} | Loss Adv: {:.5g} ({:.5g})",
+        "{} ({:.5g})",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
-        elbo_meter.avg,
-        disc_loss_meter.avg,
+        log_string,
         total_loss_meter.avg,
     )
     return itr

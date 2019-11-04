@@ -11,6 +11,7 @@ from .base import ModelBase
 
 class VaeResults(NamedTuple):
     elbo: torch.Tensor
+    kl_div: torch.Tensor
     enc_y: torch.Tensor
     enc_s: torch.Tensor
     recon: torch.Tensor
@@ -205,4 +206,4 @@ class VAE(AutoEncoder):
         kl_div /= x.size(0)
 
         elbo = recon_loss + self.kl_weight * kl_div
-        return VaeResults(elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon)
+        return VaeResults(elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon, kl_div=kl_div)
