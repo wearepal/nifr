@@ -6,7 +6,7 @@ from ethicml.algorithms.inprocess import LR, SVM, Majority, Kamiran, Agarwal
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import Accuracy, CV, Theil, TPR, ProbPos, NMI, TNR, PPV
 
-from nosinn.data.data_loading import load_adult_data
+from nosinn.data.data_loading import load_adult_data_tuples
 
 
 def main():
@@ -55,7 +55,7 @@ def main():
         for mix_fact in [k / 100 for k in range(0, 105, 5)]:
             args = _Namespace()
             args.task_mixing_factor = mix_fact
-            meta_train, task, task_train = load_adult_data(args)
+            _, task, task_train = load_adult_data_tuples(args)
             try:
                 preds = clf.run(task_train, task)
             except:
