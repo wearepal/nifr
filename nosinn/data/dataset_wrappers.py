@@ -1,7 +1,6 @@
-import os
 import random
 from pathlib import Path
-from functools import partial
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -9,8 +8,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from torchvision import transforms
 
-from nosinn.data.adult import grouped_features_indexes
-from nosinn.data.misc import set_transform, RandomSampler
+from .misc import set_transform, RandomSampler, grouped_features_indexes
 
 
 class LdAugmentedDataset(Dataset):
@@ -117,13 +115,11 @@ class LdAugmentedDataset(Dataset):
 class DataTupleDataset(Dataset):
     """Wrapper for EthicML datasets"""
 
-    def __init__(self, dataset, source_dataset, transform=None):
+    def __init__(self, dataset, disc_features: List[str], cont_features: List[str], transform=None):
 
-        disc_features = source_dataset.discrete_features
         disc_features = [feat for feat in disc_features if feat in dataset.x.columns]
         self.disc_features = disc_features
 
-        cont_features = source_dataset.continuous_features
         cont_features = [feat for feat in cont_features if feat in dataset.x.columns]
         self.cont_features = cont_features
         self.feature_groups = dict(discrete=grouped_features_indexes(self.disc_features))
@@ -141,7 +137,7 @@ class DataTupleDataset(Dataset):
     def shrink(self, pcnt):
         if not 0.0 <= pcnt <= 1.0:
             raise ValueError(f"{pcnt} is not a valid percentage")
-        new_len = int(pcnt * self.__len__())
+        new_len = round(pcnt * self.__len__())
         inds = random.sample(range(self.__len__()), new_len)
         self.x_disc = self.x_disc[inds]
         self.x_cont = self.x_cont[inds]
@@ -184,14 +180,36 @@ class DataTupleDataset(Dataset):
         return x, s, y
 
 
+class PerturbedDataTupleDataset(DataTupleDataset):
+    def __init__(self, dataset, features: List[str], num_bins: np.ndarray, transform=None):
+        super().__init__(dataset, disc_features=[], cont_features=features, transform=transform)
+        self.bin_size = 1 / num_bins
+        self.random = np.random.RandomState(seed=42)
+
+    def __getitem__(self, index):
+
+        x = self.x_cont[index]
+        s = self.s[index]
+        y = self.y[index]
+
+        # add a bit of noise
+        x += self.random.uniform(low=0, high=self.bin_size, size=x.shape)
+
+        x = torch.from_numpy(x).squeeze(0)
+        s = torch.from_numpy(s).squeeze()
+        y = torch.from_numpy(y).squeeze()
+
+        return x, s, y
+
+
 class TripletDataset(Dataset):
-    def __init__(self, root):
+    def __init__(self, root: str):
         super().__init__()
 
-        self.root = root
+        self.root_path = Path(root)
 
         def _abs(file_name: str) -> Path:
-            return Path(self.root) / file_name
+            return self.root_path / file_name
 
         filename = pd.read_csv(
             _abs("filename.csv"), delim_whitespace=True, header=None, index_col=0
@@ -215,7 +233,7 @@ class TripletDataset(Dataset):
         Returns:
             tuple: (image, target) where target is index of the target class.
         """
-        img = np.load(os.path.join(self.root, self.filename[index]))
+        img = np.load(self.root_path / self.filename[index])
         img = torch.as_tensor(img["img"])
         sens = self.sens[index]
         target = self.target[index]
