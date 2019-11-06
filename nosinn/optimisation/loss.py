@@ -1,8 +1,17 @@
+from typing import Optional
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
+import torchvision
 
-__all__ = ["GradReverse", "grad_reverse", "contrastive_gradient_penalty", "PixelCrossEntropy"]
+__all__ = [
+    "GradReverse",
+    "PixelCrossEntropy",
+    "VGGLoss",
+    "contrastive_gradient_penalty",
+    "grad_reverse",
+]
 
 
 class GradReverse(torch.autograd.Function):
@@ -75,3 +84,48 @@ class PixelCrossEntropy(nn.CrossEntropyLoss):
         # make integer class labels
         target = (target * (256 - 1)).long()
         return super().forward(input, target)
+
+
+class VGGLoss(nn.Module):
+    """
+    The VGG loss based on the ReLU activation layers of the pre-trained 19 layer VGG network. This
+    is calculated as the euclidean distance between the feature representations of a reconstructed
+    image.
+    """
+
+    feature_layer_default: int = 22  # VGG19 layer number from which to extract features
+
+    def __init__(self, feature_layer: Optional[int] = None, prefactor=0.006):
+        """
+        Args:
+            prefactor: prefactor by which to scale the loss.
+                       Rescaling by a factor of 1 / 12.75 gives VGG losses of a scale that
+                       is comparable to MSE loss. This is equivalent to multiplying with a
+                       rescaling factor of ≈ 0.006.
+        """
+        super().__init__()
+        vgg_features = torchvision.models.vgg19(pretrained=True).features
+        modules = [m for m in vgg_features]
+
+        vgg_feature_layer = self.feature_layer_default if feature_layer is None else feature_layer
+        if vgg_feature_layer == 22:
+            self.vgg = nn.Sequential(*modules[:8])
+        elif vgg_feature_layer == 54:
+            self.vgg = nn.Sequential(*modules[:35])
+        else:
+            raise ValueError("'vgg_feature_layer' has to be either 22 or 54")
+
+        self.vgg.requires_grad = False
+        self.prefactor = prefactor
+
+    def _extract_feature(self, x):
+        return self.vgg(x)
+
+    def forward(self, noisy, clean):
+        vgg_noisy = self._extract_feature(noisy)
+        with torch.no_grad():
+            vgg_clean = self._extract_feature(clean.detach())
+
+        loss = self.prefactor * F.mse_loss(vgg_noisy, vgg_clean)
+
+        return loss

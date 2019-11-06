@@ -104,7 +104,7 @@ def shared_args(raw_args=None):
         help="Train classifier on encodings as part of validation step.",
     )
     parser.add_argument("--val-freq", type=int, default=5)
-    # parser.add_argument("--log-freq", type=int, default=10)
+    parser.add_argument("--log-freq", type=int, default=50)
     parser.add_argument("--root", type=str, default="data")
     parser.add_argument("--use-wandb", type=eval, choices=[True, False], default=True)
     parser.add_argument(
@@ -173,11 +173,14 @@ def vae_args(raw_args=None):
 
     # VAEsettings
     parser.add_argument("--levels", type=int, default=4)
+    parser.add_argument("--level-depth", type=int, default=2)
     parser.add_argument("--enc-y-dim", type=int, default=64)
     parser.add_argument("--enc-s-dim", type=int, default=0)
     parser.add_argument("--cond-decoder", type=eval, choices=[True, False], default=True)
     parser.add_argument("--init-channels", type=int, default=32)
     parser.add_argument("--recon-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
+    parser.add_argument("--stochastic", type=eval, choices=[True, False], default=True)
+    parser.add_argument("--vgg-weight", type=float, default=0)
 
     # Discriminator settings
     parser.add_argument("--disc-enc-y-depth", type=int, default=1)
