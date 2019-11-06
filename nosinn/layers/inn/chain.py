@@ -3,6 +3,8 @@ import torch.nn as nn
 import numpy as np
 from .misc import Flatten
 
+__all__ = ["BijectorChain", "FactorOut"]
+
 
 class BijectorChain(nn.Module):
     """A generalized nn.Sequential container for normalizing flows.

@@ -2,6 +2,8 @@ import torch
 from nosinn.layers.inn import Bijector
 from nosinn.utils import is_positive_int
 
+__all__ = ["RandomPermutation", "ReversePermutation"]
+
 
 class Permutation(Bijector):
     """Permutes inputs on a given dimension using a given permutation."""

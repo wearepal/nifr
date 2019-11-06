@@ -1,4 +1,6 @@
-from nosinn.layers.inn.bijector import Bijector
+from .bijector import Bijector
+
+__all__ = ["Flatten"]
 
 
 class Flatten(Bijector):

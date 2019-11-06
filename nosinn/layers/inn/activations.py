@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+__all__ = ["LogitTransform", "ZeroMeanTransform"]  # , "SigmoidTransform", "SoftplusTransform"]
+
 _DEFAULT_ALPHA = 0  # 1e-6
 _DEFAULT_BETA = 1.0
 
