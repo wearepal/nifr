@@ -9,11 +9,8 @@ from . import Bijector
 
 class SqueezeLayer(Bijector):
     def __init__(self, downscale_factor):
-        super(SqueezeLayer, self).__init__()
+        super().__init__()
         self.downscale_factor = downscale_factor
-
-    def logdetjac(self,):
-        return 0
 
     def _forward(self, x, sum_ldj=None):
         squeeze_x = squeeze(x, self.downscale_factor)
@@ -32,13 +29,13 @@ class SqueezeLayer(Bijector):
 
 class UnsqueezeLayer(SqueezeLayer):
     def __init__(self, upscale_factor):
-        super(UnsqueezeLayer, self).__init__(upscale_factor)
+        super().__init__(downscale_factor=upscale_factor)
 
-    def forward(self, x, sum_ldj=None, reverse=False):
-        if reverse:
-            return self._downsample(x, sum_ldj)
-        else:
-            return self._upsample(x, sum_ldj)
+    def _forward(self, x, sum_ldj=None):
+        return self._inverse(x, sum_ldj)
+
+    def _inverse(self, y, sum_ldj=None):
+        return self._forward(y, sum_ldj)
 
 
 def unsqueeze(input, upscale_factor=2):
@@ -132,12 +129,12 @@ class HaarDownsampling(Bijector):
         else:
             return out, sum_ldj - self.logdetjac(x, False)
 
-    def _inverse(self, x, sum_ldj=None):
+    def _inverse(self, y, sum_ldj=None):
 
         if self.permute:
-            x_perm = x[:, self.perm_inv]
+            x_perm = y[:, self.perm_inv]
         else:
-            x_perm = x
+            x_perm = y
 
         out = F.conv_transpose2d(
             x_perm * self.fac_rev, self.haar_weights, bias=None, stride=2, groups=self.in_channels
@@ -146,4 +143,4 @@ class HaarDownsampling(Bijector):
         if sum_ldj is None:
             return out
         else:
-            return out, sum_ldj + self.logdetjac(x, True)
+            return out, sum_ldj + self.logdetjac(y, True)
