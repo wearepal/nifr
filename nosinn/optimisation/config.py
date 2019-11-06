@@ -85,14 +85,14 @@ def shared_args(raw_args=None):
         default=False,
         choices=[True, False],
         help="whether to train the discriminator on the reconstructions" "of the encodings.",
-    ),
+    )
     parser.add_argument(
         "--recon-detach",
         type=eval,
         default=True,
         choices=[True, False],
         help="Whether to apply the stop gradient operator to the reconstruction.",
-    ),
+    )
 
     # Evaluation settings
     parser.add_argument("--eval-epochs", type=int, metavar="N", default=40)
