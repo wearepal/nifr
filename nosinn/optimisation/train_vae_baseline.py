@@ -32,7 +32,7 @@ INPUT_SHAPE = ()
 def compute_losses(
     x, s, s_oh: Optional[torch.Tensor], vae: VAE, disc_enc_y, disc_enc_s, recon_loss_fn
 ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
-    """Compute all losses (this should happen in the VAE class actually)"""
+    """Compute all losses"""
     vae_results: VaeResults = vae.standalone_routine(
         x=x,
         s_oh=s_oh,
@@ -131,7 +131,7 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
     return itr
 
 
-def validate(vae, disc_enc_y, disc_enc_s, val_loader, itr, recon_loss_fn):
+def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_fn):
     vae.eval()
     with torch.no_grad():
         loss_meter = utils.AverageMeter()
@@ -408,7 +408,7 @@ def main_vae(args, datasets):
 
         save_model(save_dir=save_dir, vae=vae, epoch=epoch, prefix="latest")
         if epoch % ARGS.val_freq == 0 and epoch != 0:
-            val_loss = validate(vae, disc_enc_y, None, val_loader, itr, recon_loss_fn)
+            val_loss = validate(vae, disc_enc_y, disc_enc_s, val_loader, itr, recon_loss_fn)
             if args.super_val:
                 evaluate_vae(args, vae, train_loader=val_loader, test_loader=test_loader, step=itr)
 
@@ -441,7 +441,7 @@ def main_vae(args, datasets):
 def save_model(save_dir, vae, epoch, prefix="best") -> str:
     filename = save_dir / f"{prefix}_checkpt.pth"
     save_dict = {
-        "ARGS": ARGS,
+        "args": vars(ARGS),
         "model": vae.state_dict(),
         "epoch": epoch,
     }

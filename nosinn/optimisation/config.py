@@ -173,7 +173,7 @@ def vae_args(raw_args=None):
 
     # VAEsettings
     parser.add_argument("--levels", type=int, default=4)
-    parser.add_argument("--level-depth", type=int, default=3)
+    parser.add_argument("--level-depth", type=int, default=2)
     parser.add_argument("--enc-y-dim", type=int, default=64)
     parser.add_argument("--enc-s-dim", type=int, default=0)
     parser.add_argument("--cond-decoder", type=eval, choices=[True, False], default=True)
