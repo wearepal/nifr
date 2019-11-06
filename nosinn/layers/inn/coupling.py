@@ -1,11 +1,9 @@
-from builtins import hasattr
-from os.path import split, splitext
-from typing import Tuple
+from typing import Sequence, List, Tuple
+from typing_extensions import Literal
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 
 from nosinn.layers import BottleneckConvBlock, ConvResidualNet
 from nosinn.utils import RoundSTE, sum_except_batch
@@ -21,28 +19,18 @@ __all__ = [
 
 
 class CouplingLayer(Bijector):
-    def __init__(self):
+    def __init__(self, d: int):
         super().__init__()
-        self.d: int
-
-    def logdetjac(self, *args):
-        pass
+        self.d: int = d
 
     def _split(self, x):
         return x.split(split_size=(self.d, x.size(1) - self.d), dim=1)
-
-    def _forward(self, x: Tensor, sum_ldj=None) -> Tuple[Tensor, Tensor]:
-        pass
-
-    def _inverse(self, y: Tensor, sum_ldj=None) -> Tuple[Tensor, Tensor]:
-        pass
 
 
 class AffineCouplingLayer(CouplingLayer):
     def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
         assert is_probability(pcnt_to_transform)
-        super().__init__()
-        self.d = in_channels - round(pcnt_to_transform * in_channels)
+        super().__init__(d=in_channels - round(pcnt_to_transform * in_channels))
 
         self.net_s_t = BottleneckConvBlock(
             in_channels=self.d,
@@ -51,7 +39,8 @@ class AffineCouplingLayer(CouplingLayer):
             use_bn=False,
         )
 
-    def logdetjac(self, scale):
+    @staticmethod
+    def logdetjac(scale):
         return sum_except_batch(torch.log(scale), keepdim=True)
 
     def _scale_and_shift_fn(self, inputs):
@@ -84,11 +73,11 @@ class AffineCouplingLayer(CouplingLayer):
 
 
 class AdditiveCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5):
+    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5, d=None):
         assert is_probability(pcnt_to_transform)
 
-        super().__init__()
-        self.d = in_channels - round(pcnt_to_transform * in_channels)
+        d = in_channels - round(pcnt_to_transform * in_channels) if d is None else d
+        super().__init__(d=d)
 
         self.net_t = BottleneckConvBlock(
             in_channels=self.d,
@@ -130,8 +119,7 @@ class AdditiveCouplingLayer(CouplingLayer):
 
 class IntegerDiscreteFlow(AdditiveCouplingLayer):
     def __init__(self, in_channels, hidden_channels, depth=3):
-        super().__init__(in_channels, hidden_channels)
-        self.d = round(0.75 * in_channels)
+        super().__init__(in_channels, hidden_channels, d=round(0.75 * in_channels))
 
         self.net_t = ConvResidualNet(
             in_channels=self.d,
@@ -175,23 +163,35 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
 class MaskedCouplingLayer(Bijector):
     """Used in the tabular experiments."""
 
-    def __init__(self, d, hidden_dims, mask_type="alternate", swap=False):
-        nn.Module.__init__(self)
-        self.d = d
-        self.register_buffer("mask", sample_mask(d, mask_type, swap).view(1, d))
-        self.net_scale = build_net(d, hidden_dims, activation="tanh")
-        self.net_shift = build_net(d, hidden_dims, activation="relu")
+    def __init__(
+        self,
+        *,
+        input_dim: int,
+        hidden_dims: Sequence[int],
+        mask_type: Literal["alternate", "channel"] = "alternate",
+        swap: bool = False,
+    ):
+        super().__init__()
+        # self.input_dim = input_dim
+        self.register_buffer("mask", sample_mask(input_dim, mask_type, swap).view(1, input_dim))
+        self.net_scale = build_net(input_dim, hidden_dims, activation="tanh")
+        self.net_shift = build_net(input_dim, hidden_dims, activation="relu")
 
-    def logdetjac(self, scale):
+    @staticmethod
+    def logdetjac(scale):
         return scale.log().view(scale.shape[0], -1).sum(dim=1, keepdim=True)
 
-    def _forward(self, x, sum_ldj=None):
-
-        scale = torch.exp(self.net_scale(x * self.mask))
+    def _masked_scale_and_shift(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         shift = self.net_shift(x * self.mask)
+        raw_scale = self.net_scale(x * self.mask)
+        scale = torch.exp(raw_scale)
 
         masked_scale = scale * (1 - self.mask) + torch.ones_like(scale) * self.mask
         masked_shift = shift * (1 - self.mask)
+        return masked_scale, masked_shift
+
+    def _forward(self, x, sum_ldj=None):
+        masked_scale, masked_shift = self._masked_scale_and_shift(x)
 
         y = x * masked_scale + masked_shift
 
@@ -200,14 +200,10 @@ class MaskedCouplingLayer(Bijector):
         else:
             return y, sum_ldj - self.logdetjac(masked_scale)
 
-    def _inverse(self, x, sum_ldj=None):
-        scale = torch.exp(self.net_scale(x * self.mask))
-        shift = self.net_shift(x * self.mask)
+    def _inverse(self, y, sum_ldj=None):
+        masked_scale, masked_shift = self._masked_scale_and_shift(y)
 
-        masked_scale = scale * (1 - self.mask) + torch.ones_like(scale) * self.mask
-        masked_shift = shift * (1 - self.mask)
-
-        y = (x - masked_shift) / masked_scale
+        y = (y - masked_shift) / masked_scale
 
         if sum_ldj is None:
             return y

@@ -18,9 +18,6 @@ class Permutation(Bijector):
         self._dim = dim
         self.register_buffer("_permutation", permutation)
 
-    def logdetjac(self):
-        return 0
-
     @property
     def _inverse_permutation(self):
         return torch.argsort(self._permutation)

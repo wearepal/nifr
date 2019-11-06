@@ -85,16 +85,16 @@ class Invertible1x1Conv(Bijector):
             dlogdet = self.logdetjac(x)
             return output, sum_ldj - dlogdet
 
-    def _inverse(self, x, sum_ldj=None):
+    def _inverse(self, y, sum_ldj=None):
 
         weight_inv = self.get_w(reverse=True)
 
-        output = F.conv2d(x, weight_inv)
+        output = F.conv2d(y, weight_inv)
 
         if sum_ldj is None:
             return output
         else:
-            dlogdet = self.logdetjac(x)
+            dlogdet = self.logdetjac(y)
             return output, sum_ldj + dlogdet
 
 

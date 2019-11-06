@@ -106,7 +106,7 @@ class BipartiteInn(ModelBase):
         return nll
 
     def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
-        outputs = self.model(inputs, logpx=logdet, reverse=reverse)
+        outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
 
         return outputs
 
@@ -235,11 +235,11 @@ class PartitionedAeInn(PartitionedInn):
 
     def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
         if reverse:
-            outputs = self.model(inputs, logpx=logdet, reverse=reverse)
+            outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(outputs)
         else:
             outputs = self.autoencoder.encode(inputs)
-            outputs = self.model(outputs, logpx=logdet, reverse=reverse)
+            outputs = self.model(outputs, sum_ldj=logdet, reverse=reverse)
 
         return outputs
 
