@@ -1,3 +1,5 @@
+from typing import List
+
 import torch.nn as nn
 
 __all__ = ["conv_autoencoder", "fc_autoencoder"]
@@ -28,16 +30,17 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
 
 def conv_autoencoder(
     input_shape,
-    initial_hidden_channels,
-    levels,
+    initial_hidden_channels: int,
+    levels: int,
     encoding_dim,
     decoding_dim,
     vae,
     s_dim=0,
-    level_depth=2,
+    level_depth: int = 2,
 ):
-    encoder = []
-    decoder = []
+    assert level_depth in (2, 3), "only level depth 2 and 3 are supported right now"
+    encoder: List[nn.Module] = []
+    decoder: List[nn.Module] = []
     c_in, h, w = input_shape
     c_out = initial_hidden_channels
 
