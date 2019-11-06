@@ -32,7 +32,11 @@ def build_fc_inn(
             )
         ]
 
-    chain += [layers.InvertibleLinear(input_dim)]
+    # one last mixing of the channels
+    if args.glow:
+        chain += [layers.InvertibleLinear(input_dim)]
+    else:
+        chain += [layers.RandomPermutation(input_dim)]
 
     return layers.BijectorChain(chain)
 
