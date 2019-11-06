@@ -1,5 +1,5 @@
-from .autoencoder import AutoEncoder
-from .base import ModelBase
+from .autoencoder import *
+from .base import *
 from .inn import PartitionedInn, PartitionedAeInn, MaskedInn
 from .classifier import Classifier
 from .masker import Masker

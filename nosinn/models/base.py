@@ -2,6 +2,8 @@ import torch.nn as nn
 
 from nosinn.utils.optimizers import RAdam
 
+__all__ = ["ModelBase"]
+
 
 class ModelBase(nn.Module):
 
