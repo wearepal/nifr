@@ -8,6 +8,8 @@ import torch.nn.functional as F
 
 from .base import ModelBase
 
+__all__ = ["VaeResults", "AutoEncoder", "VAE"]
+
 
 class VaeResults(NamedTuple):
     elbo: torch.Tensor

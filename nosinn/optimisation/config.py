@@ -86,6 +86,13 @@ def shared_args(raw_args=None):
         choices=[True, False],
         help="whether to train the discriminator on the reconstructions" "of the encodings.",
     )
+    parser.add_argument(
+        "--recon-detach",
+        type=eval,
+        default=True,
+        choices=[True, False],
+        help="Whether to apply the stop gradient operator to the reconstruction.",
+    )
 
     # Evaluation settings
     parser.add_argument("--eval-epochs", type=int, metavar="N", default=40)
@@ -162,6 +169,7 @@ def nosinn_args(raw_args=None):
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--nll-weight", type=float, default=1e-2)
     parser.add_argument("--pred-s-weight", type=float, default=1)
+    parser.add_argument("--recon-stability-weight", type=float, default=0)
 
     parser.add_argument("--path-to-ae", type=str, default="")
 
