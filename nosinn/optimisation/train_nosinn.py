@@ -286,8 +286,8 @@ def main(args, datasets):
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
-                input_shape,
-                ARGS.ae_channels,
+                input_shape=input_shape,
+                hidden_channels=ARGS.ae_channels,
                 encoding_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,

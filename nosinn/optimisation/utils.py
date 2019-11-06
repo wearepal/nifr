@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import torchvision
 import wandb
 
@@ -6,11 +8,11 @@ from nosinn.utils import wandb_log
 __all__ = ["get_data_dim", "log_images"]
 
 
-def get_data_dim(data_loader):
+def get_data_dim(data_loader) -> Tuple[int, ...]:
     x, _, _ = next(iter(data_loader))
     x_dim = x.shape[1:]
 
-    return x_dim
+    return tuple(x_dim)
 
 
 def log_images(args, image_batch, name, step, nsamples=64, nrows=8, monochrome=False, prefix=None):

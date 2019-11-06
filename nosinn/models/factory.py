@@ -1,19 +1,22 @@
+from typing import Optional, List, Tuple
+
 import numpy as np
 
 from nosinn import layers
 from nosinn.models.classifier import Classifier
 
 
-def build_fc_inn(args, input_shape, level_depth: int = None):
+def build_fc_inn(
+    args, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
+) -> layers.Bijector:
     """Build the model with ARGS.depth many layers
 
     If ARGS.glow is true, then each layer includes 1x1 convolutions.
     """
     input_dim = input_shape[0]
     level_depth = level_depth or args.level_depth
-    _batch_norm = args.batch_norm
 
-    chain = [layers.Flatten()]
+    chain: List[layers.Bijector] = [layers.Flatten()]
     for i in range(level_depth):
         if args.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]
@@ -21,9 +24,9 @@ def build_fc_inn(args, input_shape, level_depth: int = None):
             chain += [layers.InvertibleLinear(input_dim)]
         chain += [
             layers.MaskedCouplingLayer(
-                input_dim,
-                2 * [args.coupling_channels],
-                "alternate",
+                input_dim=input_dim,
+                hidden_dims=args.coupling_depth * [args.coupling_channels],
+                mask_type="alternate",
                 swap=(i % 2 == 0) and not args.glow,
             )
         ]
@@ -33,12 +36,12 @@ def build_fc_inn(args, input_shape, level_depth: int = None):
     return layers.BijectorChain(chain)
 
 
-def build_conv_inn(args, input_shape):
+def build_conv_inn(args, input_shape) -> layers.Bijector:
 
     input_dim = input_shape[0]
 
-    def _block(_input_dim):
-        _chain = []
+    def _block(_input_dim) -> layers.Bijector:
+        _chain: List[layers.Bijector] = []
         if args.idf:
             _chain += [
                 layers.IntegerDiscreteFlow(_input_dim, hidden_channels=args.coupling_channels)
@@ -75,8 +78,9 @@ def build_conv_inn(args, input_shape):
     factor_splits: dict = {int(k): v for k, v in args.factor_splits.items()}
     factor_splits = {int(k): float(v) for k, v in factor_splits.items()}
 
-    chain = []
+    chain: List[layers.Bijector] = []
     for i in range(args.levels):
+        level: List[layers.Bijector]
         if args.reshape_method == "haar":
             level = [layers.HaarDownsampling(input_dim)]
         else:
@@ -89,7 +93,7 @@ def build_conv_inn(args, input_shape):
         if i in factor_splits:
             input_dim = round(factor_splits[i] * input_dim)
 
-    chain = [layers.FactorOut(chain, factor_splits)]
+    chain: List[layers.Bijector] = [layers.FactorOut(chain, factor_splits)]
 
     input_dim = int(np.product(input_shape))
     chain += [layers.RandomPermutation(input_dim)]
