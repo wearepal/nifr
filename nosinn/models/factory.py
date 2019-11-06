@@ -28,6 +28,7 @@ def build_fc_inn(
                 hidden_dims=args.coupling_depth * [args.coupling_channels],
                 mask_type="alternate",
                 swap=(i % 2 == 0) and not args.glow,
+                scaling=args.scaling,
             )
         ]
 
@@ -55,7 +56,7 @@ def build_conv_inn(args, input_shape) -> layers.Bijector:
             else:
                 _chain += [layers.RandomPermutation(_input_dim)]
 
-            if args.no_scaling:
+            if args.scaling == "none":
                 _chain += [
                     layers.AdditiveCouplingLayer(
                         _input_dim,
@@ -64,7 +65,7 @@ def build_conv_inn(args, input_shape) -> layers.Bijector:
                         pcnt_to_transform=0.25,
                     )
                 ]
-            else:
+            elif args.scaling == "sigmoid0.5":
                 _chain += [
                     layers.AffineCouplingLayer(
                         _input_dim,
@@ -72,6 +73,8 @@ def build_conv_inn(args, input_shape) -> layers.Bijector:
                         hidden_channels=args.coupling_channels,
                     )
                 ]
+            else:
+                raise ValueError(f"Scaling {args.scaling} is not supported")
 
         return layers.BijectorChain(_chain)
 

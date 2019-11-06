@@ -170,12 +170,14 @@ class MaskedCouplingLayer(Bijector):
         hidden_dims: Sequence[int],
         mask_type: Literal["alternate", "channel"] = "alternate",
         swap: bool = False,
+        scaling: Literal["none", "exp", "sigmoid0.5", "add2_sigmoid"] = "exp",
     ):
         super().__init__()
         # self.input_dim = input_dim
         self.register_buffer("mask", sample_mask(input_dim, mask_type, swap).view(1, input_dim))
         self.net_scale = build_net(input_dim, hidden_dims, activation="tanh")
         self.net_shift = build_net(input_dim, hidden_dims, activation="relu")
+        self.scaling = scaling
 
     @staticmethod
     def logdetjac(scale):
@@ -183,8 +185,16 @@ class MaskedCouplingLayer(Bijector):
 
     def _masked_scale_and_shift(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         shift = self.net_shift(x * self.mask)
-        raw_scale = self.net_scale(x * self.mask)
-        scale = torch.exp(raw_scale)
+        if self.scaling == "none":
+            scale = torch.ones_like(shift)
+        else:
+            raw_scale = self.net_scale(x * self.mask)
+            if self.scaling == "exp":
+                scale = torch.exp(raw_scale)
+            elif self.scaling == "sigmoid0.5":
+                scale = torch.sigmoid(raw_scale) + 0.5
+            elif self.scaling == "add2_sigmoid":
+                scale = torch.sigmoid(raw_scale + 2.0)
 
         masked_scale = scale * (1 - self.mask) + torch.ones_like(scale) * self.mask
         masked_shift = shift * (1 - self.mask)
