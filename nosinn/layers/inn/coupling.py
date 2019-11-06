@@ -230,11 +230,11 @@ def sample_mask(dim, mask_type, swap):
         raise ValueError("Unknown mask_type {}".format(mask_type))
 
 
-def build_net(input_dim, hidden_dims, activation="relu"):
+def build_net(input_dim: int, hidden_dims: Sequence[int], activation="relu"):
     dims = (input_dim,) + tuple(hidden_dims) + (input_dim,)
     activation_modules = {"relu": nn.ReLU(inplace=True), "tanh": nn.Tanh()}
 
-    chain = []
+    chain: List[nn.Module] = []
     for i, (in_dim, out_dim) in enumerate(zip(dims[:-1], dims[1:])):
         chain.append(nn.Linear(in_dim, out_dim))
         if i < len(hidden_dims):

@@ -233,7 +233,9 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.fit(train_data, epochs, device, loss_fn)
         self.autoencoder.eval()
 
-    def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
+    def forward(
+        self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False
+    ) -> Tensor:
         if reverse:
             outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(outputs)
