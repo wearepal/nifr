@@ -144,7 +144,9 @@ def nosinn_args(raw_args=None):
     )
     parser.add_argument("--factor-splits", action=StoreDictKeyPair, nargs="+", default={})
     parser.add_argument("--idf", type=eval, default=False, choices=[True, False])
-    parser.add_argument("--no-scaling", type=eval, default=False, choices=[True, False])
+    parser.add_argument(
+        "--scaling", choices=["none", "exp", "sigmoid0.5", "add2_sigmoid"], default="sigmoid0.5"
+    )
     parser.add_argument("--spectral-norm", type=eval, default=False, choices=[True, False])
     parser.add_argument("--zs-frac", type=float, default=0.02)
 
