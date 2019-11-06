@@ -4,6 +4,8 @@ from typing import Union, Tuple
 import torch.nn as nn
 from torch import Tensor
 
+__all__ = ["Bijector"]
+
 
 class Bijector(nn.Module):
     """Base class of an invertible layer"""

@@ -4,7 +4,9 @@ import torch.nn.functional as F
 import numpy as np
 from scipy import linalg
 
-from .misc import Bijector
+from .bijector import Bijector
+
+__all__ = ["Invertible1x1Conv", "InvertibleLinear"]
 
 
 class Invertible1x1Conv(Bijector):

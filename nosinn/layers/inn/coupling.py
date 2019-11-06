@@ -7,11 +7,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
-from nosinn.layers.conv import BottleneckConvBlock
-from nosinn.layers.inn.bijector import Bijector
-from nosinn.layers.resnet import ConvResidualNet, ResidualNet
+from nosinn.layers import BottleneckConvBlock, ConvResidualNet
 from nosinn.utils import RoundSTE, sum_except_batch
 from nosinn.utils.typechecks import is_probability
+from .bijector import Bijector
+
+__all__ = [
+    "AdditiveCouplingLayer",
+    "AffineCouplingLayer",
+    "IntegerDiscreteFlow",
+    "MaskedCouplingLayer",
+]
 
 
 class CouplingLayer(Bijector):
