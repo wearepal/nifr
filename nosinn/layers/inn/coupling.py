@@ -5,9 +5,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from nosinn.layers import BottleneckConvBlock, ConvResidualNet
 from nosinn.utils import RoundSTE, sum_except_batch
 from nosinn.utils.typechecks import is_probability
+from ..conv import BottleneckConvBlock
+from ..resnet import ConvResidualNet
 from .bijector import Bijector
 
 __all__ = [
