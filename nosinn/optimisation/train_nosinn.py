@@ -89,6 +89,7 @@ def compute_loss(
         "Loss NLL": nll.item(),
         "Loss Adversarial": disc_loss.item(),
         "Recon L1 loss": recon_loss.item(),
+        "Validation loss": (nll - disc_loss + recon_loss).item(),
     }
     return loss, logging_dict
 
@@ -102,6 +103,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         "Loss NLL": AverageMeter(),
         "Loss Adversarial": AverageMeter(),
         "Recon L1 loss": AverageMeter(),
+        "Validation loss": AverageMeter(),
     }
 
     time_meter = AverageMeter()
@@ -157,9 +159,9 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            loss, _ = compute_loss(x_val, s_val, inn, discriminator, itr)
+            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
 
-            loss_meter.update(loss.item(), n=x_val.size(0))
+            loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
     wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
