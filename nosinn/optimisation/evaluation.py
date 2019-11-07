@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Optional, Dict, List
 from argparse import Namespace
+
 import pandas as pd
+import numpy as np
 
 import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
@@ -178,8 +180,10 @@ def evaluate(
         )
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
-        preds = pd.DataFrame(preds)
-        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(sens if pred_s else actual))
+        preds = pd.DataFrame(preds, columns=["preds"])
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
+        labels = pd.DataFrame(actual, columns=["labels"])
+        actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
 
     else:
         if not isinstance(train_data, DataTuple):
