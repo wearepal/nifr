@@ -139,8 +139,8 @@ class PartitionedInn(BipartiteInn):
             args, model, input_shape, optimizer_args=optimizer_args, feature_groups=feature_groups
         )
 
-        self.zs_dim = round(args.zs_frac * self.output_dim)
-        self.zy_dim = self.output_dim - self.zs_dim
+        self.zs_dim: int = round(args.zs_frac * self.output_dim)
+        self.zy_dim: int = self.output_dim - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)

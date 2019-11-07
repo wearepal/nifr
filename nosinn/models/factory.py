@@ -110,12 +110,15 @@ def build_conv_inn(args, input_shape) -> layers.Bijector:
     return model
 
 
-def build_discriminator(args, input_shape, frac_enc, model_fn, model_kwargs, optimizer_kwargs=None):
+def build_discriminator(
+    args, input_shape: Tuple[int, ...], model_fn, model_kwargs, optimizer_kwargs=None
+):
 
     in_dim = input_shape[0]
 
-    if not args.train_on_recon and len(input_shape) > 2:
-        in_dim = round(frac_enc * int(np.product(input_shape)))
+    # this is done in models/inn.py
+    # if not args.train_on_recon and len(input_shape) > 2:
+    #     in_dim = round(frac_enc * int(np.product(input_shape)))
 
     num_classes = args.y_dim if args.y_dim > 1 else 2
     discriminator = Classifier(
