@@ -1,7 +1,7 @@
 """Main training file"""
 import time
 from pathlib import Path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Callable
 
 import numpy as np
 import torch
@@ -24,7 +24,7 @@ from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, grad_reverse
+from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
 from .utils import get_data_dim, log_images
 
 __all__ = ["main"]
@@ -196,7 +196,7 @@ def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
 
 
-def main(args, datasets):
+def main(args, datasets: DatasetTriplet):
     """Main function
 
     Args:
@@ -232,6 +232,12 @@ def main(args, datasets):
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
 
     # ==== construct dataset ====
+    LOGGER.info(
+        "Size of pretrain: {}, task_train: {}, task: {}",
+        len(datasets.pretrain),
+        len(datasets.task_train),
+        len(datasets.task),
+    )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
     val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
@@ -314,7 +320,7 @@ def main(args, datasets):
                 assert ARGS.ae_channels == args_ae["init_channels"]
                 assert ARGS.ae_levels == args_ae["levels"]
         else:
-            ae_loss_fn: nn.Module
+            ae_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
             if ARGS.ae_loss == "l1":
                 ae_loss_fn = nn.L1Loss(reduction="sum")
             elif ARGS.ae_loss == "l2":
@@ -323,6 +329,9 @@ def main(args, datasets):
                 ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
             elif ARGS.ae_loss == "ce":
                 ae_loss_fn = PixelCrossEntropy(reduction="sum")
+            elif ARGS.ae_loss == "mixed":
+                assert feature_groups is not None, "can only do multi loss with feature groups"
+                ae_loss_fn = MixedLoss(feature_groups, reduction="sum")
             else:
                 raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
@@ -332,13 +341,13 @@ def main(args, datasets):
             torch.save(
                 {"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder"
             )
-        disc_input_shape = input_shape if args.train_on_recon else enc_shape
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
         inn = PartitionedInn(**inn_kwargs)
         inn.to(args.device)
-        disc_input_shape = input_shape
+
+    disc_input_shape: Tuple[int, ...] = input_shape if args.train_on_recon else (inn.zy_dim,)
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
@@ -346,8 +355,7 @@ def main(args, datasets):
     dis_optimizer_kwargs = {"lr": args.disc_lr}
     discriminator = build_discriminator(
         args,
-        disc_input_shape,
-        frac_enc=1 - args.zs_frac,
+        input_shape=disc_input_shape,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=dis_optimizer_kwargs,

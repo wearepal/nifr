@@ -1,6 +1,5 @@
 """Definition of the Adult dataset"""
 from typing import Optional, List, Tuple, NamedTuple
-from itertools import groupby
 
 import numpy as np
 import pandas as pd
@@ -177,7 +176,6 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
         sens_attrs: (optional) list of names of the sensitive attributes
     """
     # create data loader with one giant batch
-    print(dataset)
     data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     # get the data
     data = next(iter(data_loader))

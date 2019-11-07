@@ -1,6 +1,6 @@
 import random
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ class LdAugmentedDataset(Dataset):
         ld_augmentations,
         num_classes,
         li_augmentation=False,
-        base_augmentations: list = None,
+        base_augmentations: Optional[List] = None,
         correlation=1.0,
     ):
 
@@ -112,7 +112,13 @@ class LdAugmentedDataset(Dataset):
         return x, s, y
 
 
-class DataTupleDataset(Dataset):
+if TYPE_CHECKING:
+    BaseDataset = Dataset[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]]
+else:
+    BaseDataset = Dataset
+
+
+class DataTupleDataset(BaseDataset):
     """Wrapper for EthicML datasets"""
 
     def __init__(self, dataset, disc_features: List[str], cont_features: List[str], transform=None):
@@ -155,7 +161,7 @@ class DataTupleDataset(Dataset):
             t = [t]
         self.__transform = t
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
 
         x_disc = self.x_disc[index]
         x_cont = self.x_cont[index]

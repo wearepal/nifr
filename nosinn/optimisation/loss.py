@@ -1,4 +1,5 @@
-from typing import Optional
+from typing import Optional, Dict, List
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,6 +8,7 @@ import torchvision
 
 __all__ = [
     "GradReverse",
+    "MixedLoss",
     "PixelCrossEntropy",
     "VGGLoss",
     "contrastive_gradient_penalty",
@@ -129,3 +131,26 @@ class VGGLoss(nn.Module):
         loss = self.prefactor * F.mse_loss(vgg_noisy, vgg_clean)
 
         return loss
+
+
+class MixedLoss(nn.Module):
+    """Mix of cross entropy and MSE"""
+    def __init__(self, feature_groups: Dict[str, List[slice]], reduction="mean"):
+        super().__init__()
+        assert feature_groups["discrete"][0].start == 0, "Expecting x to start with disc features"
+        self.feature_groups = feature_groups
+        self.cont_start = feature_groups["discrete"][-1].stop
+        self.reduction = reduction
+
+    def forward(self, input: Tensor, target: Tensor) -> Tensor:
+        disc_loss = input.new_zeros(())
+        # for the discrete features do cross entropy loss
+        for disc_slice in self.feature_groups["discrete"]:
+            disc_loss += F.cross_entropy(
+                input[:, disc_slice], target[:, disc_slice].argmax(dim=1), reduction=self.reduction
+            )
+        # for the continuous features do MSE
+        cont_loss = F.mse_loss(
+            input[:, self.cont_start:], target[:, self.cont_start:], reduction=self.reduction
+        )
+        return disc_loss + cont_loss
