@@ -78,12 +78,13 @@ class FactorOut(BijectorChain):
 
     def _inverse(self, y, sum_ldj=None):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
+        x = y
 
         components = {}
         for block_ind, frac in self.splits.items():
             factor_layer = self._factor_layers[block_ind]
             split_point = factor_layer.flat_shape[1]
-            x_removed_flat, x = y.split(split_size=[split_point, y.size(1) - split_point], dim=1)
+            x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
             components[block_ind] = factor_layer(x_removed_flat, reverse=True)
 
         x = self._final_flatten(x, reverse=True)
