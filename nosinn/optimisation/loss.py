@@ -135,6 +135,7 @@ class VGGLoss(nn.Module):
 
 class MixedLoss(nn.Module):
     """Mix of cross entropy and MSE"""
+
     def __init__(self, feature_groups: Dict[str, List[slice]], reduction="mean"):
         super().__init__()
         assert feature_groups["discrete"][0].start == 0, "Expecting x to start with disc features"
@@ -151,6 +152,6 @@ class MixedLoss(nn.Module):
             )
         # for the continuous features do MSE
         cont_loss = F.mse_loss(
-            input[:, self.cont_start:], target[:, self.cont_start:], reduction=self.reduction
+            input[:, self.cont_start :], target[:, self.cont_start :], reduction=self.reduction
         )
         return disc_loss + cont_loss
