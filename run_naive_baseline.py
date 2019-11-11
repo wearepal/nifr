@@ -125,8 +125,10 @@ if __name__ == "__main__":
     ground_truths = DataTuple(x=None, s=sens, y=pd.DataFrame(ground_truths))
 
     full_name = f"{args.dataset}_naive_baseline"
-    full_name += "_greyscale" if args.greyscale else "_color"
+    if args.dataset == "cmnist":
+        full_name += "_greyscale" if args.greyscale else "_color"
     full_name += "_pred_s" if args.pred_s else "_pred_y"
+    full_name += f"_{str(args.epochs)}epochs"
     metrics = run_metrics(
         preds, ground_truths,
         metrics=[Accuracy()],
