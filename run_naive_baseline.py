@@ -75,7 +75,7 @@ def parse_arguments():
     parser.add_argument("--root", type=str, default="data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--gpu", type=int, default=0, help="which GPU to use (if available)")
-    parser.add_argument("--save", type=str, default="finn/baselines/experiments")
+    parser.add_argument("--save", type=str, default="nosinn/baselines/experiments")
 
     return parser.parse_args()
 
@@ -121,8 +121,8 @@ if __name__ == "__main__":
     )
 
     preds, ground_truths, sens = classifier.predict_dataset(test_data, device=args.device)
-    preds = pd.DataFrame(preds)
-    ground_truths = DataTuple(x=None, s=sens, y=pd.DataFrame(ground_truths))
+    preds = pd.DataFrame(preds, columns=["labels"])
+    ground_truths = DataTuple(x=pd.DataFrame(sens, columns=['sens']), s=pd.DataFrame(sens, columns=['sens']), y=pd.DataFrame(ground_truths, columns=['labels']))
 
     full_name = f"{args.dataset}_naive_baseline"
     if args.dataset == "cmnist":
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     metrics = run_metrics(
         preds, ground_truths,
         metrics=[Accuracy()],
-        per_sens_metrics=[ProbPos(), TPR()]
+        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else []
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
