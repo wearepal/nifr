@@ -15,7 +15,7 @@ from nosinn.models.configs.classifiers import (
     fc_net,
     linear_disciminator,
     mp_32x32_net,
-    resnet_18_ft
+    resnet_50_ft
 )
 from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
 from nosinn.models.inn import PartitionedAeInn, PartitionedInn
