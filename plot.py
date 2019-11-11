@@ -24,20 +24,22 @@ def main():
 #     plt.show()
 
 
-    nosinn = pd.read_csv("/its/home/mb715/DOcuments/Fairness/FINN/results/adult/adult_cae.csv")
-    nosinn
-    print(nosinn.columns)
+    df = pd.read_csv("/its/home/mb715/DOcuments/Fairness/FINN/results/adult/adult_cae.csv")
     relevant_columns = [
         "Mix_fact", "Accuracy",
         "prob_pos_sex_Male_0-sex_Male_1",
         "TPR_sex_Male_0-sex_Male_1"
     ]
-    nosinn = nosinn[relevant_columns]
-    print(nosinn)
-    nosinn = nosinn.to_latex(index=False)
-    print(nosinn)
-
-
+    df = df[relevant_columns]
+    df = df.rename(columns={
+        "Mix_fact": "Mixing factor",
+        "prob_pos_sex_Male_0-sex_Male_1": "DP",
+        "TPR_sex_Male_0-sex_Male_1": "EO"
+    })
+    latex = df.to_latex(
+        index=False,
+        float_format="{:0.4f}".format)
+    print(latex)
 
 if __name__ == "__main__":
     main()

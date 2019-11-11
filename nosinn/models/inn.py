@@ -61,7 +61,7 @@ class BipartiteInn(ModelBase):
             self.x_dim = x_dim
             self.output_dim = int(np.product(self.input_shape))
 
-        super().__init__(model, optimizer_args=optimizer_args)
+        super().__init__(model, optimizer_kwargs=optimizer_args)
 
     def invert(self, z, discretize: bool = True) -> Tensor:
         x = self.forward(z, reverse=True)
