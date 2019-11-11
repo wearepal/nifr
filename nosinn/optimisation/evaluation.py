@@ -14,7 +14,7 @@ from ethicml.utility import DataTuple
 
 from nosinn.data import get_data_tuples, DatasetTriplet
 from nosinn.models.classifier import Classifier
-from nosinn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from nosinn.models.configs.classifiers import fc_net, mp_32x32_net, resnet_50_ft
 from nosinn.models.inn import BipartiteInn
 from nosinn.utils import wandb_log
 from .utils import log_images
@@ -146,7 +146,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
     if args.dataset == "cmnist":
         clf_fn = mp_32x32_net
     elif args.dataset == "celeba":
-        clf_fn = mp_64x64_net
+        clf_fn = resnet_50_ft
     else:
         clf_fn = fc_net
         input_dim = (input_dim,)

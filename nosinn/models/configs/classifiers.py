@@ -1,6 +1,7 @@
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.models import resnet50
 
 from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
@@ -64,6 +65,16 @@ def mp_64x64_net(input_dim, target_dim, use_bn=True):
 
     return nn.Sequential(*layers)
 
+
+def resnet_50_ft(input_dim, target_dim, freeze=True, pretrained=True):
+    net = resnet50(pretrained=pretrained)
+    if freeze:
+        for param in net.parameters():
+            param.requires_grad = False
+
+    net.fc = nn.Linear(2048, target_dim)
+
+    return net
 
 def mp_32x32_net(input_dim, target_dim, use_bn=True):
     def conv_block(in_dim, out_dim, kernel_size, stride, padding):
