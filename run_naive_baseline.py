@@ -99,7 +99,7 @@ if __name__ == "__main__":
     elif args.dataset == "adult":
         classifier_fn = fc_net
     else:
-        classifier_fn = resnet_50_ft
+        classifier_fn = mp_64x64_net
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size, pin_memory=True, shuffle=True)
     test_loader = DataLoader(

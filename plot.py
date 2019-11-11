@@ -24,7 +24,18 @@ def main():
 #     plt.show()
 
 
-    nosinn = pd.read_excel("LocalDataHD/mb715/Documents/Fairness/FINN/results/adult")
+    nosinn = pd.read_csv("/its/home/mb715/DOcuments/Fairness/FINN/results/adult/adult_cae.csv")
+    nosinn
+    print(nosinn.columns)
+    relevant_columns = [
+        "Mix_fact", "Accuracy",
+        "prob_pos_sex_Male_0-sex_Male_1",
+        "TPR_sex_Male_0-sex_Male_1"
+    ]
+    nosinn = nosinn[relevant_columns]
+    print(nosinn)
+    nosinn = nosinn.to_latex(index=False)
+    print(nosinn)
 
 
 
