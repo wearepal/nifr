@@ -4,13 +4,13 @@ from pathlib import Path
 import pandas as pd
 import torch
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import Accuracy
+from ethicml.metrics import Accuracy, ProbPos, TPR
 from ethicml.utility import DataTuple
 from torch.utils.data import DataLoader
 
 from nosinn.data import load_dataset
 from nosinn.models import Classifier
-from nosinn.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net, resnet_50_ft
+from nosinn.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net, resnet_18_ft
 from nosinn.optimisation import get_data_dim
 from nosinn.utils import random_seed
 
@@ -95,11 +95,11 @@ if __name__ == "__main__":
     test_data = datasets.task
 
     if args.dataset == "cmnist":
-        classifier_fn = resnet_50_ft
+        classifier_fn = mp_32x32_net
     elif args.dataset == "adult":
         classifier_fn = fc_net
     else:
-        classifier_fn = resnet_50_ft
+        classifier_fn = resnet_18_ft
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size, pin_memory=True, shuffle=True)
     test_loader = DataLoader(
@@ -127,7 +127,11 @@ if __name__ == "__main__":
     full_name = f"{args.dataset}_naive_baseline"
     full_name += "_greyscale" if args.greyscale else "_color"
     full_name += "_pred_s" if args.pred_s else "_pred_y"
-    metrics = run_metrics(preds, ground_truths, metrics=[Accuracy()], per_sens_metrics=[])
+    metrics = run_metrics(
+        preds, ground_truths,
+        metrics=[Accuracy()],
+        per_sens_metrics=[ProbPos(), TPR()]
+    )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()
