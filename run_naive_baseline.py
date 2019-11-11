@@ -108,6 +108,7 @@ if __name__ == "__main__":
 
     input_shape = get_data_dim(train_loader)
     target_dim = args.s_dim if args.pred_s else args.y_dim
+    target_dim = 2 if target_dim == 1 else target_dim
 
     classifier: Classifier = Classifier(
         classifier_fn(input_shape[0], target_dim),
