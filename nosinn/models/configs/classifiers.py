@@ -66,15 +66,15 @@ def mp_64x64_net(input_dim, target_dim, use_bn=True):
     return nn.Sequential(*layers)
 
 
-def resnet_18_ft(input_dim, target_dim, freeze=True, pretrained=True):
-    # net = resnet50(pretrained=pretrained)
-    net = resnet18(pretrained=pretrained)
+def resnet_50_ft(input_dim, target_dim, freeze=True, pretrained=True):
+    net = resnet50(pretrained=pretrained)
+    # net = resnet18(pretrained=pretrained)
     if freeze:
         for param in net.parameters():
             param.requires_grad = False
 
-    net.fc = nn.Linear(512, target_dim)
-    # net.fc = nn.Linear(2048, target_dim)
+    # net.fc = nn.Linear(512, target_dim)
+    net.fc = nn.Linear(2048, target_dim)
 
     return net
 

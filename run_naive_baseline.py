@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 from nosinn.data import load_dataset
 from nosinn.models import Classifier
-from nosinn.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net, resnet_18_ft
+from nosinn.models.configs.classifiers import mp_32x32_net, fc_net, mp_64x64_net, resnet_50_ft
 from nosinn.optimisation import get_data_dim
 from nosinn.utils import random_seed
 
@@ -99,7 +99,7 @@ if __name__ == "__main__":
     elif args.dataset == "adult":
         classifier_fn = fc_net
     else:
-        classifier_fn = resnet_18_ft
+        classifier_fn = resnet_50_ft
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size, pin_memory=True, shuffle=True)
     test_loader = DataLoader(
