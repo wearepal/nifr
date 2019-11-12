@@ -3,6 +3,7 @@ from pathlib import Path
 from matplotlib import style
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 
 def main():
@@ -24,18 +25,37 @@ def main():
 #     plt.show()
 
 
-    df = pd.read_csv("/its/home/mb715/DOcuments/Fairness/FINN/results/adult/adult_cae.csv")
+    # df = pd.read_csv("/its/home/mb715/DOcuments/Fairness/FINN/results/adult/adult_cae.csv")
+    # relevant_columns = [
+    #     "Mix_fact", "Accuracy",
+    #     "prob_pos_sex_Male_0-sex_Male_1",
+    #     "TPR_sex_Male_0-sex_Male_1"
+    # ]
+    # df = df[relevant_columns]
+    # df = df.rename(columns={
+    #     "Mix_fact": "Mixing factor",
+    #     "prob_pos_sex_Male_0-sex_Male_1": "DP",
+    #     "TPR_sex_Male_0-sex_Male_1": "EO"
+    # })
+    # latex = df.to_latex(
+    #     index=False,
+    #     float_format="{:0.4f}".format)
+    # print(latex)
+
+    df = pd.read_csv("/its/home/mb715/Documents/Fairness/FINN/results/celeba/celeba_naive_baseline_pred_y_25epochs.csv")
     relevant_columns = [
-        "Mix_fact", "Accuracy",
-        "prob_pos_sex_Male_0-sex_Male_1",
-        "TPR_sex_Male_0-sex_Male_1"
+        "Accuracy",
+        "prob_pos_sens_0-sens_1",
+        "TPR_sens_0-sens_1"
     ]
     df = df[relevant_columns]
     df = df.rename(columns={
-        "Mix_fact": "Mixing factor",
-        "prob_pos_sex_Male_0-sex_Male_1": "DP",
-        "TPR_sex_Male_0-sex_Male_1": "EO"
+        # "Mix_fact": "Mixing factor",
+        "prob_pos_sens_0-sens_1": "DP",
+        "TPR_sens_0-sens_1": "EO"
     })
+    print(len(df))
+    df.insert(0, "Mixing factor", np.arange(0, 0.9, 0.1), True)
     latex = df.to_latex(
         index=False,
         float_format="{:0.4f}".format)
