@@ -62,6 +62,9 @@ def parse_arguments():
         "--greyscale", type=eval, choices=[True, False], default=True,
         help="Whether to grescale the images. Only applies to coloured MNIST."
     )
+    # CelebA settings
+    parser.add_argument("--celeba-sens-attr", type=str, default="Male", choices=["Male", "Young"])
+    parser.add_argument("--celeba-target-attr", type=str, default="Smiling", choices=["Smiling", "Attractive"])
 
     # Optimization settings
     parser.add_argument("--epochs", type=int, default=40)
@@ -127,7 +130,9 @@ if __name__ == "__main__":
     full_name = f"{args.dataset}_naive_baseline"
     if args.dataset == "cmnist":
         full_name += "_greyscale" if args.greyscale else "_color"
-    full_name += "_pred_s" if args.pred_s else "_pred_y"
+    elif args.dataset == "celeba":
+        full_name += f"_{args.celeba_sens_attr}"
+        full_name += f"_{args.celeba_target_attr}"
     full_name += f"_{str(args.epochs)}epochs"
     metrics = run_metrics(
         preds, ground_truths,
