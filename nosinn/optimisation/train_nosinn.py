@@ -96,7 +96,6 @@ def compute_loss(
 
 def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
-    inn.eval()
 
     total_loss_meter = AverageMeter()
     loss_meters = {
