@@ -92,7 +92,7 @@ class VAE(AutoEncoder):
             encoder=encoder,
             decoder=decoder,
             decode_with_s=decode_with_s,
-            optimizer_args=optimizer_kwargs,
+            optimizer_kwargs=optimizer_kwargs,
         )
         self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
         self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
