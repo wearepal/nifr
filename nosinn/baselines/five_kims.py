@@ -164,13 +164,13 @@ def main(args, datasets):
         classifier = mp_64x64_net(input_dim, args.y_dim)
         encoder = classifier[:-1]
         classifier = classifier[-1:]
-        adv_input_shape = classifier.model[0].weight.size(1)
+        adv_input_shape = classifier[0].weight.size(1)
     elif args.dataset == "cmnist":
         input_dim = INPUT_SHAPE[0]
         classifier = mp_32x32_net(input_dim, args.y_dim)
         encoder = classifier[:-1]
         classifier = classifier[-1:]
-        adv_input_shape = classifier.model[0].weight.size(1)
+        adv_input_shape = classifier[0].weight.size(1)
     else:
         input_dim = (INPUT_SHAPE,)
         encoder = fc_net(input_dim, 35, hidden_dims=[35])
