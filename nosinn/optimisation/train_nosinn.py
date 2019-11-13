@@ -96,6 +96,7 @@ def compute_loss(
 
 def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
+    discriminator.train()
 
     total_loss_meter = AverageMeter()
     loss_meters = {
@@ -152,6 +153,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
 def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: int):
     inn.eval()
+    dicriminator.eval()
+    
     with torch.no_grad():
         loss_meter = AverageMeter()
         for x_val, s_val, y_val in val_loader:
