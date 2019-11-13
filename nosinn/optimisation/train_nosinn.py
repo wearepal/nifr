@@ -153,8 +153,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
 def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: int):
     inn.eval()
-    dicriminator.eval()
-    
+    discriminator.eval()
+
     with torch.no_grad():
         loss_meter = AverageMeter()
         for x_val, s_val, y_val in val_loader:
@@ -350,6 +350,7 @@ def main(args, datasets: DatasetTriplet):
         inn_kwargs["model"] = inn_fn(args, input_shape)
         inn = PartitionedInn(**inn_kwargs)
         inn.to(args.device)
+        enc_shape = inn.output_dim
 
     disc_input_shape: Tuple[int, ...] = input_shape if args.train_on_recon else (inn.zy_dim,)
 
@@ -360,6 +361,7 @@ def main(args, datasets: DatasetTriplet):
     discriminator = build_discriminator(
         args,
         input_shape=disc_input_shape,
+        frac_enc=enc_shape,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=dis_optimizer_kwargs,
