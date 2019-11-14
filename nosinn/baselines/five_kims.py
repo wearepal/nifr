@@ -186,15 +186,18 @@ def main(args, datasets):
         num_classes=ARGS.s_dim if ARGS.s_dim > 1 else 2,
         optimizer_kwargs=optimizer_kwargs)
     # Initialise Discriminator
-    adv_fn = linear_disciminator
+    if ARGS.dataset == "adult":
+        adv_fn = nn.Linear
+        adversary_kwargs = {}
+    else:
+        adv_fn = linear_disciminator
+        adversary_kwargs = {
+            "hidden_channels": ARGS.disc_channels,
+            "num_blocks": ARGS.disc_depth,
+            "use_bn": False,
+        }
 
     adv_optimizer_kwargs = {"lr": args.disc_lr}
-
-    adversary_kwargs = {
-        "hidden_channels": ARGS.disc_channels,
-        "num_blocks": ARGS.disc_depth,
-        "use_bn": False,
-    }
 
     adversary = build_discriminator(
         args,

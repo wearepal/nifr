@@ -100,7 +100,11 @@ if __name__ == "__main__":
     if args.dataset == "cmnist":
         classifier_fn = mp_32x32_net
     elif args.dataset == "adult":
-        classifier_fn = fc_net
+        def adult_fc_net(in_dim, target_dim):
+            encoder = fc_net(in_dim, 35, hidden_dims=[35])
+            classifier = torch.nn.Linear(35, args.y_dim)
+            return torch.nn.Sequential(encoder, classifier)
+        classifier_fn = adult_fc_net
     else:
         classifier_fn = mp_64x64_net
 
@@ -150,11 +154,17 @@ if __name__ == "__main__":
 
         assert isinstance(save_to_csv, Path)
         results_path = save_to_csv / full_name
-        value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
+        if args.dataset == "cmnist":
+            value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
+        else:
+            value_list = ",".join([str(args.task_mixing_factor)] + [str(v) for v in metrics.values()])
         if results_path.is_file():
             with results_path.open("a") as f:
                 f.write(value_list + "\n")
         else:
             with results_path.open("w") as f:
-                f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
+                if args.dataset == "cmnist":
+                    f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
+                else:
+                    f.write(",".join(["Mix_fact"] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")

@@ -113,7 +113,7 @@ def load_dataset(args) -> DatasetTriplet:
             seed=args.data_split_seed,
         )
 
-        pretrain_len = round(args.pretrain_pcnt * len(unbiased_data))
+        pretrain_len = round(args.pretrain_pcnt / unbiased_pcnt * len(unbiased_data))
         test_len = len(unbiased_data) - pretrain_len
         pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
 
