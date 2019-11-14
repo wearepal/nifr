@@ -408,6 +408,7 @@ def main_vae(args, datasets):
         args = checkpoint["args"]
         epoch_0 = checkpoint["epoch"]
 
+    itr = epoch_0 * len(train_loader)
     # Train INN for N epochs
     for epoch in range(epoch_0, ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
