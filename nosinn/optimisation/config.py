@@ -174,6 +174,7 @@ def nosinn_args(raw_args=None):
     parser.add_argument("--nll-weight", type=float, default=1e-2)
     parser.add_argument("--pred-s-weight", type=float, default=1)
     parser.add_argument("--recon-stability-weight", type=float, default=0)
+    parser.add_argument("--gp-weight", type=float, default=0)
 
     parser.add_argument("--path-to-ae", type=str, default="")
 
