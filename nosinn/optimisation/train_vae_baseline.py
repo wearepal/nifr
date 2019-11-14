@@ -403,10 +403,9 @@ def main_vae(args, datasets):
 
     epoch_0 = 0
     if args.resume:
-        "Loading from checkpoiint"
+        LOGGER.info("Restoring from checkpoint")
         checkpoint = torch.load(args.resume)
         vae = vae.load_state_dict(checkpoint["model"])
-        args = checkpoint["args"]
         epoch_0 = checkpoint["epoch"]
 
     itr = epoch_0 * len(train_loader)

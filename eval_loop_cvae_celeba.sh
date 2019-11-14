@@ -7,6 +7,7 @@ python start_vae.py --kl-weight 1 --super-val True --val-freq 10 --epochs 0 \
 --eval-epochs 40
 --results-csv cvae_celeba_results_kl_1 --gpu 0 --task-mixing-factor $mix_fact \
 --resume /mnt/archive/fairness/NoSINN/celeba_cvae_checkpt.pth \
+--data-pcnt 0.1
 --results-csv cvae_celeba.csv
 done
 done
