@@ -393,6 +393,7 @@ def main(args, datasets: DatasetTriplet):
     best_loss = float("inf")
     n_vals_without_improvement = 0
 
+    itr = 0
     # Train INN for N epochs
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
