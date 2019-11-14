@@ -405,7 +405,7 @@ def main_vae(args, datasets):
     if args.resume:
         LOGGER.info("Restoring from checkpoint")
         checkpoint = torch.load(args.resume)
-        vae = vae.load_state_dict(checkpoint["model"])
+        vae.load_state_dict(checkpoint["model"])
         epoch_0 = checkpoint["epoch"]
 
     itr = epoch_0 * len(train_loader)
