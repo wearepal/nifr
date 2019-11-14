@@ -6,6 +6,6 @@ python start_vae.py --kl-weight 1 --super-val True --val-freq 10 --epochs 0 \
 --dataset celeba --levels 5 --pred-s-weight 1e-2 --recon-loss l1 --elbo-weight 1e-2 \
 --results-csv cvae_celeba_results_kl_1 --gpu 0 --task-mixing-factor $mix_fact \
 --resume /mnt/archive/fairness/NoSINN/celeba_cvae_checkpt.pth \
---results-to-csv cvae_celeba.csv
+--results-csv cvae_celeba.csv
 done
 done
