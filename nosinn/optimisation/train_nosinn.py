@@ -382,8 +382,9 @@ def main(args, datasets: DatasetTriplet):
 
     # Resume from checkpoint
     if ARGS.resume is not None:
+        LOGGER.info("Restoring model from checkpoint")
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        log_metrics(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
+        log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=0)
         return
 
     # Logging
