@@ -9,7 +9,7 @@ __all__ = ["get_data_dim", "log_images"]
 
 def apply_gradients(gradients, parameters, detach=True) -> None:
     for grad, param in zip(gradients, parameters):
-        if detach:
+        if grad is not None and detach:
             grad = grad.detach()
         param.grad = grad
 

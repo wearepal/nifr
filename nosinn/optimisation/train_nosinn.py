@@ -126,10 +126,15 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         inn.zero_grad()
         discriminator.zero_grad()
 
-        inn_grads = torch.autograd.grad(inn_loss, inn.parameters(), retain_graph=True)
+        inn_params = [param for param in inn.parameters() if param.requires_grad]
+        inn_grads = torch.autograd.grad(
+            inn_loss,
+            inn_params,
+            retain_graph=True,
+            allow_unused=True)
         disc_grads = torch.autograd.grad(disc_loss, discriminator.parameters())
 
-        apply_gradients(inn_grads, inn.parameters())
+        apply_gradients(inn_grads, inn_params)
         apply_gradients(disc_grads, discriminator.parameters())
 
         inn.step()
