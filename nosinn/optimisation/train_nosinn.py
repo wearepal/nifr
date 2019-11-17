@@ -76,7 +76,7 @@ def compute_loss(
 
     logits = discriminator(enc_y)
     probs = logits.softmax(dim=1)
-    entropy = -(probs * probs.log()).sum().mean()
+    entropy = (probs * probs.log()).sum().mean()
 
     disc_loss = discriminator.apply_criterion(logits, s).mean()
 
