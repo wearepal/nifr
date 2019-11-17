@@ -76,7 +76,7 @@ def compute_loss(
 
     logits = discriminator(enc_y)
     probs = logits.softmax(dim=1)
-    entropy = (probs * probs.log()).sum().mean()
+    entropy = -(probs * probs.log()).sum().mean()
 
     disc_loss = discriminator.apply_criterion(logits, s).mean()
 
@@ -93,7 +93,7 @@ def compute_loss(
 
     logging_dict = {
         "Loss NLL": nll.item(),
-        "Loss Adversarial": disc_loss.item(),
+        "Loss Adversarial": entropy.item(),
         "Recon L1 loss": recon_loss.item(),
         "Validation loss": (nll - disc_loss + recon_loss).item(),
     }
