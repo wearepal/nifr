@@ -7,6 +7,11 @@ from nosinn.utils import wandb_log
 
 __all__ = ["get_data_dim", "log_images"]
 
+def apply_gradients(gradients, parameters, detach=True) -> None:
+    for grad, param in zip(gradients, parameters):
+        if grad is not None and detach:
+            grad = grad.detach()
+        param.grad = grad
 
 def get_data_dim(data_loader) -> Tuple[int, ...]:
     x, _, _ = next(iter(data_loader))

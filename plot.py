@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 
 
+import torch.nn as nn
+
 def main():
     #     scale = [0, 0.01, 0.02, 0.03, 0.04, 0.05]
     #     nosinn = [96.05, 97.11, 97.46, 97.46, 97.58, 97.56]
