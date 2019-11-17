@@ -74,10 +74,9 @@ def compute_loss(
             recon_loss = F.mse_loss(enc_y, x)
         # enc_y = enc_y.clamp(min=0, max=1)
 
-    enc_y = grad_reverse(enc_y)
     logits = discriminator(enc_y)
     probs = logits.softmax(dim=1)
-    entropy = (probs * probs.log()).sum().mean()
+    entropy = -(probs * probs.log()).sum().mean()
 
     disc_loss = discriminator.apply_criterion(logits, s).mean()
 
