@@ -25,7 +25,7 @@ from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
 from .evaluation import log_metrics
 from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
-from .utils import get_data_dim, log_images
+from .utils import get_data_dim, log_images, apply_gradients
 
 __all__ = ["main"]
 
@@ -56,8 +56,10 @@ def restore_model(filename, model, discriminator):
 
 
 def compute_loss(
-    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int
+    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn,
+    discriminator: Classifier, itr: int
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
+
     enc, nll = inn.routine(x)
 
     enc_y, enc_s = inn.split_encoding(enc)
@@ -73,25 +75,30 @@ def compute_loss(
         # enc_y = enc_y.clamp(min=0, max=1)
 
     enc_y = grad_reverse(enc_y)
-    disc_loss, _ = discriminator.routine(enc_y, s)
+    logits = discriminator(enc_y)
+    probs = logits.softmax(dim=1)
+    entropy = -(probs * probs.log()).sum().mean()
 
-    nll *= ARGS.nll_weight
+    disc_loss = discriminator.apply_criterion(logits, s).mean()
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
     else:
         pred_s_weight = ARGS.pred_s_weight
 
-    disc_loss *= pred_s_weight
+    nll *= ARGS.nll_weight
+    entropy *= pred_s_weight
+    recon_loss *= ARGS.recon_stability_weight
 
-    loss = nll + disc_loss + recon_loss
+    inn_loss = nll + entropy + recon_loss
+
     logging_dict = {
         "Loss NLL": nll.item(),
         "Loss Adversarial": disc_loss.item(),
         "Recon L1 loss": recon_loss.item(),
         "Validation loss": (nll - disc_loss + recon_loss).item(),
     }
-    return loss, logging_dict
+    return inn_loss, disc_loss, logging_dict
 
 
 def train(inn, discriminator, dataloader, epoch: int) -> int:
@@ -114,17 +121,22 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
+        inn_loss, disc_loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
 
         inn.zero_grad()
         discriminator.zero_grad()
 
-        loss.backward()
+        inn_grads = torch.autograd.grad(inn_loss, inn.parameters(), retain_graph=True)
+        disc_grads = torch.autograd.grad(disc_loss, discriminator.parameters())
+
+        apply_gradients(inn_grads, inn.parameters())
+        apply_gradients(disc_grads, discriminator.parameters())
+
         inn.step()
         discriminator.step()
 
         # Log losses
-        total_loss_meter.update(loss.item())
+        total_loss_meter.update(inn_loss.item())
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
@@ -161,7 +173,7 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
+            _, _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
 
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
