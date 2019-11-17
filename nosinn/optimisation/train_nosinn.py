@@ -71,7 +71,7 @@ def compute_loss(
             enc_y_m = enc_y_m.detach()
         enc_y = inn.invert(enc_y_m)
         if ARGS.recon_stability_weight > 0:
-            recon_loss = F.mse_loss(enc_y, x)
+            recon_loss = F.l1_loss(enc_y, x)
         # enc_y = enc_y.clamp(min=0, max=1)
 
     logits = discriminator(enc_y)
