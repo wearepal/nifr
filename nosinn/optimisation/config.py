@@ -147,6 +147,7 @@ def nosinn_args(raw_args=None):
         help="fraction of current statistics to incorporate into moving average",
     )
     parser.add_argument("--factor-splits", action=StoreDictKeyPair, nargs="+", default={})
+    parser.add_argument("--preliminary-level", type=eval, default=False, choices=[True, False])
     parser.add_argument("--idf", type=eval, default=False, choices=[True, False])
     parser.add_argument(
         "--scaling", choices=["none", "exp", "sigmoid0.5", "add2_sigmoid"], default="sigmoid0.5"
