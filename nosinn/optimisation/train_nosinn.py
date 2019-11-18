@@ -24,7 +24,7 @@ from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
+from .loss import PixelCrossEntropy, grad_reverse, MixedLoss, contrastive_gradient_penalty
 from .utils import get_data_dim, log_images
 
 __all__ = ["main"]
@@ -84,7 +84,11 @@ def compute_loss(
 
     disc_loss *= pred_s_weight
 
+    if ARGS.gp_weight > 0:
+        disc_loss += ARGS.gp_weight * contrastive_gradient_penalty(discriminator, enc_y)
+
     loss = nll + disc_loss + recon_loss
+
     logging_dict = {
         "Loss NLL": nll.item(),
         "Loss Adversarial": disc_loss.item(),
