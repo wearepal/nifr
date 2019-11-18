@@ -64,6 +64,10 @@ def shared_args(raw_args=None):
     parser.add_argument("--quant-level", type=int, default=8, choices=[3, 5, 8])
     parser.add_argument("--input-noise", type=eval, default=True, choices=[True, False])
 
+    # CelebA settings
+    parser.add_argument("--celeba-sens-attr", type=str, default="Male", choices=["Male", "Young"])
+    parser.add_argument("--celeba-target-attr", type=str, default="Smiling", choices=["Smiling", "Attractive"])
+
     # Optimization settings
     parser.add_argument("--early-stopping", type=int, default=30)
     parser.add_argument("--epochs", type=int, default=250)
@@ -207,5 +211,21 @@ def vae_args(raw_args=None):
     parser.add_argument("--kl-weight", type=float, default=0.1)
     parser.add_argument("--elbo-weight", type=float, default=1)
     parser.add_argument("--pred-s-weight", type=float, default=1)
+
+    return parser.parse_args(raw_args)
+
+
+def five_kims_args(raw_args=None):
+    parser = shared_args(raw_args=None)
+    parser.add_argument("--entropy-weight", type=float, default=0.01)
+
+    # Discriminator settings
+    parser.add_argument("--disc-lr", type=float, default=1e-3)
+    parser.add_argument("--disc-depth", type=int, default=1)
+    parser.add_argument("--disc-channels", type=int, default=256)
+    parser.add_argument("--disc-hidden-dims", nargs="*", type=int, default=[])
+
+    # Training settings
+    parser.add_argument("--lr", type=float, default=1e-3)
 
     return parser.parse_args(raw_args)

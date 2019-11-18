@@ -62,7 +62,7 @@ class CelebA(VisionDataset):
         biased,
         mixing_factor,
         unbiased_pcnt,
-        sens_attr: str = "Male",
+        sens_attr: str = "Young",
         target_attr: str = "Smiling",
         transform=None,
         target_transform=None,

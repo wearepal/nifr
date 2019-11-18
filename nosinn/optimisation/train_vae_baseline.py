@@ -350,7 +350,7 @@ def main_vae(args, datasets):
         encoder=encoder,
         decoder=decoder,
         kl_weight=ARGS.kl_weight,
-        optimizer_args=optimizer_args,
+        optimizer_kwargs=optimizer_args,
         decode_with_s=True,
     )
     vae.to(args.device)

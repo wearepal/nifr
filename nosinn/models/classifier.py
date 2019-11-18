@@ -37,7 +37,7 @@ class Classifier(ModelBase):
 
         self.out_dim = num_classes if self.criterion == "ce" else 1
 
-        super().__init__(model, optimizer_args=optimizer_kwargs)
+        super().__init__(model, optimizer_kwargs=optimizer_kwargs)
 
     def apply_criterion(self, logits, targets):
         if self.criterion == "bce":

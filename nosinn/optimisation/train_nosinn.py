@@ -17,7 +17,7 @@ from nosinn.models.configs.classifiers import (
     fc_net,
     linear_disciminator,
     mp_32x32_net,
-    mp_64x64_net,
+    mp_64x64_net
 )
 from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
 from nosinn.models.inn import PartitionedAeInn, PartitionedInn
@@ -263,7 +263,6 @@ def main(args, datasets: DatasetTriplet):
                 disc_fn = mp_32x32_net
             else:
                 disc_fn = mp_64x64_net
-            disc_kwargs = {"use_bn": not ARGS.spectral_norm}
         else:
             disc_fn = linear_disciminator
             disc_kwargs = {

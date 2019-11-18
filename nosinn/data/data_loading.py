@@ -104,6 +104,8 @@ def load_dataset(args) -> DatasetTriplet:
         unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
         unbiased_data = CelebA(
             root=args.root,
+            sens_attr=args.celeba_sens_attr,
+            target_attr=args.celeba_target_attr,
             biased=False,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
