@@ -106,7 +106,7 @@ class BipartiteInn(ModelBase):
         return nll
 
     def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
-        outputs = self.model(inputs, logpx=logdet, reverse=reverse)
+        outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
 
         return outputs
 
@@ -139,8 +139,8 @@ class PartitionedInn(BipartiteInn):
             args, model, input_shape, optimizer_args=optimizer_args, feature_groups=feature_groups
         )
 
-        self.zs_dim = round(args.zs_frac * self.output_dim)
-        self.zy_dim = self.output_dim - self.zs_dim
+        self.zs_dim: int = round(args.zs_frac * self.output_dim)
+        self.zy_dim: int = self.output_dim - self.zs_dim
 
     def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
         zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)
@@ -233,13 +233,15 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.fit(train_data, epochs, device, loss_fn)
         self.autoencoder.eval()
 
-    def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
+    def forward(
+        self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False
+    ) -> Tensor:
         if reverse:
-            outputs = self.model(inputs, logpx=logdet, reverse=reverse)
+            outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(outputs)
         else:
             outputs = self.autoencoder.encode(inputs)
-            outputs = self.model(outputs, logpx=logdet, reverse=reverse)
+            outputs = self.model(outputs, sum_ldj=logdet, reverse=reverse)
 
         return outputs
 

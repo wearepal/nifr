@@ -1,4 +1,8 @@
+from typing import List, Tuple
+
 import torch.nn as nn
+
+__all__ = ["conv_autoencoder", "fc_autoencoder"]
 
 
 def gated_conv(in_channels, out_channels, kernel_size, stride, padding):
@@ -25,10 +29,18 @@ def gated_up_conv(in_channels, out_channels, kernel_size, stride, padding, outpu
 
 
 def conv_autoencoder(
-    input_shape, initial_hidden_channels, levels, encoding_dim, decoding_dim, vae, s_dim=0
+    input_shape,
+    initial_hidden_channels: int,
+    levels: int,
+    encoding_dim,
+    decoding_dim,
+    vae,
+    s_dim=0,
+    level_depth: int = 2,
 ):
-    encoder = []
-    decoder = []
+    assert level_depth in (2, 3), "only level depth 2 and 3 are supported right now"
+    encoder: List[nn.Module] = []
+    decoder: List[nn.Module] = []
     c_in, h, w = input_shape
     c_out = initial_hidden_channels
 
@@ -38,9 +50,13 @@ def conv_autoencoder(
             c_out *= 2
 
         encoder += [gated_conv(c_in, c_out, kernel_size=3, stride=1, padding=1)]
+        if level_depth == 3:
+            encoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         encoder += [gated_conv(c_out, c_out, kernel_size=4, stride=2, padding=1)]
 
         decoder += [gated_conv(c_out, c_in, kernel_size=3, stride=1, padding=1)]
+        if level_depth == 3:
+            decoder += [gated_conv(c_out, c_out, kernel_size=3, stride=1, padding=1)]
         decoder += [
             gated_up_conv(c_out, c_out, kernel_size=4, stride=2, padding=1, output_padding=0)
         ]
@@ -67,7 +83,14 @@ def _linear_block(in_channels, out_channels):
     return nn.Sequential(nn.SELU(), nn.Linear(in_channels, out_channels))
 
 
-def fc_autoencoder(input_shape, hidden_channels, levels, encoding_dim, vae, s_dim=0):
+def fc_autoencoder(
+    input_shape: Tuple[int, ...],
+    hidden_channels: int,
+    levels: int,
+    encoding_dim: int,
+    vae: bool,
+    s_dim: int = 0,
+) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, ...]]:
     encoder = []
     decoder = []
 

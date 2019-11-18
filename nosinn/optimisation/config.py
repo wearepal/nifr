@@ -90,6 +90,13 @@ def shared_args(raw_args=None):
         choices=[True, False],
         help="whether to train the discriminator on the reconstructions" "of the encodings.",
     )
+    parser.add_argument(
+        "--recon-detach",
+        type=eval,
+        default=True,
+        choices=[True, False],
+        help="Whether to apply the stop gradient operator to the reconstruction.",
+    )
 
     # Evaluation settings
     parser.add_argument("--eval-epochs", type=int, metavar="N", default=40)
@@ -108,7 +115,7 @@ def shared_args(raw_args=None):
         help="Train classifier on encodings as part of validation step.",
     )
     parser.add_argument("--val-freq", type=int, default=5)
-    # parser.add_argument("--log-freq", type=int, default=10)
+    parser.add_argument("--log-freq", type=int, default=50)
     parser.add_argument("--root", type=str, default="data")
     parser.add_argument("--use-wandb", type=eval, choices=[True, False], default=True)
     parser.add_argument(
@@ -141,7 +148,9 @@ def nosinn_args(raw_args=None):
     )
     parser.add_argument("--factor-splits", action=StoreDictKeyPair, nargs="+", default={})
     parser.add_argument("--idf", type=eval, default=False, choices=[True, False])
-    parser.add_argument("--no-scaling", type=eval, default=False, choices=[True, False])
+    parser.add_argument(
+        "--scaling", choices=["none", "exp", "sigmoid0.5", "add2_sigmoid"], default="sigmoid0.5"
+    )
     parser.add_argument("--spectral-norm", type=eval, default=False, choices=[True, False])
     parser.add_argument("--zs-frac", type=float, default=0.02)
 
@@ -151,7 +160,9 @@ def nosinn_args(raw_args=None):
     parser.add_argument("--ae-enc-dim", type=int, default=3)
     parser.add_argument("--ae-channels", type=int, default=64)
     parser.add_argument("--ae-epochs", type=int, default=5)
-    parser.add_argument("--ae-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
+    parser.add_argument(
+        "--ae-loss", type=str, choices=["l1", "l2", "huber", "ce", "mixed"], default="l2"
+    )
     parser.add_argument("--ae-loss-weight", type=float, default=1)
     parser.add_argument("--vae", type=eval, choices=[True, False], default=False)
     parser.add_argument("--kl-weight", type=float, default=0.1)
@@ -166,6 +177,7 @@ def nosinn_args(raw_args=None):
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--nll-weight", type=float, default=1e-2)
     parser.add_argument("--pred-s-weight", type=float, default=1)
+    parser.add_argument("--recon-stability-weight", type=float, default=0)
 
     parser.add_argument("--path-to-ae", type=str, default="")
 
@@ -177,11 +189,15 @@ def vae_args(raw_args=None):
 
     # VAEsettings
     parser.add_argument("--levels", type=int, default=4)
+    parser.add_argument("--level-depth", type=int, default=2)
     parser.add_argument("--enc-y-dim", type=int, default=64)
     parser.add_argument("--enc-s-dim", type=int, default=0)
     parser.add_argument("--cond-decoder", type=eval, choices=[True, False], default=True)
     parser.add_argument("--init-channels", type=int, default=32)
     parser.add_argument("--recon-loss", type=str, choices=["l1", "l2", "huber", "ce"], default="l2")
+    parser.add_argument("--stochastic", type=eval, choices=[True, False], default=True)
+    parser.add_argument("--vgg-weight", type=float, default=0)
+    parser.add_argument("--vae", type=eval, choices=[True, False], default=True)
 
     # Discriminator settings
     parser.add_argument("--disc-enc-y-depth", type=int, default=1)

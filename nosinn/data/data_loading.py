@@ -5,9 +5,10 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import Adult
 
-from nosinn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
-from nosinn.data.transforms import LdColorizer, NoisyDequantize, Quantize
+from .dataset_wrappers import DataTupleDataset, LdAugmentedDataset
+from .transforms import LdColorizer, NoisyDequantize, Quantize
 from .adult import load_adult_data
+from .perturbed_adult import load_perturbed_adult
 from .celeba import CelebA
 
 
@@ -131,11 +132,10 @@ def load_dataset(args) -> DatasetTriplet:
         args.s_dim = 1
 
     elif args.dataset == "adult":
-        pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
-        source_dataset = Adult()
-        pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
-        train_data = DataTupleDataset(train_tuple, source_dataset)
-        test_data = DataTupleDataset(test_tuple, source_dataset)
+        if args.input_noise:
+            pretrain_data, test_data, train_data = load_perturbed_adult(args)
+        else:
+            pretrain_data, test_data, train_data = load_adult_data(args)
 
         args.y_dim = 1
         args.s_dim = 1

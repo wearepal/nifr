@@ -1,97 +1,49 @@
 """Definition of the Adult dataset"""
-from itertools import groupby
+from typing import Optional, List, Tuple, NamedTuple
 
+import numpy as np
 import pandas as pd
-from ethicml.utility.data_structures import DataTuple, concat_dt
 from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
 
-from ethicml.data.load import load_data
-from ethicml.data import Adult
-from ethicml.preprocessing.train_test_split import train_test_split
-from ethicml.preprocessing.domain_adaptation import domain_split, query_dt
+from ethicml.utility import DataTuple
+from ethicml.utility.data_helpers import shuffle_df
+from ethicml.data import load_data, Adult
+from ethicml.preprocessing import (
+    get_biased_subset,
+    get_biased_and_debiased_subsets,
+    train_test_split,
+    domain_split,
+)
+from .dataset_wrappers import DataTupleDataset
 
 
-def load_adult_data(args):
+class Triplet(NamedTuple):
+    """Small helper class; basically for enabling named returns"""
+
+    meta: Optional[DataTuple]
+    task: DataTuple
+    task_train: DataTuple
+
+
+def load_adult_data_tuples(args) -> Triplet:
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
-    data = load_data(Adult(), ordered=True)
+    adult_dataset = Adult()
+    data = load_data(adult_dataset, ordered=True)
     assert data.x.shape[1] == 101
 
     if args.drop_native:
-        new_x = data.x.drop(
-            [
-                col
-                for col in data.x.columns
-                if col.startswith("nat") and col != "native-country_United-States"
-            ],
-            axis=1,
-        )
-        new_x["native-country_not_United-States"] = 1 - new_x["native-country_United-States"]
+        data, _, cont_feats = drop_native(data, adult_dataset)
+    else:
+        cont_feats = adult_dataset.continuous_features
 
-        disc_feats = Adult().discrete_features
-        cont_feats = Adult().continuous_features
-
-        countries = [
-            col
-            for col in disc_feats
-            if (col.startswith("nat") and col != "native-country_United-States")
-        ]
-        disc_feats = [col for col in disc_feats if col not in countries]
-        disc_feats += ["native-country_not_United-States"]
-        disc_feats = sorted(disc_feats)
-
-        feats = disc_feats + cont_feats
-
-        data = DataTuple(x=new_x[feats], s=data.s, y=data.y)
-        assert data.x.shape[1] == 62
-
+    meta_train: Optional[DataTuple] = None
     if args.pretrain:
-
-        def _random_split(data, first_pcnt):
-            return train_test_split(
-                data, train_percentage=first_pcnt, random_seed=args.data_split_seed
-            )
-
-        not_task, task = _random_split(data, first_pcnt=1 - args.task_pcnt)
-        meta, not_task_or_meta = _random_split(
-            not_task, first_pcnt=args.pretrain_pcnt / (1 - args.task_pcnt)
-        )
-
-        sy_equal = query_dt(
-            not_task_or_meta,
-            "(sex_Male == 0 & salary_50K == 0) | (sex_Male == 1 & salary_50K == 1)",
-        )
-        sy_opposite = query_dt(
-            not_task_or_meta,
-            "(sex_Male == 1 & salary_50K == 0) | (sex_Male == 0 & salary_50K == 1)",
-        )
-
-        # task_train_fraction = 1.  # how much of sy_equal should be reserved for the task train set
-        mix_fact = args.task_mixing_factor  # how much of sy_opp should be mixed into task train set
-
-        sy_equal_fraction = 1 - mix_fact
-        sy_opp_fraction = mix_fact
-
-        sy_equal_task_train, _ = _random_split(sy_equal, first_pcnt=sy_equal_fraction)
-        sy_opp_task_train, _ = _random_split(sy_opposite, first_pcnt=sy_opp_fraction)
-
-        task_train_tuple = concat_dt(
-            [sy_equal_task_train, sy_opp_task_train], axis="index", ignore_index=True
-        )
-        # meta_train_tuple = concat_dt([sy_equal_meta_train, sy_opp_meta_train],
-        #                              axis='index', ignore_index=True)
-
-        if mix_fact == 0:
-            # s & y should be very correlated in the task train set
-            assert task_train_tuple.s["sex_Male"].corr(task_train_tuple.y["salary_>50K"]) > 0.99
-
-        # old nomenclature:
-        meta_train = meta
-        task = task
-        task_train = task_train_tuple
+        tuples: Triplet = biased_split(args, data)
+        assert tuples.meta is not None
+        meta_train, task, task_train = tuples.meta, tuples.task, tuples.task_train
 
     elif args.add_sampling_bias:
-        meta_train = None
         task_train, task = domain_split(
             datatup=data,
             tr_cond="education_Masters == 0. & education_Doctorate == 0.",
@@ -99,35 +51,114 @@ def load_adult_data(args):
         )
     else:
         task_train, task = train_test_split(data)
-        meta_train = None
 
     scaler = StandardScaler()
 
-    cont_feats = Adult().continuous_features
-
     task_train_scaled = task_train.x
-    task_train_scaled[cont_feats] = scaler.fit_transform(task_train.x[cont_feats])
+    task_train_scaled[cont_feats] = scaler.fit_transform(
+        task_train.x[cont_feats].to_numpy(np.float32)
+    )
     if args.drop_discrete:
-        task_train = DataTuple(x=task_train_scaled[cont_feats], s=task_train.s, y=task_train.y)
+        task_train = task_train.replace(x=task_train_scaled[cont_feats])
     else:
-        task_train = DataTuple(x=task_train_scaled, s=task_train.s, y=task_train.y)
+        task_train = task_train.replace(x=task_train_scaled)
 
     task_scaled = task.x
-    task_scaled[cont_feats] = scaler.transform(task.x[cont_feats])
+    task_scaled[cont_feats] = scaler.transform(task.x[cont_feats].to_numpy(np.float32))
     if args.drop_discrete:
-        task = DataTuple(x=task_scaled[cont_feats], s=task.s, y=task.y)
+        task = task.replace(x=task_scaled[cont_feats])
     else:
-        task = DataTuple(x=task_scaled, s=task.s, y=task.y)
+        task = task.replace(x=task_scaled)
 
     if args.pretrain:
+        assert meta_train is not None
         meta_train_scaled = meta_train.x
-        meta_train_scaled[cont_feats] = scaler.transform(meta_train.x[cont_feats])
+        meta_train_scaled[cont_feats] = scaler.transform(
+            meta_train.x[cont_feats].to_numpy(np.float32)
+        )
         if args.drop_discrete:
-            meta_train = DataTuple(x=meta_train_scaled[cont_feats], s=meta_train.s, y=meta_train.y)
+            meta_train = meta_train.replace(x=meta_train_scaled[cont_feats])
         else:
-            meta_train = DataTuple(x=meta_train_scaled, s=meta_train.s, y=meta_train.y)
+            meta_train = meta_train.replace(x=meta_train_scaled)
 
-    return meta_train, task, task_train
+    return Triplet(meta=meta_train, task=task, task_train=task_train)
+
+
+def load_adult_data(args) -> Tuple[DataTupleDataset, DataTupleDataset, DataTupleDataset]:
+    tuples: Triplet = load_adult_data_tuples(args)
+    pretrain_tuple, test_tuple, train_tuple = tuples.meta, tuples.task, tuples.task_train
+    assert pretrain_tuple is not None
+    source_dataset = Adult()
+    disc_features = source_dataset.discrete_features
+    cont_features = source_dataset.continuous_features
+    pretrain_data = DataTupleDataset(
+        pretrain_tuple, disc_features=disc_features, cont_features=cont_features
+    )
+    train_data = DataTupleDataset(
+        train_tuple, disc_features=disc_features, cont_features=cont_features
+    )
+    test_data = DataTupleDataset(
+        test_tuple, disc_features=disc_features, cont_features=cont_features
+    )
+    return pretrain_data, train_data, test_data
+
+
+def drop_native(data: DataTuple, adult_dataset: Adult) -> Tuple[DataTuple, List[str], List[str]]:
+    """Drop all features that encode the native country except the one for the US"""
+    new_x = data.x.drop(
+        [
+            col
+            for col in data.x.columns
+            if col.startswith("nat") and col != "native-country_United-States"
+        ],
+        axis="columns",
+    )
+    new_x["native-country_not_United-States"] = 1 - new_x["native-country_United-States"]
+
+    disc_feats = adult_dataset.discrete_features
+    cont_feats = adult_dataset.continuous_features
+
+    countries = [
+        col
+        for col in disc_feats
+        if (col.startswith("nat") and col != "native-country_United-States")
+    ]
+    disc_feats = [col for col in disc_feats if col not in countries]
+    disc_feats += ["native-country_not_United-States"]
+    disc_feats = sorted(disc_feats)
+
+    feats = disc_feats + cont_feats
+
+    data = data.replace(x=new_x[feats])
+    assert data.x.shape[1] == 62
+    return data, disc_feats, cont_feats
+
+
+def biased_split(args, data: DataTuple) -> Triplet:
+    """Split the dataset such that the task subset is very biased"""
+    use_new_split = True
+    if use_new_split:
+        task_train_tuple, unbiased = get_biased_subset(
+            data=data,
+            mixing_factor=args.task_mixing_factor,
+            unbiased_pcnt=args.task_pcnt + args.pretrain_pcnt,
+            seed=args.data_split_seed,
+            data_efficient=True,
+        )
+    else:
+        task_train_tuple, unbiased = get_biased_and_debiased_subsets(
+            data=data,
+            mixing_factor=args.task_mixing_factor,
+            unbiased_pcnt=args.task_pcnt + args.pretrain_pcnt,
+            seed=args.data_split_seed,
+        )
+
+    task_tuple, meta_tuple = train_test_split(
+        unbiased,
+        train_percentage=args.task_pcnt / (args.task_pcnt + args.pretrain_pcnt),
+        random_seed=args.data_split_seed,
+    )
+    return Triplet(meta=meta_tuple, task=task_tuple, task_train=task_train_tuple)
 
 
 def get_data_tuples(*pytorch_datasets):
@@ -145,7 +176,6 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
         sens_attrs: (optional) list of names of the sensitive attributes
     """
     # create data loader with one giant batch
-    print(dataset)
     data_loader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
     # get the data
     data = next(iter(data_loader))
@@ -157,33 +187,9 @@ def pytorch_data_to_dataframe(dataset, sens_attrs=None):
     return DataTuple(x=data[0], s=data[1], y=data[2])
 
 
-def group_features(disc_feats):
-    """Group discrete features names according to the first segment of their name
-    """
-
-    def _first_segment(feature_name):
-        return feature_name.split("_")[0]
-
-    group_iter = groupby(disc_feats, _first_segment)
-    return [list(group) for _, group in group_iter]
+def shuffle_s(dt: DataTuple) -> DataTuple:
+    return dt.replace(s=shuffle_df(dt.s, random_state=42))
 
 
-def grouped_features_indexes(disc_feats):
-    """Group discrete features names according to the first segment of their name
-    and return a list of their corresponding slices (assumes order is maintained).
-    """
-
-    def _first_segment(feature_name):
-        return feature_name.split("_")[0]
-
-    group_iter = groupby(disc_feats, _first_segment)
-
-    feature_slices = []
-    start_idx = 0
-    for _, group in group_iter:
-        len_group = len(list(group))
-        indexes = slice(start_idx, start_idx + len_group)
-        feature_slices.append(indexes)
-        start_idx += len_group
-
-    return feature_slices
+def shuffle_y(dt: DataTuple) -> DataTuple:
+    return dt.replace(y=shuffle_df(dt.y, random_state=42))

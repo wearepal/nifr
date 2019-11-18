@@ -1,32 +1,39 @@
+from typing import List, Sequence, Optional
+
 import torch
 import torch.nn as nn
-import numpy as np
 from .misc import Flatten
+from .bijector import Bijector
+
+__all__ = ["BijectorChain", "FactorOut"]
 
 
-class BijectorChain(nn.Module):
+class BijectorChain(Bijector):
     """A generalized nn.Sequential container for normalizing flows.
     """
 
-    def __init__(self, layer_list):
-        super(BijectorChain, self).__init__()
+    def __init__(self, layer_list: List[Bijector], inds: Optional[Sequence] = None):
+        super().__init__()
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
+        self.inds = inds
 
-    def forward(self, x, logpx=None, reverse=False, inds=None):
-        if inds is None:
-            if reverse:
-                inds = range(len(self.chain) - 1, -1, -1)
-            else:
-                inds = range(len(self.chain))
+    def _forward(self, x, sum_ldj=None):
+        inds = range(len(self.chain)) if self.inds is None else self.inds
+        return self.loop(inds=inds, reverse=False, x=x, sum_ldj=sum_ldj)
 
-        if logpx is None:
+    def _inverse(self, y, sum_ldj=None):
+        inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
+        return self.loop(inds=inds, reverse=True, x=y, sum_ldj=sum_ldj)
+
+    def loop(self, inds, reverse: bool, x, sum_ldj=None):
+        if sum_ldj is None:
             for i in inds:
                 x = self.chain[i](x, reverse=reverse)
             return x
         else:
             for i in inds:
-                x, logpx = self.chain[i](x, logpx, reverse=reverse)
-            return x, logpx
+                x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
+            return x, sum_ldj
 
 
 class FactorOut(BijectorChain):
@@ -43,21 +50,21 @@ class FactorOut(BijectorChain):
         split_point = self._compute_split_point(tensor, frac)
         return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
 
-    def __init__(self, layer_list, splits=None):
+    def __init__(self, layer_list, splits=None, inds: Optional[Sequence] = None):
         super().__init__(layer_list)
         self.splits: dict = splits or {}
         self._factor_layers = {key: Flatten() for key in self.splits.keys()}
         self._final_flatten = Flatten()
+        self.inds = inds
 
-    def _forward(self, x, logpx, inds=None):
-        if inds is None:
-            inds = range(len(self.chain))
+    def _forward(self, x, sum_ldj=None):
+        inds = range(len(self.chain)) if self.inds is None else self.inds
 
         xs = []
         for i in inds:
-            x = self.chain[i](x, logpx=logpx, reverse=False)
-            if logpx is not None:
-                x, logpx = x
+            x = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
+            if sum_ldj is not None:
+                x, sum_ldj = x
             if i in self.splits:
                 x_removed, x = self._frac_split_channelwise(x, self.splits[i])
                 x_removed_flat = self._factor_layers[i](x_removed)
@@ -65,14 +72,13 @@ class FactorOut(BijectorChain):
         xs.append(self._final_flatten(x))
         x = torch.cat(xs, dim=1)
 
-        out = (x, logpx) if logpx is not None else x
+        out = (x, sum_ldj) if sum_ldj is not None else x
 
         return out
 
-    def _reverse(self, x, logpx=None, inds=None):
-        len_chain = len(self.chain)
-        if inds is None:
-            inds = range(len_chain - 1, -1, -1)
+    def _inverse(self, y, sum_ldj=None):
+        inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
+        x = y
 
         components = {}
         for block_ind, frac in self.splits.items():
@@ -86,16 +92,10 @@ class FactorOut(BijectorChain):
         for i in inds:
             if i in components:
                 x = torch.cat([components[i], x], dim=1)
-            x = self.chain[i](x, logpx=logpx, reverse=True)
-            if logpx is not None:
-                x, logpx = x
+            x = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
+            if sum_ldj is not None:
+                x, sum_ldj = x
 
-        out = (x, logpx) if logpx is not None else x
+        out = (x, sum_ldj) if sum_ldj is not None else x
 
         return out
-
-    def forward(self, x, logpx=None, reverse=False, inds=None):
-        if reverse:
-            return self._reverse(x, logpx=logpx, inds=inds)
-        else:
-            return self._forward(x, logpx=logpx, inds=inds)

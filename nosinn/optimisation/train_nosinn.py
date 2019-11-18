@@ -1,15 +1,17 @@
 """Main training file"""
 import time
 from pathlib import Path
+from typing import Tuple, Dict, Optional, Callable
 
+import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import wandb
 
 from nosinn.data import DatasetTriplet
-from nosinn.models import AutoEncoder
-from nosinn.models.autoencoder import VAE
+from nosinn.models import AutoEncoder, Classifier, VAE
 from nosinn.models.configs import conv_autoencoder, fc_autoencoder
 from nosinn.models.configs.classifiers import (
     fc_net,
@@ -22,7 +24,7 @@ from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, grad_reverse
+from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
 from .utils import get_data_dim, log_images
 
 __all__ = ["main"]
@@ -53,13 +55,56 @@ def restore_model(filename, model, discriminator):
     return model, discriminator
 
 
+def compute_loss(
+    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int
+) -> Tuple[torch.Tensor, Dict[str, float]]:
+    enc, nll = inn.routine(x)
+
+    enc_y, enc_s = inn.split_encoding(enc)
+
+    recon_loss = x.new_zeros(())
+    if ARGS.train_on_recon:
+        enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+        if ARGS.recon_detach:
+            enc_y_m = enc_y_m.detach()
+        enc_y = inn.invert(enc_y_m)
+        if ARGS.recon_stability_weight > 0:
+            recon_loss = F.mse_loss(enc_y, x)
+        # enc_y = enc_y.clamp(min=0, max=1)
+
+    enc_y = grad_reverse(enc_y)
+    disc_loss, _ = discriminator.routine(enc_y, s)
+
+    nll *= ARGS.nll_weight
+
+    if itr < ARGS.warmup_steps:
+        pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
+    else:
+        pred_s_weight = ARGS.pred_s_weight
+
+    disc_loss *= pred_s_weight
+
+    loss = nll + disc_loss + recon_loss
+    logging_dict = {
+        "Loss NLL": nll.item(),
+        "Loss Adversarial": disc_loss.item(),
+        "Recon L1 loss": recon_loss.item(),
+        "Validation loss": (nll - disc_loss + recon_loss).item(),
+    }
+    return loss, logging_dict
+
+
 def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
-    inn.eval()
+    discriminator.train()
 
     total_loss_meter = AverageMeter()
-    log_prob_meter = AverageMeter()
-    disc_loss_meter = AverageMeter()
+    loss_meters = {
+        "Loss NLL": AverageMeter(),
+        "Loss Adversarial": AverageMeter(),
+        "Recon L1 loss": AverageMeter(),
+        "Validation loss": AverageMeter(),
+    }
 
     time_meter = AverageMeter()
     start_epoch_time = time.time()
@@ -69,102 +114,61 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        enc, nll = inn.routine(x)
-
-        enc_y, enc_s = inn.split_encoding(enc)
-
-        if ARGS.train_on_recon:
-            enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-            enc_y = inn.invert(enc_y_m.detach()).clamp(min=0, max=1)
-
-        enc_y = grad_reverse(enc_y)
-        disc_loss, disc_acc = discriminator.routine(enc_y, s)
-
-        nll *= ARGS.nll_weight
-
-        pred_s_weight = 0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
-
-        disc_loss *= pred_s_weight
-
-        loss = nll + disc_loss
+        loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
 
         inn.zero_grad()
         discriminator.zero_grad()
+
         loss.backward()
         inn.step()
         discriminator.step()
 
+        # Log losses
         total_loss_meter.update(loss.item())
-        log_prob_meter.update(nll.item())
-        disc_loss_meter.update(disc_loss.item())
+        for name, value in logging_dict.items():
+            loss_meters[name].update(value)
 
         time_meter.update(time.time() - end)
 
-        wandb_log(ARGS, {"Loss NLL": nll.item()}, step=itr)
-        wandb_log(ARGS, {"Loss Adversarial": disc_loss.item()}, step=itr)
+        wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
 
-        if itr % 50 == 0:
+        # Log images
+        if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-
-                z = inn(x[:64])
-
-                recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-
-                log_images(ARGS, x[:64], "original_x", step=itr)
-                log_images(ARGS, recon_all, "reconstruction_all", step=itr)
-                log_images(ARGS, recon_y, "reconstruction_y", step=itr)
-                log_images(ARGS, recon_s, "reconstruction_s", step=itr)
+                log_recons(inn, x, itr)
 
     time_for_epoch = time.time() - start_epoch_time
+    log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
     LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | "
-        "Loss NLL: {:.5g} | Loss Adv: {:.5g} ({:.5g})",
+        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
-        log_prob_meter.avg,
-        disc_loss_meter.avg,
+        log_string,
         total_loss_meter.avg,
     )
     return itr
 
 
-def validate(inn, discriminator, val_loader, itr):
+def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: int):
     inn.eval()
+    discriminator.eval()
+
     with torch.no_grad():
         loss_meter = AverageMeter()
         for x_val, s_val, y_val in val_loader:
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            enc, nll = inn.routine(x_val)
-            enc_y, enc_s = inn.split_encoding(enc)
+            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
 
-            if ARGS.train_on_recon:
-                enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-                enc_y = inn.invert(enc_y).clamp(min=0, max=1)
-
-            enc_y = grad_reverse(enc_y)
-
-            disc_loss, acc = discriminator.routine(enc_y, s_val)
-
-            nll *= ARGS.nll_weight
-            disc_loss *= ARGS.pred_s_weight
-
-            loss = nll + disc_loss
-
-            loss_meter.update(loss.item(), n=x_val.size(0))
+            loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
     wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
-    if ARGS.dataset == "cmnist":
-        z = inn(x_val[:64])
-        recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
-        log_images(ARGS, recon_all, "reconstruction_all", prefix="test", step=itr)
-        log_images(ARGS, recon_y, "reconstruction_y", prefix="test", step=itr)
-        log_images(ARGS, recon_s, "reconstruction_s", prefix="test", step=itr)
+    if ARGS.dataset in ("cmnist", "celeba"):
+        log_recons(inn, x_val, itr, prefix="test")
     else:
         z = inn(x_val[:1000])
         recon_all, recon_y, recon_s = inn.decode(z, partials=True)
@@ -187,7 +191,16 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def main(args, datasets):
+def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
+    z = inn(x[:64])
+    recon_all, recon_y, recon_s = inn.decode(z, partials=True)
+    log_images(ARGS, x, "original_x", prefix=prefix, step=itr)
+    log_images(ARGS, recon_all, "reconstruction_all", prefix=prefix, step=itr)
+    log_images(ARGS, recon_y, "reconstruction_y", prefix=prefix, step=itr)
+    log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
+
+
+def main(args, datasets: DatasetTriplet):
     """Main function
 
     Args:
@@ -220,9 +233,15 @@ def main(args, datasets):
     ARGS.device = torch.device(
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
     )
-    LOGGER.info("{} GPUs available. Using GPU {}", torch.cuda.device_count(), ARGS.gpu)
+    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
 
     # ==== construct dataset ====
+    LOGGER.info(
+        "Size of pretrain: {}, task_train: {}, task: {}",
+        len(datasets.pretrain),
+        len(datasets.task_train),
+        len(datasets.task),
+    )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
     val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
@@ -276,8 +295,8 @@ def main(args, datasets):
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
-                input_shape,
-                ARGS.ae_channels,
+                input_shape=input_shape,
+                hidden_channels=ARGS.ae_channels,
                 encoding_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,
@@ -297,10 +316,14 @@ def main(args, datasets):
         inn.to(args.device)
 
         if ARGS.path_to_ae:
-            state_dict = torch.load(ARGS.path_to_ae, map_location=lambda storage, loc: storage)
-            autoencoder.load_state_dict(state_dict)
+            save_dict = torch.load(ARGS.path_to_ae, map_location=lambda storage, loc: storage)
+            autoencoder.load_state_dict(save_dict["model"])
+            if "args" in save_dict:
+                args_ae = save_dict["args"]
+                assert ARGS.ae_channels == args_ae["init_channels"]
+                assert ARGS.ae_levels == args_ae["levels"]
         else:
-            ae_loss_fn: nn.Module
+            ae_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
             if ARGS.ae_loss == "l1":
                 ae_loss_fn = nn.L1Loss(reduction="sum")
             elif ARGS.ae_loss == "l2":
@@ -309,17 +332,26 @@ def main(args, datasets):
                 ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
             elif ARGS.ae_loss == "ce":
                 ae_loss_fn = PixelCrossEntropy(reduction="sum")
+            elif ARGS.ae_loss == "mixed":
+                assert feature_groups is not None, "can only do multi loss with feature groups"
+                ae_loss_fn = MixedLoss(feature_groups, reduction="sum")
             else:
                 raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
             inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
-            torch.save(autoencoder.state_dict(), save_dir / "autoencoder")
-
+            # the args names follow the convention of the standalone VAE commandline args
+            args_ae = {"init_channels": ARGS.ae_channels, "levels": ARGS.ae_levels}
+            torch.save(
+                {"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder"
+            )
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
         inn = PartitionedInn(**inn_kwargs)
         inn.to(args.device)
+        enc_shape = inn.output_dim
+
+    disc_input_shape: Tuple[int, ...] = input_shape if args.train_on_recon else (inn.zy_dim,)
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
@@ -327,8 +359,8 @@ def main(args, datasets):
     dis_optimizer_kwargs = {"lr": args.disc_lr}
     discriminator = build_discriminator(
         args,
-        inn_kwargs["input_shape"],
-        frac_enc=1 - args.zs_frac,
+        input_shape=disc_input_shape,
+        frac_enc=enc_shape,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=dis_optimizer_kwargs,
@@ -349,8 +381,9 @@ def main(args, datasets):
 
     # Resume from checkpoint
     if ARGS.resume is not None:
+        LOGGER.info("Restoring model from checkpoint")
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        log_metrics(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
+        log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=0)
         return
 
     # Logging
@@ -360,6 +393,7 @@ def main(args, datasets):
     best_loss = float("inf")
     n_vals_without_improvement = 0
 
+    itr = 0
     # Train INN for N epochs
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
