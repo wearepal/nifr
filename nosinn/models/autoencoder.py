@@ -143,7 +143,8 @@ class VAE(AutoEncoder):
         recon = self.decode(decoder_input, s)
         recon_loss = recon_loss_fn(recon, s)
 
-        denom = x.nelement()
+        # denom = x.nelement()
+        denom = x.size(0)
         recon_loss /= denom
         kl /= denom
 
