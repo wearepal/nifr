@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import torch.nn as nn
 
@@ -83,7 +83,14 @@ def _linear_block(in_channels, out_channels):
     return nn.Sequential(nn.SELU(), nn.Linear(in_channels, out_channels))
 
 
-def fc_autoencoder(input_shape, hidden_channels, levels, encoding_dim, vae, s_dim=0):
+def fc_autoencoder(
+    input_shape: Tuple[int, ...],
+    hidden_channels: int,
+    levels: int,
+    encoding_dim: int,
+    vae: bool,
+    s_dim: int = 0,
+) -> Tuple[nn.Sequential, nn.Sequential, Tuple[int, ...]]:
     encoder = []
     decoder = []
 

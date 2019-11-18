@@ -3,6 +3,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F, init
 
+__all__ = ["ConvResidualNet", "ResidualNet"]
+
 
 class ResidualBlock(nn.Module):
     """A general-purpose residual block. Works only with 1-dim inputs."""

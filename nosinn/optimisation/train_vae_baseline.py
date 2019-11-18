@@ -145,7 +145,7 @@ def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_
             if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
                 s_oh = F.one_hot(s_val, num_classes=ARGS.s_dim)
 
-            losses = compute_losses(
+            loss, logging_dict = compute_losses(
                 x=x_val,
                 s=s_val,
                 s_oh=s_oh,
@@ -154,7 +154,6 @@ def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_
                 disc_enc_s=disc_enc_s,
                 recon_loss_fn=recon_loss_fn,
             )
-            loss = losses.total
 
             loss_meter.update(loss.item(), n=x_val.size(0))
 
@@ -309,7 +308,7 @@ def main_vae(args, datasets):
             encoding_dim=ARGS.enc_y_dim + ARGS.enc_s_dim,
             decoding_dim=decoding_dim,
             levels=ARGS.levels,
-            vae=True,
+            vae=ARGS.vae,
             s_dim=ARGS.s_dim if ARGS.cond_decoder else 0,
             level_depth=ARGS.level_depth,
         )
@@ -351,7 +350,7 @@ def main_vae(args, datasets):
         encoder=encoder,
         decoder=decoder,
         kl_weight=ARGS.kl_weight,
-        optimizer_args=optimizer_args,
+        optimizer_kwargs=optimizer_args,
         decode_with_s=True,
     )
     vae.to(args.device)
@@ -402,8 +401,16 @@ def main_vae(args, datasets):
     best_loss = float("inf")
     n_vals_without_improvement = 0
 
+    epoch_0 = 0
+    if args.resume:
+        LOGGER.info("Restoring from checkpoint")
+        checkpoint = torch.load(args.resume)
+        vae.load_state_dict(checkpoint["model"])
+        epoch_0 = checkpoint["epoch"]
+
+    itr = epoch_0 * len(train_loader)
     # Train INN for N epochs
-    for epoch in range(ARGS.epochs):
+    for epoch in range(epoch_0, ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 

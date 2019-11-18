@@ -1,7 +1,7 @@
 """Main training file"""
 import time
 from pathlib import Path
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, Callable
 
 import numpy as np
 import torch
@@ -17,14 +17,14 @@ from nosinn.models.configs.classifiers import (
     fc_net,
     linear_disciminator,
     mp_32x32_net,
-    mp_64x64_net,
+    mp_64x64_net
 )
 from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
 from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, grad_reverse
+from .loss import PixelCrossEntropy, grad_reverse, MixedLoss, contrastive_gradient_penalty
 from .utils import get_data_dim, log_images
 
 __all__ = ["main"]
@@ -84,24 +84,30 @@ def compute_loss(
 
     disc_loss *= pred_s_weight
 
+    if ARGS.gp_weight > 0:
+        disc_loss += ARGS.gp_weight * contrastive_gradient_penalty(discriminator, enc_y)
+
     loss = nll + disc_loss + recon_loss
+
     logging_dict = {
         "Loss NLL": nll.item(),
         "Loss Adversarial": disc_loss.item(),
         "Recon L1 loss": recon_loss.item(),
+        "Validation loss": (nll - disc_loss + recon_loss).item(),
     }
     return loss, logging_dict
 
 
 def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
-    inn.eval()
+    discriminator.train()
 
     total_loss_meter = AverageMeter()
     loss_meters = {
         "Loss NLL": AverageMeter(),
         "Loss Adversarial": AverageMeter(),
         "Recon L1 loss": AverageMeter(),
+        "Validation loss": AverageMeter(),
     }
 
     time_meter = AverageMeter()
@@ -151,15 +157,17 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
 def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: int):
     inn.eval()
+    discriminator.eval()
+
     with torch.no_grad():
         loss_meter = AverageMeter()
         for x_val, s_val, y_val in val_loader:
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            loss, _ = compute_loss(x_val, s_val, inn, discriminator, itr)
+            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
 
-            loss_meter.update(loss.item(), n=x_val.size(0))
+            loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
     wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
@@ -196,7 +204,7 @@ def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
 
 
-def main(args, datasets):
+def main(args, datasets: DatasetTriplet):
     """Main function
 
     Args:
@@ -229,9 +237,15 @@ def main(args, datasets):
     ARGS.device = torch.device(
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
     )
-    LOGGER.info("{} GPUs available. Using GPU {}", torch.cuda.device_count(), ARGS.gpu)
+    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
 
     # ==== construct dataset ====
+    LOGGER.info(
+        "Size of pretrain: {}, task_train: {}, task: {}",
+        len(datasets.pretrain),
+        len(datasets.task_train),
+        len(datasets.task),
+    )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
     train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
     val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
@@ -253,7 +267,6 @@ def main(args, datasets):
                 disc_fn = mp_32x32_net
             else:
                 disc_fn = mp_64x64_net
-            disc_kwargs = {"use_bn": not ARGS.spectral_norm}
         else:
             disc_fn = linear_disciminator
             disc_kwargs = {
@@ -286,8 +299,8 @@ def main(args, datasets):
             )
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
-                input_shape,
-                ARGS.ae_channels,
+                input_shape=input_shape,
+                hidden_channels=ARGS.ae_channels,
                 encoding_dim=ARGS.ae_enc_dim,
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,
@@ -314,7 +327,7 @@ def main(args, datasets):
                 assert ARGS.ae_channels == args_ae["init_channels"]
                 assert ARGS.ae_levels == args_ae["levels"]
         else:
-            ae_loss_fn: nn.Module
+            ae_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
             if ARGS.ae_loss == "l1":
                 ae_loss_fn = nn.L1Loss(reduction="sum")
             elif ARGS.ae_loss == "l2":
@@ -323,6 +336,9 @@ def main(args, datasets):
                 ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
             elif ARGS.ae_loss == "ce":
                 ae_loss_fn = PixelCrossEntropy(reduction="sum")
+            elif ARGS.ae_loss == "mixed":
+                assert feature_groups is not None, "can only do multi loss with feature groups"
+                ae_loss_fn = MixedLoss(feature_groups, reduction="sum")
             else:
                 raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
@@ -332,13 +348,14 @@ def main(args, datasets):
             torch.save(
                 {"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder"
             )
-        disc_input_shape = input_shape if args.train_on_recon else enc_shape
     else:
         inn_kwargs["input_shape"] = input_shape
         inn_kwargs["model"] = inn_fn(args, input_shape)
         inn = PartitionedInn(**inn_kwargs)
         inn.to(args.device)
-        disc_input_shape = input_shape
+        enc_shape = inn.output_dim
+
+    disc_input_shape: Tuple[int, ...] = input_shape if args.train_on_recon else (inn.zy_dim,)
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
@@ -346,8 +363,8 @@ def main(args, datasets):
     dis_optimizer_kwargs = {"lr": args.disc_lr}
     discriminator = build_discriminator(
         args,
-        disc_input_shape,
-        frac_enc=1 - args.zs_frac,
+        input_shape=disc_input_shape,
+        frac_enc=enc_shape,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=dis_optimizer_kwargs,
@@ -368,8 +385,9 @@ def main(args, datasets):
 
     # Resume from checkpoint
     if ARGS.resume is not None:
+        LOGGER.info("Restoring model from checkpoint")
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        log_metrics(ARGS, wandb, inn, discriminator, datasets, check_originals=False)
+        log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=0)
         return
 
     # Logging
@@ -379,6 +397,7 @@ def main(args, datasets):
     best_loss = float("inf")
     n_vals_without_improvement = 0
 
+    itr = 0
     # Train INN for N epochs
     for epoch in range(ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:

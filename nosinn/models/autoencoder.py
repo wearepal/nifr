@@ -20,11 +20,11 @@ class VaeResults(NamedTuple):
 
 
 class AutoEncoder(nn.Module):
-    def __init__(self, encoder, decoder, decode_with_s=False, optimizer_args=None):
+    def __init__(self, encoder, decoder, decode_with_s=False, optimizer_kwargs=None):
         super(AutoEncoder, self).__init__()
 
-        self.encoder: ModelBase = ModelBase(encoder, optimizer_args=optimizer_args)
-        self.decoder: ModelBase = ModelBase(decoder, optimizer_args=optimizer_args)
+        self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
+        self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
         self.decode_with_s = decode_with_s
 
     def encode(self, inputs):
@@ -99,15 +99,15 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(AutoEncoder):
-    def __init__(self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_args=None):
+    def __init__(self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_kwargs=None):
         super().__init__(
             encoder=encoder,
             decoder=decoder,
             decode_with_s=decode_with_s,
-            optimizer_args=optimizer_args,
+            optimizer_kwargs=optimizer_kwargs,
         )
-        self.encoder: ModelBase = ModelBase(encoder, optimizer_args=optimizer_args)
-        self.decoder: ModelBase = ModelBase(decoder, optimizer_args=optimizer_args)
+        self.encoder: ModelBase = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
+        self.decoder: ModelBase = ModelBase(decoder, optimizer_kwargs=optimizer_kwargs)
 
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
@@ -143,7 +143,8 @@ class VAE(AutoEncoder):
         recon = self.decode(decoder_input, s)
         recon_loss = recon_loss_fn(recon, s)
 
-        denom = x.nelement()
+        # denom = x.nelement()
+        denom = x.size(0)
         recon_loss /= denom
         kl /= denom
 

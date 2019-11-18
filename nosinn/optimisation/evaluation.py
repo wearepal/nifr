@@ -1,7 +1,9 @@
 from pathlib import Path
 from typing import Optional, Dict, List
 from argparse import Namespace
+
 import pandas as pd
+import numpy as np
 
 import torch
 from torch.utils.data import DataLoader, Dataset, TensorDataset
@@ -9,7 +11,7 @@ import wandb
 
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import Accuracy, Theil, ProbPos, TPR, TNR, PPV, NMI
+from ethicml.metrics import Accuracy, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility import DataTuple
 
 from nosinn.data import get_data_tuples, DatasetTriplet
@@ -86,29 +88,16 @@ def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dic
         metrics = run_metrics(
             predictions,
             actual,
-            metrics=[Accuracy(), Theil(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
-            per_sens_metrics=[
-                Theil(),
-                ProbPos(),
-                TPR(),
-                TNR(),
-                PPV(),
-                NMI(base="y"),
-                NMI(base="s"),
-            ],
+            metrics=[Accuracy(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
+            per_sens_metrics=[ProbPos(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s"),],
         )
         logging_dict = {
             f"{name} Accuracy": metrics["Accuracy"],
             f"{name} TPR": metrics["TPR"],
             f"{name} TNR": metrics["TNR"],
             f"{name} PPV": metrics["PPV"],
-            f"{name} Theil_Index": metrics["Theil_Index"],
-            f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"],
-            f"{name} Theil_Index": metrics["Theil_Index"],
             f"{name} P(Y=1|s=0)": metrics["prob_pos_sex_Male_0.0"],
             f"{name} P(Y=1|s=1)": metrics["prob_pos_sex_Male_1.0"],
-            f"{name} Theil|s=1": metrics["Theil_Index_sex_Male_1.0"],
-            f"{name} Theil|s=0": metrics["Theil_Index_sex_Male_0.0"],
             f"{name} P(Y=1|s=0) Ratio s0/s1": metrics["prob_pos_sex_Male_0.0/sex_Male_1.0"],
             f"{name} P(Y=1|s=0) Diff s0-s1": metrics["prob_pos_sex_Male_0.0-sex_Male_1.0"],
             f"{name} TPR|s=1": metrics["TPR_sex_Male_1.0"],
@@ -191,8 +180,10 @@ def evaluate(
         )
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
-        preds = pd.DataFrame(preds)
-        actual = DataTuple(x=None, s=sens, y=pd.DataFrame(sens if pred_s else actual))
+        preds = pd.DataFrame(preds, columns=["preds"])
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
+        labels = pd.DataFrame(actual, columns=["labels"])
+        actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
 
     else:
         if not isinstance(train_data, DataTuple):
@@ -207,7 +198,7 @@ def evaluate(
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
     metrics = compute_metrics(
-        args, preds, actual, full_name, run_all=args.dataset == "adult", step=step
+        args, preds, actual, full_name, run_all=args.y_dim == 1, step=step
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
@@ -215,14 +206,16 @@ def evaluate(
 
     if save_to_csv is not None and args.results_csv:
         assert isinstance(save_to_csv, Path)
+        sweep_key = "Scale" if args.dataset == "cmnist" else "Mix_fact"
+        sweep_value = str(args.scale) if args.dataset == "cmnist" else str(args.task_mixing_factor)
         results_path = save_to_csv / f"{full_name}_{args.results_csv}"
-        value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
+        value_list = ",".join([sweep_value] + [str(v) for v in metrics.values()])
         if results_path.is_file():
             with results_path.open("a") as f:
                 f.write(value_list + "\n")
         else:
             with results_path.open("w") as f:
-                f.write(",".join(["Scale"] + [str(k) for k in metrics.keys()]) + "\n")
+                f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
         if args.use_wandb:
             for name, value in metrics.items():

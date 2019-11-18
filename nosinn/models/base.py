@@ -7,13 +7,13 @@ __all__ = ["ModelBase"]
 
 class ModelBase(nn.Module):
 
-    default_args = dict(optimizer_args=dict(lr=1e-3, weight_decay=0))
+    default_kwargs = dict(optimizer_kwargs=dict(lr=1e-3, weight_decay=0))
 
-    def __init__(self, model, optimizer_args=None):
+    def __init__(self, model, optimizer_kwargs=None):
         super().__init__()
         self.model = model
-        optimizer_args = optimizer_args or self.default_args["optimizer_args"]
-        self.optimizer = RAdam(self.model.parameters(), **optimizer_args)
+        optimizer_kwargs = optimizer_kwargs or self.default_kwargs["optimizer_kwargs"]
+        self.optimizer = RAdam(self.model.parameters(), **optimizer_kwargs)
 
     def reset_parameters(self):
         def _reset_parameters(m: nn.Module):

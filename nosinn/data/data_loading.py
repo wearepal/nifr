@@ -5,9 +5,10 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import Adult
 
-from nosinn.data.dataset_wrappers import DataTupleDataset, LdAugmentedDataset
-from nosinn.data.transforms import LdColorizer, NoisyDequantize, Quantize
+from .dataset_wrappers import DataTupleDataset, LdAugmentedDataset
+from .transforms import LdColorizer, NoisyDequantize, Quantize
 from .adult import load_adult_data
+from .perturbed_adult import load_perturbed_adult
 from .celeba import CelebA
 
 
@@ -103,6 +104,8 @@ def load_dataset(args) -> DatasetTriplet:
         unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
         unbiased_data = CelebA(
             root=args.root,
+            sens_attr=args.celeba_sens_attr,
+            target_attr=args.celeba_target_attr,
             biased=False,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
@@ -111,7 +114,7 @@ def load_dataset(args) -> DatasetTriplet:
             seed=args.data_split_seed,
         )
 
-        pretrain_len = round(args.pretrain_pcnt * len(unbiased_data))
+        pretrain_len = round(args.pretrain_pcnt / unbiased_pcnt * len(unbiased_data))
         test_len = len(unbiased_data) - pretrain_len
         pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
 
@@ -129,11 +132,10 @@ def load_dataset(args) -> DatasetTriplet:
         args.s_dim = 1
 
     elif args.dataset == "adult":
-        pretrain_tuple, test_tuple, train_tuple = load_adult_data(args)
-        source_dataset = Adult()
-        pretrain_data = DataTupleDataset(pretrain_tuple, source_dataset)
-        train_data = DataTupleDataset(train_tuple, source_dataset)
-        test_data = DataTupleDataset(test_tuple, source_dataset)
+        if args.input_noise:
+            pretrain_data, test_data, train_data = load_perturbed_adult(args)
+        else:
+            pretrain_data, test_data, train_data = load_adult_data(args)
 
         args.y_dim = 1
         args.s_dim = 1

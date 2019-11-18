@@ -1,5 +1,7 @@
 import csv
 import os
+from itertools import groupby
+from typing import List, Iterator, Tuple
 
 import numpy as np
 
@@ -100,3 +102,30 @@ def data_tuple_to_dataset_sample(data, sens, target, root: str, filename: str) -
     with open(os.path.join(root, "target.csv"), "ab") as f:
         target = target.view(-1)
         np.savetxt(f, target.cpu().detach().numpy(), delimiter=",")
+
+
+def group_features(disc_feats: List[str]) -> Iterator[Tuple[str, Iterator[str]]]:
+    """Group discrete features names according to the first segment of their name"""
+
+    def _first_segment(feature_name: str) -> str:
+        return feature_name.split("_")[0]
+
+    return groupby(disc_feats, _first_segment)
+
+
+def grouped_features_indexes(disc_feats: List[str]) -> List[slice]:
+    """Group discrete features names according to the first segment of their name
+    and return a list of their corresponding slices (assumes order is maintained).
+    """
+
+    group_iter = group_features(disc_feats)
+
+    feature_slices = []
+    start_idx = 0
+    for _, group in group_iter:
+        len_group = len(list(group))
+        indexes = slice(start_idx, start_idx + len_group)
+        feature_slices.append(indexes)
+        start_idx += len_group
+
+    return feature_slices
