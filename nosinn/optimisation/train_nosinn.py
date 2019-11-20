@@ -267,6 +267,7 @@ def main(args, datasets: DatasetTriplet):
                 disc_fn = mp_32x32_net
             else:
                 disc_fn = mp_64x64_net
+            disc_kwargs = {}
         else:
             disc_fn = linear_disciminator
             disc_kwargs = {
@@ -297,6 +298,11 @@ def main(args, datasets: DatasetTriplet):
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,
             )
+            disc_kwargs = {
+                "hidden_channels": ARGS.disc_channels,
+                "num_blocks": ARGS.disc_depth,
+                "use_bn": not ARGS.spectral_norm,
+            }
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
                 input_shape=input_shape,
@@ -305,6 +311,7 @@ def main(args, datasets: DatasetTriplet):
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,
             )
+            disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
         autoencoder: AutoEncoder
         if ARGS.vae:
@@ -360,14 +367,14 @@ def main(args, datasets: DatasetTriplet):
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
     # Initialise Discriminator
-    dis_optimizer_kwargs = {"lr": args.disc_lr}
+    disc_optimizer_kwargs = {"lr": args.disc_lr}
     discriminator = build_discriminator(
         args,
         input_shape=disc_input_shape,
         frac_enc=enc_shape,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
-        optimizer_kwargs=dis_optimizer_kwargs,
+        optimizer_kwargs=disc_optimizer_kwargs,
     )
     discriminator.to(args.device)
 
