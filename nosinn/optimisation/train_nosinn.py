@@ -298,11 +298,6 @@ def main(args, datasets: DatasetTriplet):
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,
             )
-            disc_kwargs = {
-                "hidden_channels": ARGS.disc_channels,
-                "num_blocks": ARGS.disc_depth,
-                "use_bn": not ARGS.spectral_norm,
-            }
         else:
             encoder, decoder, enc_shape = fc_autoencoder(
                 input_shape=input_shape,
@@ -311,7 +306,6 @@ def main(args, datasets: DatasetTriplet):
                 levels=ARGS.ae_levels,
                 vae=ARGS.vae,
             )
-            disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
         autoencoder: AutoEncoder
         if ARGS.vae:
