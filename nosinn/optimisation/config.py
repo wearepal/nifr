@@ -131,6 +131,10 @@ def nosinn_args(raw_args=None):
     parser.add_argument(
         "--base-density", type=str, choices=["logistic", "normal"], default="normal"
     )
+    parser.add_argument(
+        "--base-density-std", type=float, default=1, 
+        help="Specifies the standard deviation of the base density if a Gaussian."
+    )
     parser.add_argument("--levels", type=int, default=3)
     parser.add_argument("--level-depth", type=int, default=3)
     parser.add_argument(

@@ -49,7 +49,7 @@ class BipartiteInn(ModelBase):
                     torch.zeros(1, device=args.device), torch.ones(1, device=args.device)
                 )
             else:
-                self.base_density = td.Normal(0, 1)
+                self.base_density = td.Normal(0, args.base_density_std)
         x_dim: int = input_shape[0]
         z_channels: int = x_dim
 
