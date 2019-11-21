@@ -99,7 +99,7 @@ def compute_loss(
 
     inn_loss = nll + entropy + recon_loss
 
-    if inn.training():
+    if inn.training:
         inn.zero_grad()
         inn_params = [param for param in inn.parameters() if param.requires_grad]
         inn_grads = torch.autograd.grad(
