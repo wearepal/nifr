@@ -86,7 +86,7 @@ def compute_loss(
 
     logits = discriminator(enc_y)
     probs = logits.softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
-    entropy = -(probs * probs.log()).sum().mean()
+    entropy = -(probs * probs.log()).sum(1).mean()
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
