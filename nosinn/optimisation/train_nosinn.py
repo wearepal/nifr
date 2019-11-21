@@ -61,10 +61,10 @@ def compute_loss(
     enc, nll = inn.routine(x)
 
     z_norm = (torch.sum(enc.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
-    
+
     enc_y, enc_s = inn.split_encoding(enc)
 
-    z_d_norm = (torch.sum(enc_y.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
+    z_y_norm = (torch.sum(enc_y.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
     z_s_norm = (torch.sum(enc_s.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
     
     recon_loss = x.new_zeros(())
@@ -99,8 +99,8 @@ def compute_loss(
         "Loss Adversarial": disc_loss.item(),
         "Recon L1 loss": recon_loss.item(),
         "Validation loss": (nll - disc_loss + recon_loss).item(),
-        "z_d_norm": z_d_norm.item(),
-        "z_s_norm": z_s_norm.item(),
+        "z_y_norm": z_y_norm.item(),
+        "z_y_norm": z_y_norm.item(),
         "z_norm": z_norm.item()
     }
     return loss, logging_dict
