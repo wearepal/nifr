@@ -138,7 +138,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         # Log losses
         total_loss_meter.update(loss.item())
         for name, value in logging_dict.items():
-            loss_meters[name].update(value)
+            if "loss" in name:
+                loss_meters[name].update(value)
 
         time_meter.update(time.time() - end)
 
