@@ -53,7 +53,7 @@ class BipartiteInn(ModelBase):
                 self.base_density = td.Uniform(
                     low=-torch.ones(1, device=args.device) * args.base_density_std,
                     high=torch.ones(1, device=args.device) * args.base_density_std
-                    )
+                )
             else:
                 self.base_density = td.Normal(0, args.base_density_std)
         x_dim: int = input_shape[0]
