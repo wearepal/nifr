@@ -51,8 +51,8 @@ class BipartiteInn(ModelBase):
                 )
             elif args.base_density == "uniform":
                 self.base_density = td.Uniform(
-                    low=args.base_density_std,
-                    high=args.base_density_std
+                    low=-torch.ones(1, device=args.device) * args.base_density_std,
+                    high=torch.ones(1, device=args.device) * args.base_density_std
                     )
             else:
                 self.base_density = td.Normal(0, args.base_density_std)
