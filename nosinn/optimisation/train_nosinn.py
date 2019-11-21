@@ -114,7 +114,7 @@ def compute_loss(
         "Loss NLL": nll.item(),
         "Loss Adversarial": entropy.item(),
         "Recon L1 loss": recon_loss.item(),
-        "Validation loss": (nll - disc_loss + recon_loss).item(),
+        "Validation loss": (nll + entropy + recon_loss).item(),
     }
     return inn_loss, disc_loss, logging_dict
 
