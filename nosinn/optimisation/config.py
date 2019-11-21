@@ -129,7 +129,7 @@ def nosinn_args(raw_args=None):
 
     # INN settings
     parser.add_argument(
-        "--base-density", type=str, choices=["logistic", "normal"], default="normal"
+        "--base-density", type=str, choices=["logistic", "uniform", "normal"], default="normal"
     )
     parser.add_argument(
         "--base-density-std", type=float, default=1, 
