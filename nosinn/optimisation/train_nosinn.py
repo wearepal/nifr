@@ -67,9 +67,8 @@ def compute_loss(
     # Update the discriminator k-times
     if discriminator.training:
         enc_y_sg = enc_y.detach()
-        for i in range(ARGS.disc_updates):
-            if i > 0:
-                logits = discriminator(enc_y_sg)
+        for _ in range(ARGS.disc_updates):
+            logits = discriminator(enc_y_sg)
             disc_loss = discriminator.apply_criterion(logits, s).mean()
             discriminator.zero_grad()
             disc_loss.backward()
