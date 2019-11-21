@@ -116,7 +116,7 @@ def compute_loss(
         "Recon L1 loss": recon_loss.item(),
         "Validation loss": (nll + entropy + recon_loss).item(),
     }
-    return inn_loss, disc_loss, logging_dict
+    return logging_dict
 
 
 def train(inn, discriminator, dataloader, epoch: int) -> int:
@@ -139,7 +139,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        inn_loss, disc_loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
+        logging_dict = compute_loss(x, s, inn, discriminator, itr)
 
         # Log losses
         total_loss_meter.update(inn_loss.item())
@@ -179,7 +179,7 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            _, _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
+            logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
 
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
