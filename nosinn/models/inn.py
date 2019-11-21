@@ -46,7 +46,8 @@ class BipartiteInn(ModelBase):
         else:
             if args.base_density == "logistic":
                 self.base_density = logistic_distribution(
-                    torch.zeros(1, device=args.device), torch.ones(1, device=args.device)
+                    torch.zeros(1, device=args.device),
+                    torch.ones(1, device=args.device) * args.base_density_std
                 )
             else:
                 self.base_density = td.Normal(0, args.base_density_std)
