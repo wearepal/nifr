@@ -60,12 +60,12 @@ def compute_loss(
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     enc, nll = inn.routine(x)
 
-    z_norm = torch.sum(enc.flatten(start_dim=1)**2).mean()
+    z_norm = (torch.sum(enc.flatten(start_dim=1)**2) + 1e-6).sqrt().mean()
     
     enc_y, enc_s = inn.split_encoding(enc)
 
-    z_d_norm = torch.sum(enc_y.flatten(start_dim=1)**2).mean()
-    z_s_norm = torch.sum(enc_s.flatten(start_dim=1)**2).mean()
+    z_d_norm = (torch.sum(enc_y.flatten(start_dim=1)**2) + 1e-6).sqrt().mean()
+    z_s_norm = (torch.sum(enc_s.flatten(start_dim=1)**2) + 1e-6).sqrt().mean()
     
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
