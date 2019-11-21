@@ -98,7 +98,7 @@ def compute_loss(
     recon_loss *= ARGS.recon_stability_weight
 
     inn_loss = nll + entropy + recon_loss
-
+    import pdb; pdb.set_trace()
     if inn.training:
         inn.zero_grad()
         inn_params = [param for param in inn.parameters() if param.requires_grad]

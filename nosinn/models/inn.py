@@ -220,10 +220,12 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder = autoencoder
 
     def train(self):
+        self.training = True
         self.model.train()
         self.autoencoder.eval()
 
     def eval(self):
+        self.training = False
         self.model.eval()
         self.autoencoder.eval()
 
