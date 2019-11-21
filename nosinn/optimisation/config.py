@@ -166,6 +166,7 @@ def nosinn_args(raw_args=None):
     # Discriminator settings
     parser.add_argument("--disc-lr", type=float, default=3e-4)
     parser.add_argument("--disc-depth", type=int, default=1)
+    parser.add_argument("--disc-updates", type=int, default=1)
     parser.add_argument("--disc-channels", type=int, default=256)
     parser.add_argument("--disc-hidden-dims", nargs="*", type=int, default=[])
 

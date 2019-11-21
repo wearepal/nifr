@@ -24,7 +24,7 @@ from nosinn.models.inn import PartitionedAeInn, PartitionedInn
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
+from .loss import PixelCrossEntropy, MixedLoss
 from .utils import get_data_dim, log_images, apply_gradients
 
 __all__ = ["main"]
@@ -64,6 +64,17 @@ def compute_loss(
 
     enc_y, enc_s = inn.split_encoding(enc)
 
+    # Update the discriminator k-times
+    if discriminator.training:
+        enc_y_sg = enc_y.detach()
+        for i in range(ARGS.disc_updates):
+            if i > 0:
+                logits = discriminator(enc_y_sg)
+            disc_loss = discriminator.apply_criterion(logits, s).mean()
+            discriminator.zero_grad()
+            disc_loss.backward()
+            discriminator.step()
+
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
         enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
@@ -78,8 +89,6 @@ def compute_loss(
     probs = logits.softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
     entropy = -(probs * probs.log()).sum().mean()
 
-    disc_loss = discriminator.apply_criterion(logits, s).mean()
-
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
     else:
@@ -90,6 +99,17 @@ def compute_loss(
     recon_loss *= ARGS.recon_stability_weight
 
     inn_loss = nll + entropy + recon_loss
+
+    if inn.training():
+        inn.zero_grad()
+        inn_params = [param for param in inn.parameters() if param.requires_grad]
+        inn_grads = torch.autograd.grad(
+            inn_loss,
+            inn_params,
+            retain_graph=True,
+            allow_unused=True)
+        apply_gradients(inn_grads, inn_params)
+        inn.step()
 
     logging_dict = {
         "Loss NLL": nll.item(),
@@ -121,23 +141,6 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         x, s, y = to_device(x, s, y)
 
         inn_loss, disc_loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
-
-        inn.zero_grad()
-        discriminator.zero_grad()
-
-        inn_params = [param for param in inn.parameters() if param.requires_grad]
-        inn_grads = torch.autograd.grad(
-            inn_loss,
-            inn_params,
-            retain_graph=True,
-            allow_unused=True)
-        disc_grads = torch.autograd.grad(disc_loss, discriminator.parameters())
-
-        apply_gradients(inn_grads, inn_params)
-        apply_gradients(disc_grads, discriminator.parameters())
-
-        inn.step()
-        discriminator.step()
 
         # Log losses
         total_loss_meter.update(inn_loss.item())
