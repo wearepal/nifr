@@ -1,5 +1,5 @@
 import argparse
-from typing import Optional, List
+from typing import Optional, List, Dict
 from typing_extensions import Literal
 
 from tap import Tap
@@ -91,6 +91,7 @@ class NosinnArgs(SharedArgs):
     glow: bool = True
     batch_norm: bool = False
     bn_lag: float = 0  # fraction of current statistics to incorporate into moving average
+    factor_splits: Dict[str, str] = {}
     preliminary_level: bool = False
     idf: bool = False
     scaling: Literal["none", "exp", "sigmoid0.5", "add2_sigmoid"] = "sigmoid0.5"
@@ -126,7 +127,7 @@ class NosinnArgs(SharedArgs):
     def add_arguments(self):
         # this is a very complicated argument that has to be specified manually
         self.add_argument(
-            "--factor-splits", action=StoreDictKeyPair, nargs="+", default={}, required=False
+            "--factor-splits", action=StoreDictKeyPair, nargs="+", default={}, type=str
         )
 
     def process_args(self):
