@@ -59,12 +59,17 @@ def parse_arguments():
     parser.add_argument("--quant-level", type=int, default=8, choices=[3, 5, 8])
     parser.add_argument("--input-noise", type=eval, default=True, choices=[True, False])
     parser.add_argument(
-        "--greyscale", type=eval, choices=[True, False], default=True,
-        help="Whether to grescale the images. Only applies to coloured MNIST."
+        "--greyscale",
+        type=eval,
+        choices=[True, False],
+        default=True,
+        help="Whether to grescale the images. Only applies to coloured MNIST.",
     )
     # CelebA settings
     parser.add_argument("--celeba-sens-attr", type=str, default="Male", choices=["Male", "Young"])
-    parser.add_argument("--celeba-target-attr", type=str, default="Smiling", choices=["Smiling", "Attractive"])
+    parser.add_argument(
+        "--celeba-target-attr", type=str, default="Smiling", choices=["Smiling", "Attractive"]
+    )
 
     # Optimization settings
     parser.add_argument("--epochs", type=int, default=40)
@@ -100,10 +105,12 @@ if __name__ == "__main__":
     if args.dataset == "cmnist":
         classifier_fn = mp_32x32_net
     elif args.dataset == "adult":
+
         def adult_fc_net(in_dim, target_dim):
             encoder = fc_net(in_dim, 35, hidden_dims=[35])
             classifier = torch.nn.Linear(35, args.y_dim)
             return torch.nn.Sequential(encoder, classifier)
+
         classifier_fn = adult_fc_net
     else:
         classifier_fn = mp_64x64_net
@@ -129,7 +136,11 @@ if __name__ == "__main__":
 
     preds, ground_truths, sens = classifier.predict_dataset(test_data, device=args.device)
     preds = pd.DataFrame(preds, columns=["labels"])
-    ground_truths = DataTuple(x=pd.DataFrame(sens, columns=['sens']), s=pd.DataFrame(sens, columns=['sens']), y=pd.DataFrame(ground_truths, columns=['labels']))
+    ground_truths = DataTuple(
+        x=pd.DataFrame(sens, columns=["sens"]),
+        s=pd.DataFrame(sens, columns=["sens"]),
+        y=pd.DataFrame(ground_truths, columns=["labels"]),
+    )
 
     full_name = f"{args.dataset}_naive_baseline"
     if args.dataset == "cmnist":
@@ -139,9 +150,10 @@ if __name__ == "__main__":
         full_name += f"_{args.celeba_target_attr}"
     full_name += f"_{str(args.epochs)}epochs"
     metrics = run_metrics(
-        preds, ground_truths,
+        preds,
+        ground_truths,
         metrics=[Accuracy()],
-        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else []
+        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else [],
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
@@ -157,7 +169,9 @@ if __name__ == "__main__":
         if args.dataset == "cmnist":
             value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
         else:
-            value_list = ",".join([str(args.task_mixing_factor)] + [str(v) for v in metrics.values()])
+            value_list = ",".join(
+                [str(args.task_mixing_factor)] + [str(v) for v in metrics.values()]
+            )
         if results_path.is_file():
             with results_path.open("a") as f:
                 f.write(value_list + "\n")
