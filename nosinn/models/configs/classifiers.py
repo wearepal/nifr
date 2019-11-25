@@ -80,6 +80,7 @@ def resnet_50_ft(input_dim, target_dim, freeze=True, pretrained=True):
 
     return net
 
+
 def mp_32x32_net(input_dim, target_dim, use_bn=True):
     def conv_block(in_dim, out_dim, kernel_size, stride, padding):
         _block = []

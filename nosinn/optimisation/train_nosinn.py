@@ -71,12 +71,12 @@ def compute_loss(
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     enc, nll = inn.routine(x)
 
-    z_norm = (torch.sum(enc.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
+    z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
     enc_y, enc_s = inn.split_encoding(enc)
 
-    z_y_norm = (torch.sum(enc_y.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
-    z_s_norm = (torch.sum(enc_s.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
+    z_y_norm = (torch.sum(enc_y.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
+    z_s_norm = (torch.sum(enc_s.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
@@ -112,7 +112,7 @@ def compute_loss(
         "Validation loss": (nll - disc_loss + recon_loss).item(),
         "z_y_norm": z_y_norm.item(),
         "z_s_norm": z_s_norm.item(),
-        "z_norm": z_norm.item()
+        "z_norm": z_norm.item(),
     }
     return loss, logging_dict
 

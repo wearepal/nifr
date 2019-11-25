@@ -196,9 +196,7 @@ def evaluate(
     full_name = name
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
-    metrics = compute_metrics(
-        args, preds, actual, full_name, run_all=args.y_dim == 1, step=step
-    )
+    metrics = compute_metrics(args, preds, actual, full_name, run_all=args.y_dim == 1, step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line

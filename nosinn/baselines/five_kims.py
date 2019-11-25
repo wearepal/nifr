@@ -177,7 +177,8 @@ def main(raw_args=None) -> None:
     classifier = Classifier(
         classifier,
         num_classes=ARGS.s_dim if ARGS.s_dim > 1 else 2,
-        optimizer_kwargs=optimizer_kwargs)
+        optimizer_kwargs=optimizer_kwargs,
+    )
     # Initialise Discriminator
     if ARGS.dataset == "adult":
         adv_fn = nn.Linear
@@ -220,12 +221,15 @@ def main(raw_args=None) -> None:
     LOGGER.info("Training has finished.")
 
     classifier = Classifier(
-        nn.Sequential(encoder, classifier),
-        num_classes=ARGS.s_dim if ARGS.s_dim > 1 else 2
+        nn.Sequential(encoder, classifier), num_classes=ARGS.s_dim if ARGS.s_dim > 1 else 2
     )
     preds, ground_truths, sens = classifier.predict_dataset(test_loader, device=args.device)
     preds = pd.DataFrame(preds, columns=["labels"])
-    ground_truths = DataTuple(x=pd.DataFrame(sens, columns=['sens']), s=pd.DataFrame(sens, columns=['sens']), y=pd.DataFrame(ground_truths, columns=['labels']))
+    ground_truths = DataTuple(
+        x=pd.DataFrame(sens, columns=["sens"]),
+        s=pd.DataFrame(sens, columns=["sens"]),
+        y=pd.DataFrame(ground_truths, columns=["labels"]),
+    )
 
     full_name = f"{args.dataset}_5kims"
     if args.dataset == "cmnist":
@@ -236,9 +240,10 @@ def main(raw_args=None) -> None:
     full_name += f"_{args.entropy_weight}ew"
     full_name += f"_{str(args.epochs)}epochs"
     metrics = run_metrics(
-        preds, ground_truths,
+        preds,
+        ground_truths,
         metrics=[Accuracy()],
-        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else []
+        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else [],
     )
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
@@ -254,7 +259,9 @@ def main(raw_args=None) -> None:
         if args.dataset == "cmnist":
             value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
         else:
-            value_list = ",".join([str(args.task_mixing_factor)] + [str(v) for v in metrics.values()])
+            value_list = ",".join(
+                [str(args.task_mixing_factor)] + [str(v) for v in metrics.values()]
+            )
 
         if results_path.is_file():
             with results_path.open("a") as f:
@@ -266,6 +273,7 @@ def main(raw_args=None) -> None:
                 else:
                     f.write(",".join(["Mix_fact"] + [str(k) for k in metrics.keys()]) + "\n")
                 f.write(value_list + "\n")
+
 
 if __name__ == "__main__":
     main()

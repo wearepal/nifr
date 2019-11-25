@@ -49,12 +49,12 @@ class BipartiteInn(ModelBase):
             if args.base_density == "logistic":
                 self.base_density = logistic_distribution(
                     torch.zeros(1, device=args.device),
-                    torch.ones(1, device=args.device) * args.base_density_std
+                    torch.ones(1, device=args.device) * args.base_density_std,
                 )
             elif args.base_density == "uniform":
                 self.base_density = td.Uniform(
                     low=-torch.ones(1, device=args.device) * args.base_density_std,
-                    high=torch.ones(1, device=args.device) * args.base_density_std
+                    high=torch.ones(1, device=args.device) * args.base_density_std,
                 )
             else:
                 self.base_density = td.Normal(0, args.base_density_std)
