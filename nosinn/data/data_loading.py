@@ -5,7 +5,8 @@ from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import Adult
 
-from .dataset_wrappers import DataTupleDataset, LdAugmentedDataset
+from nosinn.configs import SharedArgs
+from .dataset_wrappers import LdAugmentedDataset
 from .transforms import LdColorizer, NoisyDequantize, Quantize
 from .adult import load_adult_data
 from .perturbed_adult import load_perturbed_adult
@@ -20,7 +21,7 @@ class DatasetTriplet(NamedTuple):
     output_dim: Optional[int] = None
 
 
-def load_dataset(args) -> DatasetTriplet:
+def load_dataset(args: SharedArgs) -> DatasetTriplet:
     assert args.pretrain
     pretrain_data: Dataset
     test_data: Dataset
@@ -36,10 +37,10 @@ def load_dataset(args) -> DatasetTriplet:
             data_aug.append(transforms.RandomAffine(degrees=0, translate=(0.11, 0.11)))
         if args.padding > 0:
             base_aug.insert(0, transforms.Pad(args.padding))
-        if args.quant_level != 8:
-            base_aug.append(Quantize(args.quant_level))
+        if args.quant_level != "8":
+            base_aug.append(Quantize(int(args.quant_level)))
         if args.input_noise:
-            base_aug.append(NoisyDequantize(args.quant_level))
+            base_aug.append(NoisyDequantize(int(args.quant_level)))
         train_data = MNIST(root=args.root, download=True, train=True)
 
         pretrain_len = round(args.pretrain_pcnt * len(train_data))
@@ -94,10 +95,10 @@ def load_dataset(args) -> DatasetTriplet:
             transforms.CenterCrop(image_size),
             transforms.ToTensor(),
         ]
-        if args.quant_level != 8:
-            transform.append(Quantize(args.quant_level))
+        if args.quant_level != "8":
+            transform.append(Quantize(int(args.quant_level)))
         if args.input_noise:
-            transform.append(NoisyDequantize(args.quant_level))
+            transform.append(NoisyDequantize(int(args.quant_level)))
 
         transform = transforms.Compose(transform)
 

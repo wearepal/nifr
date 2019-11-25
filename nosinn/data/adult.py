@@ -15,6 +15,8 @@ from ethicml.preprocessing import (
     train_test_split,
     domain_split,
 )
+
+from nosinn.configs import SharedArgs
 from .dataset_wrappers import DataTupleDataset
 
 
@@ -26,7 +28,7 @@ class Triplet(NamedTuple):
     task_train: DataTuple
 
 
-def load_adult_data_tuples(args) -> Triplet:
+def load_adult_data_tuples(args: SharedArgs) -> Triplet:
     """Load dataset from the files specified in ARGS and return it as PyTorch datasets"""
     adult_dataset = Adult()
     data = load_data(adult_dataset, ordered=True)
@@ -134,7 +136,7 @@ def drop_native(data: DataTuple, adult_dataset: Adult) -> Tuple[DataTuple, List[
     return data, disc_feats, cont_feats
 
 
-def biased_split(args, data: DataTuple) -> Triplet:
+def biased_split(args: SharedArgs, data: DataTuple) -> Triplet:
     """Split the dataset such that the task subset is very biased"""
     use_new_split = True
     if use_new_split:

@@ -2,8 +2,8 @@
 import time
 from pathlib import Path
 
-import torch
 import pandas as pd
+import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
@@ -11,24 +11,22 @@ from ethicml.evaluators import run_metrics
 from ethicml.utility.data_structures import DataTuple
 from ethicml.metrics import Accuracy, ProbPos, TPR
 
-from nosinn.data import DatasetTriplet
-from nosinn.models.configs.classifiers import linear_disciminator, mp_32x32_net, mp_64x64_net, fc_net
-from nosinn.models.factory import build_discriminator
-from nosinn.models.classifier import Classifier
-from nosinn.models.base import ModelBase
-from nosinn.utils import utils
-from nosinn.optimisation.utils import get_data_dim
-from nosinn.optimisation.loss import grad_reverse
+from nosinn.data import DatasetTriplet, load_dataset
+from nosinn.models.configs import linear_disciminator, mp_32x32_net, mp_64x64_net, fc_net
+from nosinn.models import build_discriminator, Classifier, ModelBase
+from nosinn.utils import utils, random_seed
+from nosinn.optimisation import get_data_dim, grad_reverse
+from nosinn.configs import FiveKimsArgs
 
 __all__ = ["main"]
 
 NDECS = 0
-ARGS = None
+ARGS: FiveKimsArgs = None
 LOGGER = None
 INPUT_SHAPE = ()
 
 
-def train(args, encoder, classifier, adversary, dataloader, epoch: int) -> int:
+def train(encoder, classifier, adversary, dataloader, epoch: int) -> int:
     encoder.train()
     classifier.eval()
     adversary.train()
@@ -51,7 +49,7 @@ def train(args, encoder, classifier, adversary, dataloader, epoch: int) -> int:
         pred_s_probs = pred_s_logits.softmax(dim=1)
         entropy_loss = torch.sum(pred_s_probs * pred_s_probs.log(), dim=1).mean()
 
-        loss_pred = pred_y_loss + args.entropy_weight * entropy_loss
+        loss_pred = pred_y_loss + ARGS.entropy_weight * entropy_loss
 
         encoder.zero_grad()
         adversary.zero_grad()
@@ -78,7 +76,6 @@ def train(args, encoder, classifier, adversary, dataloader, epoch: int) -> int:
         class_loss_meter.update(loss_pred.item())
         inv_loss_meter.update(loss_inv.item())
         time_meter.update(time.time() - end)
-
 
     time_for_epoch = time.time() - start_epoch_time
     LOGGER.info(
@@ -121,27 +118,23 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def main(args, datasets):
-    """Main function
+def main(raw_args=None) -> None:
+    """Main function"""
+    args = FiveKimsArgs()
+    args.parse_args(raw_args)
+    use_gpu = torch.cuda.is_available() and args.gpu >= 0
+    random_seed(args.seed, use_gpu)
+    datasets: DatasetTriplet = load_dataset(args)
 
-    Args:
-        args: commandline arguments
-        datasets: a Dataset object
-        metric_callback: a function that computes metrics
-
-    Returns:
-        the trained model
-    """
-    assert isinstance(datasets, DatasetTriplet)
     # ==== initialize globals ====
     global ARGS, LOGGER, INPUT_SHAPE
     ARGS = args
 
-    save_dir = Path(ARGS.save) / str(time.time())
+    save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
     LOGGER = utils.get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
-    LOGGER.info(ARGS)
+    LOGGER.info(ARGS.as_dict())
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS.device = torch.device(
@@ -212,7 +205,7 @@ def main(args, datasets):
     # Train INN for N epochs
     for epoch in range(ARGS.epochs):
 
-        itr = train(args, encoder, classifier, adversary, train_loader, epoch)
+        itr = train(encoder, classifier, adversary, train_loader, epoch)
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
             test_loss, test_acc = test(encoder, classifier, test_loader, itr)

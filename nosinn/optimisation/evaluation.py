@@ -1,6 +1,5 @@
 from pathlib import Path
 from typing import Optional, Dict, List
-from argparse import Namespace
 
 import pandas as pd
 import numpy as np
@@ -14,10 +13,10 @@ from ethicml.evaluators import run_metrics
 from ethicml.metrics import Accuracy, ProbPos, TPR, TNR, PPV, NMI
 from ethicml.utility import DataTuple
 
+from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.data import get_data_tuples, DatasetTriplet
-from nosinn.models.classifier import Classifier
-from nosinn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from nosinn.models.inn import BipartiteInn
+from nosinn.models import Classifier, BipartiteInn
+from nosinn.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from nosinn.utils import wandb_log
 from .utils import log_images
 
@@ -29,7 +28,7 @@ def log_sample_images(args, data, name, step):
 
 
 def log_metrics(
-    args,
+    args: NosinnArgs,
     model,
     data,
     step,
@@ -150,13 +149,13 @@ def make_tuple_from_data(train, test, pred_s):
 
 
 def evaluate(
-    args,
-    step,
+    args: SharedArgs,
+    step: int,
     train_data,
     test_data,
-    name,
-    train_on_recon=True,
-    pred_s=False,
+    name: str,
+    train_on_recon: bool = True,
+    pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
 ):
     input_dim = next(iter(train_data))[0].shape[0]
@@ -225,7 +224,7 @@ def evaluate(
 
 
 def encode_dataset(
-    args: Namespace,
+    args: SharedArgs,
     data: Dataset,
     model: BipartiteInn,
     recon: bool,

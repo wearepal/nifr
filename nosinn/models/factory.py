@@ -3,11 +3,12 @@ from typing import Optional, List, Tuple
 import numpy as np
 
 from nosinn import layers
-from nosinn.models.classifier import Classifier
+from nosinn.models import Classifier
+from nosinn.configs import NosinnArgs
 
 
 def build_fc_inn(
-    args, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
+    args: NosinnArgs, input_shape: Tuple[int, ...], level_depth: Optional[int] = None
 ) -> layers.Bijector:
     """Build the model with ARGS.depth many layers
 
@@ -41,7 +42,7 @@ def build_fc_inn(
     return layers.BijectorChain(chain)
 
 
-def build_conv_inn(args, input_shape) -> layers.Bijector:
+def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
     input_dim = input_shape[0]
 

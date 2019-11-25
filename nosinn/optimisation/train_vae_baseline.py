@@ -1,5 +1,6 @@
 """Main training file"""
 import time
+from logging import Logger
 from pathlib import Path
 from typing import Optional, Callable, Dict, Tuple
 
@@ -9,12 +10,11 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 import wandb
 
-from nosinn.data import DatasetTriplet
-from nosinn.models.autoencoder import VAE, VaeResults
-from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import linear_disciminator
-from nosinn.models.factory import build_discriminator
-from nosinn.utils import wandb_log
+from nosinn.data import DatasetTriplet, load_dataset
+from nosinn.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
+from nosinn.models import build_discriminator, VAE, VaeResults
+from nosinn.utils import wandb_log, random_seed
+from nosinn.configs import VaeArgs
 from nosinn import utils
 
 from .evaluation import evaluate
@@ -24,9 +24,9 @@ from .utils import get_data_dim, log_images
 __all__ = ["main_vae"]
 
 NDECS = 0
-ARGS = None
-LOGGER = None
-INPUT_SHAPE = ()
+ARGS: VaeArgs = None
+LOGGER: Logger = None
+INPUT_SHAPE: Tuple[int, ...] = ()
 
 
 def compute_losses(
@@ -250,41 +250,36 @@ def evaluate_vae(args, vae, train_loader, test_loader, step, save_to_csv: Option
     evaluate(ARGS, step, train_data, test_data, "xy", pred_s=False, save_to_csv=save_to_csv)
 
 
-def main_vae(args, datasets):
+def main_vae(raw_args=None) -> None:
     """Main function
 
     Args:
-        args: commandline arguments
-        datasets: a Dataset object
-        metric_callback: a function that computes metrics
-
-    Returns:
-        the trained model
+        raw_args: commandline arguments
     """
-    assert isinstance(datasets, DatasetTriplet)
+    args = VaeArgs()
+    args.parse_args(raw_args)
+    use_gpu = torch.cuda.is_available() and args.gpu >= 0
+    random_seed(args.seed, use_gpu)
+    datasets: DatasetTriplet = load_dataset(args)
     # ==== initialize globals ====
     global ARGS, LOGGER, INPUT_SHAPE
     ARGS = args
+    args_dict = args.as_dict()
 
     if ARGS.use_wandb:
-        wandb.init(
-            project="nosinn",
-            # sync_tensorboard=True,
-            config=vars(ARGS),
-        )
-        # wandb.tensorboard.patch(save=False, pytorch=True)
+        wandb.init(project="nosinn", config=args_dict)
 
-    save_dir = Path(ARGS.save) / str(time.time())
+    save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
     LOGGER = utils.get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
-    LOGGER.info(ARGS)
+    LOGGER.info("Namespace(" + ", ".join(f"{k}={args_dict[k]}" for k in sorted(args_dict)) + ")")
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS.device = torch.device(
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
     )
-    LOGGER.info("{} GPUs available. Using GPU {}", torch.cuda.device_count(), ARGS.gpu)
+    LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
 
     # ==== construct dataset ====
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
@@ -444,7 +439,7 @@ def main_vae(args, datasets):
         train_loader=val_loader,
         test_loader=test_loader,
         step=itr,
-        save_to_csv=Path(ARGS.save),
+        save_to_csv=Path(ARGS.save_dir),
     )
 
 
@@ -459,3 +454,7 @@ def save_model(save_dir, vae, epoch, prefix="best") -> str:
     torch.save(save_dict, filename)
 
     return filename
+
+
+if __name__ == "__main__":
+    main_vae()

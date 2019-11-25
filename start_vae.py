@@ -1,4 +1,4 @@
 """Simply call the main function"""
-from nosinn.run_vae_baseline import main
+from nosinn.optimisation import main_vae
 
-main()
+main_vae()
