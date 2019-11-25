@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 
 import numpy as np
 
@@ -83,8 +83,7 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
         return layers.BijectorChain(_chain)
 
-    factor_splits: dict = {int(k): v for k, v in args.factor_splits.items()}
-    factor_splits = {int(k): float(v) for k, v in factor_splits.items()}
+    factor_splits: Dict[int, float] = {int(k): float(v) for k, v in args.factor_splits.items()}
 
     chain: List[layers.Bijector] = []
     if args.preliminary_level:
