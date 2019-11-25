@@ -1,7 +1,8 @@
 """Main training file"""
 import time
+from logging import Logger
 from pathlib import Path
-from typing import Tuple, Dict, Optional, Callable
+from typing import Tuple, Dict, Optional, Callable, List
 
 import numpy as np
 import torch
@@ -10,34 +11,44 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import wandb
 
-from nosinn.data import DatasetTriplet
-from nosinn.models import AutoEncoder, Classifier, VAE
-from nosinn.models.configs import conv_autoencoder, fc_autoencoder
-from nosinn.models.configs.classifiers import (
+from nosinn.data import DatasetTriplet, load_dataset
+from nosinn.models import (
+    AutoEncoder,
+    Classifier,
+    BipartiteInn,
+    PartitionedAeInn,
+    PartitionedInn,
+    VAE,
+    build_conv_inn,
+    build_discriminator,
+    build_fc_inn,
+)
+from nosinn.models.configs import (
+    conv_autoencoder,
+    fc_autoencoder,
     fc_net,
     linear_disciminator,
     mp_32x32_net,
-    mp_64x64_net
+    mp_64x64_net,
 )
-from nosinn.models.factory import build_conv_inn, build_discriminator, build_fc_inn
-from nosinn.models.inn import PartitionedAeInn, PartitionedInn
-from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log
+from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, random_seed
+from nosinn.configs import NosinnArgs
 
 from .evaluation import log_metrics
 from .loss import PixelCrossEntropy, grad_reverse, MixedLoss, contrastive_gradient_penalty
 from .utils import get_data_dim, log_images
 
-__all__ = ["main"]
+__all__ = ["main_nosinn"]
 
 NDECS = 0
-ARGS = None
-LOGGER = None
+ARGS: NosinnArgs = None
+LOGGER: Logger = None
 
 
 def save_model(save_dir, inn, discriminator) -> str:
     filename = save_dir / "checkpt.pth"
     save_dict = {
-        "ARGS": ARGS,
+        "ARGS": ARGS.as_dict(),
         "model": inn.state_dict(),
         "discriminator": discriminator.state_dict(),
     }
@@ -66,7 +77,7 @@ def compute_loss(
 
     z_y_norm = (torch.sum(enc_y.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
     z_s_norm = (torch.sum(enc_s.flatten(start_dim=1)**2, dim=1) + 1e-6).sqrt().mean()
-    
+
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
         enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
@@ -100,7 +111,7 @@ def compute_loss(
         "Recon L1 loss": recon_loss.item(),
         "Validation loss": (nll - disc_loss + recon_loss).item(),
         "z_y_norm": z_y_norm.item(),
-        "z_y_norm": z_y_norm.item(),
+        "z_s_norm": z_s_norm.item(),
         "z_norm": z_norm.item()
     }
     return loss, logging_dict
@@ -121,7 +132,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    start_itr = start = epoch * len(dataloader)
+    start_itr = epoch * len(dataloader)
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
@@ -213,7 +224,7 @@ def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
 
 
-def main(args, datasets: DatasetTriplet):
+def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     """Main function
 
     Args:
@@ -223,24 +234,24 @@ def main(args, datasets: DatasetTriplet):
     Returns:
         the trained model
     """
-    assert isinstance(datasets, DatasetTriplet)
+    args = NosinnArgs()
+    args.parse_args(raw_args)
+    use_gpu = torch.cuda.is_available() and args.gpu >= 0
+    random_seed(args.seed, use_gpu)
+    datasets: DatasetTriplet = load_dataset(args)
     # ==== initialize globals ====
     global ARGS, LOGGER
     ARGS = args
+    args_dict = args.as_dict()
 
     if ARGS.use_wandb:
-        wandb.init(
-            project="nosinn",
-            # sync_tensorboard=True,
-            config=vars(ARGS),
-        )
-        # wandb.tensorboard.patch(save=False, pytorch=True)
+        wandb.init(project="nosinn", config=args_dict)
 
-    save_dir = Path(ARGS.save) / str(time.time())
+    save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
 
     LOGGER = get_logger(logpath=save_dir / "logs", filepath=Path(__file__).resolve())
-    LOGGER.info(ARGS)
+    LOGGER.info("Namespace(" + ", ".join(f"{k}={args_dict[k]}" for k in sorted(args_dict)) + ")")
     LOGGER.info("Save directory: {}", save_dir.resolve())
     # ==== check GPU ====
     ARGS.device = torch.device(
@@ -397,7 +408,7 @@ def main(args, datasets: DatasetTriplet):
     if ARGS.resume is not None:
         LOGGER.info("Restoring model from checkpoint")
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
-        log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=0)
+        log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0)
         return
 
     # Logging
@@ -437,10 +448,11 @@ def main(args, datasets: DatasetTriplet):
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save), step=itr)
+    log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr)
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
+    return inn
 
 
 if __name__ == "__main__":
-    print("This file cannot be run directly.")
+    main_nosinn()

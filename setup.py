@@ -7,6 +7,7 @@ setup(
     packages=find_packages(),
     description="Invertible Networks for Learning Fair Representations",
     python_requires=">=3.6",
+    package_data={"nosinn": ["py.typed"]},
     install_requires=[
         "wandb >= 0.8",
         "numpy >= 1.15",

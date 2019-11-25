@@ -1,4 +1,4 @@
 """Simply call the main function"""
-from nosinn.run import main
+from nosinn.optimisation import main_nosinn
 
-main()
+main_nosinn()

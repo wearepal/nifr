@@ -1,3 +1,3 @@
-from nosinn.run_five_kims import main
+from nosinn.baselines import main
 
 main()

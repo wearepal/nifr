@@ -1,5 +1,4 @@
-from argparse import Namespace
-from typing import Tuple, Union, List, Optional, Sequence, overload
+from typing import Tuple, Union, List, Optional, Sequence, overload, Dict
 from typing_extensions import Literal
 
 import numpy as np
@@ -8,9 +7,12 @@ import torch.distributions as td
 from torch import Tensor
 
 from nosinn.utils import to_discrete, logistic_distribution, MixtureDistribution, DLogistic
+from nosinn.configs import NosinnArgs
 from .autoencoder import AutoEncoder
 from .base import ModelBase
 from .masker import Masker
+
+__all__ = ["PartitionedInn", "PartitionedAeInn", "MaskedInn", "BipartiteInn"]
 
 
 class BipartiteInn(ModelBase):
@@ -18,15 +20,15 @@ class BipartiteInn(ModelBase):
 
     def __init__(
         self,
-        args: Namespace,
+        args: NosinnArgs,
         model: torch.nn.Module,
         input_shape: Sequence[int],
         feature_groups: Optional[List[slice]] = None,
         optimizer_args: Optional[dict] = None,
-    ) -> None:
+    ):
         """
         Args:
-            args: Namespace. Runtime arguments.
+            args: Runtime arguments.
             model: nn.Module. INN model to wrap around.
             input_shape: Tuple or List. Shape (excluding batch dimension) of the input data.
             optimizer_args: Dictionary. Arguments to pass to the optimizer.
@@ -123,15 +125,15 @@ class PartitionedInn(BipartiteInn):
 
     def __init__(
         self,
-        args: Namespace,
+        args: NosinnArgs,
         model: torch.nn.Module,
         input_shape: Sequence[int],
-        optimizer_args: dict = None,
+        optimizer_args: Optional[Dict] = None,
         feature_groups: Optional[List[slice]] = None,
     ) -> None:
         """
         Args:
-            args: Namespace. Runtime arguments.
+            args: Runtime arguments.
             model: nn.Module. INN model to wrap around.
             input_shape: Tuple or List. Shape (excluding batch dimension) of the
             input data.
@@ -215,11 +217,11 @@ class PartitionedInn(BipartiteInn):
 class PartitionedAeInn(PartitionedInn):
     def __init__(
         self,
-        args: Namespace,
+        args: NosinnArgs,
         model: torch.nn.Module,
         autoencoder: AutoEncoder,
         input_shape: Sequence[int],
-        optimizer_args: dict = None,
+        optimizer_args: Optional[Dict] = None,
         feature_groups: Optional[List[slice]] = None,
     ) -> None:
         super().__init__(args, model, input_shape, optimizer_args, feature_groups)
@@ -255,17 +257,17 @@ class PartitionedAeInn(PartitionedInn):
 class MaskedInn(BipartiteInn):
     def __init__(
         self,
-        args: Namespace,
+        args: NosinnArgs,
         model: torch.nn.Module,
         input_shape: Sequence[int],
-        optimizer_args: dict = None,
+        optimizer_args: Optional[Dict] = None,
         feature_groups: Optional[List[slice]] = None,
-        masker_optimizer_args: dict = None,
+        masker_optimizer_args: Optional[Dict] = None,
     ) -> None:
         """
 
         Args:
-            args: Namespace. Runtime arguments.
+            args: Runtime arguments.
             model: nn.Module. INN model to wrap around.
             input_shape: Tuple or List. Shape (excluding batch dimension) of the
             input data.
