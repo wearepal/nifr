@@ -6,7 +6,7 @@ from pprint import pformat
 import sys
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union, get_type_hints
-from typing_extensions import Literal
+from typing_inspect import is_literal_type, get_args
 
 from tap.utils import get_class_variables, get_dest, get_git_root, get_git_url, has_git,has_uncommitted_changes,\
     is_option_arg, type_to_str
@@ -106,8 +106,8 @@ class Tap(ArgumentParser):
 
             # If type is not explicitly provided, set it if it's one of our supported default types
             if 'type' not in kwargs:
-                if hasattr(var_type, "__origin__") and var_type.__origin__ is Literal:
-                    kwargs['choices'] = var_type.__args__
+                if is_literal_type(var_type):
+                    kwargs['choices'] = list(get_args(var_type))
                     var_type = str
                 elif var_type not in SUPPORTED_DEFAULT_TYPES:
                     raise ValueError(

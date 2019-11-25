@@ -18,6 +18,8 @@ setup(
         "torch >= 1.2",
         "scipy >= 1.2.1",
         "torchvision >= 0.4.0",
+        "typing-extensions >= 3.7.4",
+        "typing-inspect >= 0.5",
         "pillow",
     ],
 )
