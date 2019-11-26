@@ -4,7 +4,50 @@ from typing_extensions import Literal
 
 from tap import Tap
 
-__all__ = ["NosinnArgs", "VaeArgs", "FiveKimsArgs", "SharedArgs"]
+__all__ = ["NosinnArgs", "VaeArgs", "FiveKimsArgs", "SharedArgs", "CELEBATTRS"]
+
+CELEBATTRS = Literal[
+    "5_o_Clock_Shadow",
+    "Arched_Eyebrows",
+    "Attractive",
+    "Bags_Under_Eyes",
+    "Bald",
+    "Bangs",
+    "Big_Lips",
+    "Big_Nose",
+    "Black_Hair",
+    "Blond_Hair",
+    "Blurry",
+    "Brown_Hair",
+    "Bushy_Eyebrows",
+    "Chubby",
+    "Double_Chin",
+    "Eyeglasses",
+    "Goatee",
+    "Gray_Hair",
+    "Heavy_Makeup",
+    "High_Cheekbones",
+    "Male",
+    "Mouth_Slightly_Open",
+    "Mustache",
+    "Narrow_Eyes",
+    "No_Beard",
+    "Oval_Face",
+    "Pale_Skin",
+    "Pointy_Nose",
+    "Receding_Hairline",
+    "Rosy_Cheeks",
+    "Sideburns",
+    "Smiling",
+    "Straight_Hair",
+    "Wavy_Hair",
+    "Wearing_Earrings",
+    "Wearing_Hat",
+    "Wearing_Lipstick",
+    "Wearing_Necklace",
+    "Wearing_Necktie",
+    "Young",
+]
 
 
 class StoreDictKeyPair(argparse.Action):
@@ -37,13 +80,13 @@ class SharedArgs(Tap):
     binarize: bool = True
     rotate_data: bool = False
     shift_data: bool = False
-    padding: int = 2
-    quant_level: Literal["3", "5", "8"] = "8"
-    input_noise: bool = True
+    padding: int = 2  # by how many pixels to pad the input images
+    quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
+    input_noise: bool = True  # add uniform noise to the input
 
     # CelebA settings
-    celeba_sens_attr: Literal["Male", "Young"] = "Male"
-    celeba_target_attr: Literal["Smiling", "Attractive"] = "Smiling"
+    celeba_sens_attr: List[CELEBATTRS] = ["Male"]
+    celeba_target_attr: List[CELEBATTRS] = ["Smiling"]
 
     # Optimization settings
     early_stopping: int = 30

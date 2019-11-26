@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import List
 
 import pandas as pd
 from PIL import Image
@@ -11,6 +12,8 @@ from torchvision.transforms import ToTensor
 
 from ethicml.preprocessing import get_biased_subset, SequentialSplit
 from ethicml.utility import DataTuple
+
+from nosinn.configs import CELEBATTRS
 
 
 class CelebA(VisionDataset):
@@ -58,16 +61,16 @@ class CelebA(VisionDataset):
 
     def __init__(
         self,
-        root,
-        biased,
-        mixing_factor,
-        unbiased_pcnt,
-        sens_attr: str = "Young",
-        target_attr: str = "Smiling",
+        root: str,
+        biased: bool,
+        mixing_factor: float,
+        unbiased_pcnt: float,
+        sens_attrs: List[CELEBATTRS],
+        target_attrs: List[CELEBATTRS],
         transform=None,
         target_transform=None,
-        download=False,
-        seed=42,
+        download: bool = False,
+        seed: int = 42,
     ):
         super().__init__(root, transform=transform, target_transform=target_transform)
 
@@ -93,18 +96,18 @@ class CelebA(VisionDataset):
 
         attr_names = list(attr.columns)
 
-        sens_attr = sens_attr.capitalize()
-        target_attr = target_attr.capitalize()
+        sens_attr_name = sens_attrs[0].capitalize()
+        target_attr_name = target_attrs[0].capitalize()
 
-        if sens_attr not in attr_names:
-            raise ValueError(f"{sens_attr} does not exist as an attribute.")
-        if target_attr not in attr_names:
-            raise ValueError(f"{target_attr} does not exist as an attribute.")
+        if sens_attr_name not in attr_names:
+            raise ValueError(f"{sens_attr_name} does not exist as an attribute.")
+        if target_attr_name not in attr_names:
+            raise ValueError(f"{target_attr_name} does not exist as an attribute.")
 
         filename = attr[["filenames"]]
-        sens_attr = attr[[sens_attr]]
+        sens_attr = attr[[sens_attr_name]]
         sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
-        target_attr = attr[[target_attr]]
+        target_attr = attr[[target_attr_name]]
         target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
