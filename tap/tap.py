@@ -6,7 +6,7 @@ from pprint import pformat
 import sys
 import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Union, get_type_hints
-from typing_inspect import is_literal_type, get_args
+from typing_inspect import is_literal_type, get_args, get_origin
 
 from tap.utils import get_class_variables, get_dest, get_git_root, get_git_url, has_git,has_uncommitted_changes,\
     is_option_arg, type_to_str
@@ -109,6 +109,11 @@ class Tap(ArgumentParser):
                 if is_literal_type(var_type):
                     kwargs['choices'] = list(get_args(var_type))
                     var_type = str
+                elif (get_origin(var_type) in (List, list)
+                        and is_literal_type(get_args(var_type)[0])):
+                    kwargs['choices'] = list(get_args(get_args(var_type)[0]))
+                    var_type = str
+                    kwargs['nargs'] = '*'
                 elif var_type not in SUPPORTED_DEFAULT_TYPES:
                     raise ValueError(
                         f'Variable "{variable}" has type "{var_type}" which is not supported by default.\n'
@@ -119,11 +124,11 @@ class Tap(ArgumentParser):
 
                 # If Optional type, extract type
                 if var_type in SUPPORTED_DEFAULT_OPTIONAL_TYPES:
-                    var_type = var_type.__args__[0]
+                    var_type = get_args(var_type)[0]
 
                 # If List type, extract type of elements in list and set nargs
                 elif var_type in SUPPORTED_DEFAULT_COLLECTION_TYPES:
-                    var_type = var_type.__args__[0]
+                    var_type = get_args(var_type)[0]
                     kwargs['nargs'] = kwargs.get('nargs', '*')
 
                 # If bool then set action, otherwise set type
