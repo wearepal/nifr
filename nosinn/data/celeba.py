@@ -66,7 +66,7 @@ class CelebA(VisionDataset):
         mixing_factor: float,
         unbiased_pcnt: float,
         sens_attrs: List[CELEBATTRS],
-        target_attrs: List[CELEBATTRS],
+        target_attr_name: CELEBATTRS,
         transform=None,
         target_transform=None,
         download: bool = False,
@@ -88,27 +88,39 @@ class CelebA(VisionDataset):
         partition = pd.read_csv(
             partition_file, delim_whitespace=True, header=None, index_col=0, names=["partition"]
         )
-        # raw_attr: all attributes with filenames as index
-        raw_attr = pd.read_csv(base / "list_attr_celeba.txt", delim_whitespace=True, header=1)
-        attr = pd.concat([partition, raw_attr], axis="columns", sort=False)
+        # attrs: all attributes with filenames as index
+        attrs = pd.read_csv(base / "list_attr_celeba.txt", delim_whitespace=True, header=1)
+        all_data = pd.concat([partition, attrs], axis="columns", sort=False)
         # the filenames are used for indexing; here we turn them into a regular column
-        attr = attr.reset_index(drop=False).rename(columns={"index": "filenames"})
+        all_data = all_data.reset_index(drop=False).rename(columns={"index": "filenames"})
 
-        attr_names = list(attr.columns)
+        attr_names = list(attrs.columns)
 
-        sens_attr_name = sens_attrs[0].capitalize()
-        target_attr_name = target_attrs[0].capitalize()
+        if len(sens_attrs) > 1:
+            if any(sens_attr_name not in attr_names for sens_attr_name in sens_attrs):
+                raise ValueError(f"at least one of {sens_attrs} does not exist as an attribute.")
+            # only use those samples where exactly one of the specified attributes is true
+            all_data = all_data.loc[((all_data[sens_attrs] + 1) // 2).sum(axis="columns") == 1]
+            self.s_dim = len(sens_attrs)
+            # perform the reverse operation of one-hot encoding
+            data_only_sens = all_data[sens_attrs]
+            data_only_sens.columns = list(range(self.s_dim))
+            sens_attr = data_only_sens.idxmax(axis="columns").to_frame(name=",".join(sens_attrs))
+        else:
+            sens_attr_name = sens_attrs[0].capitalize()
+            if sens_attr_name not in attr_names:
+                raise ValueError(f"{sens_attr_name} does not exist as an attribute.")
+            sens_attr = all_data[[sens_attr_name]]
+            sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
+            self.s_dim = 1
 
-        if sens_attr_name not in attr_names:
-            raise ValueError(f"{sens_attr_name} does not exist as an attribute.")
+        target_attr_name = target_attr_name.capitalize()
         if target_attr_name not in attr_names:
             raise ValueError(f"{target_attr_name} does not exist as an attribute.")
-
-        filename = attr[["filenames"]]
-        sens_attr = attr[[sens_attr_name]]
-        sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
-        target_attr = attr[[target_attr_name]]
+        target_attr = all_data[[target_attr_name]]
         target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
+
+        filename = all_data[["filenames"]]
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
 
@@ -116,9 +128,10 @@ class CelebA(VisionDataset):
         unbiased_dt, biased_dt, _ = SequentialSplit(train_percentage=unbiased_pcnt)(all_dt)
 
         if biased:
-            biased_dt, _ = get_biased_subset(
-                data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
-            )
+            if self.s_dim == 1:  # FIXME: biasing the dataset only works with binary s right now
+                biased_dt, _ = get_biased_subset(
+                    data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
+                )
             filename, sens_attr, target_attr = biased_dt
         else:
             filename, sens_attr, target_attr = unbiased_dt

@@ -194,8 +194,9 @@ def main(raw_args=None) -> None:
     adv_optimizer_kwargs = {"lr": args.disc_lr}
 
     adversary = build_discriminator(
-        args,
         (adv_input_shape,),
+        target_dim=ARGS.s_dim,
+        train_on_recon=ARGS.train_on_recon,
         frac_enc=1,
         model_fn=adv_fn,
         model_kwargs=adversary_kwargs,

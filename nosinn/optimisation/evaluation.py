@@ -30,9 +30,9 @@ def log_sample_images(args, data, name, step):
 def log_metrics(
     args: NosinnArgs,
     model,
-    data,
-    step,
-    quick_eval=True,
+    data: DatasetTriplet,
+    step: int,
+    quick_eval: bool = True,
     save_to_csv: Optional[Path] = None,
     check_originals: bool = False,
 ):
@@ -68,8 +68,8 @@ def log_metrics(
                 pretrain=None,
                 task=task_data,
                 task_train=task_train_data,
-                input_dim=data.input_dim,
-                output_dim=data.output_dim,
+                s_dim=data.s_dim,
+                y_dim=data.y_dim,
             )
 
         # ===========================================================================

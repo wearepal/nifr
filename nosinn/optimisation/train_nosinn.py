@@ -376,21 +376,22 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         inn.to(args.device)
         enc_shape = inn.output_dim
 
-    disc_input_shape: Tuple[int, ...] = input_shape if args.train_on_recon else (inn.zy_dim,)
+    disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else (inn.zy_dim,)
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
     # Initialise Discriminator
-    disc_optimizer_kwargs = {"lr": args.disc_lr}
+    disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
     discriminator = build_discriminator(
-        args,
         input_shape=disc_input_shape,
+        target_dim=datasets.s_dim,
+        train_on_recon=ARGS.train_on_recon,
         frac_enc=enc_shape,
         model_fn=disc_fn,
         model_kwargs=disc_kwargs,
         optimizer_kwargs=disc_optimizer_kwargs,
     )
-    discriminator.to(args.device)
+    discriminator.to(ARGS.device)
 
     if ARGS.spectral_norm:
 

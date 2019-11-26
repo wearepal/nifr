@@ -362,8 +362,9 @@ def main_vae(raw_args=None) -> None:
     }
 
     disc_enc_y = build_discriminator(
-        args,
         enc_shape,
+        target_dim=datasets.s_dim,
+        train_on_recon=ARGS.train_on_recon,
         frac_enc=ARGS.enc_y_dim / enc_shape[0],
         model_fn=disc_fn,
         model_kwargs=disc_enc_y_kwargs,
@@ -380,8 +381,9 @@ def main_vae(raw_args=None) -> None:
             "use_bn": True,
         }
         disc_enc_s = build_discriminator(
-            args,
             enc_shape,
+            target_dim=datasets.s_dim,
+            train_on_recon=ARGS.train_on_recon,
             frac_enc=ARGS.enc_s_dim / enc_shape[0],
             model_fn=disc_fn,
             model_kwargs=disc_enc_s_kwargs,

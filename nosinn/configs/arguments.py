@@ -86,7 +86,7 @@ class SharedArgs(Tap):
 
     # CelebA settings
     celeba_sens_attr: List[CELEBATTRS] = ["Male"]
-    celeba_target_attr: List[CELEBATTRS] = ["Smiling"]
+    celeba_target_attr: CELEBATTRS = "Smiling"
 
     # Optimization settings
     early_stopping: int = 30

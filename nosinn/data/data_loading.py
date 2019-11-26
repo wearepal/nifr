@@ -1,4 +1,4 @@
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Tuple
 
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
@@ -17,8 +17,8 @@ class DatasetTriplet(NamedTuple):
     pretrain: Optional[Dataset]
     task: Dataset
     task_train: Dataset
-    input_dim: Optional[int] = None
-    output_dim: Optional[int] = None
+    s_dim: int
+    y_dim: int
 
 
 def load_dataset(args: SharedArgs) -> DatasetTriplet:
@@ -106,7 +106,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         unbiased_data = CelebA(
             root=args.root,
             sens_attrs=args.celeba_sens_attr,
-            target_attrs=args.celeba_target_attr,
+            target_attr_name=args.celeba_target_attr,
             biased=False,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
@@ -122,7 +122,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         train_data = CelebA(
             root=args.root,
             sens_attrs=args.celeba_sens_attr,
-            target_attrs=args.celeba_target_attr,
+            target_attr_name=args.celeba_target_attr,
             biased=True,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,
@@ -132,7 +132,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         )
 
         args.y_dim = 1
-        args.s_dim = 1
+        args.s_dim = unbiased_data.s_dim
 
     elif args.dataset == "adult":
         if args.input_noise:
@@ -154,6 +154,6 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         pretrain=pretrain_data,
         task=test_data,
         task_train=train_data,
-        input_dim=None,
-        output_dim=args.y_dim,
+        s_dim=args.s_dim,
+        y_dim=args.y_dim,
     )
