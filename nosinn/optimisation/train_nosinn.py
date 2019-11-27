@@ -89,7 +89,10 @@ def compute_loss(
         # enc_y = enc_y.clamp(min=0, max=1)
 
     enc_y = grad_reverse(enc_y)
-    disc_loss, _ = discriminator.routine(enc_y, s)
+    disc_preds = discriminator.predict(enc_y)
+    disc_loss = discriminator.apply_criterion(disc_preds, s)
+    disc_loss = disc_loss.mean()
+    # disc_loss, _ = discriminator.routine(enc_y, s)
 
     nll *= ARGS.nll_weight
 
