@@ -157,7 +157,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     time_for_epoch = time.time() - start_epoch_time
     log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
     LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
+        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {}",
         epoch,
         time_for_epoch,
         1 / time_meter.avg,
