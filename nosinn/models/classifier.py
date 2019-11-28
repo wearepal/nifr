@@ -1,12 +1,11 @@
-from typing import Tuple
+from typing import Tuple, Optional, Dict, Union
 
 from tqdm import trange
 
 import torch
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import MultiStepLR
-from torch.utils.data import DataLoader
-from torchvision.utils import save_image
+from torch.utils.data import DataLoader, Dataset
 
 from nosinn.models.base import ModelBase
 
@@ -15,7 +14,7 @@ class Classifier(ModelBase):
     """ Wrapper for classifier models.
     """
 
-    def __init__(self, model, num_classes: int, optimizer_kwargs: dict = None) -> None:
+    def __init__(self, model, num_classes: int, optimizer_kwargs: Optional[Dict] = None):
         """Build classifier model.
 
         Args:).
@@ -90,15 +89,12 @@ class Classifier(ModelBase):
 
         return preds, actual, sens
 
-    def compute_accuracy(
-        self, outputs: torch.Tensor, targets: torch.Tensor, labeled: torch.Tensor, top: int = 1
-    ) -> float:
+    def compute_accuracy(self, outputs: torch.Tensor, targets: torch.Tensor, top: int = 1) -> float:
         """Computes the classification accuracy.
 
         Args:
             outputs: Tensor. Classifier outputs.
             targets: Tensor. Targets for each input.
-            labeled: Tensor. Binary variable indicating whether a target exists.
             top (int): Top-K accuracy.
 
         Returns:
@@ -110,9 +106,9 @@ class Classifier(ModelBase):
         else:
             _, pred = outputs.topk(top, 1, True, True)
         pred = pred.t().to(targets.dtype)
-        correct = labeled.float() * pred.eq(targets.view(1, -1).expand_as(pred)).float()
+        correct = pred.eq(targets.view(1, -1).expand_as(pred)).float()
         correct = correct[:top].view(-1).float().sum(0, keepdim=True)
-        accuracy = correct / labeled.float().sum() * 100
+        accuracy = correct / targets.size(0) * 100
 
         return accuracy.detach().item()
 
@@ -122,34 +118,27 @@ class Classifier(ModelBase):
         Args:
             data: Tensor. Input data to the classifier.
             targets: Tensor. Prediction targets.
-            criterion: Callable. Loss function.
 
         Returns:
             Tuple of classification loss (Tensor) and accuracy (float)
         """
         outputs = super().__call__(data)
-        unlabeled = targets.eq(-1).to(targets.dtype)
-        losses = self.apply_criterion(outputs, (1 - unlabeled) * targets)
-        labeled = 1.0 - unlabeled
-        loss = (losses * labeled.float()).sum() / labeled.float().sum()
+        loss = self.apply_criterion(outputs, targets)
+        loss = loss.sum(0) / targets.size(0)
 
-        if labeled.sum() > 0:
-            acc = self.compute_accuracy(outputs, targets, labeled)
-        else:
-            acc = None
-
+        acc = self.compute_accuracy(outputs, targets)
         return loss, acc
 
     def fit(
         self,
-        train_data,
-        epochs,
+        train_data: Union[Dataset, DataLoader],
+        epochs: int,
         device,
-        test_data=None,
-        pred_s=False,
-        batch_size=256,
-        test_batch_size=1000,
-        lr_milestones: dict = None,
+        test_data: Optional[Union[Dataset, DataLoader]] = None,
+        pred_s: bool = False,
+        batch_size: int = 256,
+        test_batch_size: int = 1000,
+        lr_milestones: Optional[Dict] = None,
     ):
 
         if not isinstance(train_data, DataLoader):
@@ -158,7 +147,7 @@ class Classifier(ModelBase):
             )
         if test_data is not None:
             if not isinstance(test_data, DataLoader):
-                train_data = DataLoader(
+                test_data = DataLoader(
                     test_data, batch_size=test_batch_size, shuffle=False, pin_memory=True
                 )
 
