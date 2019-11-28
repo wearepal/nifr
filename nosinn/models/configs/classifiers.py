@@ -136,7 +136,7 @@ def mp_64x64_net(input_dim, target_dim, use_bn=True):
     # layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(128, 256, 3, 1, 1))
-    layers.extend(conv_block(128, 256, 4, 2, 1))
+    layers.extend(conv_block(256, 256, 4, 2, 1))
     # layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(256, 512, 3, 1, 1))
