@@ -64,16 +64,6 @@ def compute_loss(
 
     enc_y, enc_s = inn.split_encoding(enc)
 
-    # Update the discriminator k-times
-    if discriminator.training:
-        enc_y_sg = enc_y.detach()
-        for _ in range(ARGS.disc_updates):
-            logits = discriminator(enc_y_sg)
-            disc_loss = discriminator.apply_criterion(logits, s).mean()
-            discriminator.zero_grad()
-            disc_loss.backward()
-            discriminator.step()
-
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
         enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
@@ -83,6 +73,16 @@ def compute_loss(
         if ARGS.recon_stability_weight > 0:
             recon_loss = F.l1_loss(enc_y, x)
         # enc_y = enc_y.clamp(min=0, max=1)
+
+    # Update the discriminator k-times
+    if discriminator.training:
+        enc_y_sg = enc_y.detach()
+        for _ in range(ARGS.disc_updates):
+            logits = discriminator(enc_y_sg)
+            disc_loss = discriminator.apply_criterion(logits, s).mean()
+            discriminator.zero_grad()
+            disc_loss.backward()
+            discriminator.step()
 
     logits = discriminator(enc_y)
     probs = logits.softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
