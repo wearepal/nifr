@@ -124,19 +124,24 @@ def mp_64x64_net(input_dim, target_dim, use_bn=True):
 
     layers = []
     layers.extend(conv_block(input_dim, 32, 5, 1, 0))
-    layers += [nn.MaxPool2d(2, 2)]
+    layers.extend(conv_block(32, 32, 4, 2, 1))
+    # layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(32, 64, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
+    layers.extend(conv_block(64, 64, 4, 2, 1))
+    # layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(64, 128, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
+    layers.extend(conv_block(128, 128, 4, 2, 1))
+    # layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(128, 256, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
+    layers.extend(conv_block(128, 256, 4, 2, 1))
+    # layers += [nn.MaxPool2d(2, 2)]
 
     layers.extend(conv_block(256, 512, 3, 1, 1))
-    layers += [nn.MaxPool2d(2, 2)]
+    layers.extend(conv_block(512, 512, 4, 2, 1))
+    # layers += [nn.MaxPool2d(2, 2)]
 
     layers += [nn.Flatten()]
     layers += [nn.Linear(512, target_dim)]

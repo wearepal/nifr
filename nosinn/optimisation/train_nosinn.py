@@ -35,7 +35,7 @@ from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, 
 from nosinn.configs import NosinnArgs
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, MixedLoss
+from .loss import PixelCrossEntropy, MixedLoss, contrastive_gradient_penalty
 from .utils import get_data_dim, log_images, apply_gradients
 
 __all__ = ["main_nosinn"]
@@ -90,14 +90,23 @@ def compute_loss(
         enc_y_sg = enc_y.detach()
         for _ in range(ARGS.disc_updates):
             logits = discriminator(enc_y_sg)
-            disc_loss = discriminator.apply_criterion(logits, s).mean()
+            disc_loss = discriminator.apply_criterion(logits[:, :-1], s).mean()
+
+            if ARGS.train_on_recon:
+                disc_loss_fake = logits[:, -1].mean()
+                logits_real = discriminator(x)
+                disc_loss_real = logits_real[:, -1].mean()
+                wd_loss = (disc_loss_real - disc_loss_fake)
+                disc_loss += wd_loss
+
             discriminator.zero_grad()
             disc_loss.backward()
             discriminator.step()
 
     logits = discriminator(enc_y)
-    probs = logits.softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
+    probs = logits[:, :-1].softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
     entropy = -(probs * probs.log()).sum(1).mean()
+    wd_loss = logits[:, -1].mean()
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
@@ -105,7 +114,8 @@ def compute_loss(
         pred_s_weight = ARGS.pred_s_weight
 
     nll *= ARGS.nll_weight
-    entropy *= pred_s_weight
+    disc_loss = entropy + wd_loss
+    disc_loss *= pred_s_weight
     recon_loss *= ARGS.recon_stability_weight
 
     inn_loss = nll + entropy + recon_loss
@@ -123,7 +133,7 @@ def compute_loss(
 
     logging_dict = {
         "Loss NLL": nll.item(),
-        "Loss Adversarial": entropy.item(),
+        "Loss Adversarial": disc_loss.item(),
         "Recon L1 loss": recon_loss.item(),
         "Validation loss": (nll + entropy + recon_loss).item(),
     }
@@ -387,7 +397,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
     discriminator = build_discriminator(
         input_shape=disc_input_shape,
-        target_dim=datasets.s_dim,
+        target_dim=datasets.s_dim + 1,
         train_on_recon=ARGS.train_on_recon,
         frac_enc=enc_shape,
         model_fn=disc_fn,
