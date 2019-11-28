@@ -157,6 +157,7 @@ class NosinnArgs(SharedArgs):
     disc_depth: int = 1
     disc_channels: int = 256
     disc_hidden_dims: List[int] = []
+    disc_updates: int = 1
 
     # Training settings
     lr: float = 3e-4
