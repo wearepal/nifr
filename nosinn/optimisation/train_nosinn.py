@@ -114,6 +114,8 @@ def compute_loss(
         pred_s_weight = ARGS.pred_s_weight
 
     nll *= ARGS.nll_weight
+    entropy *= ARGS.entropy_weight
+    wd_loss *= ARGS.wd_loss_weight
     disc_loss = entropy + wd_loss
     disc_loss *= pred_s_weight
     recon_loss *= ARGS.recon_stability_weight

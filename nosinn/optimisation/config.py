@@ -170,12 +170,14 @@ def nosinn_args(raw_args=None):
     parser.add_argument("--disc-channels", type=int, default=256)
     parser.add_argument("--disc-hidden-dims", nargs="*", type=int, default=[])
     parser.add_argument("--disc-updates", type=int, default=1)
-    
+
     # Training settings
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--nll-weight", type=float, default=1e-2)
     parser.add_argument("--pred-s-weight", type=float, default=1)
     parser.add_argument("--recon-stability-weight", type=float, default=0)
+    parser.add_argument("--entropy-weight", type=float, default=1)
+    parser.add_argument("--wd-loss-weight", type=float, default=1)
 
     parser.add_argument("--path-to-ae", type=str, default="")
 
