@@ -123,7 +123,6 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     inn.train()
     discriminator.train()
 
-    total_loss_meter = AverageMeter()
     loss_meters = {
         "Loss NLL": AverageMeter(),
         "Loss Adversarial": AverageMeter(),
@@ -142,7 +141,6 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         logging_dict = compute_loss(x, s, inn, discriminator, itr)
 
         # Log losses
-        total_loss_meter.update(inn_loss.item())
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
@@ -164,7 +162,6 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         time_for_epoch,
         1 / time_meter.avg,
         log_string,
-        total_loss_meter.avg,
     )
     return itr
 
