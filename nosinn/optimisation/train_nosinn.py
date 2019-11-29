@@ -96,7 +96,7 @@ def compute_loss(
                 disc_loss_fake = logits[:, -1].mean()
                 logits_real = discriminator(x)
                 disc_loss_real = logits_real[:, -1].mean()
-                wd_loss = (disc_loss_real - disc_loss_fake)
+                wd_loss = -disc_loss_real + disc_loss_fake
                 disc_loss += wd_loss
 
             discriminator.zero_grad()
@@ -106,7 +106,7 @@ def compute_loss(
     logits = discriminator(enc_y)
     probs = logits[:, :-1].softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
     entropy = -(probs * probs.log()).sum(1).mean()
-    wd_loss = logits[:, -1].mean()
+    wd_loss = -logits[:, -1].mean()
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
@@ -414,7 +414,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
             if hasattr(m, "weight"):
                 return torch.nn.utils.spectral_norm(m)
 
-        inn.apply(spectral_norm)
+        # inn.apply(spectral_norm)
         discriminator.apply(spectral_norm)
 
     # Save initial parameters
