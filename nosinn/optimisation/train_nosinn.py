@@ -85,6 +85,8 @@ def compute_loss(
             recon_loss = F.l1_loss(enc_y, x)
         # enc_y = enc_y.clamp(min=0, max=1)
 
+    ones = x.new_ones(x.size(0))
+    zeros = x.new_zeros(x.size(0))
     # Update the discriminator k-times
     if discriminator.training:
         enc_y_sg = enc_y.detach()
@@ -93,10 +95,13 @@ def compute_loss(
             disc_loss = discriminator.apply_criterion(logits[:, :-1], s).mean()
 
             if ARGS.train_on_recon:
-                disc_loss_fake = logits[:, -1].mean()
+                disc_loss_fake = F.binary_cross_entropy_with_logits(logits[:, -1], zeros)
+                # disc_loss_fake = logits[:, -1].mean()
                 logits_real = discriminator(x)
-                disc_loss_real = logits_real[:, -1].mean()
-                wd_loss = -disc_loss_real + disc_loss_fake
+                disc_loss_real = F.binary_cross_entropy_with_logits(logits_real[:, -1], ones)
+                # disc_loss_real = logits_real[:, -1].mean()
+                wd_loss = disc_loss_real + disc_loss_fake
+                # wd_loss = -disc_loss_real + disc_loss_fake
                 disc_loss += wd_loss
 
             discriminator.zero_grad()
@@ -106,7 +111,8 @@ def compute_loss(
     logits = discriminator(enc_y)
     probs = logits[:, :-1].softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
     entropy = -(probs * probs.log()).sum(1).mean()
-    wd_loss = -logits[:, -1].mean()
+    wd_loss = -F.binary_cross_entropy_with_logits(logits[:, -1], zeros)
+    # wd_loss = -logits[:, -1].mean()
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
