@@ -90,6 +90,12 @@ def compute_loss(
     # Update the discriminator k-times
     if discriminator.training:
         enc_y_sg = enc_y.detach()
+        if ARGS.train_on_recon:
+            with torch.no_grad():
+                x_disc = inn.invert(enc)
+        else:
+            x_disc = x
+
         for _ in range(ARGS.disc_updates):
             logits = discriminator(enc_y_sg)
             disc_loss = discriminator.apply_criterion(logits[:, :-1], s).mean()
@@ -97,7 +103,7 @@ def compute_loss(
             if ARGS.train_on_recon:
                 disc_loss_fake = F.binary_cross_entropy_with_logits(logits[:, -1], zeros)
                 # disc_loss_fake = logits[:, -1].mean()
-                logits_real = discriminator(x)
+                logits_real = discriminator(x_disc)
                 disc_loss_real = F.binary_cross_entropy_with_logits(logits_real[:, -1], ones)
                 # disc_loss_real = logits_real[:, -1].mean()
                 wd_loss = disc_loss_real + disc_loss_fake
