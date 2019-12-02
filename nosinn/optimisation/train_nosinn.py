@@ -69,13 +69,14 @@ def restore_model(filename, model, discriminator):
 def compute_loss(
     x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
-    enc, nll = inn.routine(x)
 
-    z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
-    
     for param in inn.parameters():
         if param.requires_grad:
             param.data += torch.randn_like(param.data) * 0.1
+            
+    enc, nll = inn.routine(x)
+
+    z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
     enc_y, enc_s = inn.split_encoding(enc)
 
