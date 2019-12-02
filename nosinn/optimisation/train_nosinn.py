@@ -160,8 +160,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
                 log_recons(inn, x, itr)
 
             inn_params = [param for param in inn.parameters() if param.requires_grad]
-            for l, param in enumerate(inn_params):
-                logging_dict[f"param_{l}"] = param.norm().item()
+            for p, param in enumerate(inn_params):
+                logging_dict[f"param_{p}_fnorm"] = param.norm().item()
 
         wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
