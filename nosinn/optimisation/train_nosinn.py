@@ -72,6 +72,10 @@ def compute_loss(
     enc, nll = inn.routine(x)
 
     z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
+    
+    for param in inn.parameters():
+        if param.requires_grad:
+            param.data += torch.randn_like(param.data) * 0.1
 
     enc_y, enc_s = inn.split_encoding(enc)
 
