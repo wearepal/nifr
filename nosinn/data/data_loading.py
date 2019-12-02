@@ -1,9 +1,8 @@
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Optional
 
-from torch.utils.data import Dataset, random_split
+from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
-from ethicml.data import Adult
 
 from nosinn.configs import SharedArgs
 from .dataset_wrappers import LdAugmentedDataset
@@ -13,10 +12,11 @@ from .perturbed_adult import load_perturbed_adult
 from .celeba import CelebA
 
 
-def subsample(dataset: Dataset, pcnt: float):
+def subsample(dataset: Dataset, pcnt: float) -> Subset:
     len_dataset = len(dataset)
     len_subsample = round(pcnt * len_dataset)
-    return random_split(dataset, lengths=(len_subsample, 1 - len_subsample)[0]
+    return random_split(dataset, lengths=(len_subsample, 1 - len_subsample))[0]
+
 
 class DatasetTriplet(NamedTuple):
     pretrain: Optional[Dataset]
