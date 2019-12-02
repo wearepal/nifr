@@ -15,7 +15,7 @@ from .celeba import CelebA
 def subsample(dataset: Dataset, pcnt: float) -> Subset:
     len_dataset = len(dataset)
     len_subsample = round(pcnt * len_dataset)
-    return random_split(dataset, lengths=(len_subsample, 1 - len_subsample))[0]
+    return random_split(dataset, lengths=(len_subsample, len_dataset - len_subsample))[0]
 
 
 class DatasetTriplet(NamedTuple):
