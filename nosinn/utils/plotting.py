@@ -1,6 +1,14 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+import torch
+
+from nosinn.configs import SharedArgs
+from .utils import wandb_log
+
+__all__ = ["plot_contrastive", "plot_histogram"]
 
 
 def plot_contrastive(original, recon, columns, filename):
@@ -31,3 +39,33 @@ def plot_contrastive(original, recon, columns, filename):
     fig.savefig(f"{filename}.png")
 
     plt.close(fig)
+
+
+def plot_histogram(
+    args: SharedArgs,
+    vector: torch.Tensor,
+    step: int,
+    prefix: str = "train",
+    cols: int = 3,
+    rows: int = 6,
+    bins: int = 30,
+):
+    """Plot a histogram over the batch"""
+    vector = torch.flatten(vector, start_dim=1).detach().cpu()
+    vector_np = vector.numpy()
+    matplotlib.use("Agg")
+    fig, plots = plt.subplots(figsize=(8, 12), ncols=cols, nrows=rows)
+    # fig.suptitle("Xi histogram")
+    for j in range(rows):
+        for i in range(cols):
+            _ = plots[j][i].hist(vector_np[:, j * cols + i], bins=np.linspace(-15, 15, bins))
+    fig.tight_layout()
+
+    log_dict = {
+        f"{prefix}_histogram": fig,
+        f"{prefix}_xi_min": vector_np.min(),
+        f"{prefix}_xi_max": vector_np.max(),
+        f"{prefix}_xi_nans": float(bool(np.isnan(vector_np).any())),
+        f"{prefix}_xi_tensor": vector,
+    }
+    wandb_log(args, log_dict, step=step)

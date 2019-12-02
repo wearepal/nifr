@@ -31,7 +31,14 @@ from nosinn.models.configs import (
     mp_32x32_net,
     mp_64x64_net,
 )
-from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, random_seed
+from nosinn.utils import (
+    AverageMeter,
+    count_parameters,
+    get_logger,
+    wandb_log,
+    random_seed,
+    plot_histogram,
+)
 from nosinn.configs import NosinnArgs
 
 from .evaluation import log_metrics
@@ -67,13 +74,26 @@ def restore_model(filename, model, discriminator):
 
 
 def compute_loss(
-    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int
+    x: torch.Tensor,
+    s: torch.Tensor,
+    inn: PartitionedInn,
+    discriminator: Classifier,
+    itr: int,
+    log: Optional[str],
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     enc, nll = inn.routine(x)
 
     z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
     enc_y, enc_s = inn.split_encoding(enc)
+
+    if log is not None:
+        plot_histogram(
+            ARGS,
+            inn.model(torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).detach(), reverse=True),
+            step=itr,
+            prefix=log,
+        )
 
     z_y_norm = (torch.sum(enc_y.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
     z_s_norm = (torch.sum(enc_s.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
@@ -137,7 +157,9 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
+        loss, logging_dict = compute_loss(
+            x, s, inn, discriminator, itr, log="train" if itr % ARGS.log_freq == 0 else None
+        )
 
         inn.zero_grad()
         discriminator.zero_grad()
@@ -185,7 +207,7 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
+            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr, log="test")
 
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
