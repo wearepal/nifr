@@ -154,13 +154,17 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         time_meter.update(time.time() - end)
 
-        wandb_log(ARGS, logging_dict, step=itr)
-        end = time.time()
-
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
                 log_recons(inn, x, itr)
+
+            inn_params = [param for param in inn.parameters() if param.requires_grad]
+            for l, param in enumerate(inn_params):
+                logging_dict[f"param_{l}"] = param.norm().item()
+
+        wandb_log(ARGS, logging_dict, step=itr)
+        end = time.time()
 
     time_for_epoch = time.time() - start_epoch_time
     log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
