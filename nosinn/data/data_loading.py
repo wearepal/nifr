@@ -13,6 +13,11 @@ from .perturbed_adult import load_perturbed_adult
 from .celeba import CelebA
 
 
+def subsample(dataset: Dataset, pcnt: float):
+    len_dataset = len(dataset)
+    len_subsample = round(pcnt * len_dataset)
+    return random_split(dataset, lengths=(len_subsample, 1 - len_subsample)[0]
+
 class DatasetTriplet(NamedTuple):
     pretrain: Optional[Dataset]
     task: Dataset
@@ -133,6 +138,11 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
 
         args.y_dim = 1
         args.s_dim = unbiased_data.s_dim
+
+        if 0 < args.data_pcnt < 1:
+            subsample(pretrain_data, args.data_pcnt)
+            subsample(train_data, args.data_pcnt)
+            subsample(test_data, args.data_pcnt)
 
     elif args.dataset == "adult":
         if args.input_noise:
