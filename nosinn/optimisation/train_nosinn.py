@@ -140,8 +140,8 @@ def compute_loss(
         inn_grads = torch.autograd.grad(
             inn_loss,
             inn_params,
-            retain_graph=True,
-            allow_unused=True)
+            retain_graph=False,
+            allow_unused=False)
         apply_gradients(inn_grads, inn_params)
         inn.step()
 
