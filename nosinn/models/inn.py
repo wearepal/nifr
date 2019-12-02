@@ -226,6 +226,8 @@ class PartitionedAeInn(PartitionedInn):
     ) -> None:
         super().__init__(args, model, input_shape, optimizer_args, feature_groups)
         self.autoencoder = autoencoder
+        for param in self.autoencoder.parameters():
+            param.requires_grad_(False)
 
     def train(self):
         self.model.train()
