@@ -91,14 +91,14 @@ def compute_loss(
     enc_y = grad_reverse(enc_y)
     disc_loss, _ = discriminator.routine(enc_y, s)
 
-    nll *= ARGS.nll_weight
-
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
     else:
         pred_s_weight = ARGS.pred_s_weight
 
+    nll *= ARGS.nll_weight
     disc_loss *= pred_s_weight
+    recon_loss *= ARGS.recon_stability_weight
 
     if ARGS.gp_weight > 0:
         disc_loss += ARGS.gp_weight * contrastive_gradient_penalty(discriminator, enc_y)
