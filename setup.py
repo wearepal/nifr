@@ -18,6 +18,8 @@ setup(
         "torch >= 1.2",
         "scipy >= 1.2.1",
         "torchvision >= 0.4.0",
+        "typed-argument-parser "
+        "@ git+https://github.com/predictive-analytics-lab/typed-argument-parser@v1.4",
         "typing-extensions >= 3.7.4",
         "typing-inspect >= 0.5",
         "pillow",
