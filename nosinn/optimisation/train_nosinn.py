@@ -81,7 +81,10 @@ def compute_loss(
     itr: int,
     log: Optional[str],
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
-    enc, nll = inn.routine(x)
+    # enc, nll = inn.routine(x)
+    zero = x.new_zeros(x.size(0), 1)
+    (enc, sum_ldj), ae_enc = inn.forward(x, logdet=zero, reverse=False, return_ae_enc=True)
+    nll = inn.nll(enc, sum_ldj)
 
     z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
@@ -103,9 +106,11 @@ def compute_loss(
         enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
         if ARGS.recon_detach:
             enc_y_m = enc_y_m.detach()
-        enc_y = inn.invert(enc_y_m)
+        enc_y, ae_enc_y = inn.forward(enc_y_m, return_ae_enc=True, reverse=True)
         if ARGS.recon_stability_weight > 0:
-            recon_loss = F.mse_loss(enc_y, x)
+            # recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_enc_y, torch.zeros_like(ae_enc_y))
+            recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_enc_y, ae_enc)
+            # recon_loss = F.mse_loss(enc_y, x)
         # enc_y = enc_y.clamp(min=0, max=1)
 
     enc_y = grad_reverse(enc_y)

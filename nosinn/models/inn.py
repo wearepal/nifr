@@ -243,17 +243,19 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.eval()
 
     def forward(
-        self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False
+        self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False, return_ae_enc: bool = False
     ) -> Tensor:
         if reverse:
-            outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
+            ae_enc = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             if self.do_clamp:
-                outputs = outputs.clamp(-15, 15)
-            outputs = self.autoencoder.decode(outputs)
+                ae_enc = ae_enc.clamp(-15, 15)
+            outputs = self.autoencoder.decode(ae_enc)
         else:
-            outputs = self.autoencoder.encode(inputs)
-            outputs = self.model(outputs, sum_ldj=logdet, reverse=reverse)
+            ae_enc = self.autoencoder.encode(inputs)
+            outputs = self.model(ae_enc, sum_ldj=logdet, reverse=reverse)
 
+        if return_ae_enc:
+            return outputs, ae_enc
         return outputs
 
 
