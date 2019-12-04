@@ -15,7 +15,7 @@ from ethicml.utility import DataTuple
 
 from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.data import get_data_tuples, DatasetTriplet
-from nosinn.models import Classifier, BipartiteInn, 
+from nosinn.models import Classifier, BipartiteInn
 from nosinn.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from nosinn.utils import wandb_log
 from .utils import log_images
