@@ -2,10 +2,11 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Tuple, Dict, Optional, Callable, List
+from typing import Tuple, Dict, Optional, Callable, List, Iterable, Sequence, Iterator
 
 import numpy as np
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -44,8 +45,10 @@ NDECS = 0
 ARGS: NosinnArgs = None
 LOGGER: Logger = None
 
+_DataTriplet = Tuple[Tensor, Tensor, Tensor]
 
-def save_model(save_dir, inn, discriminator) -> str:
+
+def save_model(save_dir: Path, inn: BipartiteInn, discriminator: Classifier) -> str:
     filename = save_dir / "checkpt.pth"
     save_dict = {
         "ARGS": ARGS.as_dict(),
@@ -58,17 +61,17 @@ def save_model(save_dir, inn, discriminator) -> str:
     return filename
 
 
-def restore_model(filename, model, discriminator):
+def restore_model(filename: str, inn: BipartiteInn, discriminator: Classifier):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    model.load_state_dict(checkpt["model"])
+    inn.load_state_dict(checkpt["model"])
     discriminator.load_state_dict(checkpt["discriminator"])
 
-    return model, discriminator
+    return inn, discriminator
 
 
 def compute_loss(
-    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int
-) -> Tuple[torch.Tensor, Dict[str, float]]:
+    x: torch.Tensor, s: Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int
+) -> Tuple[Tensor, Dict[str, float]]:
     enc, nll = inn.routine(x)
 
     z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
@@ -117,7 +120,7 @@ def compute_loss(
     return loss, logging_dict
 
 
-def train(inn, discriminator, dataloader, epoch: int) -> int:
+def train(inn: BipartiteInn, discriminator: Classifier, dataloader: Iterable[_DataTriplet], epoch: int) -> int:
     inn.train()
     discriminator.train()
 
@@ -143,6 +146,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         discriminator.zero_grad()
 
         loss.backward()
+        nn.utils.clip_grad_norm_(inn.parameters(), max_norm=ARGS.max_norm)
         inn.step()
         discriminator.step()
 
@@ -175,7 +179,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     return itr
 
 
-def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: int):
+def validate(inn: PartitionedInn, discriminator: Classifier, val_loader: Iterable[_DataTriplet], itr: int):
     inn.eval()
     discriminator.eval()
 
@@ -207,15 +211,13 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
     return loss_meter.avg
 
 
-def to_device(*tensors):
+def to_device(*tensors: Tensor) -> Iterator[Tensor]:
     """Place tensors on the correct device and set type to float32"""
-    moved = [tensor.to(ARGS.device, non_blocking=True) for tensor in tensors]
-    if len(moved) == 1:
-        return moved[0]
-    return tuple(moved)
+    for tensor in tensors:
+        yield tensor.to(ARGS.device, non_blocking=True)
 
 
-def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
+def log_recons(inn: PartitionedInn, x: Tensor, itr: int, prefix: Optional[str] = None) -> None:
     z = inn(x[:64])
     recon_all, recon_y, recon_s = inn.decode(z, partials=True)
     log_images(ARGS, x, "original_x", prefix=prefix, step=itr)

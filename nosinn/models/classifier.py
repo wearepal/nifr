@@ -9,6 +9,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from nosinn.models.base import ModelBase
 
+__all__ = ["Classifier"]
+
 
 class Classifier(ModelBase):
     """ Wrapper for classifier models.

@@ -1,10 +1,11 @@
 import os
 import logging
 import random
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Iterable
 
 import numpy as np
 import torch
+import torch.nn as nn
 import wandb
 
 
@@ -15,7 +16,6 @@ __all__ = [
     "RunningAverageMeter",
     "count_parameters",
     "get_logger",
-    "inf_generator",
     "random_seed",
     "save_checkpoint",
     "wandb_log",
@@ -46,7 +46,10 @@ class StyleAdapter(logging.LoggerAdapter):
         return msg, kwargs
 
 
-def get_logger(logpath, filepath, package_files=None, displaying=True, saving=True, debug=False):
+def get_logger(
+    logpath: str, filepath: str, package_files: Optional[List] = None, displaying: bool = True,
+    saving: bool = True, debug: bool = False
+):
     global LOGGER
     if LOGGER is not None:
         return LOGGER
@@ -67,13 +70,6 @@ def get_logger(logpath, filepath, package_files=None, displaying=True, saving=Tr
         console_handler.setLevel(level)
         logger.addHandler(console_handler)
     logger.info(filepath)
-    # with open(filepath, "r") as f:
-    #     logger.info(f.read())
-
-    # for f in package_files:
-    #     logger.info(f)
-    #     with open(f, "r") as package_f:
-    #         logger.info(package_f.read())
 
     LOGGER = StyleAdapter(logger)
     return LOGGER
@@ -85,13 +81,13 @@ class AverageMeter:
     def __init__(self):
         self.reset()
 
-    def reset(self):
-        self.val = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
+    def reset(self) -> None:
+        self.val: float = 0
+        self.avg: float = 0
+        self.sum: float = 0
+        self.count: float = 0
 
-    def update(self, val, n=1):
+    def update(self, val: float, n: int = 1):
         self.val = val
         self.sum += val * n
         self.count += n
@@ -101,15 +97,15 @@ class AverageMeter:
 class RunningAverageMeter:
     """Computes and stores the average and current value"""
 
-    def __init__(self, momentum=0.99):
+    def __init__(self, momentum: float =0.99):
         self.momentum = momentum
         self.reset()
 
     def reset(self):
-        self.val = None
-        self.avg = 0
+        self.val: float = None
+        self.avg: float = 0
 
-    def update(self, val):
+    def update(self, val: float):
         if self.val is None:
             self.avg = val
         else:
@@ -117,31 +113,19 @@ class RunningAverageMeter:
         self.val = val
 
 
-def inf_generator(iterable):
-    """Allows training with DataLoaders in a single infinite loop:
-        for i, (x, y) in enumerate(inf_generator(train_loader)):
-    """
-    iterator = iterable.__iter__()
-    while True:
-        try:
-            yield iterator.__next__()
-        except StopIteration:
-            iterator = iterable.__iter__()
-
-
-def save_checkpoint(state, save, epoch):
+def save_checkpoint(state: dict, save: str, epoch: int):
     if not os.path.exists(save):
         os.makedirs(save)
     filename = os.path.join(save, "checkpt-%04d.pth" % epoch)
     torch.save(state, filename)
 
 
-def count_parameters(model):
+def count_parameters(model: nn.Module):
     """Count all parameters (that have a gradient) in the given model"""
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def random_seed(seed_value, use_cuda) -> None:
+def random_seed(seed_value: int, use_cuda: bool) -> None:
     np.random.seed(seed_value)  # cpu vars
     torch.manual_seed(seed_value)  # cpu  vars
     random.seed(seed_value)  # Python

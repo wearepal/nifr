@@ -42,7 +42,7 @@ def build_fc_inn(
     return layers.BijectorChain(chain)
 
 
-def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
+def build_conv_inn(args: NosinnArgs, input_shape: Sequence) -> layers.Bijector:
 
     input_dim = input_shape[0]
 
