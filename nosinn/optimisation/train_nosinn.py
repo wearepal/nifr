@@ -74,23 +74,17 @@ def restore_model(filename, model, discriminator):
 
 
 def compute_loss(
-    x: torch.Tensor,
-    s: torch.Tensor,
-    inn: PartitionedInn,
-    discriminator: Classifier,
-    itr: int,
-    log: Optional[str],
+    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int,
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     logging_dict = {}
-    # enc, nll = inn.routine(x)
+
+    # the following code is also in inn.routine() but we need to access ae_enc directly
     zero = x.new_zeros(x.size(0), 1)
     if ARGS.autoencode:
         (enc, sum_ldj), ae_enc = inn.forward(x, logdet=zero, reverse=False, return_ae_enc=True)
     else:
         enc, sum_ldj = inn.forward(x, logdet=zero, reverse=False)
-
     nll = inn.nll(enc, sum_ldj)
-
 
     enc_y, enc_s = inn.split_encoding(enc)
 
@@ -132,13 +126,15 @@ def compute_loss(
     loss = nll + disc_loss + recon_loss
 
     # z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1)).sqrt().mean()
-    logging_dict.update({
-        "Loss NLL": nll.item(),
-        "Loss Adversarial": disc_loss.item(),
-        "Recon loss": recon_loss.item(),
-        "Validation loss": (nll - disc_loss + recon_loss).item(),
-        # "z_norm": z_norm.item(),
-    })
+    logging_dict.update(
+        {
+            "Loss NLL": nll.item(),
+            "Loss Adversarial": disc_loss.item(),
+            "Recon loss": recon_loss.item(),
+            "Validation loss": (nll - disc_loss + recon_loss).item(),
+            # "z_norm": z_norm.item(),
+        }
+    )
     return loss, logging_dict
 
 
@@ -157,9 +153,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        loss, logging_dict = compute_loss(
-            x, s, inn, discriminator, itr, log="train" if itr % ARGS.log_freq == 0 else None
-        )
+        loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
 
         inn.zero_grad()
         discriminator.zero_grad()
@@ -210,7 +204,7 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr, log="test")
+            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
 
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 

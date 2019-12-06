@@ -226,7 +226,6 @@ class PartitionedAeInn(PartitionedInn):
     ) -> None:
         super().__init__(args, model, input_shape, optimizer_args, feature_groups)
         self.autoencoder = autoencoder
-        self.do_clamp = args.do_clamp
 
     def train(self):
         self.model.train()
@@ -243,12 +242,14 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.eval()
 
     def forward(
-        self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False, return_ae_enc: bool = False
+        self,
+        inputs: Tensor,
+        logdet: Optional[Tensor] = None,
+        reverse: bool = False,
+        return_ae_enc: bool = False,
     ) -> Tensor:
         if reverse:
             ae_enc = self.model(inputs, sum_ldj=logdet, reverse=reverse)
-            if self.do_clamp:
-                ae_enc = ae_enc.clamp(-15, 15)
             outputs = self.autoencoder.decode(ae_enc)
         else:
             ae_enc = self.autoencoder.encode(inputs)

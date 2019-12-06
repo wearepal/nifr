@@ -151,7 +151,6 @@ class NosinnArgs(SharedArgs):
     ae_loss_weight: float = 1
     vae: bool = False
     kl_weight: float = 0.1
-    do_clamp: bool = False
 
     # Discriminator settings
     disc_lr: float = 3e-4
