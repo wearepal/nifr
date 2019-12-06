@@ -81,37 +81,38 @@ def compute_loss(
     itr: int,
     log: Optional[str],
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
+    logging_dict = {}
     # enc, nll = inn.routine(x)
     zero = x.new_zeros(x.size(0), 1)
-    (enc, sum_ldj), ae_enc = inn.forward(x, logdet=zero, reverse=False, return_ae_enc=True)
+    if ARGS.autoencode:
+        (enc, sum_ldj), ae_enc = inn.forward(x, logdet=zero, reverse=False, return_ae_enc=True)
+    else:
+        enc, sum_ldj = inn.forward(x, logdet=zero, reverse=False)
+
     nll = inn.nll(enc, sum_ldj)
 
-    z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
     enc_y, enc_s = inn.split_encoding(enc)
-
-    if log is not None:
-        plot_histogram(
-            ARGS,
-            inn.model(torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1).detach(), reverse=True),
-            step=itr,
-            prefix=log,
-        )
-
-    z_y_norm = (torch.sum(enc_y.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
-    z_s_norm = (torch.sum(enc_s.flatten(start_dim=1) ** 2, dim=1) + 1e-6).sqrt().mean()
 
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
         enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
         if ARGS.recon_detach:
             enc_y_m = enc_y_m.detach()
-        enc_y, ae_enc_y = inn.forward(enc_y_m, return_ae_enc=True, reverse=True)
+
+        if ARGS.autoencode:
+            enc_y, ae_enc_y = inn.forward(enc_y_m, reverse=True, return_ae_enc=True)
+            recon, recon_target = ae_enc_y, ae_enc
+            # logging_dict.update({
+            #     f"train_xi_min": ae_enc_y.detach().cpu().numpy().min(),
+            #     f"train_xi_max": ae_enc_y.detach().cpu().numpy().max(),
+            # })
+        else:
+            enc_y = inn.forward(enc_y_m, reverse=True)
+            recon, recon_target = enc_y, x
+
         if ARGS.recon_stability_weight > 0:
-            # recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_enc_y, torch.zeros_like(ae_enc_y))
-            recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_enc_y, ae_enc)
-            # recon_loss = F.mse_loss(enc_y, x)
-        # enc_y = enc_y.clamp(min=0, max=1)
+            recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
     enc_y = grad_reverse(enc_y)
     disc_loss, _ = discriminator.routine(enc_y, s)
@@ -130,15 +131,14 @@ def compute_loss(
 
     loss = nll + disc_loss + recon_loss
 
-    logging_dict = {
+    # z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1)).sqrt().mean()
+    logging_dict.update({
         "Loss NLL": nll.item(),
         "Loss Adversarial": disc_loss.item(),
-        "Recon L1 loss": recon_loss.item(),
+        "Recon loss": recon_loss.item(),
         "Validation loss": (nll - disc_loss + recon_loss).item(),
-        "z_y_norm": z_y_norm.item(),
-        "z_s_norm": z_s_norm.item(),
-        "z_norm": z_norm.item(),
-    }
+        # "z_norm": z_norm.item(),
+    })
     return loss, logging_dict
 
 
@@ -147,12 +147,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     discriminator.train()
 
     total_loss_meter = AverageMeter()
-    loss_meters = {
-        "Loss NLL": AverageMeter(),
-        "Loss Adversarial": AverageMeter(),
-        "Recon L1 loss": AverageMeter(),
-        "Validation loss": AverageMeter(),
-    }
+    loss_meters: Optional[Dict[str, AverageMeter]] = None
 
     time_meter = AverageMeter()
     start_epoch_time = time.time()
@@ -175,6 +170,8 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         # Log losses
         total_loss_meter.update(loss.item())
+        if loss_meters is None:
+            loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
             if "loss" in name:
                 loss_meters[name].update(value)
@@ -190,6 +187,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
                 log_recons(inn, x, itr)
 
     time_for_epoch = time.time() - start_epoch_time
+    assert loss_meters is not None
     log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
     LOGGER.info(
         "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
