@@ -124,7 +124,7 @@ class Classifier(ModelBase):
         """
         outputs = super().__call__(data)
         loss = self.apply_criterion(outputs, targets)
-        loss = loss.sum(0) / targets.size(0)
+        loss = loss.exp().sum(0) / targets.size(0)
 
         acc = self.compute_accuracy(outputs, targets)
         return loss, acc
