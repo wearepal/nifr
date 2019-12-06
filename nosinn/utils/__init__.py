@@ -1,4 +1,5 @@
 from .distributions import *
-from .utils import *
+from .plotting import *
 from .torch_ops import *
 from .typechecks import *
+from .utils import *

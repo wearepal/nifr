@@ -7,6 +7,8 @@ import numpy as np
 import torch
 import wandb
 
+from nosinn.configs import SharedArgs
+
 
 LOGGER = None
 
@@ -22,7 +24,9 @@ __all__ = [
 ]
 
 
-def wandb_log(args, row: Dict[str, Any], commit: bool = True, step: Optional[int] = None):
+def wandb_log(
+    args: SharedArgs, row: Dict[str, Any], commit: bool = True, step: Optional[int] = None
+):
     """Wrapper around wandb's log function"""
     if args.use_wandb:
         wandb.log(row, commit=commit, step=step)
