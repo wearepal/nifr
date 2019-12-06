@@ -4,7 +4,7 @@ from typing_extensions import Literal
 
 from tap import Tap
 
-__all__ = ["NosinnArgs", "VaeArgs", "FiveKimsArgs", "SharedArgs", "CELEBATTRS"]
+__all__ = ["NosinnArgs", "VaeArgs", "Ln2lArgs", "SharedArgs", "CELEBATTRS"]
 
 CELEBATTRS = Literal[
     "5_o_Clock_Shadow",
@@ -206,7 +206,7 @@ class VaeArgs(SharedArgs):
     pred_s_weight: float = 1
 
 
-class FiveKimsArgs(SharedArgs):
+class Ln2lArgs(SharedArgs):
     entropy_weight: float = 0.01
 
     # Discriminator settings

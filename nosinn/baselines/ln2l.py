@@ -16,12 +16,12 @@ from nosinn.models.configs import linear_disciminator, mp_32x32_net, mp_64x64_ne
 from nosinn.models import build_discriminator, Classifier, ModelBase
 from nosinn.utils import utils, random_seed
 from nosinn.optimisation import get_data_dim, grad_reverse
-from nosinn.configs import FiveKimsArgs
+from nosinn.configs import Ln2lArgs
 
 __all__ = ["main"]
 
 NDECS = 0
-ARGS: FiveKimsArgs = None
+ARGS: Ln2lArgs = None
 LOGGER = None
 INPUT_SHAPE = ()
 
@@ -120,7 +120,7 @@ def to_device(*tensors):
 
 def main(raw_args=None) -> None:
     """Main function"""
-    args = FiveKimsArgs()
+    args = Ln2lArgs()
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
@@ -232,7 +232,7 @@ def main(raw_args=None) -> None:
         y=pd.DataFrame(ground_truths, columns=["labels"]),
     )
 
-    full_name = f"{args.dataset}_5kims"
+    full_name = f"{args.dataset}_ln2l"
     if args.dataset == "cmnist":
         full_name += "_greyscale" if args.greyscale else "_color"
     elif args.dataset == "celeba":

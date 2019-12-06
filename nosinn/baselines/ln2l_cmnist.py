@@ -147,8 +147,8 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--save-to-csv", type=eval, default=False, choices=[True, False])
 
     parser.add_argument("--save-dir", type=str, default="./")
-    parser.add_argument("--data-dir", type=str, default="./data/5kimsdata/")
-    parser.add_argument("--exp-name", type=str, default="experiments/5kims")
+    parser.add_argument("--data-dir", type=str, default="./data/ln2ldata/")
+    parser.add_argument("--exp-name", type=str, default="experiments/ln2l")
     parser.add_argument("--train-baseline", type=eval, default=False, choices=[True, False])
 
     parser.add_argument("--save-step", type=int, default=10)
@@ -171,11 +171,11 @@ def parse_arguments(raw_args=None):
         help="Skip the training step?",
     )
     parser.add_argument(
-        "--use-kims-data",
+        "--use-ln2l-data",
         type=eval,
         default=True,
         choices=[False, True],
-        help="use the kims data? if False, use ours",
+        help="use the 'Learning not to learn' data? if False, use ours",
     )
     parser.add_argument("--num-workers", type=int, default=4)
 
@@ -197,7 +197,7 @@ def main(raw_args=None):
     use_gpu = torch.cuda.is_available() and not args.gpu < 0
     random_seed(args.seed, use_gpu)
 
-    if args.use_kims_data:
+    if args.use_ln2l_data:
         args.data_split = "train"
         custom_loader = WholeDataLoader(args)
         trainval_loader = torch.utils.data.DataLoader(
@@ -224,7 +224,7 @@ def main(raw_args=None):
     print("Performance on training set")
     trainer._validate(trainval_loader)
 
-    if args.use_kims_data:
+    if args.use_ln2l_data:
         args.data_split = "test"
         custom_loader = WholeDataLoader(args)
         testval_loader = torch.utils.data.DataLoader(
@@ -437,7 +437,7 @@ class Trainer:
         start_time = time.monotonic()
 
         for i, (images, color_labels, labels) in enumerate(data_loader):
-            if not self.option.use_kims_data:
+            if not self.option.use_ln2l_data:
                 color_labels = self._get_color_labels(images)
 
             images = self._maybe_to_cuda(images)
@@ -556,7 +556,7 @@ class Trainer:
         total_num_test = 0.0
         total_loss = 0.0
         for i, (images, color_labels, labels) in enumerate(data_loader):
-            if not self.option.use_kims_data:
+            if not self.option.use_ln2l_data:
                 color_labels = self._get_color_labels(images)
 
             images = self._maybe_to_cuda(images)
