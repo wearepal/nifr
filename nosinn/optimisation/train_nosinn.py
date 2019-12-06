@@ -31,14 +31,7 @@ from nosinn.models.configs import (
     mp_32x32_net,
     mp_64x64_net,
 )
-from nosinn.utils import (
-    AverageMeter,
-    count_parameters,
-    get_logger,
-    wandb_log,
-    random_seed,
-    plot_histogram,
-)
+from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, random_seed
 from nosinn.configs import NosinnArgs
 
 from .evaluation import log_metrics
