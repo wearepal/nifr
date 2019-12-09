@@ -3,6 +3,7 @@
 import time
 from logging import Logger
 from pathlib import Path
+from itertools import islice
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import git
@@ -41,7 +42,10 @@ from nosinn.utils import (
     random_seed,
     readable_duration,
     wandb_log,
+    inf_generator,
 )
+from nosinn.configs import NosinnArgs
+>>>>>>> First attempt at the new architecture
 
 from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
@@ -55,20 +59,20 @@ LOGGER: Logger = None
 
 
 def compute_loss(
-    x: Tensor,
-    s: Tensor,
+    x_p: torch.Tensor,
+    x_t: torch.Tensor,
     inn: Union[PartitionedInn, PartitionedAeInn],
     disc_ensemble: nn.ModuleList,
     itr: int,
-) -> Tuple[Tensor, Dict[str, float]]:
+) -> Tuple[torch.Tensor, Dict[str, float]]:
     logging_dict = {}
 
     # the following code is also in inn.routine() but we need to access ae_enc directly
-    zero = x.new_zeros(x.size(0), 1)
-    if ARGS.autoencode:
-        (enc, sum_ldj), ae_enc = inn.forward(x, logdet=zero, reverse=False, return_ae_enc=True)
+    zero = x_p.new_zeros((x_p.size(0), 1))
+    if isinstance(inn, PartitionedAeInn) and ARGS.train_on_recon:
+        (enc, sum_ldj), ae_enc = inn.forward(x_p, logdet=zero, reverse=False, return_ae_enc=True)
     else:
-        enc, sum_ldj = inn.forward(x, logdet=zero, reverse=False)
+        enc, sum_ldj = inn.forward(x_p, logdet=zero, reverse=False)
     nll = inn.nll(enc, sum_ldj)
 
     enc_y, enc_s = inn.split_encoding(enc)
@@ -76,32 +80,39 @@ def compute_loss(
     if ARGS.mask_disc or ARGS.train_on_recon:
         enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
 
-    recon_loss = x.new_zeros(())
+    recon_loss = x_p.new_zeros(())
     if ARGS.train_on_recon:
 
         if ARGS.recon_detach:
             enc_y = enc_y.detach()
 
-        if ARGS.autoencode:
-            enc_y, ae_enc_y = inn.forward(enc_y, reverse=True, return_ae_enc=True)
+        if isinstance(inn, PartitionedAeInn):
+            enc_y, ae_enc_y = inn.forward(enc_y_m, reverse=True, return_ae_enc=True)
             recon, recon_target = ae_enc_y, ae_enc
+            # logging_dict.update({
+            #     f"train_xi_min": ae_enc_y.detach().cpu().numpy().min(),
+            #     f"train_xi_max": ae_enc_y.detach().cpu().numpy().max(),
+            # })
+            enc_y_task_train = inn.autoencoder.decode(inn.autoencoder.encode(x_t))
         else:
-            enc_y = inn.forward(enc_y, reverse=True)
-            recon, recon_target = enc_y, x
+            enc_y = inn.forward(enc_y_m, reverse=True)
+            recon, recon_target = enc_y, x_p
+            enc_y_task_train = x_t
 
         if ARGS.recon_stability_weight > 0:
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
+    else:
+        enc_task_train = inn.forward(x_t, reverse=False)
+        enc_y_task_train, _ = inn.split_encoding(enc_task_train)
+        if ARGS.recon_detach:
+            enc_y_task_train = enc_y_task_train.detach()
 
     enc_y = grad_reverse(enc_y)
-    disc_loss = x.new_zeros(1)
-    disc_acc = 0
+    disc_loss = x.new_zeros(())
     for disc in disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
-        disc_loss += disc_loss_k
-        disc_acc += disc_acc_k
-
-    disc_loss /= ARGS.num_discs
-    disc_acc /= ARGS.num_discs
+        disc_loss_fake, _ = disc.routine(enc_y, x_p.new_zeros((x_p.size(0),)))
+        disc_loss_task_train, _ = disc.routine(enc_y_task_train, x_t.new_ones((x_t.size(0),)))
+        disc_loss += disc_loss_fake + disc_loss_task_train
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
@@ -129,7 +140,8 @@ def compute_loss(
 def train(
     inn: Union[PartitionedInn, PartitionedAeInn],
     disc_ensemble: nn.ModuleList,
-    dataloader: DataLoader,
+    pretrain_data: DataLoader,
+    task_train_data: DataLoader,
     epoch: int,
 ) -> int:
     inn.train()
@@ -141,13 +153,18 @@ def train(
     time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    itr = start_itr = (epoch - 1) * len(dataloader)
 
-    for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
+    epoch_len = max(len(pretrain_data), len(task_train_data))
+    itr = start_itr = (epoch - 1) * epoch_len
+    data_iterator = islice(
+        zip(inf_generator(pretrain_data), inf_generator(task_train_data)), epoch_len
+    )
+    for itr, ((x_p, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
 
-        x, s, y = to_device(x, s, y)
+        x_b, x_u = to_device(x_p, x_t)
 
         loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
+        loss, logging_dict = compute_loss(x_b, x_u, inn, disc_ensemble, itr)
 
         inn.zero_grad()
 
@@ -157,8 +174,9 @@ def train(
         loss.backward()
         inn.step()
 
-        for disc in disc_ensemble:
-            disc.step()
+        if itr % ARGS.skip_disc_steps == 0:
+            for disc in disc_ensemble:
+                disc.step()
 
         # Log losses
         total_loss_meter.update(loss.item())
@@ -176,7 +194,7 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-                log_recons(inn, x, itr)
+                log_recons(inn, x_b, itr)
         if itr == 0 and ARGS.jit:
             LOGGER.info(
                 "JIT compilation (for training) completed in {}", readable_duration(time_for_batch)
@@ -202,11 +220,11 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
 
     with torch.set_grad_enabled(False):
         loss_meter = AverageMeter()
-        for val_itr, (x_val, s_val, y_val) in enumerate(val_loader):
+        for val_itr, (x_val, _, _) in enumerate(val_loader):
 
-            x_val, s_val, y_val = to_device(x_val, s_val, y_val)
+            x_val = to_device(x_val)
 
-            _, logging_dict = compute_loss(x_val, s_val, inn, disc_ensemble, itr)
+            _, logging_dict = compute_loss(x_val, x_val, inn, disc_ensemble, itr)
 
             loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
 
@@ -215,10 +233,11 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
                     log_recons(inn, x_val, itr, prefix="test")
                 else:
                     z = inn(x_val[:1000])
-                    _, recon_y, recon_s = inn.decode(z, partials=True)
+                    _, recon_y, recon_s, recon_random = inn.decode(z, partials=True)
                     log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
-                    log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
-                    log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
+                    log_images(ARGS, recon_y, "reconstruction_y", prefix="test", step=itr)
+                    log_images(ARGS, recon_s, "reconstruction_y", prefix="test", step=itr)
+                    log_images(ARGS, recon_random, "reconstruction_random", prefix="test", step=itr)
                     x_recon = inn(inn(x_val), reverse=True)
                     x_diff = (x_recon - x_val).abs().mean().item()
                     print(f"MAE of x and reconstructed x: {x_diff}")
@@ -239,11 +258,12 @@ def to_device(*tensors):
 
 def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None) -> None:
     z = inn(x[:64])
-    recon_all, recon_y, recon_s = inn.decode(z, partials=True)
+    recon_all, recon_y, recon_s, recon_random = inn.decode(z, partials=True)
     log_images(ARGS, x, "original_x", prefix=prefix, step=itr)
     log_images(ARGS, recon_all, "reconstruction_all", prefix=prefix, step=itr)
     log_images(ARGS, recon_y, "reconstruction_y", prefix=prefix, step=itr)
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
+    log_images(ARGS, recon_random, "reconstruction_random", prefix=prefix, step=itr)
 
 
 def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, PartitionedAeInn]:
@@ -294,8 +314,15 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         len(datasets.task),
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(
+    pretrain_loader = DataLoader(
         datasets.pretrain,
+        shuffle=True,
+        batch_size=ARGS.batch_size,
+        num_workers=ARGS.num_workers,
+        pin_memory=True,
+    )
+    task_train_loader = DataLoader(
+        datasets.task_train,
         shuffle=True,
         batch_size=ARGS.batch_size,
         num_workers=ARGS.num_workers,
@@ -310,7 +337,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     )
 
     # ==== construct networks ====
-    input_shape = get_data_dim(train_loader)
+    input_shape = get_data_dim(pretrain_loader)
     is_image_data = len(input_shape) > 2
 
     optimizer_args = {"lr": args.lr, "weight_decay": args.weight_decay}
@@ -394,7 +421,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
             elif ARGS.ae_loss == "l2":
                 ae_loss_fn = nn.MSELoss(reduction="sum")
             elif ARGS.ae_loss == "huber":
-                ae_loss_fn = nn.SmoothL1Loss(reduction="sum")
+                ae_loss_fn = lambda x, y: F.smooth_l1_loss(x * 10, y * 10, reduction="sum")
             elif ARGS.ae_loss == "ce":
                 ae_loss_fn = PixelCrossEntropy(reduction="sum")
             elif ARGS.ae_loss == "mixed":
@@ -403,7 +430,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
             else:
                 raise ValueError(f"{ARGS.ae_loss} is an invalid reconstruction loss")
 
-            inn.fit_ae(train_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn)
+            inn.fit_ae(
+                pretrain_loader, epochs=ARGS.ae_epochs, device=ARGS.device, loss_fn=ae_loss_fn
+            )
             # the args names follow the convention of the standalone VAE commandline args
             args_ae = {"init_channels": ARGS.ae_channels, "levels": ARGS.ae_levels}
             torch.save(
@@ -434,9 +463,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     for k in range(ARGS.num_discs):
         disc = build_discriminator(
             input_shape=disc_input_shape,
-            target_dim=datasets.s_dim,
+            target_dim=1,  # datasets.s_dim,  # this is now always 2
             train_on_recon=ARGS.train_on_recon,
-            frac_enc=1,
+            frac_enc=enc_shape,
             model_fn=disc_fn,
             model_kwargs=disc_kwargs,
             optimizer_kwargs=disc_optimizer_kwargs,
@@ -486,12 +515,10 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        itr = train(inn, disc_ensemble, train_loader, epoch)
+        itr = train(inn, disc_ensemble, pretrain_loader, task_train_loader, epoch=epoch)
 
         if epoch % ARGS.val_freq == 0:
-            val_loss = validate(
-                inn, disc_ensemble, train_loader if ARGS.dataset == "ssrp" else val_loader, itr
-            )
+            val_loss = validate(inn, disc_ensemble, val_loader, itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss

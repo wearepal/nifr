@@ -334,7 +334,7 @@ def encode_dataset(
 
             _, zy, zs = model.encode(x, partials=True)
 
-            zs_m = torch.cat([zy, torch.zeros_like(zs)], dim=1)
+            zs_m = torch.cat([zy, torch.randn_like(zs)], dim=1)
             xy = model.invert(zs_m)
 
             if args.dataset in ("celeba", "ssrp", "genfaces"):

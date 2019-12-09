@@ -50,6 +50,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _scale_and_shift_fn(self, inputs):
         s_t = self.net_s_t(inputs)
         scale, shift = s_t.chunk(2, dim=1)
+        shift = torch.clamp(shift, min=-5, max=5)
         scale = scale.sigmoid() + 0.5
         return scale, shift
 

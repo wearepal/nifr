@@ -174,12 +174,24 @@ class PartitionedInn(BipartiteInn):
 
         return torch.cat([zy, zs], dim=1)
 
-    def zero_mask(self, z):
+    @overload
+    def zero_mask(self, z, with_random: Literal[False] = ...) -> Tuple[Tensor, Tensor]:
+        ...
+
+    @overload
+    def zero_mask(self, z, with_random: Literal[True]) -> Tuple[Tensor, Tensor, Tensor]:
+        ...
+
+    def zero_mask(
+        self, z, with_random: bool = False
+    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor]]:
         zy, zs = self.split_encoding(z)
         zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
         zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
+        if with_random:
+            z_random_m = torch.cat([zy, torch.randn_like(zs)], dim=1)
 
-        return zy_m, zs_m
+        return zy_m, zs_m, z_random_m
 
     def encode_with_partials(self, data: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         return self.encode(data, partials=True)
@@ -203,16 +215,27 @@ class PartitionedInn(BipartiteInn):
         else:
             return z
 
+    @overload
+    def decode(self, z: Tensor, partials: Literal[False] = ..., discretize: bool = ...) -> Tensor:
+        ...
+
+    @overload
+    def decode(
+        self, z: Tensor, partials: Literal[True], discretize: bool = ...
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+        ...
+
     def decode(
         self, z: Tensor, partials: bool = True, discretize: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
+    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor, Tensor]]:
         x = super().decode(z, discretize=discretize)
         if partials:
-            zy_m, zs_m = self.zero_mask(z)
+            zy_m, zs_m, z_random_m = self.zero_mask(z, with_random=True)
             xy = super().decode(zy_m, discretize=discretize)
             xs = super().decode(zs_m, discretize=discretize)
+            x_random = super().decode(z_random_m, discretize=discretize)
 
-            return x, xy, xs
+            return x, xy, xs, x_random
         else:
             return x
 
@@ -259,13 +282,34 @@ class PartitionedAeInn(PartitionedInn):
         self.autoencoder.fit(train_data, epochs, device, loss_fn)
         self.autoencoder.eval()
 
+    @overload
+    def forward(
+        self,
+        inputs: Tensor,
+        logdet: Optional[Tensor] = ...,
+        reverse: bool = ...,
+        return_ae_enc: Literal[False] = ...,
+    ) -> Tensor:
+        ...
+
+    @overload
+    def forward(
+        self,
+        inputs: Tensor,
+        *,
+        return_ae_enc: Literal[True],
+        logdet: Optional[Tensor] = ...,
+        reverse: bool = ...,
+    ) -> Tuple[Tensor, Tensor]:
+        ...
+
     def forward(
         self,
         inputs: Tensor,
         logdet: Optional[Tensor] = None,
         reverse: bool = False,
         return_ae_enc: bool = False,
-    ) -> Tensor:
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         if reverse:
             ae_enc, _ = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(ae_enc)
