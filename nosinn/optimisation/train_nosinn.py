@@ -160,8 +160,7 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
         if loss_meters is None:
             loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
-            if "loss" in name:
-                loss_meters[name].update(value)
+            loss_meters[name].update(value)
 
         time_meter.update(time.time() - end)
 
