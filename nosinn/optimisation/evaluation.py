@@ -62,11 +62,20 @@ def log_metrics(
     )
 
     if feat_attr:
-        image, _, target = task_train_repr["xy"][0]
+        image_orig, _, target_orig = data.task[0]
+        image_deb, _, target_deb = task_train_repr["xy"][0]
 
-        if image.dim() == 3:
-            feat_attr_map = get_image_attribution(image, target, clf)
-            feat_attr_map.savefig(f"{args.save_dir}/feat_attr_map.png")
+        if image_orig.dim() == 3:
+            image_orig.to(args.device)
+            target_orig = target_orig.to(args.device)
+            image_deb = image_deb.to(args.device)
+            target_deb = target_deb.to(args.device)
+
+            feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
+            feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
+
+            feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
+            feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb.png")
         else:
             print("Cannot compute feature attributions for non-image inputs.")
     # print("===> Predict y from xy")
