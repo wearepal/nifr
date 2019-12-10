@@ -67,6 +67,8 @@ def log_metrics(
 
         if image_orig.dim() == 3:
             clf.cpu()
+
+            import pdb; pdb.set_trace()
             feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
             feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
 
