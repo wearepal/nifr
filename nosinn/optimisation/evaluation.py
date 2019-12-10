@@ -73,7 +73,7 @@ def log_metrics(
 
                 def _binary_clf(_input):
                     out = clf(_input).sigmoid()
-                    return torch.cat([out, 1 - out])
+                    return torch.cat([out, 1 - out], dim=-1)
 
             feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
             feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
