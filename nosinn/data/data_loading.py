@@ -140,9 +140,9 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         args.s_dim = unbiased_data.s_dim
 
         if 0 < args.data_pcnt < 1:
-            subsample(pretrain_data, args.data_pcnt)
-            subsample(train_data, args.data_pcnt)
-            subsample(test_data, args.data_pcnt)
+            pretrain_data = subsample(pretrain_data, args.data_pcnt)
+            train_data = subsample(train_data, args.data_pcnt)
+            test_data = subsample(test_data, args.data_pcnt)
 
     elif args.dataset == "adult":
         if args.input_noise:
