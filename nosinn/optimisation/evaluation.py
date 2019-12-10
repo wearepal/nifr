@@ -69,7 +69,7 @@ def log_metrics(
             clf.cpu()
             # target_orig = target_orig
             # target_deb = target_deb.view(0)
-            if args.y_dim = 1:
+            if args.y_dim == 1:
 
                 def _binary_clf(_input):
                     out = clf(_input).sigmoid()
