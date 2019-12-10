@@ -69,7 +69,12 @@ def log_metrics(
             clf.cpu()
             # target_orig = target_orig
             # target_deb = target_deb.view(0)
-            import pdb; pdb.set_trace()
+            if args.y_dim = 1:
+
+                def _binary_clf(_input):
+                    out = clf(_input).sigmoid()
+                    return torch.cat([out, 1 - out])
+
             feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
             feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
 
