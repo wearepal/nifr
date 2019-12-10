@@ -68,11 +68,11 @@ def log_metrics(
         if image_orig.dim() == 3:
             clf.cpu()
 
-            feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-            feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
-
-            # feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-            # feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb.png")
+            # feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
+            # feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
+            import pdb; pdb.set_trace()
+            feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
+            feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb.png")
             clf.to(args.device)
         else:
             print("Cannot compute feature attributions for non-image inputs.")
