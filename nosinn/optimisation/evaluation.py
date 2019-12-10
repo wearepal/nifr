@@ -165,7 +165,6 @@ def make_tuple_from_data(train, test, pred_s):
 
 def get_image_attribution(input, target, model):
 
-    import pdb; pdb.set_trace()
     if input.dim() == 3:
         original_image = np.transpose(input.cpu().detach().numpy(), (1, 2, 0))
         input = input.unsqueeze(0)
