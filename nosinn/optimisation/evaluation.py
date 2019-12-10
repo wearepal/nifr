@@ -68,11 +68,11 @@ def log_metrics(
         if image_orig.dim() == 3:
             clf.cpu()
 
-            image_deb = image_deb.detach().cpu()
-            target_deb = target_deb.detach().cpu()
-            # feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-            # feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
-            # import pdb; pdb.set_trace()
+            import pdb; pdb.set_trace()
+            
+            feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
+            feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
+
             feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
             feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb.png")
             clf.to(args.device)
