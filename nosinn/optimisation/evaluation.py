@@ -69,13 +69,15 @@ def log_metrics(
             clf.cpu()
             # target_orig = target_orig
             # target_deb = target_deb.view(0)
+
             if args.y_dim == 1:
 
-                def _binary_clf(_input):
-                    out = clf(_input).sigmoid()
+                def _binary_clf_fn(self, _input):
+                    out = self.model(_input).sigmoid()
                     return torch.cat([out, 1 - out], dim=-1)
 
-            clf = _binary_clf
+                clf.forward = _binary_clf_fn
+
             feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
             feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
 
