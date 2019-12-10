@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional, Dict, List
+import types
 
 import pandas as pd
 import numpy as np
@@ -76,7 +77,7 @@ def log_metrics(
                     out = self.model(_input).sigmoid()
                     return torch.cat([out, 1 - out], dim=-1)
 
-                clf.forward = _binary_clf_fn
+                clf.forward = types.MethodType(_binary_clf_fn, clf)
 
             feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
             feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
