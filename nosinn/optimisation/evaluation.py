@@ -67,8 +67,8 @@ def log_metrics(
 
         if image_orig.dim() == 3:
             clf.cpu()
-            target_orig = target_orig.view(-1)
-            target_deb = target_deb.view(-1)
+            target_orig = target_orig.squeeze().float()
+            target_deb = target_deb.squeeze().float()
 
             feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
             feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
