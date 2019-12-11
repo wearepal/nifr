@@ -75,7 +75,7 @@ def log_metrics(
 
                 def _binary_clf_fn(self, _input):
                     out = self.model(_input).sigmoid()
-                    return torch.cat([out, 1 - out], dim=-1)
+                    return torch.cat([1 - out, out], dim=-1)
 
                 clf.forward = types.MethodType(_binary_clf_fn, clf)
 
