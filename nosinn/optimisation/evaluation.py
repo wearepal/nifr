@@ -64,7 +64,7 @@ def log_metrics(
     )
 
     if feat_attr:
-        inds = random.sample(range(len(data.task_train)), 1)
+        inds = random.sample(range(len(data.task_train)), 50)
 
         if args.y_dim == 1:
 
