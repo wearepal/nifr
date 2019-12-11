@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Optional, Dict, List
 import types
+import random
 
 import pandas as pd
 import numpy as np
@@ -63,31 +64,31 @@ def log_metrics(
     )
 
     if feat_attr:
-        image_orig, _, target_orig = data.task[0]
-        image_deb, _, target_deb = task_train_repr["xy"][0]
+        inds = random.sample(range(len(data.task_train)), 1)
 
-        if image_orig.dim() == 3:
-            clf.cpu()
-            # target_orig = target_orig
-            # target_deb = target_deb.view(0)
+        if args.y_dim == 1:
 
-            if args.y_dim == 1:
+            def _binary_clf_fn(self, _input):
+                out = self.model(_input).sigmoid()
+                return torch.cat([1 - out, out], dim=-1)
 
-                def _binary_clf_fn(self, _input):
-                    out = self.model(_input).sigmoid()
-                    return torch.cat([1 - out, out], dim=-1)
+            clf.forward = types.MethodType(_binary_clf_fn, clf)
 
-                clf.forward = types.MethodType(_binary_clf_fn, clf)
+        clf.cpu()
 
-            feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-            feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig.png")
+        for k, ind in enumerate(inds):
+            image_orig, _, target_orig = data.task_train[0]
+            image_deb, _, target_deb = task_train_repr["xy"][0]
 
-            feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-            feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb.png")
-            clf.to(args.device)
-        else:
-            print("Cannot compute feature attributions for non-image inputs.")
-    # print("===> Predict y from xy")
+            if image_orig.dim() == 3:
+                feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
+                feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig_{k}.png")
+
+                feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
+                feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb{k}.png")
+                clf.to(args.device)
+
+   # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
     # print("===> Predict s from xy")
     # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
