@@ -64,8 +64,18 @@ def log_metrics(
         save_to_csv=save_to_csv,
     )
 
-    if feat_attr:
-        inds = random.sample(range(len(data.task_train)), 50)
+    if feat_attr and args.dataset != "adult":
+
+        pred_orig, actual, _ = clf.predict_dataset(data.task)
+        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"])
+
+        orig_correct = pred_orig == actual
+        deb_correct = pred_deb == actual
+        diff = (deb_correct.bool() & actual.bool()) ^ (deb_correct.bool() ^ orig_correct.bool())
+        cand_inds = torch.arange(end=actual.size(0))[diff].tolist()
+
+        num_samples = min(actual.size(0), 50)
+        inds = random.sample(cand_inds, num_samples)
 
         if args.y_dim == 1:
 
