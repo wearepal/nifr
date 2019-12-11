@@ -1,32 +1,28 @@
-from pathlib import Path
-from typing import Optional, Dict, List
-import types
+import os
 import random
+import types
+from pathlib import Path
+from typing import Dict, List, Optional
 
-from matplotlib import cm
-import pandas as pd
 import numpy as np
-
+import pandas as pd
 import torch
-from torch.utils.data import DataLoader, Dataset, TensorDataset
 import wandb
-
-from captum.attr import (
-    IntegratedGradients,
-    NoiseTunnel,
-    visualization as viz
-)
+from captum.attr import IntegratedGradients, NoiseTunnel
+from captum.attr import visualization as viz
+from matplotlib import cm
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import Accuracy, ProbPos, TPR, TNR, PPV, NMI
+from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple
-
 from nosinn.configs import NosinnArgs, SharedArgs
-from nosinn.data import get_data_tuples, DatasetTriplet
-from nosinn.models import Classifier, BipartiteInn
+from nosinn.data import DatasetTriplet, get_data_tuples
+from nosinn.models import BipartiteInn, Classifier
 from nosinn.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from nosinn.utils import wandb_log
+
 from .utils import log_images
 
 
@@ -65,7 +61,9 @@ def log_metrics(
     )
 
     if feat_attr and args.dataset != "adult":
-
+        save_dir = f"{args.save_dir}/feat_attr_maps"
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
         pred_orig, actual, _ = clf.predict_dataset(data.task)
         pred_deb, _, _ = clf.predict_dataset(task_repr["xy"])
 
@@ -93,10 +91,10 @@ def log_metrics(
 
             if image_orig.dim() == 3:
                 feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-                feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_maps/feat_attr_map_orig_{k}.png")
+                feat_attr_map_orig.savefig(f"{save_dir}/feat_attr_map_orig_{k}.png")
 
                 feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-                feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_maps/feat_attr_map_deb{k}.png")
+                feat_attr_map_deb.savefig(f"{save_dir}/feat_attr_map_deb{k}.png")
 
         clf.to(args.device)
 
