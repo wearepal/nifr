@@ -88,15 +88,15 @@ def log_metrics(
         clf.cpu()
 
         for k, ind in enumerate(inds):
-            image_orig, _, target_orig = data.task_train[k]
-            image_deb, _, target_deb = task_train_repr["xy"][k]
+            image_orig, _, target_orig = data.task[k]
+            image_deb, _, target_deb = task_repr["xy"][k]
 
             if image_orig.dim() == 3:
                 feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-                feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_map_orig_{k}.png")
+                feat_attr_map_orig.savefig(f"{args.save_dir}/feat_attr_maps/feat_attr_map_orig_{k}.png")
 
                 feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-                feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb{k}.png")
+                feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_maps/feat_attr_map_deb{k}.png")
 
         clf.to(args.device)
 
