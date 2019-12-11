@@ -219,7 +219,7 @@ def get_image_attribution(input, target, model):
         attr_ig_nt,
         original_image=original_image,
         methods=["original_image", "masked_image", "blended_heat_map"],
-        signs=[None, "absolute_value", "all"],
+        signs=[None, "absolute_value", "absolute_value"],
         outlier_perc=10,
         cmap=cmap,
         show_colorbar=True,
