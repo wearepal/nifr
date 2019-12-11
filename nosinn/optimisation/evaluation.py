@@ -3,6 +3,7 @@ from typing import Optional, Dict, List
 import types
 import random
 
+from matplotlib import cm
 import pandas as pd
 import numpy as np
 
@@ -77,8 +78,8 @@ def log_metrics(
         clf.cpu()
 
         for k, ind in enumerate(inds):
-            image_orig, _, target_orig = data.task_train[0]
-            image_deb, _, target_deb = task_train_repr["xy"][0]
+            image_orig, _, target_orig = data.task_train[k]
+            image_deb, _, target_deb = task_train_repr["xy"][k]
 
             if image_orig.dim() == 3:
                 feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
@@ -86,7 +87,8 @@ def log_metrics(
 
                 feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
                 feat_attr_map_deb.savefig(f"{args.save_dir}/feat_attr_map_deb{k}.png")
-                clf.to(args.device)
+
+        clf.to(args.device)
 
    # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
@@ -212,13 +214,14 @@ def get_image_attribution(input, target, model):
         stdevs=0.2
     )
     attr_ig_nt = np.transpose(attr_ig_nt.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
-
+    cmap = cm.get_cmap('viridis', 12)
     fig, ax = viz.visualize_image_attr_multiple(
         attr_ig_nt,
         original_image=original_image,
         methods=["original_image", "masked_image", "blended_heat_map"],
         signs=[None, "absolute_value", "all"],
         outlier_perc=10,
+        cmap=cmap,
         show_colorbar=True,
         use_pyplot=False,
     )
