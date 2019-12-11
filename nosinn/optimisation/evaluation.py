@@ -64,8 +64,8 @@ def log_metrics(
         save_dir = f"{args.save_dir}/feat_attr_maps"
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
-        pred_orig, actual, _ = clf.predict_dataset(data.task)
-        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"])
+        pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
+        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
 
         orig_correct = pred_orig == actual
         deb_correct = pred_deb == actual
