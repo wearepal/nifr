@@ -2,7 +2,7 @@ from typing import NamedTuple, Optional
 
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, KMNIST
 
 from nosinn.configs import SharedArgs
 from .dataset_wrappers import LdAugmentedDataset
@@ -52,7 +52,10 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         train_len = len(train_data) - pretrain_len
         pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
 
-        test_data = MNIST(root=args.root, download=True, train=False)
+        train_data = KMNIST(root=args.root, download=True, train=True)
+        _, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
+        test_data = KMNIST(root=args.root, download=True, train=False)
+        # test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
             scale=args.scale,
