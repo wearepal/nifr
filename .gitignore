@@ -111,6 +111,7 @@ venv.bak/
 !experiments/finn
 experiments/finn/*
 experiments/cnf/*
+experiments/ln2l/*
 !experiments/finn/*.csv
 /data/
 /wandb/
