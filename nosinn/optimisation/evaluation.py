@@ -193,7 +193,7 @@ def evaluate(
         preds = clf.run(train_data, test_data)
         actual = test_data
 
-    full_name = name
+    full_name = f"{args.dataset}_{name}"
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
     metrics = compute_metrics(args, preds, actual, full_name, run_all=args.y_dim == 1, step=step)
@@ -207,16 +207,16 @@ def evaluate(
         sweep_value = str(args.scale) if args.dataset == "cmnist" else str(args.task_mixing_factor)
         results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         value_list = ",".join([sweep_value] + [str(v) for v in metrics.values()])
-        if results_path.is_file():
-            with results_path.open("a") as f:
+        if not results_path.is_file():
+            with results_path.open("w") as f:
+                f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")  # header
                 f.write(value_list + "\n")
         else:
-            with results_path.open("w") as f:
-                f.write(",".join([sweep_key] + [str(k) for k in metrics.keys()]) + "\n")
+            with results_path.open("a") as f:  # append to existing file
                 f.write(value_list + "\n")
         if args.use_wandb:
-            for name, value in metrics.items():
-                wandb.run.summary[name] = value
+            for metric_name, value in metrics.items():
+                wandb.run.summary[metric_name] = value
 
     return metrics
 

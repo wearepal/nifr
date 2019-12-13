@@ -108,6 +108,9 @@ venv.bak/
 .vscode/
 
 # project-specific
-experiments/
+!experiments/finn
+experiments/finn/*
+experiments/cnf/*
+!experiments/finn/*.csv
 /data/
-wandb/
+/wandb/
