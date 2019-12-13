@@ -99,9 +99,9 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
             level = [layers.SqueezeLayer(2)]
         input_dim *= 4
 
-    level.extend([_block(input_dim) for _ in range(args.level_depth)])
+        chain.append(layers.BijectorChain(level))
 
-    chain.append(layers.BijectorChain(level))
+    chain.extend([_block(input_dim) for _ in range(args.level_depth)])
     # j = i if not args.preliminary_level else i + 1
     # if j in factor_splits:
     #     input_dim = round(factor_splits[j] * input_dim)
