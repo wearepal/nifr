@@ -90,12 +90,18 @@ def compute_loss(
         if ARGS.autoencode:
             enc_y, ae_enc_y = inn.forward(enc_y_m, reverse=True, return_ae_enc=True)
             recon, recon_target = ae_enc_y, ae_enc
+
+            if ARGS.recon_stability_weight > 0:
+                recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
         else:
             enc_y = inn.forward(enc_y_m, reverse=True)
             recon, recon_target = enc_y, x
 
-        if ARGS.recon_stability_weight > 0:
-            recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
+            if ARGS.recon_stability_weight > 0:
+                # punish network for going out of range [0; 1]
+                recon_loss = torch.sum(recon.clamp(max=0)**2)
+                recon_loss += torch.sum((recon.clamp(min=1) - 1)**2)
+                recon_loss *= ARGS.recon_stability_weight
 
     enc_y = grad_reverse(enc_y)
     disc_loss, _ = discriminator.routine(enc_y, s)
