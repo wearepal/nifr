@@ -104,13 +104,14 @@ class BipartiteInn(ModelBase):
 
     def nll(self, z: Tensor, sum_logdet: Tensor) -> Tensor:
         log_pz = self.compute_log_pz(z)
-        log_px = log_pz.sum() - sum_logdet.sum()
+        nll = log_pz.sum() / z.nelement()
+        # log_px = log_pz.sum() - sum_logdet.sum()
         # if z.dim() > 2:
         #     log_px_per_dim = log_px / z.nelement()
         #     bits_per_dim = -(log_px_per_dim - np.log(256)) / np.log(2)
         #     return bits_per_dim
         # else:
-        nll = -log_px / z.nelement()
+        # nll = -log_px / z.nelement()
         return nll
 
     def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:

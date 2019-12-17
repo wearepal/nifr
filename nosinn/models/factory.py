@@ -108,8 +108,8 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
     chain: List[layers.Bijector] = [layers.FactorOut(chain, factor_splits)]
 
-    # input_dim = int(np.product(input_shape))
-    # chain += [layers.RandomPermutation(input_dim)]
+    input_dim = int(np.product(input_shape))
+    chain += [layers.RandomPermutation(input_dim)]
 
     model = layers.BijectorChain(chain)
 
