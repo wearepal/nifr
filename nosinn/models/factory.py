@@ -89,7 +89,7 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
     chain: List[layers.Bijector] = []
 
     chain += [layers.ConstantAffine(0.98, 0.010)]
-    chain += [layers.LogitTransform()]
+    # chain += [layers.LogitTransform()]
     chain += [layers.ConstantAffine(1 / 4.5, 0)]
 
     if args.preliminary_level:
