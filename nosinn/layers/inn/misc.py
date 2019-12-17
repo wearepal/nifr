@@ -1,3 +1,4 @@
+import torch
 from .bijector import Bijector
 
 
@@ -33,8 +34,8 @@ class ConstantAffine(Bijector):
 
     def __init__(self, scale, shift):
         super().__init__()
-        self.register_buffer("scale", scale)
-        self.register_buffer("shift", shift)
+        self.register_buffer("scale", torch.tensor(scale))
+        self.register_buffer("shift", torch.tensor(shift))
 
     def logdetjac(self):
         return self.scale.log().flatten().sum()
