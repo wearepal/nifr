@@ -48,6 +48,7 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
     def _block(_input_dim) -> layers.Bijector:
         _chain: List[layers.Bijector] = []
+
         if args.idf:
             _chain += [
                 layers.IntegerDiscreteFlow(_input_dim, hidden_channels=args.coupling_channels)
@@ -86,6 +87,11 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
     factor_splits: Dict[int, float] = {int(k): float(v) for k, v in args.factor_splits.items()}
 
     chain: List[layers.Bijector] = []
+
+    chain += [layers.ConstantAffine(0.98, 0.010)]
+    chain += [layers.LogitTransform()]
+    chain += [layers.ConstantAffine(1 / 4.5, 0)]
+
     if args.preliminary_level:
         chain.append(layers.BijectorChain([_block(input_dim) for _ in range(args.level_depth)]))
         if 0 in factor_splits:
