@@ -84,13 +84,14 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
         return layers.BijectorChain(_chain)
 
-    factor_splits: Dict[int, float] = {int(k): float(v) for k, v in args.factor_splits.items()}
-
     chain: List[layers.Bijector] = []
 
     chain += [layers.ConstantAffine(0.98, 0.010)]
-    # chain += [layers.LogitTransform()]
+    chain += [layers.LogitTransform()]
     chain += [layers.ConstantAffine(1 / 4.5, 0)]
+
+    offset = len(chain)
+    factor_splits = {int(k) + offset: float(v) for k, v in args.factor_splits.items()}
 
     if args.preliminary_level:
         chain.append(layers.BijectorChain([_block(input_dim) for _ in range(args.level_depth)]))
@@ -113,7 +114,6 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
             input_dim = round(factor_splits[j] * input_dim)
 
     chain: List[layers.Bijector] = [layers.FactorOut(chain, factor_splits)]
-
     # input_dim = int(np.product(input_shape))
     # chain += [layers.RandomPermutation(input_dim)]
 
