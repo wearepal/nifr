@@ -47,7 +47,7 @@ class AffineCouplingLayer(CouplingLayer):
     def _scale_and_shift_fn(self, inputs):
         s_t = self.net_s_t(inputs)
         scale, shift = s_t.chunk(2, dim=1)
-        scale = scale.sigmoid() + 0.5
+        scale = scale.sigmoid() # + 0.5
         return scale, shift
 
     def _forward(self, x, sum_ldj=None):
@@ -64,7 +64,8 @@ class AffineCouplingLayer(CouplingLayer):
     def _inverse(self, y, sum_ldj=None):
         x_a, y_b = self._split(y)
         scale, shift = self._scale_and_shift_fn(x_a)
-        x_b = (y_b - shift) / scale
+        # x_b = (y_b - shift) / scale
+        x_b = y_b / scale
         x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
