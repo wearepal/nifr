@@ -46,7 +46,7 @@ class ConstantAffine(Bijector):
         if sum_ldj is None:
             return y
         else:
-            return y - self.logdetjac()
+            return y, sum_ldj - self.logdetjac()
 
     def _inverse(self, y, sum_ldj=None):
         x = (y - self.shift) / self.scale
@@ -54,5 +54,5 @@ class ConstantAffine(Bijector):
         if sum_ldj is None:
             return x
         else:
-            return x + self.logdetjac()
+            return x, sum_ldj + self.logdetjac()
 
