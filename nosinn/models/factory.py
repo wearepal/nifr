@@ -84,17 +84,18 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
         return layers.BijectorChain(_chain)
 
-    chain: List[layers.Bijector] = []
+    main_chain: List[layers.Bijector] = []
 
-    chain += [layers.ConstantAffine(0.98, 0.010)]
-    chain += [layers.LogitTransform()]
-    chain += [layers.ConstantAffine(1 / 4.5, 0)]
+    factor_splits = {int(k): float(v) for k, v in args.factor_splits.items()}
 
-    offset = len(chain)
-    factor_splits = {int(k) + offset: float(v) for k, v in args.factor_splits.items()}
+    preprocessing = layers.BijectorChain([
+        layers.ConstantAffine(0.98, 0.010),
+        layers.LogitTransform(),
+        layers.ConstantAffine(1 / 4.5, 0)
+    ])
 
     if args.preliminary_level:
-        chain.append(layers.BijectorChain([_block(input_dim) for _ in range(args.level_depth)]))
+        main_chain.append(layers.BijectorChain([_block(input_dim) for _ in range(args.level_depth)]))
         if 0 in factor_splits:
             input_dim = round(factor_splits[0] * input_dim)
 
@@ -108,16 +109,19 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
 
         level.extend([_block(input_dim) for _ in range(args.level_depth)])
 
-        chain.append(layers.BijectorChain(level))
+        main_chain.append(layers.BijectorChain(level))
         j = i if not args.preliminary_level else i + 1
         if j in factor_splits:
             input_dim = round(factor_splits[j] * input_dim)
 
-    chain: List[layers.Bijector] = [layers.FactorOut(chain, factor_splits)]
-    # input_dim = int(np.product(input_shape))
-    # chain += [layers.RandomPermutation(input_dim)]
+    full_chain: List[layers.Bijector] = []
+    full_chain += [preprocessing]
+    full_chain += [layers.FactorOut(main_chain, factor_splits)]
 
-    model = layers.BijectorChain(chain)
+    flattened_shape = int(np.product(input_shape))
+    full_chain += [layers.RandomPermutation(flattened_shape)]
+
+    model = layers.BijectorChain(full_chain)
 
     return model
 
