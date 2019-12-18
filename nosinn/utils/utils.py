@@ -1,7 +1,7 @@
 import os
 import logging
 import random
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Sequence, TypeVar
 
 import numpy as np
 import torch
@@ -18,10 +18,13 @@ __all__ = [
     "count_parameters",
     "get_logger",
     "inf_generator",
+    "product",
     "random_seed",
     "save_checkpoint",
     "wandb_log",
 ]
+
+T = TypeVar("T")
 
 
 def wandb_log(
@@ -154,3 +157,12 @@ def random_seed(seed_value, use_cuda) -> None:
         torch.cuda.manual_seed_all(seed_value)  # gpu vars
         torch.backends.cudnn.deterministic = True  # needed
         torch.backends.cudnn.benchmark = False
+
+
+def product(seq: Sequence[T]) -> T:
+    if seq:
+        raise ValueError("seq cannot be empty")
+    result = seq[0]
+    for i in range(1, len(seq)):
+        result *= seq[i]
+    return result

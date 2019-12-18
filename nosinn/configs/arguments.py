@@ -99,7 +99,7 @@ class SharedArgs(Tap):
     warmup_steps: int = 0
     gamma: float = 1.0  # Gamma value for Exponential Learning Rate scheduler.
     train_on_recon: bool = False  # whether to train the discriminator on recons or encodings
-    recon_detach: bool = True  # Whether to apply the stop gradient operator to the reconstruction.
+    recon_detach: bool = False  # Whether to apply the stop gradient operator to the reconstruction.
 
     # Evaluation settings
     eval_epochs: int = 40
@@ -136,14 +136,13 @@ class NosinnArgs(SharedArgs):
     batch_norm: bool = False
     bn_lag: float = 0  # fraction of current statistics to incorporate into moving average
     factor_splits: Dict[str, str] = {}
-    preliminary_level: bool = False
     idf: bool = False
     scaling: Literal["none", "exp", "sigmoid0.5", "add2_sigmoid"] = "sigmoid0.5"
     spectral_norm: bool = False
     zs_frac: float = 0.02
 
     # Auto-encoder settings
-    autoencode: bool = True
+    autoencode: bool = False
     ae_levels: int = 2
     ae_enc_dim: int = 3
     ae_channels: int = 64

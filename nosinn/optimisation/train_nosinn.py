@@ -30,6 +30,7 @@ from nosinn.models.configs import (
     linear_disciminator,
     mp_32x32_net,
     mp_64x64_net,
+    ModelFn,
 )
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, random_seed
 from nosinn.configs import NosinnArgs
@@ -289,6 +290,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         feature_groups = datasets.pretrain.feature_groups
 
     # Model constructors and arguments
+    disc_fn: ModelFn
     if is_image_data:
         inn_fn = build_conv_inn
         if args.train_on_recon:

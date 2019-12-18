@@ -1,3 +1,6 @@
+from typing import Union
+from typing_extensions import Protocol
+
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,7 +8,21 @@ from torchvision.models import resnet50, resnet18
 
 from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
-__all__ = ["linear_disciminator", "mp_28x28_net", "mp_32x32_net", "mp_64x64_net", "fc_net"]
+__all__ = [
+    "linear_disciminator",
+    "mp_28x28_net",
+    "mp_32x32_net",
+    "mp_64x64_net",
+    "fc_net",
+    "ModelFn",
+]
+
+
+class ModelFn(Protocol):
+    def __call__(
+        self, input_dim: int, target_dim: int, **model_kwargs: Union[float, str, bool]
+    ) -> nn.Module:
+        ...
 
 
 class GlobalAvgPool(nn.Module):
@@ -81,7 +98,7 @@ def resnet_50_ft(input_dim, target_dim, freeze=True, pretrained=True):
     return net
 
 
-def mp_32x32_net(input_dim, target_dim, use_bn=True):
+def mp_32x32_net(input_dim: int, target_dim: int, use_bn: bool = True):
     def conv_block(in_dim, out_dim, kernel_size, stride, padding):
         _block = []
         _block += [
