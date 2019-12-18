@@ -99,7 +99,7 @@ def compute_loss(
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
     enc_y = grad_reverse(enc_y)
-    disc_loss = x.new_zeros(())
+    disc_loss = x.new_zeros(1)
     for disc in disc_ensemble:
         disc_loss += disc.routine(enc_y, s)[0]
 
