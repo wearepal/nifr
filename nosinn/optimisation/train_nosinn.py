@@ -398,7 +398,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
     disc_ensemble = []
 
-    for k in range ARGS.num_discs:
+    for k in range(ARGS.num_discs):
         disc = build_discriminator(
             input_shape=disc_input_shape,
             target_dim=datasets.s_dim,
