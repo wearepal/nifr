@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import List, Sequence, Optional
 
 import torch
@@ -5,7 +6,7 @@ import torch.nn as nn
 from .misc import Flatten
 from .bijector import Bijector
 
-__all__ = ["BijectorChain", "FactorOut"]
+__all__ = ["BijectorChain", "FactorOut", "UNet"]
 
 
 class BijectorChain(Bijector):
@@ -41,15 +42,6 @@ class FactorOut(BijectorChain):
     with splitting.
     """
 
-    @staticmethod
-    def _compute_split_point(tensor, frac):
-        return round(tensor.size(1) * frac)
-
-    def _frac_split_channelwise(self, tensor, frac):
-        assert 0 <= frac <= 1
-        split_point = self._compute_split_point(tensor, frac)
-        return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
-
     def __init__(self, layer_list, splits=None, inds: Optional[Sequence] = None):
         super().__init__(layer_list)
         self.splits: dict = splits or {}
@@ -66,7 +58,7 @@ class FactorOut(BijectorChain):
             if sum_ldj is not None:
                 x, sum_ldj = x
             if i in self.splits:
-                x_removed, x = self._frac_split_channelwise(x, self.splits[i])
+                x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 x_removed_flat = self._factor_layers[i](x_removed)
                 xs.append(x_removed_flat)
         xs.append(self._final_flatten(x))
@@ -99,3 +91,81 @@ class FactorOut(BijectorChain):
         out = (x, sum_ldj) if sum_ldj is not None else x
 
         return out
+
+
+class UNet(Bijector):
+    """A generalized nn.Sequential container for normalizing flows with splitting in a U form."""
+
+    def __init__(self, chain, splits=None, inds: Optional[Sequence] = None):
+        super().__init__()
+        self.down_chain = nn.ModuleList(chain)
+        self.up_chain = nn.ModuleList(deepcopy(chain))
+        self.splits: dict = splits or {}
+        self.inds = inds
+
+    def _forward(self, x: torch.Tensor, sum_ldj=None):
+        down_inds = range(len(self.down_chain)) if self.inds is None else self.inds
+        up_inds = range(len(self.up_chain) - 1, -1, -1) if self.inds is None else self.inds
+
+        xs: List[torch.Tensor] = []
+        # ============== contracting =========
+        for i in down_inds:
+            x = self.down_chain[i](x, sum_ldj=sum_ldj, reverse=False)
+            if sum_ldj is not None:
+                x, sum_ldj = x
+            if i in self.splits:
+                x_removed, x = _frac_split_channelwise(x, self.splits[i])
+                xs.append(x_removed)
+        xs.append(x)
+        # import pdb; pdb.set_trace()
+        # ============== expanding =========
+        x = xs.pop()
+        for i in up_inds:
+            if i in self.splits:
+                x_removed = xs.pop()
+                x = torch.cat([x_removed, x], dim=1)
+            x = self.up_chain[i](x, sum_ldj=sum_ldj, reverse=False)
+            if sum_ldj is not None:
+                x, sum_ldj = x
+
+        out = (x, sum_ldj) if sum_ldj is not None else x
+
+        return out
+
+    def _inverse(self, y: torch.Tensor, sum_ldj=None):
+        up_inds = range(len(self.up_chain)) if self.inds is None else self.inds
+        down_inds = range(len(self.down_chain) - 1, -1, -1) if self.inds is None else self.inds
+
+        ys: List[torch.Tensor] = []
+        # ============== inverse expanding =========
+        for i in up_inds:
+            y = self.up_chain[i](y, sum_ldj=sum_ldj, reverse=False)
+            if sum_ldj is not None:
+                y, sum_ldj = y
+            if i in self.splits:
+                y_removed, y = _frac_split_channelwise(y, self.splits[i])
+                ys.append(y_removed)
+        ys.append(y)
+        # ============== inverse contracting =========
+        for i in down_inds:
+            if i in self.splits:
+                y_removed = ys.pop()
+                y = torch.cat([y_removed, y], dim=1)
+            y = self.down_chain[i](y, sum_ldj=sum_ldj, reverse=False)
+            if sum_ldj is not None:
+                y, sum_ldj = y
+
+        out = (y, sum_ldj) if sum_ldj is not None else y
+
+        return out
+
+
+def _compute_split_point(tensor: torch.Tensor, frac: float):
+    return round(tensor.size(1) * frac)
+
+
+def _frac_split_channelwise(tensor: torch.Tensor, frac: float):
+    assert 0 <= frac <= 1
+    split_point = _compute_split_point(tensor, frac)
+    print(f"split_point: {split_point}")
+    return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
