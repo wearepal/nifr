@@ -410,7 +410,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         )
         disc_ensemble.append(disc)
     disc_ensemble = nn.ModuleList(disc_ensemble)
-    disc_ensemble.to(device)
+    disc_ensemble.to(args.device)
 
     if ARGS.spectral_norm:
 
