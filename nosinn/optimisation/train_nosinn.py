@@ -419,7 +419,12 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         LOGGER.info("Restoring model from checkpoint")
         inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
         log_metrics(
-            ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=0, feat_attr=ARGS.feat_attr
+            ARGS,
+            model=inn,
+            data=datasets,
+            save_to_csv=Path(ARGS.save_dir),
+            step=0,
+            feat_attr=ARGS.feat_attr,
         )
         return
 
@@ -460,7 +465,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
     LOGGER.info("Training has finished.")
     inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
-    log_metrics(ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True)
+    log_metrics(
+        ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
+    )
     save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
     inn.eval()
     return inn

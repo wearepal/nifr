@@ -1,4 +1,3 @@
-import os
 import random
 import types
 from pathlib import Path
@@ -8,8 +7,7 @@ import numpy as np
 import pandas as pd
 import torch
 import wandb
-from captum.attr import IntegratedGradients, NoiseTunnel
-from captum.attr import visualization as viz
+from captum.attr import IntegratedGradients, NoiseTunnel, visualization as viz
 from matplotlib import cm
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 
@@ -61,9 +59,8 @@ def log_metrics(
     )
 
     if feat_attr and args.dataset != "adult":
-        save_dir = f"{args.save_dir}/feat_attr_maps"
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
+        save_dir = Path(args.save_dir) / "feat_attr_maps"
+        save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
         pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
         pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
 
@@ -75,7 +72,7 @@ def log_metrics(
         num_samples = min(actual.size(0), 50)
         inds = random.sample(cand_inds, num_samples)
 
-        if args.y_dim == 1:
+        if data.y_dim == 1:
 
             def _binary_clf_fn(self, _input):
                 out = self.model(_input).sigmoid()
@@ -85,20 +82,20 @@ def log_metrics(
 
         clf.cpu()
 
-        for k, ind in enumerate(inds):
+        for k, _ in enumerate(inds):
             image_orig, _, target_orig = data.task[k]
             image_deb, _, target_deb = task_repr["xy"][k]
 
             if image_orig.dim() == 3:
                 feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-                feat_attr_map_orig.savefig(f"{save_dir}/feat_attr_map_orig_{k}.png")
+                feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_orig_{k}.png")
 
                 feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-                feat_attr_map_deb.savefig(f"{save_dir}/feat_attr_map_deb{k}.png")
+                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_deb{k}.png")
 
         clf.to(args.device)
 
-   # print("===> Predict y from xy")
+    # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
     # print("===> Predict s from xy")
     # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
@@ -123,6 +120,7 @@ def log_metrics(
         evaluate(args, step, task_train_repr["zs"], task_repr["zs"], name="zs")
         evaluate(args, step, task_train_repr["xy"], task_repr["xy"], name="xy")
         evaluate(args, step, task_train_repr["xs"], task_repr["xs"], name="xs")
+
 
 def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
@@ -202,11 +200,7 @@ def get_image_attribution(input, target, model):
 
     def attribute_image_features(algorithm, input, **kwargs):
         model.zero_grad()
-        tensor_attributions = algorithm.attribute(
-            input,
-            target=target,
-            **kwargs
-        )
+        tensor_attributions = algorithm.attribute(input, target=target, **kwargs)
 
         return tensor_attributions
 
@@ -214,15 +208,10 @@ def get_image_attribution(input, target, model):
     nt = NoiseTunnel(ig)
 
     attr_ig_nt = attribute_image_features(
-        nt,
-        input,
-        baselines=input * 0,
-        nt_type='smoothgrad_sq',
-        n_samples=100,
-        stdevs=0.2
+        nt, input, baselines=input * 0, nt_type="smoothgrad_sq", n_samples=100, stdevs=0.2
     )
     attr_ig_nt = np.transpose(attr_ig_nt.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
-    cmap = cm.get_cmap('viridis', 12)
+    cmap = cm.get_cmap("viridis", 12)
     fig, ax = viz.visualize_image_attr_multiple(
         attr_ig_nt,
         original_image=original_image,
