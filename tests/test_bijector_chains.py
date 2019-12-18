@@ -1,9 +1,11 @@
 """Test the invertible u-net"""
+from copy import deepcopy
+
 import numpy as np
 
 import torch
 from torch import nn
-from nosinn.layers import UNet
+from nosinn.layers import OxbowNet
 
 
 class Adder(nn.Module):
@@ -18,10 +20,10 @@ class Adder(nn.Module):
 
 
 def test_unet():
-    chain = [Adder(16, 1), Adder(8, 2), Adder(4, 4), Adder(2, 8)]
-    splits = {0: 0.5, 1: 0.5, 2: 0.5}
-    u_net = UNet(chain, splits=splits)
-    input_ = torch.zeros(1, 16)
+    chain = [Adder(80, 1), Adder(16, 2), Adder(4, 4), Adder(2, 8)]
+    splits = {0: 0.2, 1: 0.25, 2: 0.5}
+    u_net = OxbowNet(chain, deepcopy(chain), splits=splits)
+    input_ = torch.zeros(1, 80)
     print(input_.size())
     output = u_net(input_, reverse=False)
     reconstruction = u_net(output, reverse=True)
