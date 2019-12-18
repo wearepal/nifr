@@ -21,21 +21,14 @@ def nice_plot(
     assert len(results) <= 4, "we only have 4 line styles right now"
     for linestyle, (key, result) in zip(["-", "--", ":", "-."], results.items()):
         plot.errorbar(
-            result[x_key],
-            result[y_key],
-            marker="",
-            label=key,
-            linestyle=linestyle,
-            linewidth=2.5,
+            result[x_key], result[y_key], marker="", label=key, linestyle=linestyle, linewidth=2.5,
         )
     plot.grid(True)
     # get handles and labels for the legend
     handles, labels = plot.get_legend_handles_labels()
     # remove the errorbars from the legend if they are there
     handles = [(h[0] if isinstance(h, tuple) else h) for h in handles]
-    plot.legend(
-        handles, labels, loc='upper left', bbox_to_anchor=(1, 1.05)
-    )
+    plot.legend(handles, labels, loc="upper left", bbox_to_anchor=(1, 1.05))
     plot.set_xlabel(x_name)
     plot.set_ylabel(y_name)
     if title is not None:

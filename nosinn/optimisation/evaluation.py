@@ -1,23 +1,26 @@
+import random
+import types
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
-import pandas as pd
 import numpy as np
-
+import pandas as pd
 import torch
-from torch.utils.data import DataLoader, Dataset, TensorDataset
 import wandb
+from captum.attr import IntegratedGradients, NoiseTunnel, visualization as viz
+from matplotlib import cm
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import Accuracy, ProbPos, TPR, TNR, PPV, NMI
+from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple
-
 from nosinn.configs import NosinnArgs, SharedArgs
-from nosinn.data import get_data_tuples, DatasetTriplet
-from nosinn.models import Classifier, BipartiteInn
+from nosinn.data import DatasetTriplet, get_data_tuples
+from nosinn.models import BipartiteInn, Classifier
 from nosinn.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from nosinn.utils import wandb_log
+
 from .utils import log_images
 
 
@@ -35,6 +38,7 @@ def log_metrics(
     quick_eval: bool = True,
     save_to_csv: Optional[Path] = None,
     check_originals: bool = False,
+    feat_attr=False,
 ):
     """Compute and log a variety of metrics"""
     print("Encoding task dataset...")
@@ -43,7 +47,7 @@ def log_metrics(
     task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
 
     print("\nComputing metrics...")
-    evaluate(
+    _, clf = evaluate(
         args,
         step,
         task_train_repr["xy"],
@@ -53,6 +57,44 @@ def log_metrics(
         pred_s=False,
         save_to_csv=save_to_csv,
     )
+
+    if feat_attr and args.dataset != "adult":
+        save_dir = Path(args.save_dir) / "feat_attr_maps"
+        save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
+        pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
+        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
+
+        orig_correct = pred_orig == actual
+        deb_correct = pred_deb == actual
+        diff = (deb_correct.bool() & actual.bool()) ^ (deb_correct.bool() ^ orig_correct.bool())
+        cand_inds = torch.arange(end=actual.size(0))[diff].tolist()
+
+        num_samples = min(actual.size(0), 50)
+        inds = random.sample(cand_inds, num_samples)
+
+        if data.y_dim == 1:
+
+            def _binary_clf_fn(self, _input):
+                out = self.model(_input).sigmoid()
+                return torch.cat([1 - out, out], dim=-1)
+
+            clf.forward = types.MethodType(_binary_clf_fn, clf)
+
+        clf.cpu()
+
+        for k, _ in enumerate(inds):
+            image_orig, _, target_orig = data.task[k]
+            image_deb, _, target_deb = task_repr["xy"][k]
+
+            if image_orig.dim() == 3:
+                feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
+                feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_orig_{k}.png")
+
+                feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
+                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_deb{k}.png")
+
+        clf.to(args.device)
+
     # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
     # print("===> Predict s from xy")
@@ -148,6 +190,42 @@ def make_tuple_from_data(train, test, pred_s):
     return (DataTuple(x=train_x, s=train.s, y=train_y), DataTuple(x=test_x, s=test.s, y=test_y))
 
 
+def get_image_attribution(input, target, model):
+
+    if input.dim() == 3:
+        original_image = np.transpose(input.cpu().detach().numpy(), (1, 2, 0))
+        input = input.unsqueeze(0)
+    else:
+        original_image = np.transpose(input.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
+
+    def attribute_image_features(algorithm, input, **kwargs):
+        model.zero_grad()
+        tensor_attributions = algorithm.attribute(input, target=target, **kwargs)
+
+        return tensor_attributions
+
+    ig = IntegratedGradients(model)
+    nt = NoiseTunnel(ig)
+
+    attr_ig_nt = attribute_image_features(
+        nt, input, baselines=input * 0, nt_type="smoothgrad_sq", n_samples=100, stdevs=0.2
+    )
+    attr_ig_nt = np.transpose(attr_ig_nt.squeeze(0).cpu().detach().numpy(), (1, 2, 0))
+    cmap = cm.get_cmap("viridis", 12)
+    fig, ax = viz.visualize_image_attr_multiple(
+        attr_ig_nt,
+        original_image=original_image,
+        methods=["original_image", "masked_image", "blended_heat_map"],
+        signs=[None, "absolute_value", "absolute_value"],
+        outlier_perc=10,
+        cmap=cmap,
+        show_colorbar=True,
+        use_pyplot=False,
+    )
+
+    return fig
+
+
 def evaluate(
     args: SharedArgs,
     step: int,
@@ -218,7 +296,7 @@ def evaluate(
             for metric_name, value in metrics.items():
                 wandb.run.summary[metric_name] = value
 
-    return metrics
+    return metrics, clf
 
 
 def encode_dataset(
