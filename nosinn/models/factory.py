@@ -1,10 +1,10 @@
-from typing import Optional, List, Tuple, Dict
-
-import numpy as np
+from typing import Optional, List, Tuple, Dict, Union
 
 from nosinn import layers
 from nosinn.models import Classifier
+from nosinn.models.configs import ModelFn
 from nosinn.configs import NosinnArgs
+from nosinn.utils import product
 
 
 def build_fc_inn(
@@ -42,62 +42,54 @@ def build_fc_inn(
     return layers.BijectorChain(chain)
 
 
-def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
+def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
+    """Construct one block of the conv INN"""
+    _chain: List[layers.Bijector] = []
 
+    if args.idf:
+        _chain += [
+            layers.IntegerDiscreteFlow(input_dim, hidden_channels=args.coupling_channels)
+        ]
+        _chain += [layers.RandomPermutation(input_dim)]
+    else:
+        if args.batch_norm:
+            _chain += [layers.MovingBatchNorm2d(input_dim, bn_lag=args.bn_lag)]
+        if args.glow:
+            _chain += [layers.Invertible1x1Conv(input_dim, use_lr_decomp=True)]
+        else:
+            _chain += [layers.RandomPermutation(input_dim)]
+
+        if args.scaling == "none":
+            _chain += [
+                layers.AdditiveCouplingLayer(
+                    input_dim,
+                    hidden_channels=args.coupling_channels,
+                    num_blocks=args.coupling_depth,
+                    pcnt_to_transform=0.25,
+                )
+            ]
+        elif args.scaling == "sigmoid0.5":
+            _chain += [
+                layers.AffineCouplingLayer(
+                    input_dim,
+                    num_blocks=args.coupling_depth,
+                    hidden_channels=args.coupling_channels,
+                )
+            ]
+        else:
+            raise ValueError(f"Scaling {args.scaling} is not supported")
+
+    return layers.BijectorChain(_chain)
+
+
+def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bijector:
     input_dim = input_shape[0]
 
-    def _block(_input_dim) -> layers.Bijector:
-        _chain: List[layers.Bijector] = []
+    full_chain: List[layers.Bijector] = []
 
-        if args.idf:
-            _chain += [
-                layers.IntegerDiscreteFlow(_input_dim, hidden_channels=args.coupling_channels)
-            ]
-            _chain += [layers.RandomPermutation(_input_dim)]
-        else:
-            if args.batch_norm:
-                _chain += [layers.MovingBatchNorm2d(_input_dim, bn_lag=args.bn_lag)]
-            if args.glow:
-                _chain += [layers.Invertible1x1Conv(_input_dim, use_lr_decomp=True)]
-            else:
-                _chain += [layers.RandomPermutation(_input_dim)]
-
-            if args.scaling == "none":
-                _chain += [
-                    layers.AdditiveCouplingLayer(
-                        _input_dim,
-                        hidden_channels=args.coupling_channels,
-                        num_blocks=args.coupling_depth,
-                        pcnt_to_transform=0.25,
-                    )
-                ]
-            elif args.scaling == "sigmoid0.5":
-                _chain += [
-                    layers.AffineCouplingLayer(
-                        _input_dim,
-                        num_blocks=args.coupling_depth,
-                        hidden_channels=args.coupling_channels,
-                    )
-                ]
-            else:
-                raise ValueError(f"Scaling {args.scaling} is not supported")
-
-        return layers.BijectorChain(_chain)
-
-    main_chain: List[layers.Bijector] = []
-
+    # =================================== add all blocks ==========================================
     factor_splits = {int(k): float(v) for k, v in args.factor_splits.items()}
-
-    preprocessing = layers.BijectorChain([
-        layers.ConstantAffine(0.98, 0.010),
-        layers.LogitTransform(),
-        layers.ConstantAffine(1 / 4.5, 0)
-    ])
-
-    if args.preliminary_level:
-        main_chain.append(layers.BijectorChain([_block(input_dim) for _ in range(args.level_depth)]))
-        if 0 in factor_splits:
-            input_dim = round(factor_splits[0] * input_dim)
+    main_chain: List[layers.Bijector] = []
 
     for i in range(args.levels):
         level: List[layers.Bijector]
@@ -107,18 +99,16 @@ def build_conv_inn(args: NosinnArgs, input_shape) -> layers.Bijector:
             level = [layers.SqueezeLayer(2)]
         input_dim *= 4
 
-        level.extend([_block(input_dim) for _ in range(args.level_depth)])
+        level.extend([_block(args, input_dim) for _ in range(args.level_depth)])
 
         main_chain.append(layers.BijectorChain(level))
-        j = i if not args.preliminary_level else i + 1
-        if j in factor_splits:
-            input_dim = round(factor_splits[j] * input_dim)
+        if i in factor_splits:
+            input_dim = round(factor_splits[i] * input_dim)
 
-    full_chain: List[layers.Bijector] = []
-    full_chain += [preprocessing]
+    # ================================ bring it all together ======================================
     full_chain += [layers.FactorOut(main_chain, factor_splits)]
 
-    flattened_shape = int(np.product(input_shape))
+    flattened_shape = int(product(input_shape))
     full_chain += [layers.RandomPermutation(flattened_shape)]
 
     model = layers.BijectorChain(full_chain)
@@ -130,16 +120,16 @@ def build_discriminator(
     input_shape: Tuple[int, ...],
     target_dim: int,
     train_on_recon: bool,
-    frac_enc,
-    model_fn,
-    model_kwargs,
+    frac_enc: float,
+    model_fn: ModelFn,
+    model_kwargs: Dict[str, Union[float, str, bool]],
     optimizer_kwargs=None,
 ):
     in_dim = input_shape[0]
 
     # this is done in models/inn.py
     if not train_on_recon and len(input_shape) > 2:
-        in_dim = round(frac_enc * int(np.product(input_shape)))
+        in_dim = round(frac_enc * int(product(input_shape)))
 
     num_classes = target_dim if target_dim > 1 else 2
     discriminator = Classifier(
