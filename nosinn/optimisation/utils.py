@@ -19,6 +19,10 @@ def log_images(args, image_batch, name, step, nsamples=64, nrows=8, monochrome=F
     """Make a grid of the given images, save them in a file and log them with W&B"""
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
+
+    if args.dataset == "celeba":
+        images = 0.5 * images + 0.5
+
     if monochrome:
         images = images.mean(dim=1, keepdim=True)
     # torchvision.utils.save_image(images, f'./experiments/finn/{prefix}{name}.png', nrow=nrows)

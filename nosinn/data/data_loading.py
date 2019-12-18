@@ -104,7 +104,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             transform.append(Quantize(int(args.quant_level)))
         if args.input_noise:
             transform.append(NoisyDequantize(int(args.quant_level)))
-
+        transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
 
         unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
