@@ -31,7 +31,6 @@ class Flatten(Bijector):
 
 
 class ConstantAffine(Bijector):
-
     def __init__(self, scale, shift):
         super().__init__()
         self.register_buffer("scale", torch.tensor(scale))
@@ -55,4 +54,3 @@ class ConstantAffine(Bijector):
             return x
         else:
             return x, sum_ldj + self.logdetjac()
-

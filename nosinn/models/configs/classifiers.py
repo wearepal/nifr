@@ -8,7 +8,14 @@ from torchvision.models import resnet50, resnet18
 
 from nosinn.layers.resnet import ResidualNet, ConvResidualNet
 
-__all__ = ["linear_disciminator", "mp_28x28_net", "mp_32x32_net", "mp_64x64_net", "fc_net", "ModelFn"]
+__all__ = [
+    "linear_disciminator",
+    "mp_28x28_net",
+    "mp_32x32_net",
+    "mp_64x64_net",
+    "fc_net",
+    "ModelFn",
+]
 
 
 class ModelFn(Protocol):

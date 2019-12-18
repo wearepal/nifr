@@ -47,9 +47,7 @@ def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
     _chain: List[layers.Bijector] = []
 
     if args.idf:
-        _chain += [
-            layers.IntegerDiscreteFlow(input_dim, hidden_channels=args.coupling_channels)
-        ]
+        _chain += [layers.IntegerDiscreteFlow(input_dim, hidden_channels=args.coupling_channels)]
         _chain += [layers.RandomPermutation(input_dim)]
     else:
         if args.batch_norm:
@@ -108,8 +106,8 @@ def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bij
     # ================================ bring it all together ======================================
     full_chain += [layers.FactorOut(main_chain, factor_splits)]
 
-    flattened_shape = int(product(input_shape))
-    full_chain += [layers.RandomPermutation(flattened_shape)]
+    # flattened_shape = int(product(input_shape))
+    # full_chain += [layers.RandomPermutation(flattened_shape)]
 
     model = layers.BijectorChain(full_chain)
 
