@@ -461,7 +461,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(save_dir=save_dir, inn=inn, disc_ensmble)
+                save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
