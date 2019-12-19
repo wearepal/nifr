@@ -46,12 +46,13 @@ ARGS: NosinnArgs = None
 LOGGER: Logger = None
 
 
-def save_model(save_dir, inn, disc_ensemble) -> str:
+def save_model(save_dir: Path, inn: nn.Module, disc_ensemble, epoch: int) -> str:
     filename = save_dir / "checkpt.pth"
     save_dict = {
         "ARGS": ARGS.as_dict(),
-        "": inn.state_dict(),
+        "inn": inn.state_dict(),
         "disc_ensemble": disc_ensemble.state_dict(),
+        "epoch": epoch,
     }
 
     torch.save(save_dict, filename)
@@ -292,11 +293,12 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     if hasattr(datasets.pretrain, "feature_groups"):
         feature_groups = datasets.pretrain.feature_groups
 
-    # Model constructors and arguments
+    # =================================== discriminator settings ==================================
     disc_fn: ModelFn
     if is_image_data:
         inn_fn = build_conv_inn
-        if args.train_on_recon:
+        if args.train_on_recon or (args.oxbow_net and not args.autoencode):
+            # with the oxbow net, the output has the same shape as the input
             if args.dataset == "cmnist":
                 disc_fn = mp_32x32_net
             else:
@@ -314,10 +316,10 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         disc_fn = fc_net
         disc_kwargs = {"hidden_dims": args.disc_hidden_dims}
 
-    #  Model arguments
+    # ======================================== INN settings =======================================
     inn_kwargs = {"args": args, "optimizer_args": optimizer_args, "feature_groups": feature_groups}
 
-    # Initialise INN
+    # ======================================= initialise INN ======================================
     if ARGS.autoencode:
         if ARGS.input_noise:
             LOGGER.warn("WARNING: autoencoder and input noise are both turned on!")
@@ -424,7 +426,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
             disc.apply(spectral_norm)
 
     # Save initial parameters
-    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
+    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble, epoch=1)
 
     # Resume from checkpoint
     if ARGS.resume is not None:
@@ -449,20 +451,20 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
     itr = 0
     # Train INN for N epochs
-    for epoch in range(ARGS.epochs):
+    for epoch in range(1, ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
         itr = train(inn, disc_ensemble, train_loader, epoch)
 
-        if epoch % ARGS.val_freq == 0 and epoch != 0:
+        if epoch % ARGS.val_freq == 0:
             val_loss = validate(inn, disc_ensemble, val_loader, itr)
             if args.super_val:
                 log_metrics(ARGS, model=inn, data=datasets, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
+                save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble, epoch=epoch)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -482,7 +484,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
-    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
+    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble, epoch=epoch)
     inn.eval()
     return inn
 
