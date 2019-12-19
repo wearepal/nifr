@@ -50,7 +50,7 @@ def save_model(save_dir, inn, disc_ensemble) -> str:
     filename = save_dir / "checkpt.pth"
     save_dict = {
         "ARGS": ARGS.as_dict(),
-        "inn": inn.state_dict(),
+        "": inn.state_dict(),
         "disc_ensemble": disc_ensemble.state_dict(),
     }
 
@@ -68,7 +68,7 @@ def restore_model(filename, inn, disc_ensemble):
 
 
 def compute_loss(
-    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, disc_ensemble: nn.ModuleList, itr: int,
+    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, disc_ensemble: nn.ModuleList, itr: int
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     logging_dict = {}
 
@@ -478,7 +478,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
             )
 
     LOGGER.info("Training has finished.")
-    inn, disc_ensemble = restore_model(save_dir / "checkpt.pth", inn=inn, disc_ensemble=disc_ensemble)
+    inn, disc_ensemble = restore_model(
+        save_dir / "checkpt.pth", inn=inn, disc_ensemble=disc_ensemble
+    )
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )

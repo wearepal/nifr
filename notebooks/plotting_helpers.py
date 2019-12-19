@@ -21,7 +21,7 @@ def nice_plot(
     assert len(results) <= 4, "we only have 4 line styles right now"
     for linestyle, (key, result) in zip(["-", "--", ":", "-."], results.items()):
         plot.errorbar(
-            result[x_key], result[y_key], marker="", label=key, linestyle=linestyle, linewidth=2.5,
+            result[x_key], result[y_key], marker="", label=key, linestyle=linestyle, linewidth=2.5
         )
     plot.grid(True)
     # get handles and labels for the legend

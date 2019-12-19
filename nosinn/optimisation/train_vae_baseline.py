@@ -447,11 +447,7 @@ def main_vae(raw_args=None) -> None:
 
 def save_model(save_dir, vae, epoch, prefix="best") -> str:
     filename = save_dir / f"{prefix}_checkpt.pth"
-    save_dict = {
-        "args": ARGS.as_dict(),
-        "model": vae.state_dict(),
-        "epoch": epoch,
-    }
+    save_dict = {"args": ARGS.as_dict(), "model": vae.state_dict(), "epoch": epoch}
 
     torch.save(save_dict, filename)
 

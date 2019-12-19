@@ -130,7 +130,7 @@ def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dic
             predictions,
             actual,
             metrics=[Accuracy(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
-            per_sens_metrics=[ProbPos(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s"),],
+            per_sens_metrics=[ProbPos(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
         )
         logging_dict = {
             f"{name} Accuracy": metrics["Accuracy"],
