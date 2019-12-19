@@ -299,7 +299,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         if args.train_on_recon:
             if args.dataset == "adult":
                 disc_fn = linear_disciminator
-            if args.dataset == "cmnist":
+            elif args.dataset == "cmnist":
                 disc_fn = mp_32x32_net
             else:
                 disc_fn = mp_64x64_net
