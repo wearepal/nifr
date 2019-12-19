@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Dict, List, Sequence, Optional, Tuple, Union
 
 import torch
@@ -188,5 +187,4 @@ def _compute_split_point(tensor: torch.Tensor, frac: float):
 def _frac_split_channelwise(tensor: torch.Tensor, frac: float):
     assert 0 <= frac <= 1
     split_point = _compute_split_point(tensor, frac)
-    print(f"split_point: {split_point}")
     return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
