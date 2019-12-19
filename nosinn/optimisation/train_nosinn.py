@@ -46,12 +46,12 @@ ARGS: NosinnArgs = None
 LOGGER: Logger = None
 
 
-def save_model(save_dir, inn, discriminator) -> str:
+def save_model(save_dir, inn, disc_ensemble) -> str:
     filename = save_dir / "checkpt.pth"
     save_dict = {
         "ARGS": ARGS.as_dict(),
-        "model": inn.state_dict(),
-        "discriminator": discriminator.state_dict(),
+        "": inn.state_dict(),
+        "disc_ensemble": disc_ensemble.state_dict(),
     }
 
     torch.save(save_dict, filename)
@@ -59,16 +59,16 @@ def save_model(save_dir, inn, discriminator) -> str:
     return filename
 
 
-def restore_model(filename, model, discriminator):
+def restore_model(filename, inn, disc_ensemble):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    model.load_state_dict(checkpt["model"])
-    discriminator.load_state_dict(checkpt["discriminator"])
+    inn.load_state_dict(checkpt["inn"])
+    disc_ensemble.load_state_dict(checkpt["disc_ensemble"])
 
-    return model, discriminator
+    return inn, disc_ensemble
 
 
 def compute_loss(
-    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, discriminator: Classifier, itr: int,
+    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, disc_ensemble: nn.ModuleList, itr: int
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     logging_dict = {}
 
@@ -99,7 +99,9 @@ def compute_loss(
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
     enc_y = grad_reverse(enc_y)
-    disc_loss, _ = discriminator.routine(enc_y, s)
+    disc_loss = x.new_zeros(1)
+    for disc in disc_ensemble:
+        disc_loss += disc.routine(enc_y, s)[0]
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
@@ -109,9 +111,6 @@ def compute_loss(
     nll *= ARGS.nll_weight
     disc_loss *= pred_s_weight
     recon_loss *= ARGS.recon_stability_weight
-
-    if ARGS.gp_weight > 0:
-        disc_loss += ARGS.gp_weight * contrastive_gradient_penalty(discriminator, enc_y)
 
     loss = nll + disc_loss + recon_loss
 
@@ -128,9 +127,9 @@ def compute_loss(
     return loss, logging_dict
 
 
-def train(inn, discriminator, dataloader, epoch: int) -> int:
+def train(inn, disc_ensemble, dataloader, epoch: int) -> int:
     inn.train()
-    discriminator.train()
+    disc_ensemble.train()
 
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -143,14 +142,18 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
 
         x, s, y = to_device(x, s, y)
 
-        loss, logging_dict = compute_loss(x, s, inn, discriminator, itr)
+        loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
 
         inn.zero_grad()
-        discriminator.zero_grad()
+
+        for disc in disc_ensemble:
+            disc.zero_grad()
 
         loss.backward()
         inn.step()
-        discriminator.step()
+
+        for disc in disc_ensemble:
+            disc.step()
 
         # Log losses
         total_loss_meter.update(loss.item())
@@ -183,9 +186,9 @@ def train(inn, discriminator, dataloader, epoch: int) -> int:
     return itr
 
 
-def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: int):
+def validate(inn: PartitionedInn, disc_ensemble: Classifier, val_loader, itr: int):
     inn.eval()
-    discriminator.eval()
+    disc_ensemble.eval()
 
     with torch.no_grad():
         loss_meter = AverageMeter()
@@ -193,7 +196,7 @@ def validate(inn: PartitionedInn, discriminator: Classifier, val_loader, itr: in
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            _, logging_dict = compute_loss(x_val, s_val, inn, discriminator, itr)
+            _, logging_dict = compute_loss(x_val, s_val, inn, disc_ensemble, itr)
 
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
@@ -294,7 +297,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     if is_image_data:
         inn_fn = build_conv_inn
         if args.train_on_recon:
-            if args.dataset == "cmnist":
+            if args.dataset == "adult":
+                disc_fn = linear_disciminator
+            elif args.dataset == "cmnist":
                 disc_fn = mp_32x32_net
             else:
                 disc_fn = mp_64x64_net
@@ -391,18 +396,24 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
-    # Initialise Discriminator
+    # Initialise Discriminators
+
     disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
-    discriminator = build_discriminator(
-        input_shape=disc_input_shape,
-        target_dim=datasets.s_dim,
-        train_on_recon=ARGS.train_on_recon,
-        frac_enc=enc_shape,
-        model_fn=disc_fn,
-        model_kwargs=disc_kwargs,
-        optimizer_kwargs=disc_optimizer_kwargs,
-    )
-    discriminator.to(ARGS.device)
+    disc_ensemble = []
+
+    for k in range(ARGS.num_discs):
+        disc = build_discriminator(
+            input_shape=disc_input_shape,
+            target_dim=datasets.s_dim,
+            train_on_recon=ARGS.train_on_recon,
+            frac_enc=enc_shape,
+            model_fn=disc_fn,
+            model_kwargs=disc_kwargs,
+            optimizer_kwargs=disc_optimizer_kwargs,
+        )
+        disc_ensemble.append(disc)
+    disc_ensemble = nn.ModuleList(disc_ensemble)
+    disc_ensemble.to(args.device)
 
     if ARGS.spectral_norm:
 
@@ -411,15 +422,16 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
                 return torch.nn.utils.spectral_norm(m)
 
         inn.apply(spectral_norm)
-        discriminator.apply(spectral_norm)
+        for disc in disc_ensemble:
+            disc.apply(spectral_norm)
 
     # Save initial parameters
-    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
 
     # Resume from checkpoint
     if ARGS.resume is not None:
         LOGGER.info("Restoring model from checkpoint")
-        inn, discriminator = restore_model(ARGS.resume, inn, discriminator)
+        inn, discriminator = restore_model(ARGS.resume, inn=inn, disc_ensemble=disc_ensemble)
         log_metrics(
             ARGS,
             model=inn,
@@ -443,16 +455,16 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
-        itr = train(inn, discriminator, train_loader, epoch)
+        itr = train(inn, disc_ensemble, train_loader, epoch)
 
         if epoch % ARGS.val_freq == 0 and epoch != 0:
-            val_loss = validate(inn, discriminator, val_loader, itr)
+            val_loss = validate(inn, disc_ensemble, val_loader, itr)
             if args.super_val:
                 log_metrics(ARGS, model=inn, data=datasets, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+                save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -466,11 +478,13 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
             )
 
     LOGGER.info("Training has finished.")
-    inn, discriminator = restore_model(save_dir / "checkpt.pth", inn, discriminator)
+    inn, disc_ensemble = restore_model(
+        save_dir / "checkpt.pth", inn=inn, disc_ensemble=disc_ensemble
+    )
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
-    save_model(save_dir=save_dir, inn=inn, discriminator=discriminator)
+    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble)
     inn.eval()
     return inn
 
