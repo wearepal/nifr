@@ -99,17 +99,20 @@ def compute_loss(
 
             if ARGS.recon_stability_weight > 0:
                 # punish network for going out of range [0; 1]
-                recon_loss = torch.sum(recon.clamp(max=0)**2)
-                recon_loss += torch.sum((recon.clamp(min=1) - 1)**2)
-                recon_loss *= ARGS.recon_stability_weight
+                recon_loss = F.l1_loss(recon.clamp(max=0), torch.zeros_like(recon), reduction="sum")
+                recon_loss += F.l1_loss(recon.clamp(min=1), torch.ones_like(recon), reduction="sum")
+                recon_loss *= ARGS.recon_stability_weight / recon.size(0)
 
-    enc_y = grad_reverse(enc_y)
-    disc_loss, _ = discriminator.routine(enc_y, s)
-
+    lambda_ = 1.0
     if itr < ARGS.warmup_steps:
-        pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
+        pred_s_weight = ARGS.pred_s_weight * np.exp(10 * (itr / ARGS.warmup_steps - 1))
+        if pred_s_weight < 3e-4:
+            lambda_ = 0.0
     else:
         pred_s_weight = ARGS.pred_s_weight
+
+    enc_y = grad_reverse(enc_y, lambda_)
+    disc_loss, _ = discriminator.routine(enc_y, s)
 
     nll *= ARGS.nll_weight
     disc_loss *= pred_s_weight
