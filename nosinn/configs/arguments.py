@@ -140,6 +140,7 @@ class NosinnArgs(SharedArgs):
     scaling: Literal["none", "exp", "sigmoid0.5", "add2_sigmoid"] = "sigmoid0.5"
     spectral_norm: bool = False
     zs_frac: float = 0.02
+    oxbow_net: bool = False
 
     # Auto-encoder settings
     autoencode: bool = False

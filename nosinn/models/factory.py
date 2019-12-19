@@ -80,31 +80,45 @@ def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
     return layers.BijectorChain(_chain)
 
 
+def _build_multi_scale_chain(
+    args: NosinnArgs, input_dim, factor_splits, unsqueeze=False
+) -> List[layers.Bijector]:
+    chain: List[layers.Bijector] = []
+
+    for i in range(args.levels):
+        squeeze: layers.Bijector
+        if args.reshape_method == "haar":
+            squeeze = layers.HaarDownsampling(input_dim)
+        else:
+            squeeze = layers.SqueezeLayer(2)
+
+        if unsqueeze:
+            squeeze = layers.InvertBijector(to_invert=squeeze)
+
+        level: List[layers.Bijector] = [squeeze]
+        input_dim *= 4
+
+        level.extend([_block(args, input_dim) for _ in range(args.level_depth)])
+
+        chain.append(layers.BijectorChain(level))
+        if i in factor_splits:
+            input_dim = round(factor_splits[i] * input_dim)
+    return chain
+
+
 def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bijector:
     input_dim = input_shape[0]
 
     full_chain: List[layers.Bijector] = []
 
-    # =================================== add all blocks ==========================================
     factor_splits = {int(k): float(v) for k, v in args.factor_splits.items()}
-    main_chain: List[layers.Bijector] = []
+    main_chain = _build_multi_scale_chain(args, input_dim, factor_splits)
 
-    for i in range(args.levels):
-        level: List[layers.Bijector]
-        if args.reshape_method == "haar":
-            level = [layers.HaarDownsampling(input_dim)]
-        else:
-            level = [layers.SqueezeLayer(2)]
-        input_dim *= 4
-
-        level.extend([_block(args, input_dim) for _ in range(args.level_depth)])
-
-        main_chain.append(layers.BijectorChain(level))
-        if i in factor_splits:
-            input_dim = round(factor_splits[i] * input_dim)
-
-    # ================================ bring it all together ======================================
-    full_chain += [layers.FactorOut(main_chain, factor_splits)]
+    if args.oxbow_net:
+        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, unsqueeze=True)
+        full_chain += [layers.OxbowNet(main_chain, up_chain, factor_splits)]
+    else:
+        full_chain += [layers.FactorOut(main_chain, factor_splits)]
 
     # flattened_shape = int(product(input_shape))
     # full_chain += [layers.RandomPermutation(flattened_shape)]
