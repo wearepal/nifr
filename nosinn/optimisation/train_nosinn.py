@@ -81,6 +81,7 @@ def compute_loss(
     disc_loss = x.new_zeros(1)
     for disc in disc_ensemble:
         disc_loss += disc.routine(enc_y, s)[0]
+    disc_loss /= ARGS.num_discs
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
