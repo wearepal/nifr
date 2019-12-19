@@ -35,37 +35,15 @@ from nosinn.models.configs import (
 from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, random_seed
 from nosinn.configs import NosinnArgs
 
-from .evaluation import log_metrics, get_image_attribution
-from .loss import PixelCrossEntropy, grad_reverse, MixedLoss, contrastive_gradient_penalty
-from .utils import get_data_dim, log_images
+from .evaluation import log_metrics
+from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
+from .utils import get_data_dim, log_images, save_model, restore_model
 
 __all__ = ["main_nosinn"]
 
 NDECS = 0
 ARGS: NosinnArgs = None
 LOGGER: Logger = None
-
-
-def save_model(save_dir: Path, inn: nn.Module, disc_ensemble, epoch: int) -> str:
-    filename = save_dir / "checkpt.pth"
-    save_dict = {
-        "ARGS": ARGS.as_dict(),
-        "inn": inn.state_dict(),
-        "disc_ensemble": disc_ensemble.state_dict(),
-        "epoch": epoch,
-    }
-
-    torch.save(save_dict, filename)
-
-    return filename
-
-
-def restore_model(filename, inn, disc_ensemble):
-    checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    inn.load_state_dict(checkpt["inn"])
-    disc_ensemble.load_state_dict(checkpt["disc_ensemble"])
-
-    return inn, disc_ensemble
 
 
 def compute_loss(
@@ -138,7 +116,7 @@ def train(inn, disc_ensemble, dataloader, epoch: int) -> int:
     time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    start_itr = epoch * len(dataloader)
+    start_itr = (epoch - 1) * len(dataloader)
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
@@ -425,22 +403,24 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
         for disc in disc_ensemble:
             disc.apply(spectral_norm)
 
-    # Save initial parameters
-    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble, epoch=1)
-
     # Resume from checkpoint
     if ARGS.resume is not None:
         LOGGER.info("Restoring model from checkpoint")
-        inn, discriminator = restore_model(ARGS.resume, inn=inn, disc_ensemble=disc_ensemble)
-        log_metrics(
-            ARGS,
-            model=inn,
-            data=datasets,
-            save_to_csv=Path(ARGS.save_dir),
-            step=0,
-            feat_attr=ARGS.feat_attr,
-        )
-        return
+        filename = Path(ARGS.resume)
+        inn, discriminator = restore_model(args, filename, inn=inn, disc_ensemble=disc_ensemble)
+        if ARGS.evaluate:
+            log_metrics(
+                ARGS,
+                model=inn,
+                data=datasets,
+                save_to_csv=Path(ARGS.save_dir),
+                step=0,
+                feat_attr=ARGS.feat_attr,
+            )
+            return inn
+    else:
+        # Save initial parameters
+        save_model(args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=1)
 
     # Logging
     # wandb.set_model_graph(str(inn))
@@ -464,7 +444,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble, epoch=epoch)
+                save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -479,12 +459,12 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
     LOGGER.info("Training has finished.")
     inn, disc_ensemble = restore_model(
-        save_dir / "checkpt.pth", inn=inn, disc_ensemble=disc_ensemble
+        args, save_dir / "checkpt.pth", inn=inn, disc_ensemble=disc_ensemble
     )
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
-    save_model(save_dir=save_dir, inn=inn, disc_ensemble=disc_ensemble, epoch=epoch)
+    save_model(args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch)
     inn.eval()
     return inn
 
