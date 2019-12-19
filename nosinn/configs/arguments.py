@@ -164,7 +164,6 @@ class NosinnArgs(SharedArgs):
     nll_weight: float = 1e-2
     pred_s_weight: float = 1
     recon_stability_weight: float = 0
-    gp_weight: float = 0
 
     path_to_ae: str = ""
 

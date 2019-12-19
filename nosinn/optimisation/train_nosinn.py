@@ -50,7 +50,7 @@ def save_model(save_dir, inn, disc_ensemble) -> str:
     filename = save_dir / "checkpt.pth"
     save_dict = {
         "ARGS": ARGS.as_dict(),
-        "model": inn.state_dict(),
+        "inn": inn.state_dict(),
         "disc_ensemble": disc_ensemble.state_dict(),
     }
 
@@ -61,10 +61,10 @@ def save_model(save_dir, inn, disc_ensemble) -> str:
 
 def restore_model(filename, inn, disc_ensemble):
     checkpt = torch.load(filename, map_location=lambda storage, loc: storage)
-    inn.load_state_dict(checkpt["model"])
+    inn.load_state_dict(checkpt["inn"])
     disc_ensemble.load_state_dict(checkpt["disc_ensemble"])
 
-    return model, disc_ensemble
+    return inn, disc_ensemble
 
 
 def compute_loss(
