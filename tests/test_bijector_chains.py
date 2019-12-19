@@ -24,7 +24,6 @@ def test_unet():
     splits = {0: 0.2, 1: 0.25, 2: 0.5}
     u_net = OxbowNet(chain, deepcopy(chain), splits=splits)
     input_ = torch.zeros(1, 80)
-    print(input_.size())
     output = u_net(input_, reverse=False)
     reconstruction = u_net(output, reverse=True)
 
