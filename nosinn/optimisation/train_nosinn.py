@@ -297,6 +297,8 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     if is_image_data:
         inn_fn = build_conv_inn
         if args.train_on_recon:
+            if args.dataset == "adult":
+                disc_fn = linear_disciminator
             if args.dataset == "cmnist":
                 disc_fn = mp_32x32_net
             else:
