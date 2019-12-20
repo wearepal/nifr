@@ -292,6 +292,7 @@ def evaluate(
         else:
             with results_path.open("a") as f:  # append to existing file
                 f.write(value_list + "\n")
+        print(f"Results have been written to {results_path.resolve()}")
         if args.use_wandb:
             for metric_name, value in metrics.items():
                 wandb.run.summary[metric_name] = value
