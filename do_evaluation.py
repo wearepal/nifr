@@ -1,4 +1,9 @@
-"""Automatically run evaluation for a given checkpoint"""
+"""Automatically run evaluation for a given checkpoint
+
+Usage:
+
+    python do_evaluation.py <path to checkpoint>
+"""
 import sys
 import argparse
 import subprocess
@@ -10,6 +15,7 @@ import torch
 
 
 def main():
+    # ========================== get checkpoint path and CSV file name ============================
     parser = argparse.ArgumentParser()
     parser.add_argument("checkpoint_path", help="Path to the checkpoint file")
     parser.add_argument("--csv-file", help="Where to store the results")
@@ -17,6 +23,7 @@ def main():
     chkpt_path = Path(eval_args.checkpoint_path)
     csv_fname = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
 
+    # ============================= load ARGS from checkpoint file ================================
     print(f"Loading from '{chkpt_path}' ...")
     chkpt = torch.load(chkpt_path)
 
@@ -27,6 +34,7 @@ def main():
     else:
         raise RuntimeError("Checkpoint doesn't contain args.")
 
+    # ================================ prepare values for eval loop ===============================
     dataset = model_args["dataset"]
     if dataset == "cmnist":
         parameter_name = "scale"
@@ -35,6 +43,7 @@ def main():
         parameter_name = "task_mixing_factor"
         parameter_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
+    # ============================== construct commandline arguments ==============================
     base_args: List[str] = []
     for key, value in model_args.items():
         key_arg = f"--{key.replace('_', '-')}"
@@ -49,11 +58,13 @@ def main():
             value_args = [str(value)]
         base_args += [key_arg] + value_args
 
-    # special arguments for evaluation
+    # ============================== special arguments for evaluation =============================
     base_args += ["--resume", str(chkpt_path.resolve())]
     base_args += ["--evaluate", "True"]
     base_args += ["--results-csv", csv_fname]
+    base_args += ["--use-wandb", "False"]
 
+    # ======================================= run eval loop =======================================
     python_exe = sys.executable
 
     for parameter_value in parameter_values:
