@@ -95,6 +95,9 @@ def _build_multi_scale_chain(
         if unsqueeze:
             squeeze = layers.InvertBijector(to_invert=squeeze)
 
+        # It is very important that `squeeze` is a separate element in `chain` and is not together
+        # with the rest of the blocks in a BijectorChain, because when the order of `chain` is
+        # inverted, `squeeze` needs to change its position.
         chain.append(squeeze)
         input_dim *= 4
 
