@@ -276,8 +276,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     disc_fn: ModelFn
     if is_image_data:
         inn_fn = build_conv_inn
-        if args.train_on_recon or (args.oxbow_net and not args.autoencode):
-            # with the oxbow net, the output has the same shape as the input
+        if args.train_on_recon:  # or (args.oxbow_net and not args.autoencode):
             if args.dataset == "cmnist":
                 disc_fn = mp_32x32_net
             else:
