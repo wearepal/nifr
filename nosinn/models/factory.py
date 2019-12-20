@@ -86,24 +86,24 @@ def _build_multi_scale_chain(
     chain: List[layers.Bijector] = []
 
     for i in range(args.levels):
+        level: List[layers.Bijector] = []
         squeeze: layers.Bijector
         if args.reshape_method == "haar":
             squeeze = layers.HaarDownsampling(input_dim)
         else:
             squeeze = layers.SqueezeLayer(2)
 
-        if unsqueeze:
-            squeeze = layers.InvertBijector(to_invert=squeeze)
+        if not unsqueeze:
+            level += [squeeze]
 
-        # It is very important that `squeeze` is a separate element in `chain` and is not together
-        # with the rest of the blocks in a BijectorChain, because when the order of `chain` is
-        # inverted, `squeeze` needs to change its position.
-        chain.append(squeeze)
         input_dim *= 4
 
-        blocks = [_block(args, input_dim) for _ in range(args.level_depth)]
+        level += [_block(args, input_dim) for _ in range(args.level_depth)]
 
-        chain.append(layers.BijectorChain(blocks))
+        if unsqueeze:  # when unsqueezing, the unsqueeze layer has to come after the block
+            level += [layers.InvertBijector(to_invert=squeeze)]
+
+        chain.append(layers.BijectorChain(level))
         if i in factor_splits:
             input_dim = round(factor_splits[i] * input_dim)
     return chain
