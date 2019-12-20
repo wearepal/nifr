@@ -42,7 +42,7 @@ def build_fc_inn(
     return layers.BijectorChain(chain)
 
 
-def _block(args: NosinnArgs, input_dim: int, reverse: bool = False) -> layers.Bijector:
+def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
     """Construct one block of the conv INN"""
     _chain: List[layers.Bijector] = []
 
@@ -77,14 +77,11 @@ def _block(args: NosinnArgs, input_dim: int, reverse: bool = False) -> layers.Bi
         else:
             raise ValueError(f"Scaling {args.scaling} is not supported")
 
-    if reverse:
-        _chain = _chain[::-1]
-
     return layers.BijectorChain(_chain)
 
 
 def _build_multi_scale_chain(
-    args: NosinnArgs, input_dim, factor_splits, reverse=False
+    args: NosinnArgs, input_dim, factor_splits, unsqueeze=False
 ) -> List[layers.Bijector]:
     chain: List[layers.Bijector] = []
 
@@ -95,41 +92,38 @@ def _build_multi_scale_chain(
         else:
             squeeze = layers.SqueezeLayer(2)
 
-        if reverse:
+        if unsqueeze:
             squeeze = layers.InvertBijector(to_invert=squeeze)
 
         level: List[layers.Bijector] = [squeeze]
         input_dim *= 4
 
-        level.extend([_block(args, input_dim, reverse) for _ in range(args.level_depth)])
+        level.extend([_block(args, input_dim) for _ in range(args.level_depth)])
 
         chain.append(layers.BijectorChain(level))
         if i in factor_splits:
             input_dim = round(factor_splits[i] * input_dim)
-
-    if reverse:
-        for level in chain:
-            level.reverse()
-
     return chain
 
 
 def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bijector:
     input_dim = input_shape[0]
 
+    full_chain: List[layers.Bijector] = []
+
     factor_splits = {int(k): float(v) for k, v in args.factor_splits.items()}
     main_chain = _build_multi_scale_chain(args, input_dim, factor_splits)
 
     if args.oxbow_net:
-        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, reverse=True)
-        model = layers.BijectorChain(
-            [layers.OxbowNet(main_chain, up_chain, factor_splits), layers.Flatten()]
-        )
+        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, unsqueeze=True)
+        full_chain += [layers.OxbowNet(main_chain, up_chain, factor_splits)]
     else:
-        model = layers.FactorOut(main_chain, factor_splits)
+        full_chain += [layers.FactorOut(main_chain, factor_splits)]
 
     # flattened_shape = int(product(input_shape))
     # full_chain += [layers.RandomPermutation(flattened_shape)]
+
+    model = layers.BijectorChain(full_chain)
 
     return model
 
