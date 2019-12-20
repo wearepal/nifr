@@ -11,6 +11,7 @@ from pathlib import Path
 import time
 from typing import List
 
+import git
 import torch
 
 
@@ -27,6 +28,11 @@ def main():
     print(f"Loading from '{chkpt_path}' ...")
     chkpt = torch.load(chkpt_path)
 
+    # Checkout the commit on which the model was trained
+    repo = git.Repo(search_parent_directories=True)
+    current_head = repo.head
+    repo.git.checkout(chkpt["sha"])
+    
     if "args" in chkpt:
         model_args = chkpt["args"]
     elif "ARGS" in chkpt:
@@ -73,6 +79,7 @@ def main():
         args = [python_exe, "start_nosinn.py"] + base_args + parameter_args
         subprocess.run(args, check=True)
 
+    repo.git.checkout(current_head)
 
 if __name__ == "__main__":
     main()
