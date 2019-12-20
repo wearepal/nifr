@@ -81,7 +81,7 @@ def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
 
 
 def _build_multi_scale_chain(
-    args: NosinnArgs, input_dim, factor_splits, reverse=False
+    args: NosinnArgs, input_dim, factor_splits, unsqueeze=False
 ) -> List[layers.Bijector]:
     chain: List[layers.Bijector] = []
 
@@ -92,7 +92,7 @@ def _build_multi_scale_chain(
         else:
             squeeze = layers.SqueezeLayer(2)
 
-        if reverse:
+        if unsqueeze:
             squeeze = layers.InvertBijector(to_invert=squeeze)
 
         level: List[layers.Bijector] = [squeeze]
@@ -103,10 +103,6 @@ def _build_multi_scale_chain(
         chain.append(layers.BijectorChain(level))
         if i in factor_splits:
             input_dim = round(factor_splits[i] * input_dim)
-
-    if reverse:
-        chain = chain[::-1]
-       
     return chain
 
 
@@ -119,7 +115,7 @@ def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bij
     main_chain = _build_multi_scale_chain(args, input_dim, factor_splits)
 
     if args.oxbow_net:
-        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, reverse=True)
+        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, unsqueeze=True)
         full_chain += [layers.OxbowNet(main_chain, up_chain, factor_splits)]
     else:
         full_chain += [layers.FactorOut(main_chain, factor_splits)]
