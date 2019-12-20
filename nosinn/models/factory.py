@@ -119,7 +119,7 @@ def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bij
     main_chain = _build_multi_scale_chain(args, input_dim, factor_splits)
 
     if args.oxbow_net:
-        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, unsqueeze=True)
+        up_chain = _build_multi_scale_chain(args, input_dim, factor_splits, reverse=True)
         full_chain += [layers.OxbowNet(main_chain, up_chain, factor_splits)]
     else:
         full_chain += [layers.FactorOut(main_chain, factor_splits)]
