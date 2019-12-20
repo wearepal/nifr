@@ -81,7 +81,7 @@ def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
 
 
 def _build_multi_scale_chain(
-    args: NosinnArgs, input_dim, factor_splits, unsqueeze=False
+    args: NosinnArgs, input_dim, factor_splits, reverse=False
 ) -> List[layers.Bijector]:
     chain: List[layers.Bijector] = []
 
@@ -92,7 +92,7 @@ def _build_multi_scale_chain(
         else:
             squeeze = layers.SqueezeLayer(2)
 
-        if unsqueeze:
+        if reverse:
             squeeze = layers.InvertBijector(to_invert=squeeze)
 
         level: List[layers.Bijector] = [squeeze]
@@ -103,6 +103,10 @@ def _build_multi_scale_chain(
         chain.append(layers.BijectorChain(level))
         if i in factor_splits:
             input_dim = round(factor_splits[i] * input_dim)
+
+    if reverse:
+        chain = chain[::-1]
+       
     return chain
 
 
