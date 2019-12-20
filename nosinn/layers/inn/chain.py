@@ -26,6 +26,12 @@ class BijectorChain(Bijector):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
         return self.loop(inds=inds, reverse=True, x=y, sum_ldj=sum_ldj)
 
+    def reverse(self):         
+        self.chain = self.chain[::-1]
+        for child in self.chain:
+            if hasattr(child, "reverse"):
+                child.reverse()
+
     def loop(self, inds, reverse: bool, x, sum_ldj=None):
         if sum_ldj is None:
             for i in inds:
@@ -163,13 +169,13 @@ class OxbowNet(Bijector):
         """Do an expanding loop
 
         Args:
-            chain: a chain of INN blocks that expect smaller inputs as the chain goes on
-            xs: a list with tensors where the sizes get smaller as the list goes on
+            chain: a chain of INN blocks that expect larger inputs as the chain goes on
+            xs: a list with tensors where the sizes get larger as the list goes on
         """
-        inv_inds = range(len(chain) - 1, -1, -1) if self.inds is None else self.inds
+        inds = range(len(chain) - 1, -1, -1) if self.inds is None else self.inds
 
         x = xs.pop()  # take the last in the list as the starting point
-        for i in inv_inds:
+        for i in inds:
             if i in self.splits:  # if there was a split, we have to concatenate them together
                 x_removed = xs.pop()
                 x = torch.cat([x_removed, x], dim=1)
