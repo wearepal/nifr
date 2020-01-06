@@ -28,10 +28,11 @@ def main():
     print(f"Loading from '{chkpt_path}' ...")
     chkpt = torch.load(chkpt_path)
 
-    # Checkout the commit on which the model was trained
-    repo = git.Repo(search_parent_directories=True)
-    current_head = repo.head
-    repo.git.checkout(chkpt["sha"])
+    if "sha" in chkpt:
+        print("checkout the commit on which the model was trained")
+        repo = git.Repo(search_parent_directories=True)
+        current_head = repo.head
+        repo.git.checkout(chkpt["sha"])
     
     if "args" in chkpt:
         model_args = chkpt["args"]
