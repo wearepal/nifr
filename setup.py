@@ -12,7 +12,7 @@ setup(
         "captum",
         "numpy >= 1.15",
         "pandas >= 0.24",
-        "pillow",
+        "pillow < 7.0",
         "gitpython",
         "scikit-image >= 0.14",
         "scikit-learn >= 0.20",
@@ -20,8 +20,7 @@ setup(
         "torch >= 1.2",
         "torchvision >= 0.4.0",
         "tqdm >= 4.31",
-        "typed-argument-parser "
-        "@ git+https://github.com/predictive-analytics-lab/typed-argument-parser@v1.4",
+        "typed-argument-parser == 1.4",
         "typing-extensions >= 3.7.4",
         "typing-inspect >= 0.5",
         "wandb >= 0.8",

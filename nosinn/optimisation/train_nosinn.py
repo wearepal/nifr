@@ -231,7 +231,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = NosinnArgs()
+    args = NosinnArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
