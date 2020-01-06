@@ -4,6 +4,7 @@ from logging import Logger
 from pathlib import Path
 from typing import Tuple, Dict, Optional, Callable, List
 
+import git
 import numpy as np
 import torch
 import torch.nn as nn
@@ -227,7 +228,10 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     Returns:
         the trained model
     """
-    args = NosinnArgs()
+    repo = git.Repo(search_parent_directories=True)
+    sha = repo.head.object.hexsha
+
+    args = NosinnArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
@@ -420,7 +424,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
             return inn
     else:
         # Save initial parameters
-        save_model(args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=1)
+        save_model(
+            args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=1, sha=sha
+        )
 
     # Logging
     # wandb.set_model_graph(str(inn))
@@ -444,7 +450,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch)
+                save_model(
+                    args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha
+                )
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -464,7 +472,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
-    save_model(args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch)
+    save_model(
+        args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha
+    )
     inn.eval()
     return inn
 

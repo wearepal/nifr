@@ -120,7 +120,7 @@ def to_device(*tensors):
 
 def main(raw_args=None) -> None:
     """Main function"""
-    args = Ln2lArgs()
+    args = Ln2lArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)

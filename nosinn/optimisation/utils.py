@@ -40,10 +40,11 @@ def log_images(
     )
 
 
-def save_model(args, save_dir: Path, model: nn.Module, disc_ensemble, epoch: int) -> Path:
+def save_model(args, save_dir: Path, model: nn.Module, disc_ensemble, epoch: int, sha: str) -> Path:
     filename = save_dir / "checkpt.pth"
     save_dict = {
         "args": args.as_dict(),
+        "sha": sha,
         "model": model.state_dict(),
         "disc_ensemble": disc_ensemble.state_dict(),
         "epoch": epoch,

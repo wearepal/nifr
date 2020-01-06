@@ -256,7 +256,7 @@ def main_vae(raw_args=None) -> None:
     Args:
         raw_args: commandline arguments
     """
-    args = VaeArgs()
+    args = VaeArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)

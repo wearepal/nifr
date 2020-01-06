@@ -29,7 +29,7 @@ class NaiveArgs(SharedArgs):
 
 
 def main():
-    args = NaiveArgs()
+    args = NaiveArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args()
     print(args)
 

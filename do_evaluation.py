@@ -11,6 +11,7 @@ from pathlib import Path
 import time
 from typing import List
 
+import git
 import torch
 
 
@@ -21,11 +22,17 @@ def main():
     parser.add_argument("--csv-file", help="Where to store the results")
     eval_args = parser.parse_args()
     chkpt_path = Path(eval_args.checkpoint_path)
-    csv_fname = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
+    csv_file = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
 
     # ============================= load ARGS from checkpoint file ================================
     print(f"Loading from '{chkpt_path}' ...")
     chkpt = torch.load(chkpt_path)
+
+    if "sha" in chkpt:
+        print("checkout the commit on which the model was trained")
+        repo = git.Repo(search_parent_directories=True)
+        current_head = repo.head
+        repo.git.checkout(chkpt["sha"])
 
     if "args" in chkpt:
         model_args = chkpt["args"]
@@ -61,7 +68,7 @@ def main():
     # ============================== special arguments for evaluation =============================
     base_args += ["--resume", str(chkpt_path.resolve())]
     base_args += ["--evaluate", "True"]
-    base_args += ["--results-csv", csv_fname]
+    base_args += ["--results-csv", csv_file]
     base_args += ["--use-wandb", "False"]
 
     # ======================================= run eval loop =======================================
@@ -72,6 +79,8 @@ def main():
         parameter_args = [f"--{parameter_name.replace('_', '-')}", str(parameter_value)]
         args = [python_exe, "start_nosinn.py"] + base_args + parameter_args
         subprocess.run(args, check=True)
+
+    repo.git.checkout(current_head)
 
 
 if __name__ == "__main__":
