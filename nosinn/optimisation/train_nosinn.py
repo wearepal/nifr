@@ -424,7 +424,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
             return inn
     else:
         # Save initial parameters
-        save_model(args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=1, sha=sha)
+        save_model(
+            args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=1, sha=sha
+        )
 
     # Logging
     # wandb.set_model_graph(str(inn))
@@ -448,7 +450,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
+                save_model(
+                    args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha
+                )
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -468,7 +472,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
-    save_model(args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
+    save_model(
+        args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha
+    )
     inn.eval()
     return inn
 
