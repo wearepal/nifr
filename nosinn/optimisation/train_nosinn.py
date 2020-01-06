@@ -121,8 +121,7 @@ def train(inn, disc_ensemble, dataloader, epoch: int) -> int:
     start_itr = (epoch - 1) * len(dataloader)
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
-        e, s, y = to_device(x, s, y)
-        
+        x, s, y = to_device(x, s, y)
 
         loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
 
