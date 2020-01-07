@@ -14,7 +14,7 @@ def main():
         meta_lead = True
         data_split_seed = 888
 
-    for clf in [LR(), Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
+    for clf in [LR(), Majority(), Kamiran(), Agarwal(), SVM(kernel="linear")]:
         df = pd.DataFrame(
             columns=[
                 "mix_factor",
