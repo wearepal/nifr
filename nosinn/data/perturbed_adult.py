@@ -10,12 +10,7 @@ from sklearn.preprocessing import StandardScaler
 from ethicml.utility import DataTuple
 from ethicml.utility.data_helpers import shuffle_df
 from ethicml.data import load_data, Adult
-from ethicml.preprocessing import (
-    get_biased_subset,
-    get_biased_and_debiased_subsets,
-    train_test_split,
-    domain_split,
-)
+from ethicml.preprocessing import train_test_split
 from .adult import drop_native, biased_split, Triplet
 from .misc import group_features
 from .dataset_wrappers import PerturbedDataTupleDataset, DataTupleDataset

@@ -90,7 +90,7 @@ def train(encoder, classifier, adversary, dataloader, epoch: int) -> int:
     return itr
 
 
-def test(encoder, classifier, val_loader, itr):
+def test(encoder, classifier, val_loader, itr):  # TODO: itr arg is unused. Remove?
     encoder.eval()
     classifier.eval()
 

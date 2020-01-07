@@ -4,7 +4,6 @@ from torch.optim import SGD
 
 from nosinn.utils.distributions import uniform_bernoulli
 from nosinn.utils.torch_ops import logit
-from nosinn.utils.optimizers import RAdam
 from nosinn.utils import RoundSTE
 
 

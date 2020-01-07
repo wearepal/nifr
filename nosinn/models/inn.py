@@ -337,7 +337,9 @@ class MaskedInn(BipartiteInn):
         else:
             return x
 
-    def routine(self, data: Tensor, threshold: bool = True) -> Tuple[Tuple[Tensor, Tensor], Tensor]:
+    def routine(
+        self, data: Tensor, threshold: bool = True
+    ) -> Tuple[Tuple[Tensor, Tensor], Tensor]:  # TODO: Threshold is an unused arg. Remove?
         """Training routine for the MaskedINN.
 
         Args:

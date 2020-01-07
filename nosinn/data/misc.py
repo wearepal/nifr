@@ -7,7 +7,6 @@ import numpy as np
 
 import torch
 from torch.utils.data import Sampler, random_split, Dataset
-from torchvision.utils import save_image
 
 
 def shrink_dataset(dataset, pcnt):

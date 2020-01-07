@@ -1,9 +1,6 @@
 import math
 import torch
 
-# import torch.nn as nn
-# import torch.nn.functional as F
-
 from .bijector import Bijector
 
 __all__ = ["LogitTransform", "ZeroMeanTransform"]  # , "SigmoidTransform", "SoftplusTransform"]

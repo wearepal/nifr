@@ -16,7 +16,7 @@ class RoundSTE(torch.autograd.Function):
         return grad_output
 
 
-def to_discrete(inputs, dim=1):
+def to_discrete(inputs, dim=1):  # TODO: dim not used. Remove?
     if inputs.dim() <= 1 or inputs.size(1) <= 1:
         return inputs.round()
     else:

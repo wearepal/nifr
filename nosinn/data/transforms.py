@@ -4,7 +4,6 @@ from typing import List
 import numpy as np
 import torch
 from skimage import color
-from torchvision import transforms
 
 
 class LdAugmentation(torch.jit.ScriptModule):

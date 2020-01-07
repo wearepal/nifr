@@ -74,7 +74,9 @@ class AffineCouplingLayer(CouplingLayer):
 
 
 class AdditiveCouplingLayer(CouplingLayer):
-    def __init__(self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5, d=None):
+    def __init__(
+        self, in_channels, hidden_channels, num_blocks=2, pcnt_to_transform=0.5, d=None
+    ):  # TODO: num_blocks is unused. Remove?
         assert is_probability(pcnt_to_transform)
 
         d = in_channels - round(pcnt_to_transform * in_channels) if d is None else d
@@ -119,7 +121,7 @@ class AdditiveCouplingLayer(CouplingLayer):
 
 
 class IntegerDiscreteFlow(AdditiveCouplingLayer):
-    def __init__(self, in_channels, hidden_channels, depth=3):
+    def __init__(self, in_channels, hidden_channels, depth=3):  # TODO: Depth unused arg. Remove?
         super().__init__(in_channels, hidden_channels, d=round(0.75 * in_channels))
 
         self.net_t = ConvResidualNet(

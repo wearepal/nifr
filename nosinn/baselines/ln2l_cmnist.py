@@ -10,7 +10,6 @@ from PIL import Image
 import torch
 import torch.nn.functional as F
 from torch import nn, optim
-from torch.autograd import Variable
 from torch.utils.data import Dataset
 
 import torchvision.transforms as transforms
@@ -550,7 +549,7 @@ class Trainer:
 
             sys.exit()
 
-        num_test = 10000
+        num_test = 10000  # TODO: Unused variable. Remove?
 
         total_num_correct = 0.0
         total_num_test = 0.0
@@ -560,7 +559,9 @@ class Trainer:
                 color_labels = self._get_color_labels(images)
 
             images = self._maybe_to_cuda(images)
-            color_labels = self._maybe_to_cuda(color_labels)
+            color_labels = self._maybe_to_cuda(
+                color_labels
+            )  # TODO: ColorLabels isn't used. Remove?
             labels = self._maybe_to_cuda(labels)
 
             self.optim.zero_grad()

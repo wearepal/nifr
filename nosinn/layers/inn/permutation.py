@@ -30,7 +30,7 @@ class Permutation(Bijector):
             raise ValueError(
                 "Dimension {} in inputs must be of size {}.".format(dim, len(permutation))
             )
-        batch_size = inputs.shape[0]
+        batch_size = inputs.shape[0]  # TODO: This is unused. Remove?
         outputs = torch.index_select(inputs, dim, permutation)
 
         return outputs
