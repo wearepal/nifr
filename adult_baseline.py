@@ -1,12 +1,10 @@
 """Baseline for Adult dataset"""
 import pandas as pd
+from ethicml.algorithms.inprocess import LR, Majority, Kamiran, Agarwal, SVM
+from ethicml.evaluators import run_metrics
+from ethicml.metrics import Accuracy, Theil, NMI, TPR, TNR, PPV, ProbPos
 
-from ethicml.preprocessing.train_test_split import train_test_split
-from ethicml.algorithms.inprocess import LR, SVM, Majority, Kamiran, Agarwal
-from ethicml.evaluators.evaluate_models import run_metrics
-from ethicml.metrics import Accuracy, CV, Theil, TPR, ProbPos, NMI, TNR, PPV
-
-from nosinn.data.data_loading import load_adult_data_tuples
+from nosinn.data.adult import load_adult_data_tuples
 
 
 def main():
@@ -16,7 +14,7 @@ def main():
         meta_lead = True
         data_split_seed = 888
 
-    for clf in [LR()]:  # , Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
+    for clf in [LR(), Majority(), Kamiran(), Agarwal(), SVM(kernel='linear')]:
         df = pd.DataFrame(
             columns=[
                 "mix_factor",

@@ -10,6 +10,7 @@ setup(
     package_data={"nosinn": ["py.typed"]},
     install_requires=[
         "captum",
+        "data-science-types",
         "numpy >= 1.15",
         "pandas >= 0.24",
         "pillow < 7.0",
