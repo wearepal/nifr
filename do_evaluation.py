@@ -20,6 +20,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("checkpoint_path", help="Path to the checkpoint file")
     parser.add_argument("--csv-file", help="Where to store the results")
+    parser.add_argument(
+        "--eval-id",
+        type=int,
+        default=None,
+        help="ID of the evaluation to run; if not specified, run all.",
+    )
     eval_args = parser.parse_args()
     chkpt_path = Path(eval_args.checkpoint_path)
     csv_file = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
@@ -49,6 +55,9 @@ def main():
     else:
         parameter_name = "task_mixing_factor"
         parameter_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+    if eval_args.eval_id is not None:
+        parameter_values = [parameter_values[eval_args.eval_id]]
 
     # ============================== construct commandline arguments ==============================
     base_args: List[str] = []
