@@ -436,8 +436,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     n_vals_without_improvement = 0
 
     itr = 0
+    start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Train INN for N epochs
-    for epoch in range(1, ARGS.epochs):
+    for epoch in range(start_epoch, start_epoch + ARGS.epochs):
         if n_vals_without_improvement > ARGS.early_stopping > 0:
             break
 
