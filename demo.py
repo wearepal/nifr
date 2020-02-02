@@ -46,9 +46,8 @@ def main():
     tensorizer = ToTensor()
     image_tensor = tensorizer(resizer(cropper(image))).unsqueeze(0)
 
-    image_tensor = (
-        image_tensor - 0.5
-    ) / 0.5  # The INN expects inputs normalized to the range [-1, 1]
+    # The INN expects inputs normalized to the range [-1, 1]
+    image_tensor = (image_tensor - 0.5) / 0.5
     inn = PartitionedInn(
         args=model_args, input_shape=_INPUT_SHAPE, model=build_conv_inn(model_args, INPUT_SHAPE)
     )
@@ -57,7 +56,8 @@ def main():
     z = inn(image_tensor)
     zd_masked, zb_masked = inn.zero_mask(z)
     xd = inn.decode(zd_masked, partials=False)
-    xd = xd * 0.5 + 0.5  # Reverse the normalization
+    # Reverse the normalization
+    xd = (xd * 0.5) + 0.5
     save_image(xd, f"{demo_args.save_path}.png")
 
 
