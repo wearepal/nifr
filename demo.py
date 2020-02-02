@@ -19,13 +19,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--checkpoint_path", help="Path to the checkpoint file.")
     parser.add_argument("--image-path", help="File path of the data sample to be transformed.")
-    parser.add_argument("--save-path", default="nosinned-image.png", help="Where to save the transformed data sample to.")
+    parser.add_argument(
+        "--save-path",
+        default="nosinned-image.png",
+        help="Where to save the transformed data sample to.",
+    )
     demo_args = parser.parse_args()
-    chkpt_path = Path(demo_args.checkpoint_path)    
+    chkpt_path = Path(demo_args.checkpoint_path)
 
     # ============================= load ARGS from checkpoint file ================================
     print(f"Loading from '{chkpt_path}' ...")
-    chkpt = torch.load(chkpt_path, map_location=torch.device('cpu'))
+    chkpt = torch.load(chkpt_path, map_location=torch.device("cpu"))
 
     if "args" in chkpt:
         model_args = chkpt["args"]
@@ -42,8 +46,12 @@ def main():
     tensorizer = ToTensor()
     image_tensor = tensorizer(resizer(cropper(image))).unsqueeze(0)
 
-    image_tensor = (image_tensor - 0.5) / 0.5    # The INN expects inputs normalized to the range [-1, 1]
-    inn = PartitionedInn(args=model_args, input_shape=_INPUT_SHAPE, model=build_conv_inn(model_args, INPUT_SHAPE))
+    image_tensor = (
+        image_tensor - 0.5
+    ) / 0.5  # The INN expects inputs normalized to the range [-1, 1]
+    inn = PartitionedInn(
+        args=model_args, input_shape=_INPUT_SHAPE, model=build_conv_inn(model_args, INPUT_SHAPE)
+    )
     inn.load_state_dict(chkpt["model"])
 
     z = inn(image_tensor)
