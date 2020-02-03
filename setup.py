@@ -23,7 +23,7 @@ setup(
         "typed-argument-parser == 1.4",
         "typing-extensions >= 3.7.4",
         "typing-inspect >= 0.5",
-        "wandb >= 0.8",
+        "wandb >= 0.8, != 0.8.22",  # exclude bad version
         "EthicML == 0.1.0a5",
     ],
 )
