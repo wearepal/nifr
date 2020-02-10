@@ -111,6 +111,7 @@ class SharedArgs(Tap):
     save_dir: str = "experiments/finn"
     evaluate: bool = False
     super_val: bool = False  # Train classifier on encodings as part of validation step.
+    super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
     val_freq: int = 5
     log_freq: int = 50
     root: str = "data"
@@ -121,6 +122,8 @@ class SharedArgs(Tap):
     def process_args(self):
         if not 0 < self.data_pcnt <= 1:
             raise ValueError("data_pcnt has to be between 0 and 1")
+        if self.super_val_freq < 0:
+            raise ValueError("frequency cannot be negative")
 
 
 class NosinnArgs(SharedArgs):

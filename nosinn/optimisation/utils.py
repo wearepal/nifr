@@ -40,8 +40,19 @@ def log_images(
     )
 
 
-def save_model(args, save_dir: Path, model: nn.Module, disc_ensemble, epoch: int, sha: str) -> Path:
-    filename = save_dir / "checkpt.pth"
+def save_model(
+    args: SharedArgs,
+    save_dir: Path,
+    model: nn.Module,
+    disc_ensemble: nn.ModuleList,
+    epoch: int,
+    sha: str,
+    best: bool = False,
+) -> Path:
+    if best:
+        filename = save_dir / "checkpt_best.pth"
+    else:
+        filename = save_dir / f"checkpt_epoch{epoch}.pth"
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
@@ -55,7 +66,7 @@ def save_model(args, save_dir: Path, model: nn.Module, disc_ensemble, epoch: int
     return filename
 
 
-def restore_model(args: NosinnArgs, filename: Path, inn, disc_ensemble):
+def restore_model(args: NosinnArgs, filename: Path, inn: nn.Module, disc_ensemble: nn.ModuleList):
     chkpt = torch.load(filename, map_location=lambda storage, loc: storage)
     args_chkpt = chkpt["args"]
     assert args.levels == args_chkpt["levels"]
