@@ -14,7 +14,7 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
-from ethicml.utility import DataTuple
+from ethicml.utility import DataTuple, Prediction
 from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.data import DatasetTriplet, get_data_tuples
 from nosinn.models import BipartiteInn, Classifier
@@ -41,6 +41,7 @@ def log_metrics(
     feat_attr=False,
 ):
     """Compute and log a variety of metrics"""
+    model.eval()
     print("Encoding task dataset...")
     task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
     print("Encoding task train dataset...")
@@ -59,6 +60,7 @@ def log_metrics(
     )
 
     if feat_attr and args.dataset != "adult":
+        print("Creating feature attribution maps...")
         save_dir = Path(args.save_dir) / "feat_attr_maps"
         save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
         pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
@@ -122,7 +124,9 @@ def log_metrics(
         evaluate(args, step, task_train_repr["xs"], task_repr["xs"], name="xs")
 
 
-def compute_metrics(args, predictions, actual, name, step, run_all=False) -> Dict[str, float]:
+def compute_metrics(
+    args: SharedArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
+) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
     if run_all:
@@ -257,7 +261,7 @@ def evaluate(
         )
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
-        preds = pd.DataFrame(preds, columns=["preds"])
+        preds = Prediction(hard=pd.Series(preds))
         sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)

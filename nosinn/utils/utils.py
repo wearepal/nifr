@@ -27,9 +27,7 @@ __all__ = [
 T = TypeVar("T")
 
 
-def wandb_log(
-    args: SharedArgs, row: Dict[str, Any], commit: bool = True, step: Optional[int] = None
-):
+def wandb_log(args: SharedArgs, row: Dict[str, Any], step: int, commit: bool = True):
     """Wrapper around wandb's log function"""
     if args.use_wandb:
         wandb.log(row, commit=commit, step=step)

@@ -167,7 +167,7 @@ def train(inn, disc_ensemble, dataloader, epoch: int) -> int:
     return itr
 
 
-def validate(inn: PartitionedInn, disc_ensemble: Classifier, val_loader, itr: int):
+def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr: int):
     inn.eval()
     disc_ensemble.eval()
 
@@ -215,7 +215,7 @@ def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
     log_images(ARGS, recon_y, "reconstruction_y", prefix=prefix, step=itr)
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
 
-    wandb_log(ARGS, {"recon_y_values": recon_y.flatten(start_dim=1).detach().cpu()})
+    wandb_log(ARGS, {"recon_y_values": recon_y.flatten(start_dim=1).detach().cpu()}, step=itr)
 
 
 def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
@@ -422,11 +422,6 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
                 feat_attr=ARGS.feat_attr,
             )
             return inn
-    else:
-        # Save initial parameters
-        save_model(
-            args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=1, sha=sha
-        )
 
     # Logging
     # wandb.set_model_graph(str(inn))
@@ -434,6 +429,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
     best_loss = float("inf")
     n_vals_without_improvement = 0
+    super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
     itr = 0
     start_epoch = 1  # start at 1 so that the val_freq works correctly
@@ -446,14 +442,10 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
 
         if epoch % ARGS.val_freq == 0:
             val_loss = validate(inn, disc_ensemble, val_loader, itr)
-            if args.super_val:
-                log_metrics(ARGS, model=inn, data=datasets, step=itr)
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(
-                    args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha
-                )
+                save_model(args, save_dir, inn, disc_ensemble, epoch=epoch, sha=sha, best=True)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
@@ -465,18 +457,16 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
                 val_loss,
                 n_vals_without_improvement,
             )
+        if ARGS.super_val and epoch % super_val_freq == 0:
+            log_metrics(ARGS, model=inn, data=datasets, step=itr)
+            save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
 
     LOGGER.info("Training has finished.")
-    inn, disc_ensemble = restore_model(
-        args, save_dir / "checkpt.pth", inn=inn, disc_ensemble=disc_ensemble
-    )
+    path = save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
+    inn, disc_ensemble = restore_model(args, path, inn=inn, disc_ensemble=disc_ensemble)
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
-    save_model(
-        args, save_dir=save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha
-    )
-    inn.eval()
     return inn
 
 
