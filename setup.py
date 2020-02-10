@@ -23,7 +23,7 @@ setup(
         "typed-argument-parser == 1.4",
         "typing-extensions >= 3.7.4",
         "typing-inspect >= 0.5",
-        "wandb >= 0.8",
+        "wandb >= 0.8.23",
         "EthicML @ git+https://github.com/predictive-analytics-lab/EthicML.git",
     ],
 )
