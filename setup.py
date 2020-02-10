@@ -24,6 +24,6 @@ setup(
         "typing-extensions >= 3.7.4",
         "typing-inspect >= 0.5",
         "wandb >= 0.8",
-        "EthicML == 0.1.0a5",
+        "EthicML @ git+https://github.com/predictive-analytics-lab/EthicML.git",
     ],
 )
