@@ -215,8 +215,6 @@ def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
     log_images(ARGS, recon_y, "reconstruction_y", prefix=prefix, step=itr)
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
 
-    wandb_log(ARGS, {"recon_y_values": recon_y.flatten(start_dim=1).detach().cpu()}, step=itr)
-
 
 def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     """Main function
