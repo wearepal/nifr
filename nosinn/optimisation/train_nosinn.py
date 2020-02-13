@@ -193,16 +193,16 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
             if val_itr == 0:
                 if ARGS.dataset in ("cmnist", "celeba"):
                     log_recons(inn, x_val, itr, prefix="test")
-            else:
-                z = inn(x_val[:1000])
-                _, recon_y, recon_s = inn.decode(z, partials=True)
-                log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
-                log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
-                log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
-                x_recon = inn(inn(x_val), reverse=True)
-                x_diff = (x_recon - x_val).abs().mean().item()
-                print(f"MAE of x and reconstructed x: {x_diff}")
-                wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
+                else:
+                    z = inn(x_val[:1000])
+                    _, recon_y, recon_s = inn.decode(z, partials=True)
+                    log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
+                    log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
+                    log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
+                    x_recon = inn(inn(x_val), reverse=True)
+                    x_diff = (x_recon - x_val).abs().mean().item()
+                    print(f"MAE of x and reconstructed x: {x_diff}")
+                    wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
 
         wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
