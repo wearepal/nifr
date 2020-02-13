@@ -1,15 +1,15 @@
-from typing import Dict, Optional, Tuple, Union
+from typing import Tuple, Optional, Dict, Union
+
+from tqdm import trange
 
 import torch
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
-from tqdm import trange
 
 from nosinn.models.base import ModelBase
 
 __all__ = ["Classifier"]
-
 
 class Classifier(ModelBase):
     """ Wrapper for classifier models.

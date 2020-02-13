@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
 
-from nosinn.layers.resnet import ConvResidualNet
+from nosinn.layers.resnet import ResidualNet
 
 __all__ = [
     "linear_disciminator",
