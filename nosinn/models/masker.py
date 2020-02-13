@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD
 
+from nosinn.utils import RoundSTE
 from nosinn.utils.distributions import uniform_bernoulli
 from nosinn.utils.torch_ops import logit
-from nosinn.utils.optimizers import RAdam
-from nosinn.utils import RoundSTE
 
+__all__ = ["Masker"]
 
 class Masker(nn.Module):
 

@@ -1,10 +1,12 @@
-from typing import Optional, List, Tuple, Dict, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from nosinn import layers
+from nosinn.configs import NosinnArgs
 from nosinn.models import Classifier
 from nosinn.models.configs import ModelFn
-from nosinn.configs import NosinnArgs
 from nosinn.utils import product
+
+__all__ = ["build_fc_inn", "build_conv_inn", "build_discriminator"]
 
 
 def build_fc_inn(

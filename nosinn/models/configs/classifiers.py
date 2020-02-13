@@ -4,9 +4,9 @@ from typing_extensions import Protocol
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
-from torchvision.models import resnet50, resnet18
+from torchvision.models import resnet50
 
-from nosinn.layers.resnet import ResidualNet, ConvResidualNet
+from nosinn.layers.resnet import ConvResidualNet
 
 __all__ = [
     "linear_disciminator",
