@@ -118,7 +118,8 @@ def train(inn, disc_ensemble, dataloader, epoch: int) -> int:
     time_meter = AverageMeter()
     start_epoch_time = time.time()
     end = start_epoch_time
-    start_itr = (epoch - 1) * len(dataloader)
+    itr = start_itr = (epoch - 1) * len(dataloader)
+
     for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
 
         x, s, y = to_device(x, s, y)
