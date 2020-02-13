@@ -2,11 +2,12 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Tuple, Dict, Optional, Callable, List
+from typing import Tuple, Dict, Optional, Callable, List, Union
 
 import git
 import numpy as np
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader
@@ -15,8 +16,6 @@ import wandb
 from nosinn.data import DatasetTriplet, load_dataset
 from nosinn.models import (
     AutoEncoder,
-    Classifier,
-    BipartiteInn,
     PartitionedAeInn,
     PartitionedInn,
     VAE,
@@ -48,8 +47,12 @@ LOGGER: Logger = None
 
 
 def compute_loss(
-    x: torch.Tensor, s: torch.Tensor, inn: PartitionedInn, disc_ensemble: nn.ModuleList, itr: int
-) -> Tuple[torch.Tensor, Dict[str, float]]:
+    x: Tensor,
+    s: Tensor,
+    inn: Union[PartitionedInn, PartitionedAeInn],
+    disc_ensemble: nn.ModuleList,
+    itr: int,
+) -> Tuple[Tensor, Dict[str, float]]:
     logging_dict = {}
 
     # the following code is also in inn.routine() but we need to access ae_enc directly
@@ -108,7 +111,12 @@ def compute_loss(
     return loss, logging_dict
 
 
-def train(inn, disc_ensemble, dataloader, epoch: int) -> int:
+def train(
+    inn: Union[PartitionedInn, PartitionedAeInn],
+    disc_ensemble: nn.ModuleList,
+    dataloader: DataLoader,
+    epoch: int,
+) -> int:
     inn.train()
     disc_ensemble.train()
 
@@ -209,7 +217,7 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
+def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None) -> None:
     z = inn(x[:64])
     recon_all, recon_y, recon_s = inn.decode(z, partials=True)
     log_images(ARGS, x, "original_x", prefix=prefix, step=itr)
@@ -218,7 +226,7 @@ def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None):
     log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
 
 
-def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
+def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, PartitionedAeInn]:
     """Main function
 
     Args:
@@ -346,7 +354,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
                 assert ARGS.ae_channels == args_ae["init_channels"]
                 assert ARGS.ae_levels == args_ae["levels"]
         else:
-            ae_loss_fn: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+            ae_loss_fn: Callable[[Tensor, Tensor], Tensor]
             if ARGS.ae_loss == "l1":
                 ae_loss_fn = nn.L1Loss(reduction="sum")
             elif ARGS.ae_loss == "l2":
@@ -411,7 +419,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> BipartiteInn:
     if ARGS.resume is not None:
         LOGGER.info("Restoring model from checkpoint")
         filename = Path(ARGS.resume)
-        inn, discriminator = restore_model(args, filename, inn=inn, disc_ensemble=disc_ensemble)
+        inn, _ = restore_model(args, filename, inn=inn, disc_ensemble=disc_ensemble)
         if ARGS.evaluate:
             log_metrics(
                 ARGS,
