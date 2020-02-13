@@ -171,7 +171,7 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
     inn.eval()
     disc_ensemble.eval()
 
-    with torch.no_grad():
+    with torch.set_grad_enabled(False):
         loss_meter = AverageMeter()
         for x_val, s_val, y_val in val_loader:
 
@@ -181,20 +181,20 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
 
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
-    wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
+        wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
-    if ARGS.dataset in ("cmnist", "celeba"):
-        log_recons(inn, x_val, itr, prefix="test")
-    else:
-        z = inn(x_val[:1000])
-        recon_all, recon_y, recon_s = inn.decode(z, partials=True)
-        log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
-        log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
-        log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
-        x_recon = inn(inn(x_val), reverse=True)
-        x_diff = (x_recon - x_val).abs().mean().item()
-        print(f"MAE of x and reconstructed x: {x_diff}")
-        wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
+        if ARGS.dataset in ("cmnist", "celeba"):
+            log_recons(inn, x_val, itr, prefix="test")
+        else:
+            z = inn(x_val[:1000])
+            recon_all, recon_y, recon_s = inn.decode(z, partials=True)
+            log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
+            log_images(ARGS, recon_y, "reconstruction_yn", prefix="test", step=itr)
+            log_images(ARGS, recon_s, "reconstruction_yn", prefix="test", step=itr)
+            x_recon = inn(inn(x_val), reverse=True)
+            x_diff = (x_recon - x_val).abs().mean().item()
+            print(f"MAE of x and reconstructed x: {x_diff}")
+            wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
 
     return loss_meter.avg
 
