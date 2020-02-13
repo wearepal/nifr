@@ -10,9 +10,8 @@ from nosinn.utils import to_discrete, logistic_distribution, MixtureDistribution
 from nosinn.configs import NosinnArgs
 from .autoencoder import AutoEncoder
 from .base import ModelBase
-from .masker import Masker
 
-__all__ = ["PartitionedInn", "PartitionedAeInn", "MaskedInn", "BipartiteInn"]
+__all__ = ["PartitionedInn", "PartitionedAeInn","BipartiteInn"]
 
 
 class BipartiteInn(ModelBase):
