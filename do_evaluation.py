@@ -86,7 +86,7 @@ def main():
     base_args += ["--evaluate", "True"]
     base_args += ["--results-csv", csv_file]
     base_args += ["--use-wandb", "False"]
-    base_args += ["--gpu", eval_args.gpu]
+    base_args += ["--gpu", str(eval_args.gpu)]
 
     # ======================================= run eval loop =======================================
     python_exe = sys.executable
