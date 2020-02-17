@@ -8,6 +8,7 @@ from nosinn.utils.torch_ops import logit
 
 __all__ = ["Masker"]
 
+
 class Masker(nn.Module):
 
     default_args = dict(optimizer_args=dict(lr=1e-3, weight_decay=0))

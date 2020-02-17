@@ -26,6 +26,12 @@ def main():
         default=None,
         help="ID of the evaluation to run; if not specified, run all.",
     )
+    parser.add_argument(
+        "--gpu",
+        type=int,
+        default=0,
+        help="ID of the cuda device to use for evaluation. If a negative value is supplied, the CPU will be used.",
+    )
     eval_args = parser.parse_args()
     chkpt_path = Path(eval_args.checkpoint_path)
     csv_file = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
@@ -80,6 +86,7 @@ def main():
     base_args += ["--evaluate", "True"]
     base_args += ["--results-csv", csv_file]
     base_args += ["--use-wandb", "False"]
+    base_args += ["--gpu", eval_args.gpu]
 
     # ======================================= run eval loop =======================================
     python_exe = sys.executable

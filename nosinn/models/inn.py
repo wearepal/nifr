@@ -11,7 +11,7 @@ from nosinn.configs import NosinnArgs
 from .autoencoder import AutoEncoder
 from .base import ModelBase
 
-__all__ = ["PartitionedInn", "PartitionedAeInn","BipartiteInn"]
+__all__ = ["PartitionedInn", "PartitionedAeInn", "BipartiteInn"]
 
 
 class BipartiteInn(ModelBase):
