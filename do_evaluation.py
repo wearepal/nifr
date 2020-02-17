@@ -18,7 +18,7 @@ import torch
 def main():
     # ========================== get checkpoint path and CSV file name ============================
     parser = argparse.ArgumentParser()
-    parser.add_argument("checkpoint-path", help="Path to the checkpoint file")
+    parser.add_argument("checkpoint_path", help="Path to the checkpoint file")
     parser.add_argument("--csv-file", help="Where to store the results")
     parser.add_argument(
         "--eval-id",
