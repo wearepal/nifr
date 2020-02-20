@@ -76,8 +76,8 @@ def get_instance_weights(dataset):
         s_all.append(s.numpy())
         y_all.append(y.numpy())
 
-    s_all = np.vstack(s_all)
-    y_all = np.vstack(y_all)
+    s_all = np.stack(s_all, axis=0)
+    y_all = np.stack(y_all, axis=0)
 
     s = pd.DataFrame(s_all, columns=["sens"])
     y = pd.DataFrame(y_all, columns=["labels"])
