@@ -203,7 +203,7 @@ def run_baseline(args):
     )
 
     preds, ground_truths, sens = classifier.predict_dataset(test_data, device=device)
-    preds = Prediction(pd.DataFrame(preds, columns=["labels"]))
+    preds = Prediction(pd.Series(preds))
 
     ground_truths = DataTuple(
         x=pd.DataFrame(sens, columns=["sens"]),
