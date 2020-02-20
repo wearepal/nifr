@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from ethicml.algorithms import compute_instance_weights
+from ethicml.algorithms.inprocess import compute_instance_weights
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
@@ -25,15 +25,22 @@ BASELINE_METHODS = Literal["naive", "kamiran"]
 class IntanceWeightedDataset(Dataset):
     def __init__(self, dataset, instance_weights):
         super().__init__()
+        if len(dataset) != len(instance_weights):
+            raise ValueError("Number of instance weights must equal the number of data samples.")
         self.dataset = dataset
         self.instance_weights = instance_weights
+
+    def __len__(self):
+        return len(self.dataset)
 
     def __getitem__(self, index):
         data = self.dataset[index]
         if not isinstance(data, tuple):
             data = (data,)
         iw = self.instance_weights[index]
-        return data + (iw,)
+        if not isinstance(iw, tuple):
+            iw = (iw,)
+        return data + iw
 
 
 class BaselineArgs(SharedArgs):
@@ -52,9 +59,13 @@ class BaselineArgs(SharedArgs):
     def process_args(self):
         if self.method == "kamiran":
             if self.dataset == "cmnist":
-                raise ValueError("Kamiran & Calders reweighting scheme can only be used with binary sensitive and target attributes.")
+                raise ValueError(
+                    "Kamiran & Calders reweighting scheme can only be used with binary sensitive and target attributes."
+                )
             elif self.task_mixing_factor % 1 == 0:
-                raise ValueError("Kamiran & Calders reweighting scheme can only be used when there is at least one sample available for each sensitive/target attribute combination.")
+                raise ValueError(
+                    "Kamiran & Calders reweighting scheme can only be used when there is at least one sample available for each sensitive/target attribute combination."
+                )
 
         return super().process_args()
 
@@ -68,11 +79,12 @@ def get_instance_weights(dataset):
     s_all = np.vstack(s_all)
     y_all = np.vstack(y_all)
 
-    labels = DataTuple(
-        x=None, s=pd.DataFrame(s_all, columns=["sens"]), y=pd.DataFrame(y_all, columns=["labels"]),
-    )
+    s = pd.DataFrame(s_all, columns=["sens"])
+    y = pd.DataFrame(y_all, columns=["labels"])
+    labels = DataTuple(x=y, s=s, y=y)
 
-    instance_weights = torch.as_tenosr(compute_instance_weights(labels))
+    instance_weights = compute_instance_weights(labels).to_numpy()
+    instance_weights = torch.as_tensor(instance_weights).view(-1)
     instance_weights = TensorDataset(instance_weights)
 
     return instance_weights
@@ -88,7 +100,7 @@ class TrainNaive(Trainer):
     @staticmethod
     def __call__(classifier, train_loader, test_loader, epochs, device, pred_s=False):
         pbar = trange(epochs)
-        for epoch in pbar:
+        for _ in pbar:
             classifier.train()
             for x, s, y in train_loader:
                 if pred_s:
@@ -99,7 +111,7 @@ class TrainNaive(Trainer):
                 target = target.to(device)
 
                 classifier.zero_grad()
-                loss, acc = classifier.routine(x, target)
+                loss, _ = classifier.routine(x, target)
                 loss.backward()
                 classifier.step()
         pbar.close()
@@ -109,7 +121,7 @@ class TrainKamiran(Trainer):
     @staticmethod
     def __call__(classifier, train_loader, test_loader, epochs, device, pred_s=False):
         pbar = trange(epochs)
-        for epoch in pbar:
+        for _ in pbar:
             classifier.train()
             for x, s, y, iw in train_loader:
                 if pred_s:
@@ -120,10 +132,10 @@ class TrainKamiran(Trainer):
                 target = target.to(device)
 
                 classifier.zero_grad()
-                loss, acc = classifier.routine(x, target)
-                loss = iw * loss
+                loss, _ = classifier.routine(x, target, instance_weights=iw)
                 loss.backward()
                 classifier.step()
+
         pbar.close()
 
 
