@@ -13,7 +13,7 @@ __all__ = ["get_data_dim", "log_images"]
 
 
 def get_data_dim(data_loader) -> Tuple[int, ...]:
-    x, _, _ = next(iter(data_loader))
+    x = next(iter(data_loader))[0]
     x_dim = x.shape[1:]
 
     return tuple(x_dim)

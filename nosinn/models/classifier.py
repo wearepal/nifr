@@ -114,7 +114,12 @@ class Classifier(ModelBase):
 
         return accuracy.detach().item()
 
-    def routine(self, data: torch.Tensor, targets: torch.Tensor) -> Tuple[torch.Tensor, float]:
+    def routine(
+        self,
+        data: torch.Tensor,
+        targets: torch.Tensor,
+        instance_weights: Optional[torch.Tensor] = None,
+    ) -> Tuple[torch.Tensor, float]:
         """Classifier routine.
 
         Args:
@@ -126,9 +131,11 @@ class Classifier(ModelBase):
         """
         outputs = super().__call__(data)
         loss = self.apply_criterion(outputs, targets)
-        loss = loss.sum(0) / targets.size(0)
-
+        if instance_weights is not None:
+            loss = loss.view(-1) * instance_weights.view(-1)
+        loss = loss.mean()
         acc = self.compute_accuracy(outputs, targets)
+
         return loss, acc
 
     def fit(
