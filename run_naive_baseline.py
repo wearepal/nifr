@@ -130,6 +130,7 @@ class TrainKamiran(Trainer):
                     target = y
                 x = x.to(device)
                 target = target.to(device)
+                iw = iw.to(device)
 
                 classifier.zero_grad()
                 loss, _ = classifier.routine(x, target, instance_weights=iw)
