@@ -5,34 +5,33 @@ Usage:
     python do_evaluation.py <path to checkpoint>
 """
 import sys
-import argparse
 import subprocess
 from pathlib import Path
 import time
-from typing import List
+from typing import List, Optional
 
 import git
 import torch
+import tap
+
+
+class EvalArgs(tap.Tap):
+    """Commandline arguments for running evaluation."""
+
+    checkpoint_path: str  # Path to the checkpoint file
+    csv_file: Optional[str] = None  # Where to store the results
+    eval_id: Optional[int] = None  # ID of the evaluation to run; if not specified, run all.
+    gpu: int = 0  # ID of the cuda device to use for evaluation. If negative, run on CPU.
+    test_batch_size: int = 1000  # test batch size
+    checkout_commit: bool = True  # if True, checkout the commit for the checkpoint
+
+    def add_arguments(self):
+        self.add_argument("checkpoint_path")  # make the first argument positional
 
 
 def main():
     # ========================== get checkpoint path and CSV file name ============================
-    parser = argparse.ArgumentParser()
-    parser.add_argument("checkpoint_path", help="Path to the checkpoint file")
-    parser.add_argument("--csv-file", help="Where to store the results")
-    parser.add_argument(
-        "--eval-id",
-        type=int,
-        default=None,
-        help="ID of the evaluation to run; if not specified, run all.",
-    )
-    parser.add_argument(
-        "--gpu",
-        type=int,
-        default=0,
-        help="ID of the cuda device to use for evaluation. If a negative value is supplied, the CPU will be used.",
-    )
-    eval_args = parser.parse_args()
+    eval_args = EvalArgs(underscores_to_dashes=True, explicit_bool=True).parse_args()
     chkpt_path = Path(eval_args.checkpoint_path)
     csv_file = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
 
@@ -41,7 +40,7 @@ def main():
     chkpt = torch.load(chkpt_path)
 
     checkout_commit = "sha" in chkpt
-    if checkout_commit:
+    if eval_args.checkout_commit and checkout_commit:
         print("checkout the commit on which the model was trained")
         repo = git.Repo(search_parent_directories=True)
         current_head = repo.head
@@ -87,6 +86,7 @@ def main():
     base_args += ["--results-csv", csv_file]
     base_args += ["--use-wandb", "False"]
     base_args += ["--gpu", str(eval_args.gpu)]
+    base_args += ["--test-batch-size", str(eval_args.test_batch_size)]
 
     # ======================================= run eval loop =======================================
     python_exe = sys.executable

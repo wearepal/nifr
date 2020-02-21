@@ -10,6 +10,7 @@ import wandb
 from captum.attr import IntegratedGradients, NoiseTunnel, visualization as viz
 from matplotlib import cm
 from torch.utils.data import DataLoader, Dataset, TensorDataset
+from tqdm import tqdm
 
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
@@ -322,7 +323,7 @@ def encode_dataset(
     data = DataLoader(data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False)
 
     with torch.set_grad_enabled(False):
-        for _, (x, s, y) in enumerate(data):
+        for _, (x, s, y) in enumerate(tqdm(data)):
 
             x = x.to(args.device)
             all_s.append(s)
