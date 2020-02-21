@@ -70,14 +70,14 @@ class BaselineArgs(SharedArgs):
         return super().process_args()
 
 
-def get_instance_weights(dataset):
+def get_instance_weights(dataset, batch_size):
     s_all, y_all = [], []
-    for _, s, y in DataLoader(dataset):
+    for _, s, y in DataLoader(dataset, batch_size=batch_size):
         s_all.append(s.numpy())
         y_all.append(y.numpy())
 
-    s_all = np.stack(s_all, axis=0)
-    y_all = np.stack(y_all, axis=0)
+    s_all = np.concatenate(s_all, axis=0)
+    y_all = np.concatenate(y_all, axis=0)
 
     s = pd.DataFrame(s_all, columns=["sens"])
     y = pd.DataFrame(y_all, columns=["labels"])
@@ -154,7 +154,7 @@ def run_baseline(args):
     test_data = datasets.task
 
     if args.method == "kamiran":
-        instance_weights = get_instance_weights(train_data)
+        instance_weights = get_instance_weights(train_data, batch_size=args.test_batch_size)
         train_data = IntanceWeightedDataset(train_data, instance_weights=instance_weights)
 
     train_loader = DataLoader(train_data, batch_size=args.batch_size, pin_memory=True, shuffle=True)
