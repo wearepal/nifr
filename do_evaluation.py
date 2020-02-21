@@ -23,7 +23,7 @@ class EvalArgs(tap.Tap):
     eval_id: Optional[int] = None  # ID of the evaluation to run; if not specified, run all.
     gpu: int = 0  # ID of the cuda device to use for evaluation. If negative, run on CPU.
     test_batch_size: int = 1000  # test batch size
-    checkout_commit: bool = True  # if True, checkout the commit for the checkpoint
+    checkout_commit: bool = False  # if True, checkout the commit for the checkpoint
 
     def add_arguments(self):
         self.add_argument("checkpoint_path")  # make the first argument positional
@@ -91,14 +91,16 @@ def main():
     # ======================================= run eval loop =======================================
     python_exe = sys.executable
 
-    for parameter_value in parameter_values:
-        print(f"Starting run with {parameter_name}: {parameter_value}")
-        parameter_args = [f"--{parameter_name.replace('_', '-')}", str(parameter_value)]
-        args = [python_exe, "start_nosinn.py"] + base_args + parameter_args
-        subprocess.run(args, check=True)
+    try:
+        for parameter_value in parameter_values:
+            print(f"Starting run with {parameter_name}: {parameter_value}")
+            parameter_args = [f"--{parameter_name.replace('_', '-')}", str(parameter_value)]
+            args = [python_exe, "start_nosinn.py"] + base_args + parameter_args
+            subprocess.run(args, check=True)
 
-    if checkout_commit:
-        repo.git.checkout(current_head)
+    finally:  # clean up
+        if checkout_commit:
+            repo.git.checkout(current_head)
 
 
 if __name__ == "__main__":
