@@ -257,8 +257,8 @@ def run_baseline(args):
 def main():
     args = BaselineArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args()
-    run_baseline(args=args)
     print(args)
+    run_baseline(args=args)
 
 
 if __name__ == "__main__":
