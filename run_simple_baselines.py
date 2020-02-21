@@ -188,7 +188,6 @@ def run_baseline(args):
     )
     classifier.to(device)
 
-    print(args)
     if args.method == "kamiran":
         train_fn = TrainKamiran()
     else:
