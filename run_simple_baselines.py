@@ -187,7 +187,7 @@ def run_baseline(args):
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
     )
     classifier.to(device)
-
+    
     if args.method == "kamiran":
         train_fn = TrainKamiran()
     else:
@@ -217,7 +217,7 @@ def run_baseline(args):
     elif args.dataset == "celeba":
         full_name += f"_{args.celeba_sens_attr}"
         full_name += f"_{args.celeba_target_attr}"
-    full_name += f"_{str(args.epochs)}epochs"
+    full_name += f"_{str(args.epochs)}epochs.csv"
 
     metrics = run_metrics(
         preds,
