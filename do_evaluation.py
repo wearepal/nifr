@@ -39,8 +39,8 @@ def main():
     print(f"Loading from '{chkpt_path}' ...")
     chkpt = torch.load(chkpt_path)
 
-    checkout_commit = "sha" in chkpt
-    if eval_args.checkout_commit and checkout_commit:
+    checkout_commit = eval_args.checkout_commit and "sha" in chkpt
+    if checkout_commit:
         print("checkout the commit on which the model was trained")
         repo = git.Repo(search_parent_directories=True)
         current_head = repo.head
