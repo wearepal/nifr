@@ -26,7 +26,7 @@ class EvalArgs(tap.Tap):
     gpu: int = 0  # ID of the cuda device to use for evaluation. If negative, run on CPU.
     test_batch_size: int = 1000  # test batch size
     checkout_commit: bool = False  # if True, checkout the commit for the checkpoint
-    celeba_target_attr: CELEBATTRS = "Smiling"
+    celeba_target_attr: Optional[CELEBATTRS] = None
 
     def add_arguments(self):
         self.add_argument("checkpoint_path")  # make the first argument positional
@@ -55,6 +55,9 @@ def main():
         model_args = chkpt["ARGS"]
     else:
         raise RuntimeError("Checkpoint doesn't contain args.")
+
+    if eval_args.celeba_sens_attr is None:
+        eval_args.celeba_sens_attr = model_args["celeba_sens_attr"][0]
 
     # ================================ prepare values for eval loop ===============================
     dataset = model_args["dataset"]
