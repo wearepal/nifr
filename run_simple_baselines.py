@@ -215,7 +215,7 @@ def run_baseline(args):
     if args.dataset == "cmnist":
         full_name += "_greyscale" if args.greyscale else "_color"
     elif args.dataset == "celeba":
-        full_name += f"_{args.celeba_sens_attr}"
+        full_name += f"_{str(args.celeba_sens_attr)}"
         full_name += f"_{args.celeba_target_attr}"
     full_name += f"_{str(args.epochs)}epochs.csv"
 

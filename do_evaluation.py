@@ -14,6 +14,8 @@ import git
 import torch
 import tap
 
+from nosinn.configs import CELEBATTRS
+
 
 class EvalArgs(tap.Tap):
     """Commandline arguments for running evaluation."""
@@ -24,6 +26,7 @@ class EvalArgs(tap.Tap):
     gpu: int = 0  # ID of the cuda device to use for evaluation. If negative, run on CPU.
     test_batch_size: int = 1000  # test batch size
     checkout_commit: bool = False  # if True, checkout the commit for the checkpoint
+    celeba_target_attr: CELEBATTRS = "Smiling"
 
     def add_arguments(self):
         self.add_argument("checkpoint_path")  # make the first argument positional
@@ -87,6 +90,7 @@ def main():
     base_args += ["--use-wandb", "False"]
     base_args += ["--gpu", str(eval_args.gpu)]
     base_args += ["--test-batch-size", str(eval_args.test_batch_size)]
+    base_args += ["--celeba-target-attr", eval_args.celeba_target_attr]
 
     # ======================================= run eval loop =======================================
     python_exe = sys.executable
