@@ -56,8 +56,8 @@ def main():
     else:
         raise RuntimeError("Checkpoint doesn't contain args.")
 
-    if eval_args.celeba_sens_attr is None:
-        eval_args.celeba_sens_attr = model_args["celeba_sens_attr"][0]
+    if eval_args.celeba_target_attr is None:
+        eval_args.celeba_target_attr = model_args["celeba_target_attr"]
 
     # ================================ prepare values for eval loop ===============================
     dataset = model_args["dataset"]
