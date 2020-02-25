@@ -2,7 +2,7 @@ from typing import NamedTuple, Optional
 
 from torch.utils.data import Dataset, Subset, random_split
 from torchvision import transforms
-from torchvision.datasets import MNIST, KNIST
+from torchvision.datasets import MNIST, KMNIST
 
 from nosinn.configs import SharedArgs
 from .dataset_wrappers import LdAugmentedDataset
