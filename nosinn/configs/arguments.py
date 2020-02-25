@@ -3,6 +3,7 @@ from typing import Optional, List, Dict
 from typing_extensions import Literal
 
 from tap import Tap
+import torch
 
 __all__ = ["NosinnArgs", "VaeArgs", "Ln2lArgs", "SharedArgs", "CELEBATTRS"]
 
@@ -119,6 +120,9 @@ class SharedArgs(Tap):
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
 
+    # properties that are not flags
+    _device: torch.device
+
     def process_args(self):
         if not 0 < self.data_pcnt <= 1:
             raise ValueError("data_pcnt has to be between 0 and 1")
@@ -171,7 +175,11 @@ class NosinnArgs(SharedArgs):
 
     path_to_ae: str = ""
 
+    # properties that are not flags
+    _s_dim: int
+
     def add_arguments(self):
+        super().add_arguments()
         # this is a very complicated argument that has to be specified manually
         self.add_argument(
             "--factor-splits", action=StoreDictKeyPair, nargs="+", default={}, type=str
