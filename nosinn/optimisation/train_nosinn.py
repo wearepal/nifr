@@ -262,7 +262,6 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     ARGS.device = torch.device(
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
     )
-    ARGS._device = ARGS.device
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
 
     # ==== construct dataset ====
