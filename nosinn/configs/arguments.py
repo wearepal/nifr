@@ -91,7 +91,7 @@ class SharedArgs(Tap):
     # Optimization settings
     early_stopping: int = 30
     epochs: int = 250
-    batch_size: int = 128
+    batch_size: int = 128jjj
     test_batch_size: Optional[int] = None
     weight_decay: float = 0
     seed: int = 42
