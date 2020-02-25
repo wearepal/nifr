@@ -47,7 +47,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         if args.input_noise:
             base_aug.append(NoisyDequantize(int(args.quant_level)))
 
-        pretrain_data = KNIST(root=args.pretrain_pcnt, download=True, train=True)
+        pretrain_data = KMNIST(root=args.pretrain_pcnt, download=True, train=True)
         train_data = MNIST(root=args.root, download=True, train=True)
 
         # pretrain_len = round(args.pretrain_pcnt * len(train_data))
