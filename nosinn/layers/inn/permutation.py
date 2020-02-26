@@ -35,19 +35,19 @@ class Permutation(Bijector):
 
         return outputs
 
-    def _forward(self, inputs, sum_ldj=None):
+    def _forward(self, inputs, sum_ldj: Optional[torch.Tensor] = None):
         y = self._permute(inputs, self._permutation, self._dim)
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj
 
-    def _inverse(self, inputs, sum_ldj=None):
+    def _inverse(self, inputs, sum_ldj: Optional[torch.Tensor] = None):
         y = self._permute(inputs, self._inverse_permutation, self._dim)
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj
 

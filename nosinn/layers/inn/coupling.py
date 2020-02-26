@@ -50,25 +50,25 @@ class AffineCouplingLayer(CouplingLayer):
         scale = scale.sigmoid() + 0.5
         return scale, shift
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         x_a, x_b = self._split(x)
         scale, shift = self._scale_and_shift_fn(x_a)
         y_b = scale * x_b + shift
         y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetjac(scale)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         x_a, y_b = self._split(y)
         scale, shift = self._scale_and_shift_fn(x_a)
         x_b = (y_b - shift) / scale
         x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
-            return x
+            return x, None
         else:
             return x, sum_ldj + self.logdetjac(scale)
 
@@ -93,7 +93,7 @@ class AdditiveCouplingLayer(CouplingLayer):
     def _shift_fn(self, inputs):
         return self.net_t(inputs)
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         x_a, x_b = self._split(x)
         shift = self._shift_fn(x_a)
 
@@ -101,11 +101,11 @@ class AdditiveCouplingLayer(CouplingLayer):
         y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetjac()
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         x_a, y_b = self._split(y)
         shift = self._shift_fn(x_a)
 
@@ -113,7 +113,7 @@ class AdditiveCouplingLayer(CouplingLayer):
         x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
-            return x
+            return x, None
         else:
             return x, sum_ldj + self.logdetjac()
 
@@ -137,18 +137,18 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
         # Round with straight-through-estimator
         return RoundSTE.apply(shift)
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         x_a, x_b = self._split(x)
         shift = self._get_shift_param(x_a)
         y_b = x_b + shift
         y = torch.cat([x_a, y_b], dim=1)
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetjac()
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         x_a, y_b = self._split(y)
         shift = self._get_shift_param(x_a)
 
@@ -156,7 +156,7 @@ class IntegerDiscreteFlow(AdditiveCouplingLayer):
         x = torch.cat([x_a, x_b], dim=1)
 
         if sum_ldj is None:
-            return x
+            return x, None
         else:
             return x, sum_ldj + self.logdetjac()
 
@@ -201,23 +201,23 @@ class MaskedCouplingLayer(Bijector):
         masked_shift = shift * (1 - self.mask)
         return masked_scale, masked_shift
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         masked_scale, masked_shift = self._masked_scale_and_shift(x)
 
         y = x * masked_scale + masked_shift
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetjac(masked_scale)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         masked_scale, masked_shift = self._masked_scale_and_shift(y)
 
         y = (y - masked_shift) / masked_scale
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj + self.logdetjac(masked_scale)
 

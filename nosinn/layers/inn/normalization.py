@@ -1,3 +1,5 @@
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from torch.nn import Parameter
@@ -38,7 +40,7 @@ class MovingBatchNormNd(Bijector):
             self.weight.data.zero_()
             self.bias.data.zero_()
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         c = x.size(1)
         used_mean = self.running_mean.clone().detach()
         used_var = self.running_var.clone().detach()
@@ -73,11 +75,11 @@ class MovingBatchNormNd(Bijector):
             y = y * torch.exp(weight) + bias
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetgrad(x, used_var)
 
-    def _inverse(self, y, logpy=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         used_mean = self.running_mean
         used_var = self.running_var
 
@@ -90,10 +92,10 @@ class MovingBatchNormNd(Bijector):
         used_var = used_var.view(*self.shape).expand_as(y)
         x = y * torch.exp(0.5 * torch.log(used_var + self.eps)) + used_mean
 
-        if logpy is None:
-            return x
+        if sum_ldj is None:
+            return x, None
         else:
-            return x, logpy + self.logdetgrad(x, used_var)
+            return x, sum_ldj + self.logdetgrad(x, used_var)
 
     def logdetgrad(self, x, used_var):
         ldj = -0.5 * torch.log(used_var + self.eps)
@@ -169,7 +171,7 @@ class ActNorm(Bijector):
             batch_size = inputs.size(0)
             return torch.sum(self.log_scale) * inputs.new_ones(batch_size)
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         if x.dim() not in [2, 4]:
             raise ValueError("Expecting inputs to be a 2D or a 4D tensor.")
 
@@ -180,11 +182,11 @@ class ActNorm(Bijector):
         y = scale * x + shift
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetjac(x)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         if y.dim() not in [2, 4]:
             raise ValueError("Expecting inputs to be a 2D or a 4D tensor.")
 
@@ -192,7 +194,7 @@ class ActNorm(Bijector):
         x = (y - shift) / scale
 
         if sum_ldj is None:
-            return x
+            return x, None
         else:
             return x, sum_ldj + self.logdetjac(y)
 

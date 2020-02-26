@@ -13,7 +13,7 @@ class Adder(nn.Module):
         super().__init__()
         self.number = torch.zeros(input_dim) + number
 
-    def forward(self, x: float, sum_ldj=None, reverse: bool = False):
+    def forward(self, x: float, sum_ldj: Optional[torch.Tensor] = None, reverse: bool = False):
         if reverse:
             return x - self.number
         return x + self.number

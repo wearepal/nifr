@@ -13,16 +13,16 @@ _DEFAULT_BETA = 1.0
 
 
 class ZeroMeanTransform(Bijector):
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         x = x - 0.5
         if sum_ldj is None:
-            return x
+            return x, None
         return x, sum_ldj
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         x = y + 0.5
         if sum_ldj is None:
-            return x
+            return x, None
         return x, sum_ldj
 
 
@@ -37,25 +37,25 @@ class LogitTransform(Bijector):
         super().__init__()
         self.alpha = alpha
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj):
         return _logit(x, sum_ldj, self.alpha)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj):
         return _sigmoid(y, sum_ldj, self.alpha)
 
 
-def _logit(x, sum_ldj=None, alpha=_DEFAULT_ALPHA):
+def _logit(x, sum_ldj: Optional[torch.Tensor] = None, alpha=_DEFAULT_ALPHA):
     s = alpha + (1 - 2 * alpha) * x
     y = torch.log(s) - torch.log(1 - s)
     if sum_ldj is None:
-        return y
+        return y, None
     return y, sum_ldj - _logdet_of_logit(x, alpha).view(x.size(0), -1).sum(1, keepdim=True)
 
 
 def _sigmoid(y, logpy=None, alpha=_DEFAULT_ALPHA):
     x = (torch.sigmoid(y) - alpha) / (1 - 2 * alpha)
     if logpy is None:
-        return x
+        return x, None
     return x, logpy + _logdet_of_logit(x, alpha).view(x.size(0), -1).sum(1, keepdim=True)
 
 

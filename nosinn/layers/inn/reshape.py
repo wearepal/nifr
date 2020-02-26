@@ -1,5 +1,6 @@
-import numpy as np
+from typing import Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,42 +9,44 @@ from . import Bijector
 
 
 class SqueezeLayer(Bijector):
-    def __init__(self, downscale_factor):
-        super().__init__()
-        self.downscale_factor = downscale_factor
+    downscale_factor: int
 
-    def _forward(self, x, sum_ldj=None):
+    def __init__(self, downscale_factor: int):
+        super().__init__()
+        self.downscale_factor: int = downscale_factor
+
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         squeeze_x = squeeze(x, self.downscale_factor)
         if sum_ldj is None:
-            return squeeze_x
+            return squeeze_x, None
         else:
             return squeeze_x, sum_ldj
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         unsqueeze_y = unsqueeze(y, self.downscale_factor)
         if sum_ldj is None:
-            return unsqueeze_y
+            return unsqueeze_y, None
         else:
             return unsqueeze_y, sum_ldj
 
 
 class UnsqueezeLayer(SqueezeLayer):
-    def __init__(self, upscale_factor):
+    def __init__(self, upscale_factor: int):
         super().__init__(downscale_factor=upscale_factor)
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         return self._inverse(x, sum_ldj)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         return self._forward(y, sum_ldj)
 
 
-def unsqueeze(input, upscale_factor=2):
+def unsqueeze(input, upscale_factor: int = 2):
     """
     [:, C*r^2, H, W] -> [:, C, H*r, W*r]
     """
     batch_size, in_channels, in_height, in_width = input.size()
-    out_channels = in_channels // (upscale_factor ** 2)
+    out_channels = int(in_channels // (upscale_factor ** 2))
 
     out_height = in_height * upscale_factor
     out_width = in_width * upscale_factor
@@ -56,12 +59,12 @@ def unsqueeze(input, upscale_factor=2):
     return output.view(batch_size, out_channels, out_height, out_width)
 
 
-def squeeze(input, downscale_factor=2):
+def squeeze(input, downscale_factor: int = 2):
     """
     [:, C, H*r, W*r] -> [:, C*r^2, H, W]
     """
     batch_size, in_channels, in_height, in_width = input.size()
-    out_channels = in_channels * (downscale_factor ** 2)
+    out_channels = int(in_channels * (downscale_factor ** 2))
 
     out_height = in_height // downscale_factor
     out_width = in_width // downscale_factor
@@ -117,7 +120,7 @@ class HaarDownsampling(Bijector):
         fac = self.fac_rev if reverse else self.fac_fwd
         return x[0].nelement() / 4 * (np.log(16.0) + 4 * np.log(fac))
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         out = F.conv2d(x, self.haar_weights, bias=None, stride=2, groups=self.in_channels)
 
         if self.permute:
@@ -125,11 +128,11 @@ class HaarDownsampling(Bijector):
         out *= self.fac_fwd
 
         if sum_ldj is None:
-            return out
+            return out, None
         else:
             return out, sum_ldj - self.logdetjac(x, False)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
 
         if self.permute:
             x_perm = y[:, self.perm_inv]
@@ -141,6 +144,6 @@ class HaarDownsampling(Bijector):
         )
 
         if sum_ldj is None:
-            return out
+            return out, None
         else:
             return out, sum_ldj + self.logdetjac(y, True)

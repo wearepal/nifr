@@ -10,18 +10,18 @@ class Flatten(Bijector):
         super(Flatten, self).__init__()
         self.orig_shape = None
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         self.orig_shape = x.shape
 
         y = x.flatten(start_dim=1)
         self.flat_shape = y.shape
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         x = y.view(self.orig_shape)
 
         if sum_ldj is None:
@@ -39,18 +39,18 @@ class ConstantAffine(Bijector):
     def logdetjac(self):
         return self.scale.log().flatten().sum()
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         y = self.scale * x + self.shift
 
         if sum_ldj is None:
-            return y
+            return y, None
         else:
             return y, sum_ldj - self.logdetjac()
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         x = (y - self.shift) / self.scale
 
         if sum_ldj is None:
-            return x
+            return x, None
         else:
             return x, sum_ldj + self.logdetjac()
