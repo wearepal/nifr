@@ -115,9 +115,17 @@ class BipartiteInn(ModelBase):
         nll = -log_px / z.nelement()
         return nll
 
+    @overload  # type: ignore[override]
+    def forward(self, inputs: Tensor, logdet: None = ..., reverse: bool = ...) -> Tensor:
+        ...
+
+    @overload
+    def forward(self, inputs: Tensor, logdet: Tensor, reverse: bool = ...) -> Tuple[Tensor, Tensor]:
+        ...
+
     def forward(
         self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False
-    ) -> Tensor:
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
         outputs, sum_ldj = self.model(inputs, sum_ldj=logdet, reverse=reverse)
 
         if sum_ldj is None:

@@ -38,10 +38,10 @@ class LogitTransform(Bijector):
         super().__init__()
         self.alpha = alpha
 
-    def _forward(self, x, sum_ldj):
+    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
         return _logit(x, sum_ldj, self.alpha)
 
-    def _inverse(self, y, sum_ldj):
+    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         return _sigmoid(y, sum_ldj, self.alpha)
 
 

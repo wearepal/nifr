@@ -1,7 +1,5 @@
 from typing import Dict, List, Optional, Tuple, Union
 
-from torch import jit
-
 from nosinn import layers
 from nosinn.configs import NosinnArgs
 from nosinn.models import Classifier
@@ -133,8 +131,8 @@ def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bij
 
     model = layers.BijectorChain(full_chain)
 
-    return model
     # return jit.script(model)
+    return model
 
 
 def build_discriminator(

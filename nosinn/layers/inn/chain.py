@@ -57,9 +57,7 @@ class FactorOut(BijectorChain):
         xs.append(self._final_flatten(x)[0])
         x = torch.cat(xs, dim=1)
 
-        out = (x, sum_ldj)  # if sum_ldj is not None else x
-
-        return out
+        return (x, sum_ldj)
 
     def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
@@ -79,9 +77,7 @@ class FactorOut(BijectorChain):
                 x = torch.cat([components[i], x], dim=1)
             x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
 
-        out = (x, sum_ldj)
-
-        return out
+        return (x, sum_ldj)
 
 
 class OxbowNet(Bijector):
