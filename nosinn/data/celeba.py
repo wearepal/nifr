@@ -107,14 +107,13 @@ class CelebA(VisionDataset):
             data_only_sens.columns = list(range(self.s_dim))
             sens_attr = data_only_sens.idxmax(axis="columns").to_frame(name=",".join(sens_attrs))
         else:
-            sens_attr_name = sens_attrs[0].capitalize()
+            sens_attr_name = sens_attrs[0]
             if sens_attr_name not in attr_names:
                 raise ValueError(f"{sens_attr_name} does not exist as an attribute.")
             sens_attr = all_data[[sens_attr_name]]
             sens_attr = (sens_attr + 1) // 2  # map from {-1, 1} to {0, 1}
             self.s_dim = 1
 
-        target_attr_name = target_attr_name.capitalize()
         if target_attr_name not in attr_names:
             raise ValueError(f"{target_attr_name} does not exist as an attribute.")
         target_attr = all_data[[target_attr_name]]
