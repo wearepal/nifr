@@ -1,4 +1,4 @@
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Optional
 from typing_extensions import Literal
 
 import torch

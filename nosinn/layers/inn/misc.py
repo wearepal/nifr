@@ -1,3 +1,4 @@
+from typing import Optional
 import torch
 from .bijector import Bijector
 
@@ -25,7 +26,7 @@ class Flatten(Bijector):
         x = y.view(self.orig_shape)
 
         if sum_ldj is None:
-            return x
+            return x, None
         else:
             return x, sum_ldj
 

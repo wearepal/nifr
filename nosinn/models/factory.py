@@ -133,7 +133,8 @@ def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bij
 
     model = layers.BijectorChain(full_chain)
 
-    return jit.script(model)
+    return model
+    # return jit.script(model)
 
 
 def build_discriminator(

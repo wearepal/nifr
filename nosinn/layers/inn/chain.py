@@ -55,8 +55,8 @@ class FactorOut(BijectorChain):
         xs = []
         for i in inds:
             x = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            # if sum_ldj is not None:
+            x, sum_ldj = x
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 x_removed_flat = self._factor_layers[i](x_removed)
@@ -85,8 +85,8 @@ class FactorOut(BijectorChain):
             if i in components:
                 x = torch.cat([components[i], x], dim=1)
             x = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            # if sum_ldj is not None:
+            x, sum_ldj = x
 
         out = (x, sum_ldj)  # if sum_ldj is not None else x
 
@@ -116,10 +116,10 @@ class OxbowNet(Bijector):
 
         # =================================== contracting =========================================
         result = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
-        if isinstance(result, tuple):
-            xs, sum_ldj = result
-        else:
-            xs = result
+        # if isinstance(result, tuple):
+        xs, sum_ldj = result
+        # else:
+        #     xs = result
 
         # ==================================== expanding ==========================================
         out = self._expand(self.up_chain, xs, sum_ldj=sum_ldj, reverse=False)
@@ -152,8 +152,8 @@ class OxbowNet(Bijector):
         xs: List[Tensor] = []
         for i in range(self.chain_len):
             x = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            # if sum_ldj is not None:
+            x, sum_ldj = x
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 xs.append(x_removed)
@@ -173,8 +173,8 @@ class OxbowNet(Bijector):
                 x_removed = xs.pop()
                 x = torch.cat([x_removed, x], dim=1)
             x = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            # if sum_ldj is not None:
+            x, sum_ldj = x
 
         return (x, sum_ldj)  # if sum_ldj is not None else x
 
