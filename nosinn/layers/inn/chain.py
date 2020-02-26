@@ -1,4 +1,4 @@
-from typing import Dict, List, Sequence, Optional, Tuple, Union
+from typing import Dict, List, Sequence, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -27,11 +27,6 @@ class BijectorChain(Bijector):
         return self.loop(inds=inds, reverse=True, x=y, sum_ldj=sum_ldj)
 
     def loop(self, inds, reverse: bool, x, sum_ldj: Optional[torch.Tensor] = None):
-        # if sum_ldj is None:
-        #     for i in inds:
-        #         x = self.chain[i](x, reverse=reverse)
-        #     return x
-        # else:
         for i in inds:
             x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
         return x, sum_ldj
@@ -54,14 +49,12 @@ class FactorOut(BijectorChain):
 
         xs = []
         for i in inds:
-            x = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
-            # if sum_ldj is not None:
-            x, sum_ldj = x
+            x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 x_removed_flat = self._factor_layers[i](x_removed)
                 xs.append(x_removed_flat)
-        xs.append(self._final_flatten(x))
+        xs.append(self._final_flatten(x)[0])
         x = torch.cat(xs, dim=1)
 
         out = (x, sum_ldj)  # if sum_ldj is not None else x
@@ -79,16 +72,14 @@ class FactorOut(BijectorChain):
             x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
             components[block_ind] = factor_layer(x_removed_flat, reverse=True)
 
-        x = self._final_flatten(x, reverse=True)
+        x, _ = self._final_flatten(x, reverse=True)
 
         for i in inds:
             if i in components:
                 x = torch.cat([components[i], x], dim=1)
-            x = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
-            # if sum_ldj is not None:
-            x, sum_ldj = x
+            x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
 
-        out = (x, sum_ldj)  # if sum_ldj is not None else x
+        out = (x, sum_ldj)
 
         return out
 
@@ -115,11 +106,7 @@ class OxbowNet(Bijector):
     def _forward(self, x: torch.Tensor, sum_ldj: Optional[torch.Tensor] = None):
 
         # =================================== contracting =========================================
-        result = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
-        # if isinstance(result, tuple):
-        xs, sum_ldj = result
-        # else:
-        #     xs = result
+        xs, sum_ldj = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
 
         # ==================================== expanding ==========================================
         out = self._expand(self.up_chain, xs, sum_ldj=sum_ldj, reverse=False)
@@ -129,11 +116,7 @@ class OxbowNet(Bijector):
     def _inverse(self, y: torch.Tensor, sum_ldj: Optional[torch.Tensor] = None):
 
         # ================================= inverse expanding =====================================
-        result = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
-        # if isinstance(result, tuple):
-        ys, sum_ldj = result
-        # else:
-        #     ys = result
+        ys, sum_ldj = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
 
         # ================================ inverse contracting ====================================
         out = self._expand(self.down_chain, ys, sum_ldj=sum_ldj, reverse=True)
@@ -151,14 +134,12 @@ class OxbowNet(Bijector):
         """
         xs: List[Tensor] = []
         for i in range(self.chain_len):
-            x = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
-            # if sum_ldj is not None:
-            x, sum_ldj = x
+            x, sum_ldj = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 xs.append(x_removed)
         xs.append(x)  # save the last one as well
-        return (xs, sum_ldj)  # if sum_ldj is not None else xs
+        return (xs, sum_ldj)
 
     def _expand(self, chain, xs, *, sum_ldj, reverse: bool) -> Tuple[Tensor, Optional[Tensor]]:
         """Do an expanding loop
@@ -172,11 +153,9 @@ class OxbowNet(Bijector):
             if i in self.splits:  # if there was a split, we have to concatenate them together
                 x_removed = xs.pop()
                 x = torch.cat([x_removed, x], dim=1)
-            x = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
-            # if sum_ldj is not None:
-            x, sum_ldj = x
+            x, sum_ldj = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
 
-        return (x, sum_ldj)  # if sum_ldj is not None else x
+        return (x, sum_ldj)
 
 
 def _compute_split_point(tensor: torch.Tensor, frac: float):
