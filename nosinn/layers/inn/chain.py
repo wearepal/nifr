@@ -87,10 +87,7 @@ class OxbowNet(Bijector):
     splits: Dict[int, float]
 
     def __init__(
-        self,
-        down_chain: List[Bijector],
-        up_chain: List[Bijector],
-        splits: Dict[int, float],
+        self, down_chain: List[Bijector], up_chain: List[Bijector], splits: Dict[int, float],
     ):
         super().__init__()
         assert len(down_chain) == len(up_chain)

@@ -19,6 +19,9 @@ class Invertible1x1Conv(Bijector):
         self.num_channels = num_channels
         self.use_lr_decomp = use_lr_decomp
 
+        self.reset_parameters()
+
+    def reset_parameters(self):
         # initialization done with rotation matrix
         w_shape = (self.num_channels, self.num_channels)
         if not self.use_lr_decomp:
