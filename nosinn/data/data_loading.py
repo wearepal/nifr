@@ -1,21 +1,20 @@
 from typing import NamedTuple, Optional
 
-from torch.utils.data import Dataset, Subset, random_split
+from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 
 from nosinn.configs import SharedArgs
-from .dataset_wrappers import LdAugmentedDataset
-from .transforms import LdColorizer, NoisyDequantize, Quantize
+
 from .adult import load_adult_data
-from .perturbed_adult import load_perturbed_adult
 from .celeba import CelebA
+from .dataset_wrappers import LdAugmentedDataset
+from .misc import shrink_dataset, train_test_split
+from .perturbed_adult import load_perturbed_adult
+from .ssrp import SSRP
+from .transforms import LdColorizer, NoisyDequantize, Quantize
 
-
-def subsample(dataset: Dataset, pcnt: float) -> Subset:
-    len_dataset = len(dataset)
-    len_subsample = round(pcnt * len_dataset)
-    return random_split(dataset, lengths=(len_subsample, len_dataset - len_subsample))[0]
+__all__ = ["DatasetTriplet", "load_dataset"]
 
 
 class DatasetTriplet(NamedTuple):
@@ -84,13 +83,29 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             base_augmentations=base_aug,
         )
 
-        if 0 < args.data_pcnt < 1:
-            pretrain_data.subsample(args.data_pcnt)
-            train_data.subsample(args.data_pcnt)
-            test_data.subsample(args.data_pcnt)
-
         args.y_dim = 10
         args.s_dim = 10
+
+    elif args.dataset == "ssrp":
+        image_size = 64
+        transform = [
+            transforms.Resize(image_size),
+            transforms.ToTensor(),
+        ]
+        if args.quant_level != "8":
+            transform.append(Quantize(int(args.quant_level)))
+        if args.input_noise:
+            transform.append(NoisyDequantize(int(args.quant_level)))
+        transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+        transform = transforms.Compose(transform)
+
+        pretrain_data = SSRP(args.root, pretrain=True, download=True, transform=transform)
+        train_test_data = SSRP(args.root, pretrain=False, download=True, transform=transform)
+
+        train_data, test_data = train_test_split(train_test_data, train_pcnt=(1 - args.test_pcnt))
+
+        args.y_dim = train_test_data.num_classes
+        args.s_dim = pretrain_data.num_classes
 
     elif args.dataset == "celeba":
 
@@ -107,7 +122,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
 
-        unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
+        unbiased_pcnt = args.test_pcnt + args.pretrain_pcnt
         unbiased_data = CelebA(
             root=args.root,
             sens_attrs=args.celeba_sens_attr,
@@ -139,11 +154,6 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         args.y_dim = 1
         args.s_dim = unbiased_data.s_dim
 
-        if 0 < args.data_pcnt < 1:
-            pretrain_data = subsample(pretrain_data, args.data_pcnt)
-            train_data = subsample(train_data, args.data_pcnt)
-            test_data = subsample(test_data, args.data_pcnt)
-
     elif args.dataset == "adult":
         if args.input_noise:
             pretrain_data, test_data, train_data = load_perturbed_adult(args)
@@ -152,13 +162,13 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
 
         args.y_dim = 1
         args.s_dim = 1
-
-        if 0 < args.data_pcnt < 1:
-            pretrain_data.shrink(args.data_pcnt)
-            train_data.shrink(args.data_pcnt)
-            test_data.shrink(args.data_pcnt)
     else:
         raise ValueError("Invalid choice of dataset.")
+
+    if 0 < args.data_pcnt < 1:
+        pretrain_data = shrink_dataset(pretrain_data, args.data_pcnt)
+        train_data = shrink_dataset(train_data, args.data_pcnt)
+        test_data = shrink_dataset(test_data, args.data_pcnt)
 
     return DatasetTriplet(
         pretrain=pretrain_data,

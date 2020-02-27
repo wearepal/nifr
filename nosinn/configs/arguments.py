@@ -61,12 +61,12 @@ class StoreDictKeyPair(argparse.Action):
 
 class SharedArgs(Tap):
     # General data set settings
-    dataset: Literal["adult", "cmnist", "celeba"] = "cmnist"
+    dataset: Literal["adult", "cmnist", "celeba", "ssrp"] = "cmnist"
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     task_mixing_factor: float = 0.0  # How much of meta train should be mixed into task train?
     pretrain: bool = True  # Whether to perform unsupervised pre-training.
     pretrain_pcnt: float = 0.4
-    task_pcnt: float = 0.2
+    test_pcnt: float = 0.2
 
     # Adult data set feature settings
     drop_native: bool = True

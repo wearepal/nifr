@@ -6,15 +6,22 @@ from typing import List, Iterator, Tuple
 import numpy as np
 
 import torch
-from torch.utils.data import Sampler, random_split, Dataset
-from torchvision.utils import save_image
+from torch.utils.data import Sampler, random_split, Dataset, Subset
 
 
-def shrink_dataset(dataset, pcnt):
+__all__ = ["train_test_split", "shrink_dataset", "RandomSampler", "group_features", "set_transform", "grouped_features_indexes"]
+
+
+def train_test_split(dataset: Dataset, train_pcnt: float) -> List[Subset]:
     curr_len = len(dataset)
-    new_data_len = int(pcnt * curr_len)
-    lengths = [new_data_len, curr_len - new_data_len]
-    return random_split(dataset, lengths)[0]
+    train_len = round(train_pcnt * curr_len)
+    test_len = curr_len - train_len
+
+    return random_split(dataset, lengths=[train_len, test_len])
+
+
+def shrink_dataset(dataset: Dataset, pcnt: float) -> Subset:
+    train_test_split(dataset, train_pcnt=pcnt)
 
 
 def set_transform(dataset, transform):

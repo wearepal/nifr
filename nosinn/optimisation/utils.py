@@ -26,7 +26,7 @@ def log_images(
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
 
-    if args.dataset == "celeba":
+    if args.dataset in ["celeba", "ssrp"]:
         images = 0.5 * images + 0.5
 
     if monochrome:

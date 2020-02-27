@@ -143,7 +143,7 @@ def biased_split(args: SharedArgs, data: DataTuple) -> Triplet:
         task_train_tuple, unbiased = get_biased_subset(
             data=data,
             mixing_factor=args.task_mixing_factor,
-            unbiased_pcnt=args.task_pcnt + args.pretrain_pcnt,
+            unbiased_pcnt=args.test_pcnt + args.pretrain_pcnt,
             seed=args.data_split_seed,
             data_efficient=True,
         )
@@ -151,13 +151,13 @@ def biased_split(args: SharedArgs, data: DataTuple) -> Triplet:
         task_train_tuple, unbiased = get_biased_and_debiased_subsets(
             data=data,
             mixing_factor=args.task_mixing_factor,
-            unbiased_pcnt=args.task_pcnt + args.pretrain_pcnt,
+            unbiased_pcnt=args.test_pcnt + args.pretrain_pcnt,
             seed=args.data_split_seed,
         )
 
     task_tuple, meta_tuple = train_test_split(
         unbiased,
-        train_percentage=args.task_pcnt / (args.task_pcnt + args.pretrain_pcnt),
+        train_percentage=args.test_pcnt / (args.test_pcnt + args.pretrain_pcnt),
         random_seed=args.data_split_seed,
     )
     return Triplet(meta=meta_tuple, task=task_tuple, task_train=task_train_tuple)
