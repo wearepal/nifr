@@ -162,6 +162,7 @@ class NosinnArgs(SharedArgs):
     disc_channels: int = 256
     disc_hidden_dims: List[int] = []
     num_discs: int = 1
+    disc_reset_prob: float = 1 / 3
 
     # Training settings
     lr: float = 3e-4
@@ -183,7 +184,7 @@ class NosinnArgs(SharedArgs):
             raise ValueError("bn_lag has to be between 0 and 1")
         if not self.num_discs >= 1:
             raise ValueError("Size of adversarial ensemble must be 1 or greater.")
-
+            
 
 class VaeArgs(SharedArgs):
     # VAEsettings

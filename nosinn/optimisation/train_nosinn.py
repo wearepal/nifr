@@ -468,7 +468,12 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         if ARGS.super_val and epoch % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=itr)
             save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
-
+            
+        for i, disc in enumerate(disc_ensemble):
+            if np.random.uniform() < args.disc_reset_prob:
+                LOGGER.info("Reinitializaing discriminator {:04d}", epoch)
+                disc.reset_parameters()
+    
     LOGGER.info("Training has finished.")
     path = save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
     inn, disc_ensemble = restore_model(args, path, inn=inn, disc_ensemble=disc_ensemble)
