@@ -469,9 +469,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
             log_metrics(ARGS, model=inn, data=datasets, step=itr)
             save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
             
-        for i, disc in enumerate(disc_ensemble):
+        for k, disc in enumerate(disc_ensemble):
             if np.random.uniform() < args.disc_reset_prob:
-                LOGGER.info("Reinitializaing discriminator {}", i)
+                LOGGER.info("Reinitializaing discriminator {}", k)
                 disc.reset_parameters()
     
     LOGGER.info("Training has finished.")
