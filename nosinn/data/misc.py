@@ -9,7 +9,14 @@ import torch
 from torch.utils.data import Sampler, random_split, Dataset, Subset
 
 
-__all__ = ["train_test_split", "shrink_dataset", "RandomSampler", "group_features", "set_transform", "grouped_features_indexes"]
+__all__ = [
+    "train_test_split",
+    "shrink_dataset",
+    "RandomSampler",
+    "group_features",
+    "set_transform",
+    "grouped_features_indexes",
+]
 
 
 def train_test_split(dataset: Dataset, train_pcnt: float) -> List[Subset]:
