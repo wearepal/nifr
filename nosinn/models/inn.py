@@ -263,7 +263,7 @@ class PartitionedAeInn(PartitionedInn):
         return_ae_enc: bool = False,
     ) -> Tensor:
         if reverse:
-            ae_enc, sum_ldj = self.model(inputs, sum_ldj=logdet, reverse=reverse)
+            ae_enc, _ = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(ae_enc)
         else:
             ae_enc = self.autoencoder.encode(inputs)
