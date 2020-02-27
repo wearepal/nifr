@@ -471,7 +471,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
             
         for i, disc in enumerate(disc_ensemble):
             if np.random.uniform() < args.disc_reset_prob:
-                LOGGER.info("Reinitializaing discriminator {:04d}", epoch)
+                LOGGER.info("Reinitializaing discriminator {}", i)
                 disc.reset_parameters()
     
     LOGGER.info("Training has finished.")
