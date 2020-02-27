@@ -1,6 +1,7 @@
 import argparse
 from typing import Optional, List, Dict
 from typing_extensions import Literal
+from ethicml.data import GenfacesAttributes
 
 from tap import Tap
 
@@ -61,7 +62,7 @@ class StoreDictKeyPair(argparse.Action):
 
 class SharedArgs(Tap):
     # General data set settings
-    dataset: Literal["adult", "cmnist", "celeba"] = "cmnist"
+    dataset: Literal["adult", "cmnist", "celeba", "genfaces"] = "cmnist"
     data_pcnt: float = 1.0  # data pcnt should be a real value > 0, and up to 1
     task_mixing_factor: float = 0.0  # How much of meta train should be mixed into task train?
     pretrain: bool = True  # Whether to perform unsupervised pre-training.
@@ -87,6 +88,10 @@ class SharedArgs(Tap):
     # CelebA settings
     celeba_sens_attr: List[CELEBATTRS] = ["Male"]
     celeba_target_attr: CELEBATTRS = "Smiling"
+
+    # GenFaces settings
+    genfaces_sens_attr: GenfacesAttributes = "gender"
+    genfaces_target_attr: GenfacesAttributes = "emotion"
 
     # Optimization settings
     early_stopping: int = 30
