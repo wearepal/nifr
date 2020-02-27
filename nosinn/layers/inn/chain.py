@@ -52,7 +52,7 @@ class FactorOut(BijectorChain):
             x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
-                x_removed_flat = self._factor_layers[i](x_removed)
+                x_removed_flat, _ = self._factor_layers[i](x_removed)
                 xs.append(x_removed_flat)
         xs.append(self._final_flatten(x)[0])
         x = torch.cat(xs, dim=1)
@@ -68,7 +68,7 @@ class FactorOut(BijectorChain):
             factor_layer = self._factor_layers[block_ind]
             split_point = factor_layer.flat_shape[1]
             x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
-            components[block_ind] = factor_layer(x_removed_flat, reverse=True)
+            components[block_ind], _ = factor_layer(x_removed_flat, reverse=True)
 
         x, _ = self._final_flatten(x, reverse=True)
 

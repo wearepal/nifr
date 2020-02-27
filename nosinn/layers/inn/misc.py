@@ -18,18 +18,12 @@ class Flatten(Bijector):
         y = x.flatten(start_dim=1)
         self.flat_shape = y.shape
 
-        if sum_ldj is None:
-            return y, None
-        else:
-            return y, sum_ldj
+        return y, sum_ldj
 
     def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         x = y.view(self.orig_shape)
 
-        if sum_ldj is None:
-            return x, None
-        else:
-            return x, sum_ldj
+        return x, sum_ldj
 
 
 class ConstantAffine(Bijector):
