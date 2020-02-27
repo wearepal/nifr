@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 import torch.nn as nn
 from torch import Tensor

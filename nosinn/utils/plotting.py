@@ -1,11 +1,11 @@
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-import torch
-
 from nosinn.configs import SharedArgs
+
 from .utils import wandb_log
 
 __all__ = ["plot_contrastive", "plot_histogram"]

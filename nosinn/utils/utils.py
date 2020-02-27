@@ -1,14 +1,13 @@
-import os
 import logging
+import os
 import random
-from typing import Dict, Any, Sequence, TypeVar
+from typing import Any, Dict, Sequence, TypeVar
 
 import numpy as np
 import torch
+
 import wandb
-
 from nosinn.configs import SharedArgs
-
 
 LOGGER = None
 

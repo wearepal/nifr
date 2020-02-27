@@ -1,6 +1,7 @@
 from pathlib import Path
+from typing import Callable, Optional, Tuple, Union
+
 import torch
-from typing import Tuple, Optional, Callable, Union
 from torch import Tensor
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder

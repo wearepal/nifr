@@ -1,8 +1,8 @@
 import argparse
-from typing import Optional, List, Dict
-from typing_extensions import Literal
+from typing import Dict, List, Optional
 
 from tap import Tap
+from typing_extensions import Literal
 
 __all__ = ["NosinnArgs", "VaeArgs", "Ln2lArgs", "SharedArgs", "CELEBATTRS"]
 

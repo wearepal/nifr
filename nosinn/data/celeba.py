@@ -3,16 +3,14 @@ from pathlib import Path
 from typing import List
 
 import pandas as pd
-from PIL import Image
-
 import torch
+from PIL import Image
 from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import check_integrity, download_file_from_google_drive
 from torchvision.transforms import ToTensor
 
-from ethicml.preprocessing import get_biased_subset, SequentialSplit
+from ethicml.preprocessing import SequentialSplit, get_biased_subset
 from ethicml.utility import DataTuple
-
 from nosinn.configs import CELEBATTRS
 
 

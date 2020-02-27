@@ -8,15 +8,14 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from ethicml.evaluators import run_metrics
+from ethicml.metrics import TPR, Accuracy, ProbPos
 from ethicml.utility.data_structures import DataTuple
-from ethicml.metrics import Accuracy, ProbPos, TPR
-
-from nosinn.data import DatasetTriplet, load_dataset
-from nosinn.models.configs import linear_disciminator, mp_32x32_net, mp_64x64_net, fc_net
-from nosinn.models import build_discriminator, Classifier, ModelBase
-from nosinn.utils import utils, random_seed
-from nosinn.optimisation import get_data_dim, grad_reverse
 from nosinn.configs import Ln2lArgs
+from nosinn.data import DatasetTriplet, load_dataset
+from nosinn.models import Classifier, ModelBase, build_discriminator
+from nosinn.models.configs import fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
+from nosinn.optimisation import get_data_dim, grad_reverse
+from nosinn.utils import random_seed, utils
 
 __all__ = ["main"]
 

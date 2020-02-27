@@ -2,10 +2,11 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-from torch.nn import Parameter
 from torch import Tensor
+from torch.nn import Parameter
 
-from nosinn.utils import sum_except_batch, is_positive_int
+from nosinn.utils import is_positive_int, sum_except_batch
+
 from .misc import Bijector
 
 __all__ = ["MovingBatchNorm1d", "MovingBatchNorm2d", "ActNorm"]

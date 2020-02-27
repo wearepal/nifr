@@ -2,42 +2,28 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Tuple, Dict, Optional, Callable, List, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import git
 import numpy as np
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 from torch.utils.data import DataLoader
-import wandb
 
-from nosinn.data import DatasetTriplet, load_dataset
-from nosinn.models import (
-    AutoEncoder,
-    PartitionedAeInn,
-    PartitionedInn,
-    VAE,
-    build_conv_inn,
-    build_discriminator,
-    build_fc_inn,
-)
-from nosinn.models.configs import (
-    conv_autoencoder,
-    fc_autoencoder,
-    fc_net,
-    linear_disciminator,
-    mp_32x32_net,
-    mp_64x64_net,
-    ModelFn,
-)
-from nosinn.utils import AverageMeter, count_parameters, get_logger, wandb_log, random_seed
+import wandb
 from nosinn.configs import NosinnArgs
+from nosinn.data import DatasetTriplet, load_dataset
+from nosinn.models import (VAE, AutoEncoder, PartitionedAeInn, PartitionedInn, build_conv_inn,
+                           build_discriminator, build_fc_inn)
+from nosinn.models.configs import (ModelFn, conv_autoencoder, fc_autoencoder, fc_net,
+                                   linear_disciminator, mp_32x32_net, mp_64x64_net)
+from nosinn.utils import AverageMeter, count_parameters, get_logger, random_seed, wandb_log
 
 from .evaluation import log_metrics
-from .loss import PixelCrossEntropy, grad_reverse, MixedLoss
-from .utils import get_data_dim, log_images, save_model, restore_model
+from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
+from .utils import get_data_dim, log_images, restore_model, save_model
 
 __all__ = ["main_nosinn"]
 

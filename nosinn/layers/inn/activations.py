@@ -1,12 +1,14 @@
-from typing import Optional
 import math
+from typing import Optional
+
 import torch
 from torch import Tensor
+
+from .bijector import Bijector
 
 # import torch.nn as nn
 # import torch.nn.functional as F
 
-from .bijector import Bijector
 
 __all__ = ["LogitTransform", "ZeroMeanTransform"]  # , "SigmoidTransform", "SoftplusTransform"]
 

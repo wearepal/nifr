@@ -1,13 +1,14 @@
-from typing import Sequence, List, Tuple, Optional
-from typing_extensions import Literal
+from typing import List, Optional, Sequence, Tuple
 
 import torch
-from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
+from typing_extensions import Literal
 
 from nosinn.utils import RoundSTE, sum_except_batch
 from nosinn.utils.typechecks import is_probability
+
 from ..conv import BottleneckConvBlock
 from ..resnet import ConvResidualNet
 from .bijector import Bijector

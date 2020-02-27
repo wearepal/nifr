@@ -1,13 +1,11 @@
 import csv
 import os
 from itertools import groupby
-from typing import List, Iterator, Tuple
+from typing import Iterator, List, Tuple
 
 import numpy as np
-
 import torch
-from torch.utils.data import Sampler, random_split, Dataset, Subset
-
+from torch.utils.data import Dataset, Sampler, Subset, random_split
 
 __all__ = [
     "train_test_split",

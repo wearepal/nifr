@@ -1,22 +1,18 @@
 """Definition of the Adult dataset"""
-from typing import Optional, List, Tuple, NamedTuple
+from typing import List, NamedTuple, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader
 
+from ethicml.data import Adult, load_data
+from ethicml.preprocessing import (domain_split, get_biased_and_debiased_subsets, get_biased_subset,
+                                   train_test_split)
 from ethicml.utility import DataTuple
 from ethicml.utility.data_helpers import shuffle_df
-from ethicml.data import load_data, Adult
-from ethicml.preprocessing import (
-    get_biased_subset,
-    get_biased_and_debiased_subsets,
-    train_test_split,
-    domain_split,
-)
-
 from nosinn.configs import SharedArgs
+
 from .dataset_wrappers import DataTupleDataset
 
 

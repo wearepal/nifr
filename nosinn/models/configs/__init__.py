@@ -1,2 +1,2 @@
-from .classifiers import *
 from .autoencoder import *
+from .classifiers import *

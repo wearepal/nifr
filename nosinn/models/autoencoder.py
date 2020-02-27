@@ -1,10 +1,10 @@
 from typing import NamedTuple, Optional
 
-from tqdm import tqdm
 import torch
 import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from .base import ModelBase
 

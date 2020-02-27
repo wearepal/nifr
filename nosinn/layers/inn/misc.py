@@ -1,8 +1,9 @@
 from typing import Optional
+
 import torch
 from torch import Tensor
-from .bijector import Bijector
 
+from .bijector import Bijector
 
 __all__ = ["Flatten", "ConstantAffine"]
 

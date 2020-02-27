@@ -6,12 +6,13 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 import torch
-import wandb
-from captum.attr import IntegratedGradients, NoiseTunnel, visualization as viz
+from captum.attr import IntegratedGradients, NoiseTunnel
+from captum.attr import visualization as viz
 from matplotlib import cm
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
 
+import wandb
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos

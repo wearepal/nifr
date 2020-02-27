@@ -4,14 +4,14 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
-from ethicml.algorithms.inprocess import compute_instance_weights
-from ethicml.evaluators import run_metrics
-from ethicml.metrics import TPR, Accuracy, ProbPos
-from ethicml.utility import DataTuple, Prediction
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import trange
 from typing_extensions import Literal
 
+from ethicml.algorithms.inprocess import compute_instance_weights
+from ethicml.evaluators import run_metrics
+from ethicml.metrics import TPR, Accuracy, ProbPos
+from ethicml.utility import DataTuple, Prediction
 from nosinn.configs import SharedArgs
 from nosinn.data import load_dataset
 from nosinn.models import Classifier

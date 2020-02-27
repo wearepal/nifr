@@ -1,11 +1,11 @@
 """Test the invertible u-net"""
-from typing import Optional
 from copy import deepcopy
+from typing import Optional
 
 import numpy as np
-
 import torch
 from torch import nn
+
 from nosinn.layers import OxbowNet
 
 

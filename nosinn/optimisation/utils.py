@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Tuple
 
 import torch
-from torch import nn
 import torchvision
-import wandb
+from torch import nn
 
-from nosinn.configs import SharedArgs, NosinnArgs
+import wandb
+from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.utils import wandb_log
 
 __all__ = ["get_data_dim", "log_images"]

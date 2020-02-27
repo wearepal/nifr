@@ -1,9 +1,9 @@
 from pathlib import Path
 
-from matplotlib import style
 import matplotlib.pyplot as plt
-import pandas as pd
 import numpy as np
+import pandas as pd
+from matplotlib import style
 
 
 def main():

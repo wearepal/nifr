@@ -1,10 +1,10 @@
 from typing import Union
-from typing_extensions import Protocol
 
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision.models import resnet50
+from typing_extensions import Protocol
 
 from nosinn.layers.resnet import ResidualNet
 
