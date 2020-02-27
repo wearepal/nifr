@@ -1,5 +1,6 @@
 from typing import Optional
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
@@ -75,7 +76,7 @@ class Invertible1x1Conv(Bijector):
             dlogdet = self.log_s.sum() * (x.size(2) * x.size(3))
         return dlogdet
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
 
         w = self.get_w(reverse=False)
         output = F.conv2d(x, w)
@@ -86,7 +87,7 @@ class Invertible1x1Conv(Bijector):
             dlogdet = self.logdetjac(x)
             return output, sum_ldj - dlogdet
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
 
         weight_inv = self.get_w(reverse=True)
 
@@ -107,14 +108,14 @@ class InvertibleLinear(Bijector):
     def logdetjac(self):
         return torch.log(torch.abs(torch.det(self.weight.double()))).float()
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         y = F.linear(x, self.weight)
         if sum_ldj is None:
             return y, None
         else:
             return y, sum_ldj - self.logdetjac().expand_as(sum_ldj)
 
-    def _inverse(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, x, sum_ldj: Optional[Tensor] = None):
         y = F.linear(x, self.weight.double().inverse().float())
         if sum_ldj is None:
             return y, None

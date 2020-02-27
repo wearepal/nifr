@@ -1,6 +1,7 @@
 from typing import Optional
 import math
 import torch
+from torch import Tensor
 
 # import torch.nn as nn
 # import torch.nn.functional as F
@@ -14,16 +15,12 @@ _DEFAULT_BETA = 1.0
 
 
 class ZeroMeanTransform(Bijector):
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         x = x - 0.5
-        if sum_ldj is None:
-            return x, None
         return x, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         x = y + 0.5
-        if sum_ldj is None:
-            return x, None
         return x, sum_ldj
 
 
@@ -38,14 +35,14 @@ class LogitTransform(Bijector):
         super().__init__()
         self.alpha = alpha
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         return _logit(x, sum_ldj, self.alpha)
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         return _sigmoid(y, sum_ldj, self.alpha)
 
 
-def _logit(x, sum_ldj: Optional[torch.Tensor] = None, alpha=_DEFAULT_ALPHA):
+def _logit(x, sum_ldj: Optional[Tensor] = None, alpha=_DEFAULT_ALPHA):
     s = alpha + (1 - 2 * alpha) * x
     y = torch.log(s) - torch.log(1 - s)
     if sum_ldj is None:
@@ -53,11 +50,11 @@ def _logit(x, sum_ldj: Optional[torch.Tensor] = None, alpha=_DEFAULT_ALPHA):
     return y, sum_ldj - _logdet_of_logit(x, alpha).view(x.size(0), -1).sum(1, keepdim=True)
 
 
-def _sigmoid(y, logpy=None, alpha=_DEFAULT_ALPHA):
+def _sigmoid(y, sum_ldj: Optional[Tensor] = None, alpha=_DEFAULT_ALPHA):
     x = (torch.sigmoid(y) - alpha) / (1 - 2 * alpha)
-    if logpy is None:
-        return x, None
-    return x, logpy + _logdet_of_logit(x, alpha).view(x.size(0), -1).sum(1, keepdim=True)
+    if sum_ldj is not None:
+        sum_ldj += _logdet_of_logit(x, alpha).view(x.size(0), -1).sum(1, keepdim=True)
+    return x, sum_ldj
 
 
 def _logdet_of_logit(x, alpha):

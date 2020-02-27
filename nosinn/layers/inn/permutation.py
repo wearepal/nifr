@@ -1,5 +1,6 @@
 from typing import Optional
 import torch
+from torch import Tensor
 from nosinn.layers.inn import Bijector
 from nosinn.utils import is_positive_int
 
@@ -36,21 +37,15 @@ class Permutation(Bijector):
 
         return outputs
 
-    def _forward(self, inputs, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, inputs, sum_ldj: Optional[Tensor] = None):
         y = self._permute(inputs, self._permutation, self._dim)
 
-        if sum_ldj is None:
-            return y, None
-        else:
-            return y, sum_ldj
+        return y, sum_ldj
 
-    def _inverse(self, inputs, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, inputs, sum_ldj: Optional[Tensor] = None):
         y = self._permute(inputs, self._inverse_permutation, self._dim)
 
-        if sum_ldj is None:
-            return y, None
-        else:
-            return y, sum_ldj
+        return y, sum_ldj
 
 
 class RandomPermutation(Permutation):

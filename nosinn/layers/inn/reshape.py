@@ -2,6 +2,7 @@ from typing import Optional
 
 import numpy as np
 import torch
+from torch import Tensor
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -15,14 +16,14 @@ class SqueezeLayer(Bijector):
         super().__init__()
         self.downscale_factor: int = downscale_factor
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         squeeze_x = squeeze(x, self.downscale_factor)
         if sum_ldj is None:
             return squeeze_x, None
         else:
             return squeeze_x, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         unsqueeze_y = unsqueeze(y, self.downscale_factor)
         if sum_ldj is None:
             return unsqueeze_y, None
@@ -34,10 +35,10 @@ class UnsqueezeLayer(SqueezeLayer):
     def __init__(self, upscale_factor: int):
         super().__init__(downscale_factor=upscale_factor)
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         return self._inverse(x, sum_ldj)
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         return self._forward(y, sum_ldj)
 
 
@@ -120,19 +121,18 @@ class HaarDownsampling(Bijector):
         fac = self.fac_rev if reverse else self.fac_fwd
         return x[0].nelement() / 4 * (np.log(16.0) + 4 * np.log(fac))
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         out = F.conv2d(x, self.haar_weights, bias=None, stride=2, groups=self.in_channels)
 
         if self.permute:
             out = out[:, self.perm]
         out *= self.fac_fwd
 
-        if sum_ldj is None:
-            return out, None
-        else:
-            return out, sum_ldj - self.logdetjac(x, False)
+        if sum_ldj is not None:
+            sum_ldj -= self.logdetjac(x, False)
+        return out, sum_ldj
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
 
         if self.permute:
             x_perm = y[:, self.perm_inv]
@@ -143,7 +143,6 @@ class HaarDownsampling(Bijector):
             x_perm * self.fac_rev, self.haar_weights, bias=None, stride=2, groups=self.in_channels
         )
 
-        if sum_ldj is None:
-            return out, None
-        else:
-            return out, sum_ldj + self.logdetjac(y, True)
+        if sum_ldj is not None:
+            sum_ldj += self.logdetjac(y, True)
+        return out, sum_ldj

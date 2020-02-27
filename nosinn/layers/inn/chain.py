@@ -18,15 +18,15 @@ class BijectorChain(Bijector):
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
         self.inds = inds
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain)) if self.inds is None else self.inds
         return self.loop(inds=inds, reverse=False, x=x, sum_ldj=sum_ldj)
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
         return self.loop(inds=inds, reverse=True, x=y, sum_ldj=sum_ldj)
 
-    def loop(self, inds, reverse: bool, x, sum_ldj: Optional[torch.Tensor] = None):
+    def loop(self, inds, reverse: bool, x, sum_ldj: Optional[Tensor] = None):
         for i in inds:
             x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
         return x, sum_ldj
@@ -44,7 +44,7 @@ class FactorOut(BijectorChain):
         self._final_flatten = Flatten()
         self.inds = inds
 
-    def _forward(self, x, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain)) if self.inds is None else self.inds
 
         xs = []
@@ -59,7 +59,7 @@ class FactorOut(BijectorChain):
 
         return (x, sum_ldj)
 
-    def _inverse(self, y, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
         x = y
 
@@ -96,7 +96,7 @@ class OxbowNet(Bijector):
         self.splits = splits or {}
         self.chain_len = len(self.down_chain)
 
-    def _forward(self, x: torch.Tensor, sum_ldj: Optional[torch.Tensor] = None):
+    def _forward(self, x: Tensor, sum_ldj: Optional[Tensor] = None):
 
         # =================================== contracting =========================================
         xs, sum_ldj = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
@@ -106,7 +106,7 @@ class OxbowNet(Bijector):
 
         return out
 
-    def _inverse(self, y: torch.Tensor, sum_ldj: Optional[torch.Tensor] = None):
+    def _inverse(self, y: Tensor, sum_ldj: Optional[Tensor] = None):
 
         # ================================= inverse expanding =====================================
         ys, sum_ldj = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
@@ -151,11 +151,11 @@ class OxbowNet(Bijector):
         return (x, sum_ldj)
 
 
-def _compute_split_point(tensor: torch.Tensor, frac: float):
+def _compute_split_point(tensor: Tensor, frac: float):
     return round(tensor.size(1) * frac)
 
 
-def _frac_split_channelwise(tensor: torch.Tensor, frac: float):
+def _frac_split_channelwise(tensor: Tensor, frac: float):
     assert 0 <= frac <= 1
     split_point = _compute_split_point(tensor, frac)
     return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
