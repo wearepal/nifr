@@ -15,10 +15,24 @@ from torch.utils.data import DataLoader
 import wandb
 from nosinn.configs import NosinnArgs
 from nosinn.data import DatasetTriplet, load_dataset
-from nosinn.models import (VAE, AutoEncoder, PartitionedAeInn, PartitionedInn, build_conv_inn,
-                           build_discriminator, build_fc_inn)
-from nosinn.models.configs import (ModelFn, conv_autoencoder, fc_autoencoder, fc_net,
-                                   linear_disciminator, mp_32x32_net, mp_64x64_net)
+from nosinn.models import (
+    VAE,
+    AutoEncoder,
+    PartitionedAeInn,
+    PartitionedInn,
+    build_conv_inn,
+    build_discriminator,
+    build_fc_inn,
+)
+from nosinn.models.configs import (
+    ModelFn,
+    conv_autoencoder,
+    fc_autoencoder,
+    fc_net,
+    linear_disciminator,
+    mp_32x32_net,
+    mp_64x64_net,
+)
 from nosinn.utils import AverageMeter, count_parameters, get_logger, random_seed, wandb_log
 
 from .evaluation import log_metrics
