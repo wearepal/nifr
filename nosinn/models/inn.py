@@ -8,6 +8,7 @@ from torch import Tensor
 
 from nosinn.utils import to_discrete, logistic_distribution, MixtureDistribution, DLogistic
 from nosinn.configs import NosinnArgs
+from nosinn.layers import Bijector
 from .autoencoder import AutoEncoder
 from .base import ModelBase
 
@@ -17,10 +18,12 @@ __all__ = ["PartitionedInn", "PartitionedAeInn", "BipartiteInn"]
 class BipartiteInn(ModelBase):
     """Base wrapper class for INN models."""
 
+    model: Bijector
+
     def __init__(
         self,
         args: NosinnArgs,
-        model: torch.nn.Module,
+        model: Bijector,
         input_shape: Sequence[int],
         feature_groups: Optional[List[slice]] = None,
         optimizer_args: Optional[dict] = None,
@@ -112,20 +115,32 @@ class BipartiteInn(ModelBase):
         nll = -log_px / z.nelement()
         return nll
 
-    def forward(self, inputs: Tensor, logdet: Tensor = None, reverse: bool = False) -> Tensor:
-        outputs = self.model(inputs, sum_ldj=logdet, reverse=reverse)
+    @overload  # type: ignore[override]
+    def forward(self, inputs: Tensor, logdet: None = ..., reverse: bool = ...) -> Tensor:
+        ...
 
-        return outputs
+    @overload
+    def forward(self, inputs: Tensor, logdet: Tensor, reverse: bool = ...) -> Tuple[Tensor, Tensor]:
+        ...
+
+    def forward(
+        self, inputs: Tensor, logdet: Optional[Tensor] = None, reverse: bool = False
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        outputs, sum_ldj = self.model(inputs, sum_ldj=logdet, reverse=reverse)
+
+        if sum_ldj is None:
+            return outputs
+        else:
+            return outputs, sum_ldj
 
 
 class PartitionedInn(BipartiteInn):
-    """ Wrapper for classifier models.
-    """
+    """Wrapper for classifier models."""
 
     def __init__(
         self,
         args: NosinnArgs,
-        model: torch.nn.Module,
+        model: Bijector,
         input_shape: Sequence[int],
         optimizer_args: Optional[Dict] = None,
         feature_groups: Optional[List[slice]] = None,
@@ -248,11 +263,13 @@ class PartitionedAeInn(PartitionedInn):
         return_ae_enc: bool = False,
     ) -> Tensor:
         if reverse:
-            ae_enc = self.model(inputs, sum_ldj=logdet, reverse=reverse)
+            ae_enc, _ = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(ae_enc)
         else:
             ae_enc = self.autoencoder.encode(inputs)
-            outputs = self.model(ae_enc, sum_ldj=logdet, reverse=reverse)
+            outputs, sum_ldj = self.model(ae_enc, sum_ldj=logdet, reverse=reverse)
+            if sum_ldj is not None:
+                outputs = (outputs, sum_ldj)
 
         if return_ae_enc:
             return outputs, ae_enc

@@ -187,7 +187,7 @@ def run_baseline(args):
         optimizer_kwargs={"lr": args.lr, "weight_decay": args.weight_decay},
     )
     classifier.to(device)
-    
+
     if args.method == "kamiran":
         train_fn = TrainKamiran()
     else:

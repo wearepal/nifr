@@ -1,4 +1,4 @@
-from typing import Dict, List, Sequence, Optional, Tuple, Union
+from typing import Dict, List, Sequence, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -18,23 +18,18 @@ class BijectorChain(Bijector):
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
         self.inds = inds
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain)) if self.inds is None else self.inds
         return self.loop(inds=inds, reverse=False, x=x, sum_ldj=sum_ldj)
 
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
         return self.loop(inds=inds, reverse=True, x=y, sum_ldj=sum_ldj)
 
-    def loop(self, inds, reverse: bool, x, sum_ldj=None):
-        if sum_ldj is None:
-            for i in inds:
-                x = self.chain[i](x, reverse=reverse)
-            return x
-        else:
-            for i in inds:
-                x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
-            return x, sum_ldj
+    def loop(self, inds, reverse: bool, x, sum_ldj: Optional[Tensor] = None):
+        for i in inds:
+            x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
+        return x, sum_ldj
 
 
 class FactorOut(BijectorChain):
@@ -49,26 +44,22 @@ class FactorOut(BijectorChain):
         self._final_flatten = Flatten()
         self.inds = inds
 
-    def _forward(self, x, sum_ldj=None):
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain)) if self.inds is None else self.inds
 
         xs = []
         for i in inds:
-            x = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 x_removed_flat = self._factor_layers[i](x_removed)
                 xs.append(x_removed_flat)
-        xs.append(self._final_flatten(x))
+        xs.append(self._final_flatten(x)[0])
         x = torch.cat(xs, dim=1)
 
-        out = (x, sum_ldj) if sum_ldj is not None else x
+        return (x, sum_ldj)
 
-        return out
-
-    def _inverse(self, y, sum_ldj=None):
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
         inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
         x = y
 
@@ -79,58 +70,46 @@ class FactorOut(BijectorChain):
             x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
             components[block_ind] = factor_layer(x_removed_flat, reverse=True)
 
-        x = self._final_flatten(x, reverse=True)
+        x, _ = self._final_flatten(x, reverse=True)
 
         for i in inds:
             if i in components:
                 x = torch.cat([components[i], x], dim=1)
-            x = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
 
-        out = (x, sum_ldj) if sum_ldj is not None else x
-
-        return out
+        return (x, sum_ldj)
 
 
 class OxbowNet(Bijector):
     """A generalized nn.Sequential container for normalizing flows with splitting in a U form."""
 
+    chain_len: int
+    splits: Dict[int, float]
+
     def __init__(
-        self,
-        down_chain: List[Bijector],
-        up_chain: List[Bijector],
-        splits: Dict[int, float],
-        inds: Optional[Sequence] = None,
+        self, down_chain: List[Bijector], up_chain: List[Bijector], splits: Dict[int, float],
     ):
         super().__init__()
+        assert len(down_chain) == len(up_chain)
         self.down_chain = nn.ModuleList(down_chain)
         self.up_chain = nn.ModuleList(up_chain)
-        self.splits: dict = splits or {}
-        self.inds = inds
+        self.splits = splits or {}
+        self.chain_len = len(self.down_chain)
 
-    def _forward(self, x: torch.Tensor, sum_ldj=None):
+    def _forward(self, x: Tensor, sum_ldj: Optional[Tensor] = None):
 
         # =================================== contracting =========================================
-        result = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
-        if isinstance(result, tuple):
-            xs, sum_ldj = result
-        else:
-            xs = result
+        xs, sum_ldj = self._contract(self.down_chain, x, sum_ldj=sum_ldj, reverse=False)
 
         # ==================================== expanding ==========================================
         out = self._expand(self.up_chain, xs, sum_ldj=sum_ldj, reverse=False)
 
         return out
 
-    def _inverse(self, y: torch.Tensor, sum_ldj=None):
+    def _inverse(self, y: Tensor, sum_ldj: Optional[Tensor] = None):
 
         # ================================= inverse expanding =====================================
-        result = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
-        if isinstance(result, tuple):
-            ys, sum_ldj = result
-        else:
-            ys = result
+        ys, sum_ldj = self._contract(self.up_chain, y, sum_ldj=sum_ldj, reverse=True)
 
         # ================================ inverse contracting ====================================
         out = self._expand(self.down_chain, ys, sum_ldj=sum_ldj, reverse=True)
@@ -139,52 +118,44 @@ class OxbowNet(Bijector):
 
     def _contract(
         self, chain, x, *, sum_ldj, reverse: bool
-    ) -> Union[Tuple[List[Tensor], Tensor], List[Tensor]]:
+    ) -> Tuple[List[Tensor], Optional[Tensor]]:
         """Do a contracting loop
 
         Args:
             chain: a chain of INN blocks that expect smaller inputs as the chain goes on
             x: an input tensors
         """
-        inds = range(len(chain)) if self.inds is None else self.inds
-
         xs: List[Tensor] = []
-        for i in inds:
-            x = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+        for i in range(self.chain_len):
+            x, sum_ldj = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
             if i in self.splits:
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
                 xs.append(x_removed)
         xs.append(x)  # save the last one as well
-        return (xs, sum_ldj) if sum_ldj is not None else xs
+        return (xs, sum_ldj)
 
-    def _expand(self, chain, xs, *, sum_ldj, reverse: bool) -> Union[Tuple[Tensor, Tensor], Tensor]:
+    def _expand(self, chain, xs, *, sum_ldj, reverse: bool) -> Tuple[Tensor, Optional[Tensor]]:
         """Do an expanding loop
 
         Args:
             chain: a chain of INN blocks that expect smaller inputs as the chain goes on
             xs: a list with tensors where the sizes get smaller as the list goes on
         """
-        inv_inds = range(len(chain) - 1, -1, -1) if self.inds is None else self.inds
-
         x = xs.pop()  # take the last in the list as the starting point
-        for i in inv_inds:
+        for i in range(self.chain_len - 1, -1, -1):
             if i in self.splits:  # if there was a split, we have to concatenate them together
                 x_removed = xs.pop()
                 x = torch.cat([x_removed, x], dim=1)
-            x = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
-            if sum_ldj is not None:
-                x, sum_ldj = x
+            x, sum_ldj = chain[i](x, sum_ldj=sum_ldj, reverse=reverse)
 
-        return (x, sum_ldj) if sum_ldj is not None else x
+        return (x, sum_ldj)
 
 
-def _compute_split_point(tensor: torch.Tensor, frac: float):
+def _compute_split_point(tensor: Tensor, frac: float):
     return round(tensor.size(1) * frac)
 
 
-def _frac_split_channelwise(tensor: torch.Tensor, frac: float):
+def _frac_split_channelwise(tensor: Tensor, frac: float):
     assert 0 <= frac <= 1
     split_point = _compute_split_point(tensor, frac)
     return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)

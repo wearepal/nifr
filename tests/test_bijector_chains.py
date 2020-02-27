@@ -1,4 +1,5 @@
 """Test the invertible u-net"""
+from typing import Optional
 from copy import deepcopy
 
 import numpy as np
@@ -13,10 +14,10 @@ class Adder(nn.Module):
         super().__init__()
         self.number = torch.zeros(input_dim) + number
 
-    def forward(self, x: float, sum_ldj=None, reverse: bool = False):
+    def forward(self, x: float, sum_ldj: Optional[torch.Tensor] = None, reverse: bool = False):
         if reverse:
-            return x - self.number
-        return x + self.number
+            return x - self.number, sum_ldj
+        return x + self.number, sum_ldj
 
 
 def test_unet():
@@ -24,7 +25,7 @@ def test_unet():
     splits = {0: 0.2, 1: 0.25, 2: 0.5}
     u_net = OxbowNet(chain, deepcopy(chain), splits=splits)
     input_ = torch.zeros(1, 80)
-    output = u_net(input_, reverse=False)
-    reconstruction = u_net(output, reverse=True)
+    output, _ = u_net(input_, reverse=False)
+    reconstruction, _ = u_net(output, reverse=True)
 
     np.testing.assert_allclose(input_.numpy(), reconstruction.numpy())
