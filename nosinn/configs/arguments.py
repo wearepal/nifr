@@ -189,7 +189,7 @@ class NosinnArgs(SharedArgs):
             raise ValueError("bn_lag has to be between 0 and 1")
         if not self.num_discs >= 1:
             raise ValueError("Size of adversarial ensemble must be 1 or greater.")
-            
+
 
 class VaeArgs(SharedArgs):
     # VAEsettings
