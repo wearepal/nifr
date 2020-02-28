@@ -12,6 +12,7 @@ __all__ = ["BijectorChain", "FactorOut", "OxbowNet"]
 
 class BijectorChain(Bijector):
     """A generalized nn.Sequential container for normalizing flows."""
+
     def __init__(self, layer_list: List[Bijector]):
         super().__init__()
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
@@ -27,31 +28,28 @@ class BijectorChain(Bijector):
             y, sum_ldj = layer(y, sum_ldj, reverse=True)
         return y, sum_ldj
 
-    # def _loop(self, inds: List[int], x, sum_ldj, reverse):
-    #     for i in inds:
-    #         x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
-    #     return x, sum_ldj
-
 
 class FactorOut(BijectorChain):
     """A generalized nn.Sequential container for normalizing flows with splitting."""
+
+    splits: Dict[int, float]
 
     def __init__(self, layer_list, splits: Optional[Dict[int, float]] = None):
         # interleave Flatten layers into the layer list
         splits = splits or {}
         layer_list_interleaved = []
         # we have to compute new indexes because we have added additional elements
-        # `new_splits` contains the same information as `splits` but with the new indexes
-        new_splits = {-1: 0.0}  # we fill new_splits with a dummy value to make JIT happy
+        # `adjusted_splits` contains the same information as `splits` but with the new indexes
+        adjusted_splits = {}
         for i, layer in enumerate(layer_list):
             layer_list_interleaved.append(layer)
             if i in splits:
                 layer_list_interleaved.append(Flatten())
                 index_of_flatten = len(layer_list_interleaved) - 1  # get index of last element
-                new_splits[index_of_flatten] = splits[i]
+                adjusted_splits[index_of_flatten] = splits[i]
 
         super().__init__(layer_list_interleaved)
-        self.splits: Dict[int, float] = new_splits
+        self.splits = adjusted_splits
         self._final_flatten = Flatten()
         self._chain_len: int = len(layer_list_interleaved)
 
@@ -77,9 +75,8 @@ class FactorOut(BijectorChain):
         # we only want access to the flatten layers, but we have to iterate over all layers here
         # because JIT does not allow indexing the module list
         for i, layer in enumerate(self.chain):
+            # repeat the code from _forward to recover the shapes
             if i in self.splits:
-                # split_point = layer.flat_shape()
-                # x_removed_flat, x = x.split([split_point, x.size(1) - split_point], dim=1)
                 x_removed_flat, x = _frac_split_channelwise(x, self.splits[i])
                 components[i], _ = layer(x_removed_flat, reverse=True)
 

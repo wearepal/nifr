@@ -10,6 +10,7 @@ __all__ = ["Flatten", "ConstantAffine"]
 
 class Flatten(Bijector):
     """Flatten the input (except batch dimension)."""
+
     first_input: bool
 
     def __init__(self):

@@ -26,11 +26,10 @@ class CouplingLayer(Bijector):
 
     def __init__(self, d: int):
         super().__init__()
-        self.d: int = d
+        self.d = d
 
     def _split(self, x):
-        split_sizes: List[int] = [self.d, x.size(1) - self.d]
-        return x.split(split_sizes, dim=1)
+        return x.split([self.d, x.size(1) - self.d], dim=1)
 
 
 class AffineCouplingLayer(CouplingLayer):
