@@ -265,7 +265,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     )
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
     if ARGS.jit:
-        LOGGER.info("JIT enabled 🚀")
+        LOGGER.info("JIT enabled 🚀🖖")
 
     # ==== construct dataset ====
     LOGGER.info(
