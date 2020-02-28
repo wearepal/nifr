@@ -26,7 +26,7 @@ def train_test_split(dataset: Dataset, train_pcnt: float) -> List[Subset]:
 
 
 def shrink_dataset(dataset: Dataset, pcnt: float) -> Subset:
-    return train_test_split(dataset, train_pcnt=pcnt)
+    return train_test_split(dataset, train_pcnt=pcnt)[0]
 
 
 def set_transform(dataset, transform):
