@@ -1,3 +1,4 @@
+# -*- coding: UTF-8 -*-
 """Main training file"""
 import time
 from logging import Logger
@@ -263,6 +264,8 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         f"cuda:{ARGS.gpu}" if (torch.cuda.is_available() and not ARGS.gpu < 0) else "cpu"
     )
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
+    if ARGS.jit:
+        LOGGER.info("JIT enabled 🚀")
 
     # ==== construct dataset ====
     LOGGER.info(

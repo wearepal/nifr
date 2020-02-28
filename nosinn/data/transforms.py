@@ -135,7 +135,7 @@ class LdGainAdjustment(LdAugmentation):
 
 class LdColorizer(LdAugmentation):
 
-    __constants__ = ["color_space", "binarize", "black", "background", "seed"]
+    __constants__ = ["color_space", "binarize", "black", "background"]
 
     def __init__(
         self,

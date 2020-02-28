@@ -29,5 +29,5 @@ def logit(p, eps=1e-8):
     return torch.log(p / (1.0 - p))
 
 
-def sum_except_batch(x, keepdim=False):
+def sum_except_batch(x, keepdim: bool = False):
     return x.flatten(start_dim=1).sum(-1, keepdim=keepdim)
