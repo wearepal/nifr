@@ -22,12 +22,15 @@ __all__ = [
 
 
 class CouplingLayer(Bijector):
+    d: int
+
     def __init__(self, d: int):
         super().__init__()
         self.d: int = d
 
     def _split(self, x):
-        return x.split(split_size=(self.d, x.size(1) - self.d), dim=1)
+        split_sizes: List[int] = [self.d, x.size(1) - self.d]
+        return x.split(split_sizes, dim=1)
 
 
 class AffineCouplingLayer(CouplingLayer):
@@ -42,8 +45,7 @@ class AffineCouplingLayer(CouplingLayer):
             use_bn=False,
         )
 
-    @staticmethod
-    def logdetjac(scale):
+    def logdetjac(self, scale):
         return sum_except_batch(torch.log(scale), keepdim=True)
 
     def _scale_and_shift_fn(self, inputs):

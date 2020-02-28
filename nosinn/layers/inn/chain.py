@@ -11,72 +11,86 @@ __all__ = ["BijectorChain", "FactorOut", "OxbowNet"]
 
 
 class BijectorChain(Bijector):
-    """A generalized nn.Sequential container for normalizing flows.
-    """
-
-    def __init__(self, layer_list: List[Bijector], inds: Optional[Sequence] = None):
+    """A generalized nn.Sequential container for normalizing flows."""
+    def __init__(self, layer_list: List[Bijector]):
         super().__init__()
         self.chain: nn.ModuleList = nn.ModuleList(layer_list)
-        self.inds = inds
+        self.reverse_chain: nn.ModuleList = nn.ModuleList(reversed(layer_list))
 
-    def _forward(self, x, sum_ldj: Optional[Tensor] = None):
-        inds = range(len(self.chain)) if self.inds is None else self.inds
-        return self.loop(inds=inds, reverse=False, x=x, sum_ldj=sum_ldj)
-
-    def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
-        inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
-        return self.loop(inds=inds, reverse=True, x=y, sum_ldj=sum_ldj)
-
-    def loop(self, inds, reverse: bool, x, sum_ldj: Optional[Tensor] = None):
-        for i in inds:
-            x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
+    def _forward(self, x, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+        for layer in self.chain:
+            x, sum_ldj = layer(x, sum_ldj, reverse=False)
         return x, sum_ldj
+
+    def _inverse(self, y, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+        for layer in self.reverse_chain:
+            y, sum_ldj = layer(y, sum_ldj, reverse=True)
+        return y, sum_ldj
+
+    # def _loop(self, inds: List[int], x, sum_ldj, reverse):
+    #     for i in inds:
+    #         x, sum_ldj = self.chain[i](x, sum_ldj, reverse=reverse)
+    #     return x, sum_ldj
 
 
 class FactorOut(BijectorChain):
-    """A generalized nn.Sequential container for normalizing flows
-    with splitting.
-    """
+    """A generalized nn.Sequential container for normalizing flows with splitting."""
 
-    def __init__(self, layer_list, splits=None, inds: Optional[Sequence] = None):
-        super().__init__(layer_list)
-        self.splits: dict = splits or {}
-        self._factor_layers = {key: Flatten() for key in self.splits.keys()}
+    def __init__(self, layer_list, splits: Optional[Dict[int, float]] = None):
+        # interleave Flatten layers into the layer list
+        splits = splits or {}
+        layer_list_interleaved = []
+        # we have to compute new indexes because we have added additional elements
+        # `new_splits` contains the same information as `splits` but with the new indexes
+        new_splits = {-1: 0.0}  # we fill new_splits with a dummy value to make JIT happy
+        for i, layer in enumerate(layer_list):
+            layer_list_interleaved.append(layer)
+            if i in splits:
+                layer_list_interleaved.append(Flatten())
+                index_of_flatten = len(layer_list_interleaved) - 1  # get index of last element
+                new_splits[index_of_flatten] = splits[i]
+
+        super().__init__(layer_list_interleaved)
+        self.splits: Dict[int, float] = new_splits
         self._final_flatten = Flatten()
-        self.inds = inds
+        self._chain_len: int = len(layer_list_interleaved)
 
     def _forward(self, x, sum_ldj: Optional[Tensor] = None):
-        inds = range(len(self.chain)) if self.inds is None else self.inds
-
         xs = []
-        for i in inds:
-            x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=False)
-            if i in self.splits:
+        for i, layer in enumerate(self.chain):
+            if i in self.splits:  # layer is a flatten layer
                 x_removed, x = _frac_split_channelwise(x, self.splits[i])
-                x_removed_flat, _ = self._factor_layers[i](x_removed)
+                x_removed_flat, _ = layer(x_removed)
                 xs.append(x_removed_flat)
+            else:
+                x, sum_ldj = layer(x, sum_ldj=sum_ldj, reverse=False)
         xs.append(self._final_flatten(x)[0])
         x = torch.cat(xs, dim=1)
 
-        return (x, sum_ldj)
+        return x, sum_ldj
 
     def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
-        inds = range(len(self.chain) - 1, -1, -1) if self.inds is None else self.inds
         x = y
 
-        components = {}
-        for block_ind, frac in self.splits.items():
-            factor_layer = self._factor_layers[block_ind]
-            split_point = factor_layer.flat_shape[1]
-            x_removed_flat, x = x.split(split_size=[split_point, x.size(1) - split_point], dim=1)
-            components[block_ind], _ = factor_layer(x_removed_flat, reverse=True)
+        components: Dict[int, Tensor] = {}
+
+        # we only want access to the flatten layers, but we have to iterate over all layers here
+        # because JIT does not allow indexing the module list
+        for i, layer in enumerate(self.chain):
+            if i in self.splits:
+                # split_point = layer.flat_shape()
+                # x_removed_flat, x = x.split([split_point, x.size(1) - split_point], dim=1)
+                x_removed_flat, x = _frac_split_channelwise(x, self.splits[i])
+                components[i], _ = layer(x_removed_flat, reverse=True)
 
         x, _ = self._final_flatten(x, reverse=True)
 
-        for i in inds:
-            if i in components:
+        for reverse_i, layer in enumerate(self.reverse_chain):
+            i = self._chain_len - (reverse_i + 1)  # we need the index for the non-reverse chain
+            if i in components:  # layer is a flatten layer
                 x = torch.cat([components[i], x], dim=1)
-            x, sum_ldj = self.chain[i](x, sum_ldj=sum_ldj, reverse=True)
+            else:
+                x, sum_ldj = layer(x, sum_ldj=sum_ldj, reverse=True)
 
         return (x, sum_ldj)
 
@@ -152,11 +166,11 @@ class OxbowNet(Bijector):
         return (x, sum_ldj)
 
 
-def _compute_split_point(tensor: Tensor, frac: float):
-    return round(tensor.size(1) * frac)
+def _compute_split_point(tensor: Tensor, frac: float) -> int:
+    return int(round(tensor.size(1) * frac))
 
 
 def _frac_split_channelwise(tensor: Tensor, frac: float):
     assert 0 <= frac <= 1
     split_point = _compute_split_point(tensor, frac)
-    return tensor.split(split_size=[tensor.size(1) - split_point, split_point], dim=1)
+    return tensor.split([tensor.size(1) - split_point, split_point], dim=1)

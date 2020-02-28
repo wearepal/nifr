@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import torch
 from torch import Tensor
@@ -9,21 +9,24 @@ __all__ = ["Flatten", "ConstantAffine"]
 
 
 class Flatten(Bijector):
+    """Flatten the input (except batch dimension)."""
+    first_input: bool
+
     def __init__(self):
-        super(Flatten, self).__init__()
-        self.orig_shape = None
+        super().__init__()
+        self.register_buffer("orig_shape", torch.tensor([-1, 0, 0, 0], dtype=torch.int64))
+        self.first_input = True
 
     def _forward(self, x, sum_ldj: Optional[Tensor] = None):
-        self.orig_shape = x.shape
-
+        if self.first_input:
+            orig_shape = torch.tensor(x.shape, dtype=torch.int64)
+            self.orig_shape[1:] = orig_shape[1:]
+            self.first_input = False
         y = x.flatten(start_dim=1)
-        self.flat_shape = y.shape
-
         return y, sum_ldj
 
     def _inverse(self, y, sum_ldj: Optional[Tensor] = None):
-        x = y.view(self.orig_shape)
-
+        x = y.view(self.orig_shape[0], self.orig_shape[1], self.orig_shape[2], self.orig_shape[3])
         return x, sum_ldj
 
 
