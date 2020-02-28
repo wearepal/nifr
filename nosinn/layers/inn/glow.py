@@ -14,7 +14,6 @@ __all__ = ["Invertible1x1Conv", "InvertibleLinear"]
 
 
 class Invertible1x1Conv:
-
     def __new__(cls, num_channels: int, use_lr_decomp: bool = True):
         if use_lr_decomp:
             return _Invertible1x1ConvLrDecomp(num_channels=num_channels)
@@ -23,7 +22,6 @@ class Invertible1x1Conv:
 
 
 class _Invertible1x1ConvBase(Bijector):
-
     def __init__(self, num_channels):
         super().__init__()
         self.num_channels = num_channels
@@ -36,7 +34,9 @@ class _Invertible1x1ConvBase(Bijector):
     def logdetjac(self, x: Tensor) -> Tensor:
         ...
 
-    def _forward(self, x: Tensor, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+    def _forward(
+        self, x: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
 
         w = self.get_w(reverse=False)
         output = F.conv2d(x, w)
@@ -46,7 +46,9 @@ class _Invertible1x1ConvBase(Bijector):
 
         return output, sum_ldj
 
-    def _inverse(self, y: Tensor, sum_ldj: Optional[Tensor] = None) -> Tuple[Tensor, Optional[Tensor]]:
+    def _inverse(
+        self, y: Tensor, sum_ldj: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Optional[Tensor]]:
 
         weight_inv = self.get_w(reverse=True)
 
@@ -60,6 +62,7 @@ class _Invertible1x1ConvBase(Bijector):
 class _Invertible1x1ConvLrDecomp(_Invertible1x1ConvBase):
     """ Invertible 1x1 convolution using an LR decomposition of the weight.
     """
+
     def __init__(self, num_channels: int):
         super().__init__(num_channels=num_channels)
         self.num_channels = num_channels
