@@ -11,9 +11,8 @@ __all__ = ["SSRP"]
 
 
 def _loader(path):
-    with open(path, 'rb') as f:
-        return Image.open(f)
-      
+    return Image.open(path)
+
   
 class SSRP(Dataset):
     _FILE_ID = "1RE4srtC63VnyU0e1qx16QNdjyyQXg2hj"
