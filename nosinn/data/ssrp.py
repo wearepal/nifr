@@ -11,7 +11,10 @@ __all__ = ["SSRP"]
 
 
 def _loader(path):
-    return Image.open(path)
+    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    with open(path, 'rb') as f:
+        img = Image.open(f)
+        return img.convert('RGB')
 
   
 class SSRP(Dataset):
