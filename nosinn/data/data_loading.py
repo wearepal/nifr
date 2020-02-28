@@ -170,7 +170,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
 
-        unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
+        unbiased_pcnt = args.test_pcnt + args.pretrain_pcnt
         unbiased_data = create_genfaces_dataset(
             root=args.root,
             sens_attr_name=args.genfaces_sens_attr,
