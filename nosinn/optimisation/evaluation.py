@@ -244,7 +244,7 @@ def evaluate(
 ):
     input_dim = next(iter(train_data))[0].shape[0]
 
-    if args.dataset in ("cmnist", "celeba"):
+    if args.dataset in ("cmnist", "celeba", "genfaces"):
 
         train_data = DataLoader(
             train_data, batch_size=args.batch_size, shuffle=True, pin_memory=True

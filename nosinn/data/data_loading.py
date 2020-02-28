@@ -3,6 +3,7 @@ from typing import NamedTuple, Optional
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
+from ethicml.data import create_genfaces_dataset
 
 from nosinn.configs import SharedArgs
 
@@ -143,6 +144,53 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             root=args.root,
             sens_attrs=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
+            biased=True,
+            mixing_factor=args.task_mixing_factor,
+            unbiased_pcnt=unbiased_pcnt,
+            download=True,
+            transform=transform,
+            seed=args.data_split_seed,
+        )
+
+        args.y_dim = 1
+        args.s_dim = unbiased_data.s_dim
+
+    elif args.dataset == "genfaces":
+
+        image_size = 64
+        transform = [
+            transforms.Resize(image_size),
+            transforms.CenterCrop(image_size),
+            transforms.ToTensor(),
+        ]
+        if args.quant_level != "8":
+            transform.append(Quantize(int(args.quant_level)))
+        if args.input_noise:
+            transform.append(NoisyDequantize(int(args.quant_level)))
+        transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
+        transform = transforms.Compose(transform)
+
+        unbiased_pcnt = args.task_pcnt + args.pretrain_pcnt
+        unbiased_data = create_genfaces_dataset(
+            root=args.root,
+            sens_attr_name=args.genfaces_sens_attr,
+            target_attr_name=args.genfaces_target_attr,
+            biased=False,
+            mixing_factor=args.task_mixing_factor,
+            unbiased_pcnt=unbiased_pcnt,
+            download=True,
+            transform=transform,
+            seed=args.data_split_seed,
+        )
+
+        pretrain_len = round(args.pretrain_pcnt / unbiased_pcnt * len(unbiased_data))
+        test_len = len(unbiased_data) - pretrain_len
+        pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
+
+        train_data = create_genfaces_dataset(
+            root=args.root,
+            sens_attr_name=args.genfaces_sens_attr,
+            target_attr_name=args.genfaces_target_attr,
             biased=True,
             mixing_factor=args.task_mixing_factor,
             unbiased_pcnt=unbiased_pcnt,

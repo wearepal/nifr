@@ -191,7 +191,8 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
             if val_itr == 0:
-                if ARGS.dataset in ("cmnist", "celeba", "ssrp"):
+                if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
+                if ARGS.dataset in ("cmnist", "celeba", "genfaces"):
                     log_recons(inn, x_val, itr, prefix="test")
                 else:
                     z = inn(x_val[:1000])
