@@ -159,7 +159,7 @@ def validate(vae: VAE, disc_enc_y, disc_enc_s, val_loader, itr: int, recon_loss_
 
     wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
-    if ARGS.dataset in ("cmnist", "celeba"):
+    if ARGS.dataset in ("cmnist", "celeba", "genfaces"):
         log_recons(vae=vae, x=x_val, s_oh=s_oh, itr=itr, prefix="test")
 
     return loss_meter.avg

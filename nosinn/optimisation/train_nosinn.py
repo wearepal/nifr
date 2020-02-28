@@ -191,7 +191,7 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
             loss_meter.update(logging_dict["Validation loss"], n=x_val.size(0))
 
             if val_itr == 0:
-                if ARGS.dataset in ("cmnist", "celeba"):
+                if ARGS.dataset in ("cmnist", "celeba", "genfaces"):
                     log_recons(inn, x_val, itr, prefix="test")
                 else:
                     z = inn(x_val[:1000])
@@ -468,12 +468,12 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         if ARGS.super_val and epoch % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=itr)
             save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
-            
+
         for k, disc in enumerate(disc_ensemble):
             if np.random.uniform() < args.disc_reset_prob:
                 LOGGER.info("Reinitializaing discriminator {}", k)
                 disc.reset_parameters()
-    
+
     LOGGER.info("Training has finished.")
     path = save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
     inn, disc_ensemble = restore_model(args, path, inn=inn, disc_ensemble=disc_ensemble)
