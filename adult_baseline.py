@@ -1,11 +1,10 @@
 """Baseline for Adult dataset"""
 import pandas as pd
 
-from ethicml.preprocessing.train_test_split import train_test_split
-from ethicml.algorithms.inprocess import LR, SVM, Majority, Kamiran, Agarwal
+from ethicml.algorithms.inprocess import LR, SVM, Agarwal, Kamiran, Majority
 from ethicml.evaluators.evaluate_models import run_metrics
-from ethicml.metrics import Accuracy, CV, Theil, TPR, ProbPos, NMI, TNR, PPV
-
+from ethicml.metrics import CV, NMI, PPV, TNR, TPR, Accuracy, ProbPos, Theil
+from ethicml.preprocessing.train_test_split import train_test_split
 from nosinn.data.data_loading import load_adult_data_tuples
 
 

@@ -2,11 +2,11 @@ from pathlib import Path
 from typing import Tuple
 
 import torch
-from torch import nn
 import torchvision
-import wandb
+from torch import nn
 
-from nosinn.configs import SharedArgs, NosinnArgs
+import wandb
+from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.utils import wandb_log
 
 __all__ = ["get_data_dim", "log_images"]
@@ -26,7 +26,7 @@ def log_images(
     prefix = "train_" if prefix is None else f"{prefix}_"
     images = image_batch[:nsamples]
 
-    if args.dataset in ("celeba", "genfaces"):
+    if args.dataset in ("celeba", "ssrp", "genfaces"):
         images = 0.5 * images + 0.5
 
     if monochrome:

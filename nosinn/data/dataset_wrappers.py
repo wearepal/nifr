@@ -1,14 +1,14 @@
 import random
 from pathlib import Path
-from typing import List, Optional, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import Dataset, DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 
-from .misc import set_transform, RandomSampler, grouped_features_indexes
+from .misc import RandomSampler, grouped_features_indexes, set_transform
 
 
 class LdAugmentedDataset(Dataset):

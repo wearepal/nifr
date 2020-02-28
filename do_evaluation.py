@@ -4,15 +4,15 @@ Usage:
 
     python do_evaluation.py <path to checkpoint>
 """
-import sys
 import subprocess
-from pathlib import Path
+import sys
 import time
+from pathlib import Path
 from typing import List, Optional
 
 import git
-import torch
 import tap
+import torch
 
 from nosinn.configs import CELEBATTRS
 

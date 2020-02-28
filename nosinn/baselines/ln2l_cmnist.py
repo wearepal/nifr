@@ -1,19 +1,17 @@
 import argparse
 import math
 import os
-from pathlib import Path
 import time
+from pathlib import Path
 
 import numpy as np
-from PIL import Image
-
 import torch
 import torch.nn.functional as F
+import torchvision.transforms as transforms
+from PIL import Image
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.utils.data import Dataset
-
-import torchvision.transforms as transforms
 
 from nosinn.data import load_dataset
 from nosinn.utils import random_seed

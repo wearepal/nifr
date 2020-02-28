@@ -1,10 +1,11 @@
-from typing import Dict, List, Sequence, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn as nn
 from torch import Tensor
-from .misc import Flatten
+
 from .bijector import Bijector
+from .misc import Flatten
 
 __all__ = ["BijectorChain", "FactorOut", "OxbowNet"]
 

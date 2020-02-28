@@ -1,22 +1,22 @@
 """Definition of the Adult dataset"""
-from typing import Optional, List, Tuple, NamedTuple
+from typing import List, NamedTuple, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from torch.utils.data import DataLoader
 from sklearn.preprocessing import StandardScaler
+from torch.utils.data import DataLoader
 
+from ethicml.data import Adult, load_data
+from ethicml.preprocessing import (
+    domain_split,
+    get_biased_and_debiased_subsets,
+    get_biased_subset,
+    train_test_split,
+)
 from ethicml.utility import DataTuple
 from ethicml.utility.data_helpers import shuffle_df
-from ethicml.data import load_data, Adult
-from ethicml.preprocessing import (
-    get_biased_subset,
-    get_biased_and_debiased_subsets,
-    train_test_split,
-    domain_split,
-)
-
 from nosinn.configs import SharedArgs
+
 from .dataset_wrappers import DataTupleDataset
 
 
@@ -143,7 +143,7 @@ def biased_split(args: SharedArgs, data: DataTuple) -> Triplet:
         task_train_tuple, unbiased = get_biased_subset(
             data=data,
             mixing_factor=args.task_mixing_factor,
-            unbiased_pcnt=args.task_pcnt + args.pretrain_pcnt,
+            unbiased_pcnt=args.test_pcnt + args.pretrain_pcnt,
             seed=args.data_split_seed,
             data_efficient=True,
         )
@@ -151,13 +151,13 @@ def biased_split(args: SharedArgs, data: DataTuple) -> Triplet:
         task_train_tuple, unbiased = get_biased_and_debiased_subsets(
             data=data,
             mixing_factor=args.task_mixing_factor,
-            unbiased_pcnt=args.task_pcnt + args.pretrain_pcnt,
+            unbiased_pcnt=args.test_pcnt + args.pretrain_pcnt,
             seed=args.data_split_seed,
         )
 
     task_tuple, meta_tuple = train_test_split(
         unbiased,
-        train_percentage=args.task_pcnt / (args.task_pcnt + args.pretrain_pcnt),
+        train_percentage=args.test_pcnt / (args.test_pcnt + args.pretrain_pcnt),
         random_seed=args.data_split_seed,
     )
     return Triplet(meta=meta_tuple, task=task_tuple, task_train=task_train_tuple)

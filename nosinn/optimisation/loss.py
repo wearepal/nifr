@@ -1,10 +1,10 @@
-from typing import Optional, Dict, List
+from typing import Dict, List, Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import Tensor
 import torchvision
+from torch import Tensor
 
 __all__ = [
     "GradReverse",

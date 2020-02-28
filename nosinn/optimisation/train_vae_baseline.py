@@ -2,23 +2,23 @@
 import time
 from logging import Logger
 from pathlib import Path
-from typing import Optional, Callable, Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
-import wandb
 
-from nosinn.data import DatasetTriplet, load_dataset
-from nosinn.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
-from nosinn.models import build_discriminator, VAE, VaeResults
-from nosinn.utils import wandb_log, random_seed
-from nosinn.configs import VaeArgs
+import wandb
 from nosinn import utils
+from nosinn.configs import VaeArgs
+from nosinn.data import DatasetTriplet, load_dataset
+from nosinn.models import VAE, VaeResults, build_discriminator
+from nosinn.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
+from nosinn.utils import random_seed, wandb_log
 
 from .evaluation import evaluate
-from .loss import PixelCrossEntropy, grad_reverse, VGGLoss
+from .loss import PixelCrossEntropy, VGGLoss, grad_reverse
 from .utils import get_data_dim, log_images
 
 __all__ = ["main_vae"]

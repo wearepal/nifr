@@ -1,14 +1,15 @@
-from typing import Tuple, Union, List, Optional, Sequence, overload, Dict
-from typing_extensions import Literal
+from typing import Dict, List, Optional, Sequence, Tuple, Union, overload
 
 import numpy as np
 import torch
 import torch.distributions as td
 from torch import Tensor
+from typing_extensions import Literal
 
-from nosinn.utils import to_discrete, logistic_distribution, MixtureDistribution, DLogistic
 from nosinn.configs import NosinnArgs
 from nosinn.layers import Bijector
+from nosinn.utils import DLogistic, MixtureDistribution, logistic_distribution, to_discrete
+
 from .autoencoder import AutoEncoder
 from .base import ModelBase
 
