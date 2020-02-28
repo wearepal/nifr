@@ -3,12 +3,18 @@ from typing import Callable, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 
 __all__ = ["SSRP"]
 
 
+def _loader(path):
+    with open(path, 'rb') as f:
+        return Image.open(f)
+      
+  
 class SSRP(Dataset):
     _FILE_ID = "1RE4srtC63VnyU0e1qx16QNdjyyQXg2hj"
     _FILENAME = "ghaziabad.zip"
@@ -39,7 +45,7 @@ class SSRP(Dataset):
             path_to_data = path_to_data / "Task"
 
         self._dataset = ImageFolder(
-            path_to_data, transform=transform, target_transform=target_transform
+            path_to_data, transform=transform, target_transform=target_transform, loader=_loader
         )
         self.num_classes = len(self._dataset.classes)
 
