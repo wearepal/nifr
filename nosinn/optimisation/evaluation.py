@@ -165,7 +165,7 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
 
     if args.dataset == "cmnist":
         clf_fn = mp_32x32_net
-    elif args.dataset in ("celeba", "ssrp", "gen_faces"):
+    elif args.dataset in ("celeba", "ssrp", "genfaces"):
         clf_fn = mp_64x64_net
     else:
         clf_fn = fc_net
