@@ -115,12 +115,11 @@ class _Invertible1x1ConvBruteForce(_Invertible1x1ConvBase):
         self.weight = nn.Parameter(w_init)
 
     def get_w(self, reverse: bool = False) -> Tensor:
-        if not self.use_lr_decomp:
-            if reverse:
-                w_inv = self.weight.squeeze().inverse()
-                return w_inv.unsqueeze(-1).unsqueeze(-1)
-            else:
-                return self.weight
+        if reverse:
+            w_inv = self.weight.squeeze().inverse()
+            return w_inv.unsqueeze(-1).unsqueeze(-1)
+        else:
+            return self.weight
 
     def logdetjac(self, x: Tensor) -> Tensor:
         return self.weight.squeeze().det().abs().log() * x.size(-2) * x.size(-1)

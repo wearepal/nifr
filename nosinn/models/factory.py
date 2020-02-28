@@ -55,7 +55,7 @@ def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
         if args.batch_norm:
             _chain += [layers.MovingBatchNorm2d(input_dim, bn_lag=args.bn_lag)]
         if args.glow:
-            _chain += [layers.Invertible1x1Conv(input_dim, use_lr_decomp=True)]
+            _chain += [layers.Invertible1x1Conv(input_dim, use_lr_decomp=False)]
         else:
             _chain += [layers.RandomPermutation(input_dim)]
 
