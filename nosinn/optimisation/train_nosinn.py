@@ -464,7 +464,9 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         itr = train(inn, disc_ensemble, train_loader, epoch)
 
         if epoch % ARGS.val_freq == 0:
-            val_loss = validate(inn, disc_ensemble, val_loader, itr)
+            val_loss = validate(
+                inn, disc_ensemble, train_loader if ARGS.dataset == "ssrp" else val_loader, itr
+            )
 
             if val_loss < best_loss:
                 best_loss = val_loss

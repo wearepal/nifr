@@ -181,7 +181,7 @@ class PartitionedInn(BipartiteInn):
 
         return zy_m, zs_m
 
-    def encode_with_partials(self, data:Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+    def encode_with_partials(self, data: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         return self.encode(data, partials=True)
 
     @overload

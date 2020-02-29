@@ -40,7 +40,7 @@ def main():
 
     # ============================= load ARGS from checkpoint file ================================
     print(f"Loading from '{chkpt_path}' ...")
-    chkpt = torch.load(chkpt_path, map_location=torch.device('cpu'))
+    chkpt = torch.load(chkpt_path, map_location=torch.device("cpu"))
 
     checkout_commit = eval_args.checkout_commit and "sha" in chkpt
     if checkout_commit:
