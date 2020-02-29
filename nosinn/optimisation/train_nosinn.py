@@ -155,6 +155,8 @@ def train(
 
         time_meter.update(time.time() - end)
 
+        if itr == 0 and ARGS.jit:
+            LOGGER.info("JIT compilation (for training) completed in {:.3g}s", time.time() - end)
         wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
 

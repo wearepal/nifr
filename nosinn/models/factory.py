@@ -80,7 +80,10 @@ def _block(args: NosinnArgs, input_dim: int) -> layers.Bijector:
         else:
             raise ValueError(f"Scaling {args.scaling} is not supported")
 
-    return layers.BijectorChain(_chain)
+    block = layers.BijectorChain(_chain)
+    if args.jit:
+        block = jit.script(block)
+    return block
 
 
 def _build_multi_scale_chain(
@@ -106,7 +109,10 @@ def _build_multi_scale_chain(
         if unsqueeze:  # when unsqueezing, the unsqueeze layer has to come after the block
             level += [layers.InvertBijector(to_invert=squeeze)]
 
-        chain.append(layers.BijectorChain(level))
+        level_layer = layers.BijectorChain(level)
+        if args.jit:
+            level_layer = jit.script(level_layer)
+        chain.append(level_layer)
         if i in factor_splits:
             input_dim = round(factor_splits[i] * input_dim)
     return chain
@@ -132,8 +138,8 @@ def build_conv_inn(args: NosinnArgs, input_shape: Tuple[int, ...]) -> layers.Bij
 
     model = layers.BijectorChain(full_chain)
 
-    if args.jit:
-        model = jit.script(model)
+    # if args.jit:
+    #     model = jit.script(model)
     return model
 
 
