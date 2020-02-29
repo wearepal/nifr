@@ -40,7 +40,7 @@ def main():
 
     # ============================= load ARGS from checkpoint file ================================
     print(f"Loading from '{chkpt_path}' ...")
-    chkpt = torch.load(chkpt_path)
+    chkpt = torch.load(chkpt_path, map_location=torch.device('cpu'))
 
     checkout_commit = eval_args.checkout_commit and "sha" in chkpt
     if checkout_commit:
@@ -58,6 +58,8 @@ def main():
 
     if eval_args.celeba_target_attr is None:
         eval_args.celeba_target_attr = model_args["celeba_target_attr"]
+
+    del chkpt  # free up memory of checkpoint
 
     # ================================ prepare values for eval loop ===============================
     dataset = model_args["dataset"]
