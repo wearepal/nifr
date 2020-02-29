@@ -34,7 +34,14 @@ from nosinn.models.configs import (
     mp_32x32_net,
     mp_64x64_net,
 )
-from nosinn.utils import AverageMeter, count_parameters, get_logger, random_seed, wandb_log
+from nosinn.utils import (
+    AverageMeter,
+    count_parameters,
+    get_logger,
+    random_seed,
+    readable_duration,
+    wandb_log,
+)
 
 from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
@@ -153,10 +160,9 @@ def train(
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
-        time_meter.update(time.time() - end)
+        time_for_batch = time.time() - end
+        time_meter.update(time_for_batch)
 
-        if itr == 0 and ARGS.jit:
-            LOGGER.info("JIT compilation (for training) completed in {:.3g}s", time.time() - end)
         wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
 
@@ -164,14 +170,18 @@ def train(
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
                 log_recons(inn, x, itr)
+        if itr == 0 and ARGS.jit:
+            LOGGER.info(
+                "JIT compilation (for training) completed in {}", readable_duration(time_for_batch)
+            )
 
     time_for_epoch = time.time() - start_epoch_time
     assert loss_meters is not None
     log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
     LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {:.3g}s | Batches/s: {:.4g} | {} ({:.5g})",
+        "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})",
         epoch,
-        time_for_epoch,
+        readable_duration(time_for_epoch),
         1 / time_meter.avg,
         log_string,
         total_loss_meter.avg,
@@ -267,7 +277,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     )
     LOGGER.info("{} GPUs available. Using device '{}'", torch.cuda.device_count(), ARGS.device)
     if ARGS.jit:
-        LOGGER.info("JIT enabled 🚀🖖")
+        LOGGER.info("JIT enabled")
 
     # ==== construct dataset ====
     LOGGER.info(
