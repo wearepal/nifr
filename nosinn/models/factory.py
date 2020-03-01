@@ -20,7 +20,7 @@ def build_fc_inn(
     input_dim = input_shape[0]
     level_depth = level_depth or args.level_depth
 
-    chain: List[layers.Bijector] = [layers.Flatten()]
+    chain: List[layers.Bijector] = []
     for i in range(level_depth):
         if args.batch_norm:
             chain += [layers.MovingBatchNorm1d(input_dim, bn_lag=args.bn_lag)]

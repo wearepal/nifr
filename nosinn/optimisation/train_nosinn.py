@@ -44,7 +44,7 @@ from nosinn.utils import (
 )
 
 from .evaluation import log_metrics
-from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
+from .loss import MixedLoss, PixelCrossEntropy
 from .utils import get_data_dim, log_images, restore_model, save_model
 
 __all__ = ["main_nosinn"]
@@ -60,10 +60,18 @@ def compute_loss(
     inn: Union[PartitionedInn, PartitionedAeInn],
     disc_ensemble: nn.ModuleList,
     itr: int,
+    inn_training: bool,
 ) -> Tuple[Tensor, Dict[str, float]]:
     logging_dict = {}
+    if inn_training:
+        inn.train()
+        disc_ensemble.eval()
+    else:
+        inn.eval()
+        disc_ensemble.train()
 
     # the following code is also in inn.routine() but we need to access ae_enc directly
+
     zero = x.new_zeros(x.size(0), 1)
     if ARGS.autoencode:
         (enc, sum_ldj), ae_enc = inn.forward(x, logdet=zero, reverse=False, return_ae_enc=True)
@@ -92,37 +100,42 @@ def compute_loss(
         if ARGS.recon_stability_weight > 0:
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
-    enc_y = grad_reverse(enc_y)
-    disc_loss = x.new_zeros(1)
-    disc_acc = 0
-    for disc in disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
-        disc_loss += disc_loss_k
-        disc_acc += disc_acc_k
+    loss = x.new_zeros(1)
 
-    disc_loss /= ARGS.num_discs
-    disc_acc /= ARGS.num_discs
+    for k, disc in enumerate(disc_ensemble):
+        logits = disc(enc_y)
 
-    if itr < ARGS.warmup_steps:
-        pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
-    else:
-        pred_s_weight = ARGS.pred_s_weight
+        if inn_training:
+            probs = logits.softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
+            disc_loss = -(probs * probs.log()).sum(1).mean()
+        else:
+            disc_loss = disc.routine(enc_y, s)[0]
+        loss += disc_loss
+        if not inn_training:
+            logging_dict[f"Loss Disc_{k}"] = disc_loss.item()
 
-    nll *= ARGS.nll_weight
-    disc_loss *= pred_s_weight
-    recon_loss *= ARGS.recon_stability_weight
+    if inn_training:
+        if itr < ARGS.warmup_steps:
+            pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
+        else:
+            pred_s_weight = ARGS.pred_s_weight
+        loss /= ARGS.num_discs
+        loss *= pred_s_weight
+        disc_loss = loss.item()
 
-    loss = nll + disc_loss + recon_loss
+        nll *= ARGS.nll_weight
+        recon_loss *= ARGS.recon_stability_weight
+        loss += nll
+        loss += recon_loss
 
-    logging_dict.update(
-        {
-            "Loss NLL": nll.item(),
-            "Loss Adversarial": disc_loss.item(),
-            "Accuracy Discriminators": disc_acc,
-            "Loss Recon": recon_loss.item(),
-            "Loss Validation": (nll - disc_loss + recon_loss).item(),
-        }
-    )
+        logging_dict.update(
+            {
+                "Loss NLL": nll.item(),
+                "Loss Adversarial": disc_loss,
+                "Recon loss": recon_loss.item(),
+                "Validation loss": (nll - disc_loss + recon_loss).item(),
+            }
+        )
     return loss, logging_dict
 
 
@@ -132,9 +145,6 @@ def train(
     dataloader: DataLoader,
     epoch: int,
 ) -> int:
-    inn.train()
-    disc_ensemble.train()
-
     total_loss_meter = AverageMeter()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
 
@@ -147,32 +157,32 @@ def train(
 
         x, s, y = to_device(x, s, y)
 
-        loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
+        inn_training = (itr & 1) == 0
+        loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr, inn_training=inn_training)
 
-        inn.zero_grad()
+        if inn_training:
+            inn.zero_grad()
+            loss.backward()
+            inn.step()
 
-        for disc in disc_ensemble:
-            disc.zero_grad()
+            # Log losses
+            total_loss_meter.update(loss.item())
+            if loss_meters is None:
+                loss_meters = {name: AverageMeter() for name in logging_dict}
+            for name, value in logging_dict.items():
+                loss_meters[name].update(value)
 
-        loss.backward()
-        inn.step()
-
-        for disc in disc_ensemble:
-            disc.step()
-
-        # Log losses
-        total_loss_meter.update(loss.item())
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
-
+        else:
+            for disc in disc_ensemble:
+                disc.zero_grad()
+            loss.backward()
+            for disc in disc_ensemble:
+                disc.step()
         time_for_batch = time.time() - end
         time_meter.update(time_for_batch)
 
         wandb_log(ARGS, logging_dict, step=itr)
         end = time.time()
-
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
@@ -206,7 +216,7 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
 
             x_val, s_val, y_val = to_device(x_val, s_val, y_val)
 
-            _, logging_dict = compute_loss(x_val, s_val, inn, disc_ensemble, itr)
+            _, logging_dict = compute_loss(x_val, s_val, inn, disc_ensemble, itr, inn_training=True)
 
             loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
 
