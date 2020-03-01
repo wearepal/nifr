@@ -94,7 +94,10 @@ def main():
     base_args += ["--results-csv", csv_file]
     base_args += ["--use-wandb", "False"]
     base_args += ["--gpu", str(eval_args.gpu)]
-    base_args += ["--test-batch-size", str(eval_args.test_batch_size)]
+    if "encode_batch_size" in model_args:  # `encode_batch_size` is an arg that was only added later
+        base_args += ["--encode-batch-size", str(eval_args.test_batch_size)]
+    else:
+        base_args += ["--test-batch-size", str(eval_args.test_batch_size)]
     base_args += ["--celeba-target-attr", eval_args.celeba_target_attr]
 
     # ======================================= run eval loop =======================================
