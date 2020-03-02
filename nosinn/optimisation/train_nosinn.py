@@ -98,7 +98,7 @@ def compute_loss(
     for disc in disc_ensemble:
         disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
         disc_loss += disc_loss_k
-        disc_acc += disc_acc_k.item()
+        disc_acc += disc_acc_k
 
     disc_loss /= ARGS.num_discs
     disc_acc /= ARGS.num_discs
