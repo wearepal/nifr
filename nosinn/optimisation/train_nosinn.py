@@ -91,9 +91,14 @@ def compute_loss(
 
     enc_y_m = grad_reverse(enc_y_m)
     disc_loss = x.new_zeros(1)
+    disc_acc = 0
     for disc in disc_ensemble:
-        disc_loss += disc.routine(enc_y_m, s)[0]
+        disc_loss_k, disc_acc_k = disc.routine(enc_y_m, s)
+        disc_loss += disc_loss_k
+        disc_acc += disc_acc_k.item()
+
     disc_loss /= ARGS.num_discs
+    disc_acc /= ARGS.num_discs
 
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
@@ -106,14 +111,13 @@ def compute_loss(
 
     loss = nll + disc_loss + recon_loss
 
-    # z_norm = (torch.sum(enc.flatten(start_dim=1) ** 2, dim=1)).sqrt().mean()
     logging_dict.update(
         {
             "Loss NLL": nll.item(),
             "Loss Adversarial": disc_loss.item(),
-            "Recon loss": recon_loss.item(),
-            "Validation loss": (nll - disc_loss + recon_loss).item(),
-            # "z_norm": z_norm.item(),
+            "Accuracy Discriminators": disc_acc,
+            "Loss Recon": recon_loss.item(),
+            "Loss Validation": (nll - disc_loss + recon_loss).item(),
         }
     )
     return loss, logging_dict
