@@ -72,28 +72,31 @@ def compute_loss(
     nll = inn.nll(enc, sum_ldj)
 
     enc_y, enc_s = inn.split_encoding(enc)
-    enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+
+    if ARGS.mask_disc or ARGS.train_on_recon:
+        enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
 
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
+
         if ARGS.recon_detach:
-            enc_y_m = enc_y_m.detach()
+            enc_y = enc_y.detach()
 
         if ARGS.autoencode:
-            enc_y, ae_enc_y = inn.forward(enc_y_m, reverse=True, return_ae_enc=True)
+            enc_y, ae_enc_y = inn.forward(enc_y, reverse=True, return_ae_enc=True)
             recon, recon_target = ae_enc_y, ae_enc
         else:
-            enc_y = inn.forward(enc_y_m, reverse=True)
+            enc_y = inn.forward(enc_y, reverse=True)
             recon, recon_target = enc_y, x
 
         if ARGS.recon_stability_weight > 0:
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
-    enc_y_m = grad_reverse(enc_y_m)
+    enc_y_m = grad_reverse(enc_y)
     disc_loss = x.new_zeros(1)
     disc_acc = 0
     for disc in disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(enc_y_m, s)
+        disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
         disc_loss += disc_loss_k
         disc_acc += disc_acc_k.item()
 
@@ -401,7 +404,13 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         inn.to(args.device)
         enc_shape = inn.output_dim
 
-    disc_input_shape = input_shape if ARGS.train_on_recon else (inn.zy_dim + inn.zs_dim,)
+    if ARGS.train_on_recon:
+        disc_input_shape = input_shape
+    else:
+        if ARGS.mask_disc:
+            disc_input_shape = (inn.zy_dim + inn.zs_dim,)
+        else:
+            disc_input_shape = (inn.zy_dim,)
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
