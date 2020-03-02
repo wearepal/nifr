@@ -9,7 +9,7 @@ from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import check_integrity, download_file_from_google_drive
 from torchvision.transforms import ToTensor
 
-from ethicml.preprocessing import SequentialSplit, get_biased_subset
+from ethicml.preprocessing import SequentialSplit, get_biased_subset, train_test_split
 from ethicml.utility import DataTuple
 from nosinn.configs import CELEBATTRS
 
@@ -121,8 +121,11 @@ class CelebA(VisionDataset):
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
 
-        # NOTE: the sequential split does not shuffle
-        unbiased_dt, biased_dt, _ = SequentialSplit(train_percentage=unbiased_pcnt)(all_dt)
+        if seed == 888:
+            # NOTE: the sequential split does not shuffle
+            unbiased_dt, biased_dt, _ = SequentialSplit(train_percentage=unbiased_pcnt)(all_dt)
+        else:
+            unbiased_dt, biased_dt = train_test_split(all_dt, unbiased_pcnt, random_seed=seed)
 
         if biased:
             if self.s_dim == 1:  # FIXME: biasing the dataset only works with binary s right now
