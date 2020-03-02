@@ -72,10 +72,10 @@ def compute_loss(
     nll = inn.nll(enc, sum_ldj)
 
     enc_y, enc_s = inn.split_encoding(enc)
+    enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
 
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
-        enc_y_m = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
         if ARGS.recon_detach:
             enc_y_m = enc_y_m.detach()
 
@@ -89,10 +89,10 @@ def compute_loss(
         if ARGS.recon_stability_weight > 0:
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
-    enc_y = grad_reverse(enc_y)
+    enc_y_m = grad_reverse(enc_y_m)
     disc_loss = x.new_zeros(1)
     for disc in disc_ensemble:
-        disc_loss += disc.routine(enc_y, s)[0]
+        disc_loss += disc.routine(enc_y_m, s)[0]
     disc_loss /= ARGS.num_discs
 
     if itr < ARGS.warmup_steps:
@@ -397,12 +397,12 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         inn.to(args.device)
         enc_shape = inn.output_dim
 
-    disc_input_shape: Tuple[int, ...] = input_shape if ARGS.train_on_recon else (inn.zy_dim,)
+    disc_input_shape = input_shape if ARGS.train_on_recon else (inn.zy_dim + inn.zs_dim,)
 
     print(f"zs dim: {inn.zs_dim}")
     print(f"zy dim: {inn.zy_dim}")
-    # Initialise Discriminators
 
+    # Initialise Discriminators
     disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
     disc_ensemble = []
 
