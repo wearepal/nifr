@@ -14,8 +14,6 @@ import git
 import tap
 import torch
 
-from nosinn.configs import CELEBATTRS
-
 
 class EvalArgs(tap.Tap):
     """Commandline arguments for running evaluation."""
@@ -23,10 +21,8 @@ class EvalArgs(tap.Tap):
     checkpoint_path: str  # Path to the checkpoint file
     csv_file: Optional[str] = None  # Where to store the results
     eval_id: Optional[int] = None  # ID of the evaluation to run; if not specified, run all.
-    gpu: int = 0  # ID of the cuda device to use for evaluation. If negative, run on CPU.
     test_batch_size: int = 1000  # test batch size
     checkout_commit: bool = False  # if True, checkout the commit for the checkpoint
-    celeba_target_attr: Optional[CELEBATTRS] = None
 
     def add_arguments(self):
         self.add_argument("checkpoint_path")  # make the first argument positional
@@ -34,7 +30,8 @@ class EvalArgs(tap.Tap):
 
 def main():
     # ========================== get checkpoint path and CSV file name ============================
-    eval_args = EvalArgs(underscores_to_dashes=True, explicit_bool=True).parse_args()
+    eval_args = EvalArgs(underscores_to_dashes=True, explicit_bool=True).parse_args(known_only=True)
+    remaining_args = eval_args.extra_args
     chkpt_path = Path(eval_args.checkpoint_path)
     csv_file = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
 
@@ -55,9 +52,6 @@ def main():
         model_args = chkpt["ARGS"]
     else:
         raise RuntimeError("Checkpoint doesn't contain args.")
-
-    if eval_args.celeba_target_attr is None:
-        eval_args.celeba_target_attr = model_args["celeba_target_attr"]
 
     del chkpt  # free up memory of checkpoint
 
@@ -93,12 +87,10 @@ def main():
     base_args += ["--evaluate", "True"]
     base_args += ["--results-csv", csv_file]
     base_args += ["--use-wandb", "False"]
-    base_args += ["--gpu", str(eval_args.gpu)]
     if "encode_batch_size" in model_args:  # `encode_batch_size` is an arg that was only added later
         base_args += ["--encode-batch-size", str(eval_args.test_batch_size)]
     else:
         base_args += ["--test-batch-size", str(eval_args.test_batch_size)]
-    base_args += ["--celeba-target-attr", eval_args.celeba_target_attr]
 
     # ======================================= run eval loop =======================================
     python_exe = sys.executable
@@ -107,7 +99,7 @@ def main():
         for parameter_value in parameter_values:
             print(f"Starting run with {parameter_name}: {parameter_value}")
             parameter_args = [f"--{parameter_name.replace('_', '-')}", str(parameter_value)]
-            args = [python_exe, "start_nosinn.py"] + base_args + parameter_args
+            args = [python_exe, "start_nosinn.py"] + base_args + parameter_args + remaining_args
             subprocess.run(args, check=True)
 
     finally:  # clean up
