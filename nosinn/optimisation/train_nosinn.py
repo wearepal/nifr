@@ -104,7 +104,10 @@ def compute_loss(
     disc_acc = 0
     for k, disc in enumerate(disc_ensemble):
         disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
-        loss += disc_loss_k
+        if inn_training:
+            loss -= disc_loss_k
+        else:
+            loss += disc_loss_k
         disc_acc += disc_acc_k
         if not inn_training:
             logging_dict[f"Loss Disc_{k}"] = disc_loss_k.item()
