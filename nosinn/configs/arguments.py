@@ -174,7 +174,7 @@ class NosinnArgs(SharedArgs):
     disc_hidden_dims: List[int] = []
     num_discs: int = 1
     disc_reset_prob: float = 1 / 3
-    mask_disc: bool = False
+    mask_disc: bool = True
 
     # Training settings
     lr: float = 3e-4
