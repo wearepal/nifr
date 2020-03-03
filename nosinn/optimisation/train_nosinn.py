@@ -74,7 +74,8 @@ def compute_loss(
     enc_y, enc_s = inn.split_encoding(enc)
 
     if ARGS.mask_disc or ARGS.train_on_recon:
-        enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
+        enc_s = torch.cat([enc_s, torch.zeros_like(enc_y)], dim=1)
+        # enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
 
     recon_loss = x.new_zeros(())
     if ARGS.train_on_recon:
@@ -92,11 +93,11 @@ def compute_loss(
         if ARGS.recon_stability_weight > 0:
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
-    enc_y = grad_reverse(enc_y)
+    # enc_y = grad_reverse(enc_y)
     disc_loss = x.new_zeros(1)
     disc_acc = 0
     for disc in disc_ensemble:
-        disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
+        disc_loss_k, disc_acc_k = disc.routine(enc_s, s)
         disc_loss += disc_loss_k
         disc_acc += disc_acc_k
 
@@ -120,7 +121,7 @@ def compute_loss(
             "Loss Adversarial": disc_loss.item(),
             "Accuracy Discriminators": disc_acc,
             "Loss Recon": recon_loss.item(),
-            "Loss Validation": (nll - disc_loss + recon_loss).item(),
+            "Loss Validation": (nll + disc_loss + recon_loss).item(),
         }
     )
     return loss, logging_dict
