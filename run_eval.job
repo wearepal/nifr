@@ -1,0 +1,47 @@
+######################################################################
+# Options for the batch system
+# These options are not executed by the script, but are instead read by the
+# batch system before submitting the job. Each option is preceeded by '#$' to
+# signify that it is for grid engine.
+#
+# All of these options are the same as flags you can pass to qsub on the
+# command line and can be **overriden** on the command line. see man qsub for
+# all the details
+######################################################################
+# -- The shell used to interpret this script
+#$ -S /bin/bash
+# -- Execute this job from the current working directory.
+#$ -cwd
+# -- use the short.q
+##$ -q short.q
+# -- Job output to stderr will be merged into standard out. Remove this line if
+# -- you want to have separate stderr and stdout log files
+#$ -j y
+#$ -o ../output/
+# -- Send email when the job exits, is aborted or suspended
+##$ -m eas
+#$ -M tk324@sussex.ac.uk
+# -- specify number of slots. 6 slots=1 GPU
+#$ -pe mpislots 6
+
+######################################################################
+# Job Script
+# Here we are writing in bash (as we set bash as our shell above). In here you
+# should set up the environment for your program, copy around any data that
+# needs to be copied, and then execute the program
+######################################################################
+nvidia-smi
+echo "-------------------"
+echo "Starting job script"
+echo "-------------------"
+username=`whoami`
+python_exe=/mnt/data/tk324/miniconda3/bin/python
+echo "User: $username"
+
+$python_exe -u do_evaluation.py "$@"
+
+echo "-------------------"
+echo "Finished job script"
+echo "-------------------"
+nvidia-smi
+
