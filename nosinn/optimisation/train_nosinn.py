@@ -101,18 +101,14 @@ def compute_loss(
             recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
 
     loss = x.new_zeros(1)
-
+    disc_acc = 0
     for k, disc in enumerate(disc_ensemble):
-        logits = disc(enc_y)
-
-        if inn_training:
-            probs = logits.softmax(dim=1) if ARGS.s_dim > 1 else logits.sigmoid()
-            disc_loss = -(probs * probs.log()).sum(1).mean()
-        else:
-            disc_loss = disc.routine(enc_y, s)[0]
-        loss += disc_loss
+        disc_loss_k, disc_acc_k = disc.routine(enc_y, s)
+        loss += disc_loss_k
+        disc_acc += disc_acc_k
         if not inn_training:
-            logging_dict[f"Loss Disc_{k}"] = disc_loss.item()
+            logging_dict[f"Loss Disc_{k}"] = disc_loss_k.item()
+    disc_acc /= ARGS.num_discs
 
     if inn_training:
         if itr < ARGS.warmup_steps:
@@ -131,9 +127,10 @@ def compute_loss(
         logging_dict.update(
             {
                 "Loss NLL": nll.item(),
+                "Accuracy Discs": disc_acc,
                 "Loss Adversarial": disc_loss,
-                "Recon loss": recon_loss.item(),
-                "Validation loss": (nll - disc_loss + recon_loss).item(),
+                "Loss Recon": recon_loss.item(),
+                "Loss Validation": (nll - disc_loss + recon_loss).item(),
             }
         )
     return loss, logging_dict
