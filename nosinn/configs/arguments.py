@@ -103,6 +103,7 @@ class SharedArgs(Tap):
     epochs: int = 250
     batch_size: int = 128
     test_batch_size: Optional[int] = None
+    num_workers: int = 4
     weight_decay: float = 0
     seed: int = 42
     data_split_seed: int = 888

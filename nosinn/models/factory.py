@@ -156,6 +156,7 @@ def build_discriminator(
 
     # this is done in models/inn.py
     if not train_on_recon and len(input_shape) > 2:
+        import pdb; pdb.set_trace()
         in_dim = round(frac_enc * int(product(input_shape)))
 
     num_classes = target_dim if target_dim > 1 else 2

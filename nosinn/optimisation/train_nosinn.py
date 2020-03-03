@@ -294,8 +294,8 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
         len(datasets.task),
     )
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
-    val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size)
+    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size, num_workers=ARGS.num_workers, pin_memory=True)
+    val_loader = DataLoader(datasets.task_train, shuffle=False, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, pin_memory=True)
 
     # ==== construct networks ====
     input_shape = get_data_dim(train_loader)
@@ -424,7 +424,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
             input_shape=disc_input_shape,
             target_dim=datasets.s_dim,
             train_on_recon=ARGS.train_on_recon,
-            frac_enc=enc_shape,
+            frac_enc=1,
             model_fn=disc_fn,
             model_kwargs=disc_kwargs,
             optimizer_kwargs=disc_optimizer_kwargs,

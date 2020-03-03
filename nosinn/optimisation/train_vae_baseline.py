@@ -283,9 +283,9 @@ def main_vae(raw_args=None) -> None:
 
     # ==== construct dataset ====
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size)
-    val_loader = DataLoader(datasets.task_train, shuffle=True, batch_size=ARGS.test_batch_size)
-    test_loader = DataLoader(datasets.task, shuffle=False, batch_size=ARGS.test_batch_size)
+    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size, num_workers=ARGS.num_workers, pin_memory=True)
+    val_loader = DataLoader(datasets.task_train, shuffle=True, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, pin_memory=True)
+    test_loader = DataLoader(datasets.task, shuffle=False, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, pin_memory=True)
 
     # ==== construct networks ====
     INPUT_SHAPE = get_data_dim(train_loader)
@@ -362,7 +362,7 @@ def main_vae(raw_args=None) -> None:
     }
 
     disc_enc_y = build_discriminator(
-        enc_shape,
+        input_shape=enc_shape,
         target_dim=datasets.s_dim,
         train_on_recon=ARGS.train_on_recon,
         frac_enc=ARGS.enc_y_dim / enc_shape[0],
@@ -389,6 +389,7 @@ def main_vae(raw_args=None) -> None:
             model_kwargs=disc_enc_s_kwargs,
             optimizer_kwargs=disc_optimizer_kwargs,
         )
+
         disc_enc_s.to(args.device)
 
     # Logging

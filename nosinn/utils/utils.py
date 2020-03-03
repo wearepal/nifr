@@ -159,7 +159,7 @@ def random_seed(seed_value, use_cuda) -> None:
 
 
 def product(seq: Sequence[T]) -> T:
-    if seq:
+    if not seq:
         raise ValueError("seq cannot be empty")
     result = seq[0]
     for i in range(1, len(seq)):

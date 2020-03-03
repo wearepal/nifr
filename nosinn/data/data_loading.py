@@ -4,6 +4,7 @@ from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import create_genfaces_dataset
+from ethicml.vision.data import LdColorizer
 
 from nosinn.configs import SharedArgs
 
@@ -13,7 +14,7 @@ from .dataset_wrappers import LdAugmentedDataset
 from .misc import shrink_dataset, train_test_split
 from .perturbed_adult import load_perturbed_adult
 from .ssrp import SSRP
-from .transforms import LdColorizer, NoisyDequantize, Quantize
+from .transforms import NoisyDequantize, Quantize
 
 __all__ = ["DatasetTriplet", "load_dataset"]
 
