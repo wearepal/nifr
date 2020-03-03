@@ -205,8 +205,8 @@ class VAE(AutoEncoder):
         # Compute losses
         recon_loss = recon_loss_fn(recon, x)
 
-        recon_loss /= x.nelement()
-        kl_div /= x.nelement()
+        recon_loss /= x.size(0)
+        kl_div /= x.size(0)
 
         elbo = recon_loss + self.kl_weight * kl_div
         return VaeResults(elbo=elbo, enc_y=enc_y, enc_s=enc_s, recon=recon, kl_div=kl_div)
