@@ -232,6 +232,11 @@ def encode_dataset(args, vae, data_loader):
                 enc_y_m = enc
 
             xy = vae.reconstruct(enc_y_m, s=s_oh)
+
+            if args.dataset in ("celeba", "ssrp", "genfaces"):
+                xy = 0.5 * xy + 0.5
+            xy = xy.clamp(0, 1)
+
             all_xy.append(xy.detach().cpu())
 
     all_xy = torch.cat(all_xy, dim=0)
