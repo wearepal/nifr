@@ -325,10 +325,6 @@ def encode_dataset(
         data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
     )
 
-    # print("Tracing...")
-    # inputs = {'encode_with_partials' : next(iter(data))[0].to(args.device, non_blocking=True)}
-    # traced_model = torch.jit.trace_module(model, inputs)
-
     with torch.set_grad_enabled(False):
         for _, (x, s, y) in enumerate(tqdm(data)):
 
@@ -337,10 +333,13 @@ def encode_dataset(
             all_y.append(y)
 
             _, zy, zs = model.encode(x, partials=True)
-            # _, zy, zs = traced_model.encode_with_partials(x)
 
             zs_m = torch.cat([zy, torch.zeros_like(zs)], dim=1)
             xy = model.invert(zs_m)
+
+            if args.dataset in ("celeba", "ssrp", "genfaces"):
+                xy = 0.5 * xy + 0.5
+
             if x.dim() > 2:
                 xy = xy.clamp(min=0, max=1)
 
