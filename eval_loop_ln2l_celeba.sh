@@ -45,7 +45,7 @@ do
 	--dataset celeba --task-mixing-factor $mf \
 	--lr 1e-3 --batch-size 128 --weight-decay 0 --epochs 25 \
         --entropy-weight 0.01 \
-        --results-csv ln2l_celeba "$@"
+        --results-csv ln2l_celeba.csv "$@"
 done
 
 echo "Finished job script"
