@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TPR, Accuracy, ProbPos
-from ethicml.utility.data_structures import DataTuple
+from ethicml.utility import DataTuple, Prediction
 from nosinn.configs import Ln2lArgs
 from nosinn.data import DatasetTriplet, load_dataset
 from nosinn.models import Classifier, ModelBase, build_discriminator
@@ -224,7 +224,7 @@ def main(raw_args=None) -> None:
         nn.Sequential(encoder, classifier), num_classes=ARGS.s_dim if ARGS.s_dim > 1 else 2
     )
     preds, ground_truths, sens = classifier.predict_dataset(test_loader, device=args.device)
-    preds = pd.DataFrame(preds, columns=["labels"])
+    preds = Prediction(hard=pd.Series(preds))
     ground_truths = DataTuple(
         x=pd.DataFrame(sens, columns=["sens"]),
         s=pd.DataFrame(sens, columns=["sens"]),
@@ -249,13 +249,13 @@ def main(raw_args=None) -> None:
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()
 
-    if args.save is not None:
-        save_to_csv = Path(args.save)
+    if args.results_csv:
+        save_to_csv = Path(ARGS.save_dir)
         if not save_to_csv.exists():
             save_to_csv.mkdir(exist_ok=True)
 
         assert isinstance(save_to_csv, Path)
-        results_path = save_to_csv / full_name
+        results_path = save_to_csv / f"{full_name}_{args.results_csv}"
         if args.dataset == "cmnist":
             value_list = ",".join([str(args.scale)] + [str(v) for v in metrics.values()])
         else:
