@@ -84,7 +84,8 @@ def train(vae, disc_enc_y, disc_enc_s, dataloader, epoch: int, recon_loss_fn) ->
         x, s, y = to_device(x, s, y)
         s_oh = None
         if ARGS.cond_decoder:  # One-hot encode the sensitive attribute
-            s_oh = F.one_hot(s, num_classes=ARGS.s_dim)
+            # import pdb; pdb.set_trace()
+            s_oh = F.one_hot(s.long(), num_classes=ARGS.s_dim)
 
         loss, logging_dict = compute_losses(
             x=x,
@@ -283,9 +284,27 @@ def main_vae(raw_args=None) -> None:
 
     # ==== construct dataset ====
     ARGS.test_batch_size = ARGS.test_batch_size if ARGS.test_batch_size else ARGS.batch_size
-    train_loader = DataLoader(datasets.pretrain, shuffle=True, batch_size=ARGS.batch_size, num_workers=ARGS.num_workers, pin_memory=True)
-    val_loader = DataLoader(datasets.task_train, shuffle=True, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, pin_memory=True)
-    test_loader = DataLoader(datasets.task, shuffle=False, batch_size=ARGS.test_batch_size, num_workers=ARGS.num_workers, pin_memory=True)
+    train_loader = DataLoader(
+        datasets.pretrain,
+        shuffle=True,
+        batch_size=ARGS.batch_size,
+        num_workers=ARGS.num_workers,
+        pin_memory=True,
+    )
+    val_loader = DataLoader(
+        datasets.task_train,
+        shuffle=True,
+        batch_size=ARGS.test_batch_size,
+        num_workers=ARGS.num_workers,
+        pin_memory=True,
+    )
+    test_loader = DataLoader(
+        datasets.task,
+        shuffle=False,
+        batch_size=ARGS.test_batch_size,
+        num_workers=ARGS.num_workers,
+        pin_memory=True,
+    )
 
     # ==== construct networks ====
     INPUT_SHAPE = get_data_dim(train_loader)
