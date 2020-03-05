@@ -7,6 +7,6 @@ do
 	python run_simple_baselines.py \
 		--dataset celeba --task-mixing-factor $mf \
 		--lr 1e-3 --batch-size 128 --weight-decay 0 --epochs $epochs \
-		--pred-s False $@
+		--pred-s False "$@"
 done
 

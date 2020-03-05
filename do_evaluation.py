@@ -91,8 +91,8 @@ def main():
         base_args += ["--encode-batch-size", str(eval_args.test_batch_size)]
     else:
         base_args += ["--test-batch-size", str(eval_args.test_batch_size)]
-    if "mask_disc" not in model_args:  # running old model with newer code
-        base_args += ["--mask-disc", "False"]
+    if "mask_disc" not in model_args and not checkout_commit:  # eval older checkpoint with new code
+        base_args += ["--mask_disc", "False"]  # turn off this new feature
 
     # ======================================= run eval loop =======================================
     python_exe = sys.executable
