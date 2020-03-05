@@ -158,9 +158,19 @@ def run_baseline(args):
         instance_weights = get_instance_weights(train_data, batch_size=args.test_batch_size)
         train_data = IntanceWeightedDataset(train_data, instance_weights=instance_weights)
 
-    train_loader = DataLoader(train_data, batch_size=args.batch_size, pin_memory=True, shuffle=True)
+    train_loader = DataLoader(
+        train_data,
+        batch_size=args.batch_size,
+        pin_memory=True,
+        shuffle=True,
+        num_workers=args.num_workers,
+    )
     test_loader = DataLoader(
-        test_data, batch_size=args.test_batch_size, pin_memory=True, shuffle=False
+        test_data,
+        batch_size=args.test_batch_size,
+        pin_memory=True,
+        shuffle=False,
+        num_workers=args.num_workers,
     )
 
     input_shape = get_data_dim(train_loader)
