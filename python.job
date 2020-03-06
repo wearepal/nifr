@@ -21,25 +21,17 @@
 # -- Send email when the job exits, is aborted or suspended
 ##$ -m eas
 ##$ -M PUT_YOUR_USERNAME_HERE_TO_ENABLE_EMAIL_NOTIFICATION@sussex.ac.uk
-#$ -pe smpslots 6
-
 ######################################################################
-# Job Script
-# Here we are writing in bash (as we set bash as our shell above). In here you
-# should set up the environment for your program, copy around any data that
-# needs to be copied, and then execute the program
-######################################################################
-echo "nvidia-smi"
 nvidia-smi
 echo "-------------------"
 echo "Starting job script"
 echo "-------------------"
-username=`whoami`
-python_exe=/mnt/data/tk324/miniconda3/bin/python
-echo "User: $username"
+python_exe=/shared/scratch/miniconda3/bin/python
 export WANDB_API_KEY="73446d9c90d14d0603dbefef971c2cd923ad7f4e"
 
 $python_exe -u "$@"
 
+echo "-------------------"
 echo "Finished job script"
+echo "-------------------"
 
