@@ -2,7 +2,7 @@ from typing import NamedTuple, Optional
 
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
-from torchvision.datasets import MNIST
+from torchvision.datasets import MNIST, KMNIST
 from ethicml.data import create_genfaces_dataset
 from ethicml.vision.data import LdColorizer
 
@@ -49,10 +49,10 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             base_aug.append(NoisyDequantize(int(args.quant_level)))
         train_data = MNIST(root=args.root, download=True, train=True)
 
-        pretrain_len = round(args.pretrain_pcnt * len(train_data))
-        train_len = len(train_data) - pretrain_len
-        pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
-
+        # pretrain_len = round(args.pretrain_pcnt * len(train_data))
+        # train_len = len(train_data) - pretrain_len
+        # pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
+        pretrain_data = KMNIST(root=args.root, download=True, train=True)
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
