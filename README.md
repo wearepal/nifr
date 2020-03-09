@@ -1,4 +1,4 @@
-# No-Shortcuts in Neural Networks
+# Null-sampling for Invariant and Intepretable Representations
 
 ## Requirements
 
