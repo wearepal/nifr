@@ -1,8 +1,8 @@
 from typing import NamedTuple, Optional
 
-from torch.utils.data import Dataset, random_split
+from torch.utils.data import Dataset, random_split, ConcatDataset
 from torchvision import transforms
-from torchvision.datasets import MNIST, KMNIST
+from torchvision.datasets import MNIST, KMNIST, EMNIST, FashionMNIST
 from ethicml.data import create_genfaces_dataset
 from ethicml.vision.data import LdColorizer
 
@@ -52,7 +52,12 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         # pretrain_len = round(args.pretrain_pcnt * len(train_data))
         # train_len = len(train_data) - pretrain_len
         # pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
-        pretrain_data = KMNIST(root=args.root, download=True, train=True)
+        kmnist = KMNIST(root=args.root, download=True, train=True, transform=transforms.Compose(base_aug))
+        emnist = EMNIST(root=args.root, download=True, split="letters", transform=transforms.Compose(base_aug))
+        emnist = shrink_dataset(emnist, pcnt=(len(kmnist) / len(emnist)))
+        fashion = FashionMNIST(root=args.root, download=True, train=True, transform=transforms.Compose(base_aug))
+        pretrain_data = ConcatDataset([kmnist, emnist, fashion])
+        pretrain_data = shrink_dataset(pretrain_data, pcnt=0.13333)
         test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
