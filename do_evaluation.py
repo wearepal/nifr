@@ -101,6 +101,7 @@ def main():
         for parameter_value in parameter_values:
             print(f"Starting run with {parameter_name}: {parameter_value}")
             parameter_args = [f"--{parameter_name.replace('_', '-')}", str(parameter_value)]
+            import pdb; pdb.set_trace()
             args = [python_exe, "start_nosinn.py"] + base_args + parameter_args + remaining_args
             subprocess.run(args, check=True)
 
