@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Sequence, Tuple, Union, overload
+from typing import Dict, List, Optional, Sequence, Tuple, Union, overload, NamedTuple
 
 import numpy as np
 import torch
@@ -13,7 +13,28 @@ from nosinn.utils import DLogistic, MixtureDistribution, logistic_distribution, 
 from .autoencoder import AutoEncoder
 from .base import ModelBase
 
-__all__ = ["PartitionedInn", "PartitionedAeInn", "BipartiteInn"]
+__all__ = ["PartitionedAeInn", "BipartiteInn"]
+
+
+class EncodingSize(NamedTuple):
+    zs: int
+    zy: int
+    zn: int
+
+
+class SplitEncoding(NamedTuple):
+    s: Tensor
+    y: Tensor
+    n: Tensor
+
+
+class Reconstructions(NamedTuple):
+    all: Tensor
+    rand_s: Tensor  # reconstruction with random s
+    rand_y: Tensor  # reconstruction with random y
+    zero_s: Tensor
+    zero_y: Tensor
+    just_s: Tensor
 
 
 class BipartiteInn(ModelBase):
@@ -84,20 +105,10 @@ class BipartiteInn(ModelBase):
 
         return x
 
-    @overload
-    def encode(self, data: Tensor, partials: Literal[False] = ...) -> Tensor:
-        ...
+    def encode(self, inputs: Tensor) -> Tensor:
+        return self.forward(inputs, reverse=False)
 
-    @overload
-    def encode(self, data: Tensor, partials: Literal[True]) -> Tuple[Tensor, Tensor, Tensor]:
-        ...
-
-    def encode(
-        self, data: Tensor, partials: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
-        return self.forward(data, reverse=False)
-
-    def decode(self, z, partials: bool = True, discretize: bool = True) -> Tensor:
+    def decode(self, z, discretize: bool = True) -> Tensor:
         return self.invert(z, discretize=discretize)
 
     def compute_log_pz(self, z: Tensor) -> Tensor:
@@ -135,13 +146,14 @@ class BipartiteInn(ModelBase):
             return outputs, sum_ldj
 
 
-class PartitionedInn(BipartiteInn):
+class PartitionedAeInn(BipartiteInn):
     """Wrapper for classifier models."""
 
     def __init__(
         self,
         args: NosinnArgs,
         model: Bijector,
+        autoencoder: AutoEncoder,
         input_shape: Sequence[int],
         optimizer_args: Optional[Dict] = None,
         feature_groups: Optional[List[slice]] = None,
@@ -162,82 +174,59 @@ class PartitionedInn(BipartiteInn):
             args, model, input_shape, optimizer_args=optimizer_args, feature_groups=feature_groups
         )
 
-        self.zs_dim: int = round(args.zs_frac * self.output_dim)
-        self.zy_dim: int = self.output_dim - self.zs_dim
+        zs_dim: int = round(args.zs_frac * self.output_dim)
+        zy_dim: int = zs_dim
+        zn_dim: int = self.output_dim - zs_dim - zy_dim
+        self.encoding_size = EncodingSize(zs=zs_dim, zy=zy_dim, zn=zn_dim)
+        self.autoencoder = autoencoder
 
-    def split_encoding(self, z: Tensor) -> Tuple[Tensor, Tensor]:
-        zy, zs = z.split(split_size=(self.zy_dim, self.zs_dim), dim=1)
-        return zy, zs
+    def split_encoding(self, z: Tensor) -> SplitEncoding:
+        zs, zy, zn = z.split(
+            (self.encoding_size.zs, self.encoding_size.zy, self.encoding_size.zn), dim=1
+        )
+        return SplitEncoding(s=zs, y=zy, n=zn)
 
-    def unsplit_encoding(self, zy: Tensor, zs: Tensor) -> Tensor:
-        assert zy.size(1) == self.zy_dim and zs.size(1) == self.zs_dim
+    @staticmethod
+    def unsplit_encoding(zs: Tensor, zy: Tensor, zn: Tensor) -> Tensor:
+        return torch.cat([zs, zy, zn], dim=1)
 
-        return torch.cat([zy, zs], dim=1)
-
-    @overload
-    def zero_mask(self, z, with_random: Literal[False] = ...) -> Tuple[Tensor, Tensor]:
-        ...
-
-    @overload
-    def zero_mask(self, z, with_random: Literal[True]) -> Tuple[Tensor, Tensor, Tensor]:
-        ...
-
-    def zero_mask(
-        self, z, with_random: bool = False
-    ) -> Union[Tuple[Tensor, Tensor, Tensor], Tuple[Tensor, Tensor]]:
-        zy, zs = self.split_encoding(z)
-        zy_m = torch.cat([zy, z.new_zeros(zs.shape)], dim=1)
-        zs_m = torch.cat([z.new_zeros(zy.shape), zs], dim=1)
-        if with_random:
-            z_random_m = torch.cat([zy, torch.randn_like(zs)], dim=1)
-
-        return zy_m, zs_m, z_random_m
-
-    def encode_with_partials(self, data: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
-        return self.encode(data, partials=True)
-
-    @overload
-    def encode(self, data: Tensor, partials: Literal[False] = ...) -> Tensor:
-        ...
-
-    @overload
-    def encode(self, data: Tensor, partials: Literal[True]) -> Tuple[Tensor, Tensor, Tensor]:
-        ...
-
-    def encode(
-        self, data: Tensor, partials: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor]]:
-        z = self.forward(data, reverse=False)
-
-        if partials:
-            zy, zs = self.split_encoding(z)
-            return z, zy, zs
+    def mask(self, z: Tensor, random: bool = False) -> Tuple[Tensor, Tensor]:
+        """Split the encoding and mask out zs and zy. This is a cheap function."""
+        z = self.split_encoding(z)
+        if random:
+            # the question here is whether to have one random number per sample
+            # or whether to also have distinct random numbers for all the dimensions of zs.
+            # if we don't expect s to be complicated, then the former should suffice
+            rand_zs = torch.randn((z.s.size(0),) + (z.s.dim() - 1) * (1,), device=z.s.device)
+            zs_m = torch.cat([rand_zs + torch.zeros_like(z.s), z.y, z.n], dim=1)
+            rand_zy = torch.randn((z.y.size(0),) + (z.y.dim() - 1) * (1,), device=z.y.device)
+            zy_m = torch.cat([z.s, rand_zy + torch.zeros_like(z.y), z.n], dim=1)
         else:
-            return z
+            zs_m = torch.cat([torch.zeros_like(z.s), z.y, z.n], dim=1)
+            zy_m = torch.cat([z.s, torch.zeros_like(z.y), z.n], dim=1)
+        return zs_m, zy_m
 
-    @overload
-    def decode(self, z: Tensor, partials: Literal[False] = ..., discretize: bool = ...) -> Tensor:
-        ...
+    def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
+        rand_s, rand_y = self.mask(z, random=True)
+        zero_s, zero_y = self.mask(z)
+        z = self.split_encoding(z)
+        just_s = torch.cat([z.s, torch.zeros_like(z.y), torch.zeros_like(z.n)], dim=1)
+        return Reconstructions(
+            all=self.decode(z, discretize=discretize),
+            rand_s=self.decode(rand_s, discretize=discretize),
+            rand_y=self.decode(rand_y, discretize=discretize),
+            zero_s=self.decode(zero_s, discretize=discretize),
+            zero_y=self.decode(zero_y, discretize=discretize),
+            just_s=self.decode(just_s, discretize=discretize),
+        )
 
-    @overload
-    def decode(
-        self, z: Tensor, partials: Literal[True], discretize: bool = ...
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        ...
+    def encode_and_split(self, inputs: Tensor) -> SplitEncoding:
+        return self.split_encoding(self.encode(inputs))
 
-    def decode(
-        self, z: Tensor, partials: bool = True, discretize: bool = False
-    ) -> Union[Tensor, Tuple[Tensor, Tensor, Tensor, Tensor]]:
-        x = super().decode(z, discretize=discretize)
-        if partials:
-            zy_m, zs_m, z_random_m = self.zero_mask(z, with_random=True)
-            xy = super().decode(zy_m, discretize=discretize)
-            xs = super().decode(zs_m, discretize=discretize)
-            x_random = super().decode(z_random_m, discretize=discretize)
-
-            return x, xy, xs, x_random
-        else:
-            return x
+    def generate_recon_rand_s(self, inputs: Tensor) -> Tensor:
+        zs, zy, zn = self.encode_and_split(inputs)
+        zs_m = torch.cat([torch.randn_like(zs), zy, zn], dim=1)
+        return self.decode(zs_m)
 
     def routine(self, data: torch.Tensor) -> Tuple[Tensor, Tensor]:
         """Training routine for the Split INN.
@@ -253,34 +242,6 @@ class PartitionedInn(BipartiteInn):
         nll = self.nll(z, sum_ldj)
 
         return z, nll
-
-
-class PartitionedAeInn(PartitionedInn):
-    def __init__(
-        self,
-        args: NosinnArgs,
-        model: torch.nn.Module,
-        autoencoder: AutoEncoder,
-        input_shape: Sequence[int],
-        optimizer_args: Optional[Dict] = None,
-        feature_groups: Optional[List[slice]] = None,
-    ) -> None:
-        super().__init__(args, model, input_shape, optimizer_args, feature_groups)
-        self.autoencoder = autoencoder
-
-    def train(self):
-        self.model.train()
-        self.autoencoder.eval()
-
-    def eval(self):
-        self.model.eval()
-        self.autoencoder.eval()
-
-    def fit_ae(self, train_data, epochs, device, loss_fn=torch.nn.MSELoss()):
-        print("===> Fitting Auto-encoder to the training data....")
-        self.autoencoder.train()
-        self.autoencoder.fit(train_data, epochs, device, loss_fn)
-        self.autoencoder.eval()
 
     @overload
     def forward(
@@ -322,3 +283,17 @@ class PartitionedAeInn(PartitionedInn):
         if return_ae_enc:
             return outputs, ae_enc
         return outputs
+
+    def fit_ae(self, train_data, epochs, device, loss_fn=torch.nn.MSELoss()):
+        print("===> Fitting Auto-encoder to the training data....")
+        self.autoencoder.train()
+        self.autoencoder.fit(train_data, epochs, device, loss_fn)
+        self.autoencoder.eval()
+
+    def train(self):
+        self.model.train()
+        self.autoencoder.eval()
+
+    def eval(self):
+        self.model.eval()
+        self.autoencoder.eval()

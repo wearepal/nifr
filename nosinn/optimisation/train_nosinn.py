@@ -4,7 +4,7 @@ import time
 from logging import Logger
 from pathlib import Path
 from itertools import islice
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union, Literal
 
 import git
 import numpy as np
@@ -21,7 +21,6 @@ from nosinn.models import (
     VAE,
     AutoEncoder,
     PartitionedAeInn,
-    PartitionedInn,
     build_conv_inn,
     build_discriminator,
     build_fc_inn,
@@ -44,8 +43,6 @@ from nosinn.utils import (
     wandb_log,
     inf_generator,
 )
-from nosinn.configs import NosinnArgs
->>>>>>> First attempt at the new architecture
 
 from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
@@ -58,90 +55,260 @@ ARGS: NosinnArgs = None
 LOGGER: Logger = None
 
 
-def compute_loss(
-    x_p: torch.Tensor,
-    x_t: torch.Tensor,
-    inn: Union[PartitionedInn, PartitionedAeInn],
+def update_disc(
+    x_c: Tensor,
+    x_t: Tensor,
+    inn: PartitionedAeInn,
     disc_ensemble: nn.ModuleList,
-    itr: int,
-) -> Tuple[torch.Tensor, Dict[str, float]]:
-    logging_dict = {}
+    warmup: bool = False,
+) -> Tuple[Tensor, float]:
+    """Train the discriminator while keeping the generator constant.
 
+    Args:
+        x_c: x from the context set
+        x_t: x from the training set
+    """
+    inn.eval()
+    disc_ensemble.train()
+
+    ones = x_c.new_ones((x_c.size(0),))
+    zeros = x_t.new_zeros((x_t.size(0),))
+    # in case of the three-way split, we have to check more than one invariance
+    invariances: List[Literal["s", "y"]] = ["s", "y"]
+
+    for _ in range(ARGS.num_disc_updates):
+        encoding_t = inn.encode(x_t)
+        encoding_c = inn.encode(x_c)
+        disc_input_c: Tensor
+        if ARGS.train_on_recon:
+            disc_input_c = inn.decode(encoding_c).detach()  # just reconstruct
+
+        disc_loss = x_c.new_zeros(())
+        for invariance in invariances:
+            disc_input_t = get_disc_input(inn, encoding_t, invariant_to=invariance)
+            disc_input_t = disc_input_t.detach()
+            if not ARGS.train_on_recon:
+                disc_input_c = get_disc_input(inn, encoding_c, invariant_to=invariance)
+                disc_input_c = disc_input_c.detach()
+
+            disc_loss = x_c.new_zeros(())
+            for disc in disc_ensemble:
+                # discriminator is trained to distinguish `disc_input_c` and `disc_input_t`
+                disc_loss_true, disc_acc_true = disc.routine(disc_input_c, ones)
+                disc_loss_false, disc_acc_false = disc.routine(disc_input_t, zeros)
+                disc_loss += disc_loss_true + disc_loss_false
+
+        if not warmup:
+            for disc in disc_ensemble:
+                disc.zero_grad()
+            disc_loss.backward()
+            for disc in disc_ensemble:
+                disc.step()
+
+    return disc_loss, 0.5 * (disc_acc_true + disc_acc_false)  # statistics from last step
+
+
+def update(
+    x_c: Tensor,
+    x_t: Tensor,
+    inn: PartitionedAeInn,
+    disc_ensemble: nn.ModuleList,
+    pred_s_weight: float,
+) -> Tuple[Tensor, Dict[str, float]]:
+    """Compute all losses.
+
+    Args:
+        x_t: x from the training set
+    """
+    # Compute losses for the generator.
+    disc_ensemble.eval()
+    inn.train()
+    logging_dict = {}
+    do_recon_stability = (
+        isinstance(inn, PartitionedAeInn) and ARGS.train_on_recon and ARGS.recon_stability_weight > 0
+    )
+
+    # ================================ NLL loss for training set ================================
     # the following code is also in inn.routine() but we need to access ae_enc directly
-    zero = x_p.new_zeros((x_p.size(0), 1))
-    if isinstance(inn, PartitionedAeInn) and ARGS.train_on_recon:
-        (enc, sum_ldj), ae_enc = inn.forward(x_p, logdet=zero, reverse=False, return_ae_enc=True)
+    zero = x_t.new_zeros((x_t.size(0), 1))
+    if do_recon_stability:
+        (enc, sum_ldj), ae_enc = inn.forward(x_t, logdet=zero, reverse=False, return_ae_enc=True)
     else:
-        enc, sum_ldj = inn.forward(x_p, logdet=zero, reverse=False)
+        enc, sum_ldj = inn.forward(x_t, logdet=zero, reverse=False)
     nll = inn.nll(enc, sum_ldj)
 
-    enc_y, enc_s = inn.split_encoding(enc)
+    # ================================ NLL loss for context set =================================
+    # we need a NLL loss for x_c because...
+    # ...when we train on encodings, the network will otherwise just falsify encodings for x_c
+    # ...when we train on recons, the GAN loss has it too easy to distinguish the two
+    zero = x_c.new_zeros((x_c.size(0), 1))
+    enc_c, sum_ldj_c = inn.forward(x_c, logdet=zero, reverse=False)
+    nll += inn.nll(enc_c, sum_ldj_c)
+    nll *= 0.5  # take average of the two nll losses
 
-    if ARGS.mask_disc or ARGS.train_on_recon:
-        enc_y = torch.cat([enc_y, torch.zeros_like(enc_s)], dim=1)
-
-    recon_loss = x_p.new_zeros(())
-    if ARGS.train_on_recon:
-
-        if ARGS.recon_detach:
-            enc_y = enc_y.detach()
-
-        if isinstance(inn, PartitionedAeInn):
-            enc_y, ae_enc_y = inn.forward(enc_y_m, reverse=True, return_ae_enc=True)
-            recon, recon_target = ae_enc_y, ae_enc
-            # logging_dict.update({
-            #     f"train_xi_min": ae_enc_y.detach().cpu().numpy().min(),
-            #     f"train_xi_max": ae_enc_y.detach().cpu().numpy().max(),
-            # })
-            enc_y_task_train = inn.autoencoder.decode(inn.autoencoder.encode(x_t))
-        else:
-            enc_y = inn.forward(enc_y_m, reverse=True)
-            recon, recon_target = enc_y, x_p
-            enc_y_task_train = x_t
-
-        if ARGS.recon_stability_weight > 0:
-            recon_loss = ARGS.recon_stability_weight * F.mse_loss(recon, recon_target)
+    # =================================== recon stability loss ====================================
+    if do_recon_stability:
+        disc_input, ae_recon = get_disc_input(inn, enc, invariant_to="s", with_ae_enc=True)
+        disc_input_y, ae_recon_y = get_disc_input(inn, enc, invariant_to="y", with_ae_enc=True)
+        recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_recon, ae_enc)
+        recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc)
     else:
-        enc_task_train = inn.forward(x_t, reverse=False)
-        enc_y_task_train, _ = inn.split_encoding(enc_task_train)
-        if ARGS.recon_detach:
-            enc_y_task_train = enc_y_task_train.detach()
+        disc_input = get_disc_input(inn, enc, invariant_to="s")
+        disc_input_y = get_disc_input(inn, enc, invariant_to="y")
 
-    enc_y = grad_reverse(enc_y)
-    disc_loss = x.new_zeros(())
+    # ==================================== adversarial losses =====================================
+    zeros = x_t.new_zeros((x_t.size(0),))
+
+    # discriminators
+    disc_loss = x_t.new_zeros(())
+    disc_acc_inv_s = 0.0
     for disc in disc_ensemble:
-        disc_loss_fake, _ = disc.routine(enc_y, x_p.new_zeros((x_p.size(0),)))
-        disc_loss_task_train, _ = disc.routine(enc_y_task_train, x_t.new_ones((x_t.size(0),)))
-        disc_loss += disc_loss_fake + disc_loss_task_train
+        disc_loss_k, disc_acc_k = disc.routine(disc_input, zeros)
+        disc_loss += disc_loss_k
+        disc_acc_inv_s += disc_acc_k
+    disc_loss /= ARGS.num_discs
+    disc_acc_inv_s /= ARGS.num_discs
 
-    if itr < ARGS.warmup_steps:
-        pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
-    else:
-        pred_s_weight = ARGS.pred_s_weight
+    # discriminators
+    disc_loss_y = x_t.new_zeros(())
+    disc_acc_inv_y = 0.0
+    for disc in disc_ensemble:
+        disc_loss_k, disc_acc_k = disc.routine(disc_input_y, zeros)
+        disc_loss_y += disc_loss_k
+        disc_acc_inv_y += disc_acc_k
+    disc_loss_y /= ARGS.num_discs
+    disc_acc_inv_y /= ARGS.num_discs
+
+    disc_loss += disc_loss_y
 
     nll *= ARGS.nll_weight
     disc_loss *= pred_s_weight
     recon_loss *= ARGS.recon_stability_weight
 
-    loss = nll + disc_loss + recon_loss
+    gen_loss = nll + recon_loss - disc_loss
 
-    logging_dict.update(
-        {
-            "Loss NLL": nll.item(),
-            "Loss Adversarial": disc_loss.item(),
-            "Accuracy Discriminators": disc_acc,
-            "Loss Recon": recon_loss.item(),
-            "Loss Validation": (nll - disc_loss + recon_loss).item(),
-        }
-    )
-    return loss, logging_dict
+    # Update the generator's parameters
+    inn.zero_grad()
+    gen_loss.backward()
+    inn.step()
+
+    final_logging = {
+        "Loss Adversarial": disc_loss.item(),
+        "Accuracy Disc": disc_acc_inv_s,
+        "Accuracy Disc 2": disc_acc_inv_y,
+        "Loss NLL": nll.item(),
+        "Loss Reconstruction": recon_loss.item(),
+        "Loss Generator": gen_loss.item(),
+    }
+    logging_dict.update(final_logging)
+
+    return gen_loss, logging_dict
+
+
+def get_disc_input(
+    inn: PartitionedAeInn,
+    encoding: Tensor,
+    invariant_to: Literal["s", "y"] = "s",
+    with_ae_enc: bool = False,
+) -> Tensor:
+    """Construct the input that the discriminator expects."""
+    if ARGS.train_on_recon:
+        zs_m, zy_m = inn.mask(encoding, random=True)
+        return inn.forward(
+            zs_m if invariant_to == "s" else zy_m, reverse=True, return_ae_enc=with_ae_enc
+        )
+        # if ARGS.recon_loss == "ce":
+        #     recon = recon.argmax(dim=1).float() / 255
+        #     if ARGS.dataset != "cmnist":
+        #         recon = recon * 2 - 1
+    else:
+        zs_m, zy_m = inn.mask(encoding)
+        return zs_m if invariant_to == "s" else zy_m
+
+
+# def compute_loss(
+#     x_c: torch.Tensor,  # context set
+#     x_t: torch.Tensor,
+#     inn: PartitionedAeInn,
+#     disc_ensemble: nn.ModuleList,
+#     itr: int,
+# ) -> Tuple[torch.Tensor, Dict[str, float]]:
+#     logging_dict = {}
+#     assert ARGS.mask_disc
+
+#     # the following code is also in inn.routine() but we need to access ae_enc directly
+#     zero = x_c.new_zeros((x_c.size(0), 1))
+#     if isinstance(inn, PartitionedAeInn) and ARGS.train_on_recon:
+#         (enc_t, sum_ldj), ae_enc = inn.forward(x_t, logdet=zero, reverse=False, return_ae_enc=True)
+#     else:
+#         enct_, sum_ldj = inn.forward(x_c, logdet=zero, reverse=False)
+#     nll = inn.nll(enc_t, sum_ldj)
+
+#     if ARGS.train_on_recon:
+#         zs_m, zy_m = inn.mask(enc_t, random=True)
+#     else:
+#         zs_m, zy_m = inn.mask(enc_t, random=False)
+
+#     recon_loss = x_c.new_zeros(())
+#     if ARGS.train_on_recon:
+
+#         if ARGS.recon_detach:
+#             zy_m = zy_m.detach()
+
+#         disc_input_y, ae_recon_y = inn.forward(zy_m, reverse=True, return_ae_enc=True)
+#         # logging_dict.update({
+#         #     f"train_xi_min": ae_enc_y.detach().cpu().numpy().min(),
+#         #     f"train_xi_max": ae_enc_y.detach().cpu().numpy().max(),
+#         # })
+#         enc_y_task_train = inn.autoencoder.decode(inn.autoencoder.encode(x_t))
+#         # else:
+#         #     enc_y = inn.forward(enc_y_m, reverse=True)
+#         #     recon, recon_target = enc_y, x_p
+#         #     enc_y_task_train = x_t
+
+#         if ARGS.recon_stability_weight > 0:
+#             recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc)
+#     else:
+#         enc_task_train = inn.forward(x_t, reverse=False)
+#         enc_y_task_train, _ = inn.split_encoding(enc_task_train)
+#         if ARGS.recon_detach:
+#             enc_y_task_train = enc_y_task_train.detach()
+
+#     enc_y = grad_reverse(enc_y)
+#     disc_loss = x.new_zeros(())
+#     for disc in disc_ensemble:
+#         disc_loss_fake, _ = disc.routine(enc_y, x_c.new_zeros((x_c.size(0),)))
+#         disc_loss_task_train, _ = disc.routine(enc_y_task_train, x_t.new_ones((x_t.size(0),)))
+#         disc_loss += disc_loss_fake + disc_loss_task_train
+
+#     if itr < ARGS.warmup_steps:
+#         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
+#     else:
+#         pred_s_weight = ARGS.pred_s_weight
+
+#     nll *= ARGS.nll_weight
+#     disc_loss *= pred_s_weight
+#     recon_loss *= ARGS.recon_stability_weight
+
+#     loss = nll + disc_loss + recon_loss
+
+#     logging_dict.update(
+#         {
+#             "Loss NLL": nll.item(),
+#             "Loss Adversarial": disc_loss.item(),
+#             "Accuracy Discriminators": disc_acc,
+#             "Loss Recon": recon_loss.item(),
+#             "Loss Validation": (nll - disc_loss + recon_loss).item(),
+#         }
+#     )
+#     return loss, logging_dict
 
 
 def train(
-    inn: Union[PartitionedInn, PartitionedAeInn],
+    inn: PartitionedAeInn,
     disc_ensemble: nn.ModuleList,
-    pretrain_data: DataLoader,
-    task_train_data: DataLoader,
+    context_data: DataLoader,
+    train_data: DataLoader,
     epoch: int,
 ) -> int:
     inn.train()
@@ -154,32 +321,23 @@ def train(
     start_epoch_time = time.time()
     end = start_epoch_time
 
-    epoch_len = max(len(pretrain_data), len(task_train_data))
+    epoch_len = max(len(context_data), len(train_data))
     itr = start_itr = (epoch - 1) * epoch_len
-    data_iterator = islice(
-        zip(inf_generator(pretrain_data), inf_generator(task_train_data)), epoch_len
-    )
-    for itr, ((x_p, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
+    data_iterator = islice(zip(inf_generator(context_data), inf_generator(train_data)), epoch_len)
+    for itr, ((x_c, _, _), (x_t, _, _)) in enumerate(data_iterator, start=start_itr):
 
-        x_b, x_u = to_device(x_p, x_t)
+        x_c, x_t = to_device(x_c, x_t)
 
-        loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
-        loss, logging_dict = compute_loss(x_b, x_u, inn, disc_ensemble, itr)
+        pred_s_weight = 0.0 if itr < ARGS.warmup_steps else ARGS.pred_s_weight
+        # Train the discriminator on its own for a number of iterations
+        update_disc(x_c, x_t, inn, disc_ensemble, itr < ARGS.warmup_steps)
 
-        inn.zero_grad()
-
-        for disc in disc_ensemble:
-            disc.zero_grad()
-
-        loss.backward()
-        inn.step()
-
-        if itr % ARGS.skip_disc_steps == 0:
-            for disc in disc_ensemble:
-                disc.step()
+        inn_loss, logging_dict = update(
+            x_c=x_c, x_t=x_t, inn=inn, disc_ensemble=disc_ensemble, pred_s_weight=pred_s_weight
+        )
 
         # Log losses
-        total_loss_meter.update(loss.item())
+        total_loss_meter.update(inn_loss.item())
         if loss_meters is None:
             loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
@@ -194,7 +352,7 @@ def train(
         # Log images
         if itr % ARGS.log_freq == 0:
             with torch.set_grad_enabled(False):
-                log_recons(inn, x_b, itr)
+                log_recons(inn, x_t, itr)
         if itr == 0 and ARGS.jit:
             LOGGER.info(
                 "JIT compilation (for training) completed in {}", readable_duration(time_for_batch)
@@ -214,38 +372,38 @@ def train(
     return itr
 
 
-def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr: int):
-    inn.eval()
-    disc_ensemble.eval()
+# def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr: int):
+#     inn.eval()
+#     disc_ensemble.eval()
 
-    with torch.set_grad_enabled(False):
-        loss_meter = AverageMeter()
-        for val_itr, (x_val, _, _) in enumerate(val_loader):
+#     with torch.set_grad_enabled(False):
+#         loss_meter = AverageMeter()
+#         for val_itr, (x_val, _, _) in enumerate(val_loader):
 
-            x_val = to_device(x_val)
+#             x_val = to_device(x_val)
 
-            _, logging_dict = compute_loss(x_val, x_val, inn, disc_ensemble, itr)
+#             _, logging_dict = compute_loss(x_val, x_val, inn, disc_ensemble, itr)
 
-            loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
+#             loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
 
-            if val_itr == 0:
-                if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
-                    log_recons(inn, x_val, itr, prefix="test")
-                else:
-                    z = inn(x_val[:1000])
-                    _, recon_y, recon_s, recon_random = inn.decode(z, partials=True)
-                    log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
-                    log_images(ARGS, recon_y, "reconstruction_y", prefix="test", step=itr)
-                    log_images(ARGS, recon_s, "reconstruction_y", prefix="test", step=itr)
-                    log_images(ARGS, recon_random, "reconstruction_random", prefix="test", step=itr)
-                    x_recon = inn(inn(x_val), reverse=True)
-                    x_diff = (x_recon - x_val).abs().mean().item()
-                    print(f"MAE of x and reconstructed x: {x_diff}")
-                    wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
+#             if val_itr == 0:
+#                 if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
+#                     log_recons(inn, x_val, itr, prefix="test")
+#                 else:
+#                     z = inn(x_val[:1000])
+#                     _, recon_y, recon_s, recon_random = inn.decode(z, partials=True)
+#                     log_images(ARGS, x_val, "original_x", prefix="test", step=itr)
+#                     log_images(ARGS, recon_y, "reconstruction_y", prefix="test", step=itr)
+#                     log_images(ARGS, recon_s, "reconstruction_y", prefix="test", step=itr)
+#                     log_images(ARGS, recon_random, "reconstruction_random", prefix="test", step=itr)
+#                     x_recon = inn(inn(x_val), reverse=True)
+#                     x_diff = (x_recon - x_val).abs().mean().item()
+#                     print(f"MAE of x and reconstructed x: {x_diff}")
+#                     wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
 
-        wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
+#         wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
 
-    return loss_meter.avg
+#     return loss_meter.avg
 
 
 def to_device(*tensors):
@@ -256,17 +414,19 @@ def to_device(*tensors):
     return tuple(moved)
 
 
-def log_recons(inn: PartitionedInn, x, itr: int, prefix: Optional[str] = None) -> None:
+def log_recons(inn: PartitionedAeInn, x, itr: int, prefix: Optional[str] = None) -> None:
     z = inn(x[:64])
-    recon_all, recon_y, recon_s, recon_random = inn.decode(z, partials=True)
+    recon = inn.all_recons(z, discretize=True)
     log_images(ARGS, x, "original_x", prefix=prefix, step=itr)
-    log_images(ARGS, recon_all, "reconstruction_all", prefix=prefix, step=itr)
-    log_images(ARGS, recon_y, "reconstruction_y", prefix=prefix, step=itr)
-    log_images(ARGS, recon_s, "reconstruction_s", prefix=prefix, step=itr)
-    log_images(ARGS, recon_random, "reconstruction_random", prefix=prefix, step=itr)
+    log_images(ARGS, recon.all, "recon_all", prefix=prefix, step=itr)
+    log_images(ARGS, recon.zero_s, "recon_zero_s", prefix=prefix, step=itr)
+    log_images(ARGS, recon.zero_y, "recon_zero_y", prefix=prefix, step=itr)
+    log_images(ARGS, recon.rand_s, "recon_random_s", prefix=prefix, step=itr)
+    log_images(ARGS, recon.rand_y, "recon_random_y", prefix=prefix, step=itr)
+    log_images(ARGS, recon.just_s, "recon_just_s", prefix=prefix, step=itr)
 
 
-def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, PartitionedAeInn]:
+def main_nosinn(raw_args: Optional[List[str]] = None) -> PartitionedAeInn:
     """Main function
 
     Args:
@@ -279,7 +439,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     repo = git.Repo(search_parent_directories=True)
     sha = repo.head.object.hexsha
 
-    args = NosinnArgs(explicit_bool=True, underscores_to_dashes=True)
+    args = NosinnArgs(explicit_bool=True, underscores_to_dashes=True, fromfile_prefix_chars="@")
     args.parse_args(raw_args)
     use_gpu = torch.cuda.is_available() and args.gpu >= 0
     random_seed(args.seed, use_gpu)
@@ -290,7 +450,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     args_dict = args.as_dict()
 
     if ARGS.use_wandb:
-        wandb.init(project="nosinn", config=args_dict)
+        wandb.init(project="fdm2", config=args_dict)
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -438,23 +598,23 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
             torch.save(
                 {"model": autoencoder.state_dict(), "args": args_ae}, save_dir / "autoencoder"
             )
-    else:
-        inn_kwargs["input_shape"] = input_shape
-        inn_kwargs["model"] = inn_fn(args, input_shape)
-        inn = PartitionedInn(**inn_kwargs)
-        inn.to(args.device)
-        enc_shape = inn.output_dim
+    # else:
+    #     inn_kwargs["input_shape"] = input_shape
+    #     inn_kwargs["model"] = inn_fn(args, input_shape)
+    #     inn = PartitionedInn(**inn_kwargs)
+    #     inn.to(args.device)
+    #     enc_shape = inn.output_dim
 
     if ARGS.train_on_recon:
         disc_input_shape = input_shape
     else:
-        if ARGS.mask_disc:
-            disc_input_shape = (inn.zy_dim + inn.zs_dim,)
-        else:
-            disc_input_shape = (inn.zy_dim,)
+        assert ARGS.mask_disc
+        disc_input_shape = (inn.output_dim,)
 
-    print(f"zs dim: {inn.zs_dim}")
-    print(f"zy dim: {inn.zy_dim}")
+    enc_sizes = inn.encoding_size
+    print(f"zs dim: {enc_sizes.zs}")
+    print(f"zy dim: {enc_sizes.zy}")
+    print(f"zn dim: {enc_sizes.zn}")
 
     # Initialise Discriminators
     disc_optimizer_kwargs = {"lr": ARGS.disc_lr}
@@ -517,23 +677,23 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
 
         itr = train(inn, disc_ensemble, pretrain_loader, task_train_loader, epoch=epoch)
 
-        if epoch % ARGS.val_freq == 0:
-            val_loss = validate(inn, disc_ensemble, val_loader, itr)
+        # if epoch % ARGS.val_freq == 0:
+        #     val_loss = validate(inn, disc_ensemble, val_loader, itr)
 
-            if val_loss < best_loss:
-                best_loss = val_loss
-                save_model(args, save_dir, inn, disc_ensemble, epoch=epoch, sha=sha, best=True)
-                n_vals_without_improvement = 0
-            else:
-                n_vals_without_improvement += 1
+        #     if val_loss < best_loss:
+        #         best_loss = val_loss
+        #         save_model(args, save_dir, inn, disc_ensemble, epoch=epoch, sha=sha, best=True)
+        #         n_vals_without_improvement = 0
+        #     else:
+        #         n_vals_without_improvement += 1
 
-            LOGGER.info(
-                "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
-                "No improvement during validation: {:02d}",
-                epoch,
-                val_loss,
-                n_vals_without_improvement,
-            )
+        #     LOGGER.info(
+        #         "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
+        #         "No improvement during validation: {:02d}",
+        #         epoch,
+        #         val_loss,
+        #         n_vals_without_improvement,
+        #     )
         if ARGS.super_val and epoch % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=itr)
             save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)

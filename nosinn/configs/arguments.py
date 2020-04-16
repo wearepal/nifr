@@ -137,6 +137,22 @@ class SharedArgs(Tap):
         if self.super_val_freq < 0:
             raise ValueError("frequency cannot be negative")
 
+    def convert_arg_line_to_args(self, arg_line: str) -> List[str]:
+        # parse each line like a YAML file
+        arg_line = arg_line.split("#", maxsplit=1)[0]  # split off comments
+        if not arg_line.strip():  # empty line
+            return []
+        key, value = arg_line.split(sep=":", maxsplit=1)
+        key = key.strip()
+        value = value.strip()
+        if value[0] == '"' and value[-1] == '"':  # if wrapped in quotes, don't split further
+            values = [value[1:-1]]
+        else:
+            values = value.split()
+        if self._underscores_to_dashes:
+            key = key.replace("_", "-")
+        return [f"--{key}"] + values
+
 
 class NosinnArgs(SharedArgs):
     # INN settings
@@ -182,8 +198,10 @@ class NosinnArgs(SharedArgs):
     nll_weight: float = 1e-2
     pred_s_weight: float = 1
     recon_stability_weight: float = 0
+    jit: bool = False
     gp_weight: float = 0
     skip_disc_steps: int = 1
+    num_disc_updates: int = 1
 
     path_to_ae: str = ""
 
