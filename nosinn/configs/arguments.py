@@ -89,6 +89,7 @@ class SharedArgs(Tap):
     padding: int = 2  # by how many pixels to pad the input images
     quant_level: Literal["3", "5", "8"] = "8"  # number of bits that encode color
     input_noise: bool = True  # add uniform noise to the input
+    filter_labels: List[int] = []
 
     # CelebA settings
     celeba_sens_attr: List[CELEBATTRS] = ["Male"]
@@ -181,6 +182,7 @@ class NosinnArgs(SharedArgs):
     ae_epochs: int = 5
     ae_loss: Literal["l1", "l2", "huber", "ce", "mixed"] = "l2"
     ae_loss_weight: float = 1
+    ae_lr: float = 1e-3
     vae: bool = False
     kl_weight: float = 0.1
 
@@ -200,7 +202,6 @@ class NosinnArgs(SharedArgs):
     recon_stability_weight: float = 0
     jit: bool = False
     gp_weight: float = 0
-    skip_disc_steps: int = 1
     num_disc_updates: int = 1
 
     path_to_ae: str = ""

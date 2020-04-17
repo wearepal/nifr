@@ -45,7 +45,7 @@ from nosinn.utils import (
 )
 
 from .evaluation import log_metrics
-from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
+from .loss import MixedLoss, PixelCrossEntropy
 from .utils import get_data_dim, log_images, restore_model, save_model
 
 __all__ = ["main_nosinn"]
@@ -124,14 +124,12 @@ def update(
     disc_ensemble.eval()
     inn.train()
     logging_dict = {}
-    do_recon_stability = (
-        isinstance(inn, PartitionedAeInn) and ARGS.train_on_recon and ARGS.recon_stability_weight > 0
-    )
+    do_recon_stability = ARGS.train_on_recon and ARGS.recon_stability_weight > 0
 
     # ================================ NLL loss for training set ================================
     # the following code is also in inn.routine() but we need to access ae_enc directly
     zero = x_t.new_zeros((x_t.size(0), 1))
-    if do_recon_stability:
+    if do_recon_stability and isinstance(inn, PartitionedAeInn):
         (enc, sum_ldj), ae_enc = inn.forward(x_t, logdet=zero, reverse=False, return_ae_enc=True)
     else:
         enc, sum_ldj = inn.forward(x_t, logdet=zero, reverse=False)
@@ -147,11 +145,12 @@ def update(
     nll *= 0.5  # take average of the two nll losses
 
     # =================================== recon stability loss ====================================
-    if do_recon_stability:
+    recon_loss = x_t.new_zeros(())
+    if do_recon_stability and isinstance(inn, PartitionedAeInn):
         disc_input, ae_recon = get_disc_input(inn, enc, invariant_to="s", with_ae_enc=True)
         disc_input_y, ae_recon_y = get_disc_input(inn, enc, invariant_to="y", with_ae_enc=True)
-        recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_recon, ae_enc)
-        recon_loss = ARGS.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc)
+        recon_loss += ARGS.recon_stability_weight * F.mse_loss(ae_recon, ae_enc)
+        recon_loss += ARGS.recon_stability_weight * F.mse_loss(ae_recon_y, ae_enc)
     else:
         disc_input = get_disc_input(inn, enc, invariant_to="s")
         disc_input_y = get_disc_input(inn, enc, invariant_to="y")
@@ -555,11 +554,15 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> PartitionedAeInn:
             )
 
         autoencoder: AutoEncoder
+        ae_opt = {"lr": ARGS.ae_lr}
         if ARGS.vae:
-            autoencoder = VAE(encoder=encoder, decoder=decoder, kl_weight=ARGS.kl_weight)
+            autoencoder = VAE(
+                encoder=encoder, decoder=decoder, kl_weight=ARGS.kl_weight, optimizer_kwargs=ae_opt
+            )
         else:
-            autoencoder = AutoEncoder(encoder=encoder, decoder=decoder)
+            autoencoder = AutoEncoder(encoder=encoder, decoder=decoder, optimizer_kwargs=ae_opt)
 
+        print(f"AE encoding shape: {enc_shape}")
         inn_kwargs["input_shape"] = enc_shape
         inn_kwargs["autoencoder"] = autoencoder
         inn_kwargs["model"] = inn_fn(args, inn_kwargs["input_shape"])

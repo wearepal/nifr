@@ -1,6 +1,7 @@
 from typing import NamedTuple, Optional
 
-from torch.utils.data import Dataset, random_split
+import numpy as np
+from torch.utils.data import Dataset, random_split, Subset
 from torchvision import transforms
 from torchvision.datasets import MNIST
 from ethicml.data import create_genfaces_dataset
@@ -48,12 +49,27 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         if args.input_noise:
             base_aug.append(NoisyDequantize(int(args.quant_level)))
         train_data = MNIST(root=args.root, download=True, train=True)
+        test_data = MNIST(root=args.root, download=True, train=False)
+
+        num_classes = 10
+        if args.filter_labels:
+            num_classes = len(args.filter_labels)
+
+            def _filter(dataset: MNIST):
+                targets: np.ndarray[np.int64] = dataset.targets.numpy()
+                final_mask = np.zeros_like(targets, dtype=np.bool_)
+                for index, label in enumerate(args.filter_labels):
+                    mask = targets == label
+                    targets = np.where(mask, index, targets)
+                    final_mask |= mask
+                dataset.targets = targets
+                return Subset(dataset, final_mask.nonzero()[0])
+
+            train_data, test_data = _filter(train_data), _filter(test_data)
 
         pretrain_len = round(args.pretrain_pcnt * len(train_data))
         train_len = len(train_data) - pretrain_len
         pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
-
-        test_data = MNIST(root=args.root, download=True, train=False)
 
         colorizer = LdColorizer(
             scale=args.scale,
@@ -61,32 +77,33 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             black=args.black,
             binarize=args.binarize,
             greyscale=args.greyscale,
+            color_indices=args.filter_labels or None,
         )
 
         pretrain_data = LdAugmentedDataset(
             pretrain_data,
             ld_augmentations=colorizer,
-            num_classes=10,
+            num_classes=num_classes,
             li_augmentation=True,
             base_augmentations=data_aug + base_aug,
         )
         train_data = LdAugmentedDataset(
             train_data,
             ld_augmentations=colorizer,
-            num_classes=10,
+            num_classes=num_classes,
             li_augmentation=False,
             base_augmentations=data_aug + base_aug,
         )
         test_data = LdAugmentedDataset(
             test_data,
             ld_augmentations=colorizer,
-            num_classes=10,
+            num_classes=num_classes,
             li_augmentation=True,
             base_augmentations=base_aug,
         )
 
-        args.y_dim = 10
-        args.s_dim = 10
+        args.y_dim = 1 if num_classes == 2 else num_classes
+        args.s_dim = 1 if num_classes == 2 else num_classes
 
     elif args.dataset == "ssrp":
         image_size = 64

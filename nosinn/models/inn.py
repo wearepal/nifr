@@ -10,7 +10,7 @@ from nosinn.configs import NosinnArgs
 from nosinn.layers import Bijector
 from nosinn.utils import DLogistic, MixtureDistribution, logistic_distribution, to_discrete
 
-from .autoencoder import AutoEncoder
+from .autoencoder import AutoEncoder, VAE
 from .base import ModelBase
 
 __all__ = ["PartitionedAeInn", "BipartiteInn"]
@@ -209,8 +209,10 @@ class PartitionedAeInn(BipartiteInn):
     def all_recons(self, z: Tensor, discretize: bool = False) -> Reconstructions:
         rand_s, rand_y = self.mask(z, random=True)
         zero_s, zero_y = self.mask(z)
-        z = self.split_encoding(z)
-        just_s = torch.cat([z.s, torch.zeros_like(z.y), torch.zeros_like(z.n)], dim=1)
+        splits = self.split_encoding(z)
+        just_s = torch.cat(
+            [splits.s, torch.zeros_like(splits.y), torch.zeros_like(splits.n)], dim=1
+        )
         return Reconstructions(
             all=self.decode(z, discretize=discretize),
             rand_s=self.decode(rand_s, discretize=discretize),
@@ -275,7 +277,10 @@ class PartitionedAeInn(BipartiteInn):
             ae_enc, _ = self.model(inputs, sum_ldj=logdet, reverse=reverse)
             outputs = self.autoencoder.decode(ae_enc)
         else:
-            ae_enc = self.autoencoder.encode(inputs)
+            if isinstance(self.autoencoder, VAE):
+                ae_enc = self.autoencoder.encode(inputs, stochastic=True)
+            else:
+                ae_enc = self.autoencoder.encode(inputs)
             outputs, sum_ldj = self.model(ae_enc, sum_ldj=logdet, reverse=reverse)
             if sum_ldj is not None:
                 outputs = (outputs, sum_ldj)

@@ -5,6 +5,7 @@ import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as F
 from tqdm import tqdm
+from typing_extensions import Literal
 
 from .base import ModelBase
 
@@ -99,7 +100,15 @@ class AutoEncoder(nn.Module):
 
 
 class VAE(AutoEncoder):
-    def __init__(self, encoder, decoder, kl_weight=0.1, decode_with_s=False, optimizer_kwargs=None):
+    def __init__(
+        self,
+        encoder,
+        decoder,
+        kl_weight: float = 0.1,
+        decode_with_s: bool = False,
+        std_transform: Literal["softplus", "exp"] = "exp",
+        optimizer_kwargs=None,
+    ):
         super().__init__(
             encoder=encoder,
             decoder=decoder,
@@ -112,6 +121,7 @@ class VAE(AutoEncoder):
         self.prior = td.Normal(0, 1)
         self.posterior_fn = td.Normal
         self.kl_weight = kl_weight
+        self.std_transform = std_transform
 
     def compute_divergence(self, sample, posterior: td.Distribution):
         log_p = self.prior.log_prob(sample)
@@ -125,7 +135,10 @@ class VAE(AutoEncoder):
         loc, scale = self.encoder(x).chunk(2, dim=1)
 
         if stochastic or return_posterior:
-            scale = F.softplus(scale)
+            if self.std_transform == "softplus":
+                scale = F.softplus(scale)
+            else:
+                scale = torch.exp(0.5 * scale).clamp(min=0.005, max=3.0)
             posterior = self.posterior_fn(loc, scale)
 
         sample = posterior.rsample() if stochastic else loc
@@ -141,7 +154,7 @@ class VAE(AutoEncoder):
 
         decoder_input = sample
         recon = self.decode(decoder_input, s)
-        recon_loss = recon_loss_fn(recon, s)
+        recon_loss = recon_loss_fn(recon, x)
 
         # denom = x.nelement()
         denom = x.size(0)
