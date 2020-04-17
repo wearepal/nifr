@@ -14,15 +14,37 @@ def nice_plot(
     y_axis: Union[str, Tuple[str, str]],
     x_axis: Union[str, Tuple[str, str]] = ("Mix_fact", "mixing factor"),
     title: Optional[str] = None,
+    i_hate_fun: bool = False,
+    no_lines: bool = False,
+    with_markers: bool = False,
+    **kwargs,
 ) -> plt.Axes:
     y_key, y_name = (y_axis[0], y_axis[1]) if isinstance(y_axis, tuple) else (y_axis, y_axis)
     x_key, x_name = (x_axis[0], x_axis[1]) if isinstance(x_axis, tuple) else (x_axis, x_axis)
-    fig, plot = plt.subplots(figsize=(3, 2), dpi=200)
-    assert len(results) <= 4, "we only have 4 line styles right now"
-    for linestyle, (key, result) in zip(["-", "--", ":", "-."], results.items()):
-        plot.errorbar(
-            result[x_key], result[y_key], marker="", label=key, linestyle=linestyle, linewidth=2.5
-        )
+    plot_kwargs = {"figsize": (3, 2), "dpi": 200, **kwargs}
+    fig, plot = plt.subplots(**plot_kwargs, facecolor="white")
+    assert i_hate_fun or len(results) <= 5, "we only have 5 line styles right now"
+    linestyles = ["-"] * 100 if i_hate_fun else ["-", "--", ":", "-.", (0, (5, 5))]
+    markerstyles = ["o", "s", "x", "+", "<", ">"]
+    marker = 0
+    for linestyle, (key, result) in zip(linestyles, results.items()):
+        try:
+            if not no_lines:
+                plot.plot(
+                    result[x_key],
+                    result[y_key],
+                    marker=markerstyles[marker] if with_markers else "",
+                    label=key,
+                    linestyle=linestyle,
+                    linewidth=2.5,
+                )
+                marker += 1
+            else:
+                plot.plot(
+                    result[x_key], result[y_key], label=key, marker=markerstyles[marker], linestyle="")
+                marker += 1
+        except:
+            pass
     plot.grid(True)
     # get handles and labels for the legend
     handles, labels = plot.get_legend_handles_labels()
@@ -33,4 +55,4 @@ def nice_plot(
     plot.set_ylabel(y_name)
     if title is not None:
         plot.set_title(title)
-    return plot
+    return fig, plot
