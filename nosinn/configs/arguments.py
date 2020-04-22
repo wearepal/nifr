@@ -117,6 +117,7 @@ class SharedArgs(Tap):
     eval_epochs: int = 40
     eval_lr: float = 1e-3
     encode_batch_size: int = 1000
+    eval_on_recon: bool = True
 
     # Misc
     gpu: int = 0  # which GPU to use (if available)

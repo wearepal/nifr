@@ -1,7 +1,5 @@
-import random
-import types
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -11,6 +9,7 @@ from captum.attr import visualization as viz
 from matplotlib import cm
 from torch.utils.data import DataLoader, Dataset, TensorDataset
 from tqdm import tqdm
+from typing_extensions import Literal
 
 import wandb
 from ethicml.algorithms.inprocess import LR
@@ -19,7 +18,7 @@ from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
 from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.data import DatasetTriplet, get_data_tuples
-from nosinn.models import BipartiteInn, Classifier
+from nosinn.models import PartitionedAeInn, Classifier
 from nosinn.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from nosinn.utils import wandb_log
 
@@ -44,86 +43,42 @@ def log_metrics(
 ):
     """Compute and log a variety of metrics"""
     model.eval()
-    print("Encoding task dataset...")
-    task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
-    print("Encoding task train dataset...")
-    task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
+    print("Encoding training set...")
+    train_inv_s = encode_dataset(
+        args, data.train, model, recons=args.eval_on_recon, invariant_to="s"
+    )
+    if args.eval_on_recon:
+        # don't encode test dataset
+        test_repr = data.test
+    else:
+        test_repr = encode_dataset(args, data.test, model, recons=False, invariant_to="s")
 
     print("\nComputing metrics...")
-    _, clf = evaluate(
+    evaluate(
         args,
         step,
-        task_train_repr["xy"],
-        task_repr["xy"],
-        name="xy",
-        train_on_recon=True,
+        train_inv_s,
+        test_repr,
+        name="x_rand_s",
+        eval_on_recon=args.eval_on_recon,
         pred_s=False,
         save_to_csv=save_to_csv,
     )
 
-    if feat_attr and args.dataset != "adult":
-        print("Creating feature attribution maps...")
-        save_dir = Path(args.save_dir) / "feat_attr_maps"
-        save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
-        pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
-        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
-
-        orig_correct = pred_orig == actual
-        deb_correct = pred_deb == actual
-        diff = (deb_correct.bool() & actual.bool()) ^ (deb_correct.bool() ^ orig_correct.bool())
-        cand_inds = torch.arange(end=actual.size(0))[diff].tolist()
-
-        num_samples = min(actual.size(0), 50)
-        inds = random.sample(cand_inds, num_samples)
-
-        if data.y_dim == 1:
-
-            def _binary_clf_fn(self, _input):
-                out = self.model(_input).sigmoid()
-                return torch.cat([1 - out, out], dim=-1)
-
-            clf.forward = types.MethodType(_binary_clf_fn, clf)
-
-        clf.cpu()
-
-        for k, _ in enumerate(inds):
-            image_orig, _, target_orig = data.task[k]
-            image_deb, _, target_deb = task_repr["xy"][k]
-
-            if image_orig.dim() == 3:
-                feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-                feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_orig_{k}.png")
-
-                feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_deb{k}.png")
-
-        clf.to(args.device)
-
-    # print("===> Predict y from xy")
-    # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
-    # print("===> Predict s from xy")
-    # evaluate(args, experiment, task_train_repr['xy'], task_repr['xy'], name='xy', pred_s=True)
-
-    if quick_eval:
-        log_sample_images(args, data.task_train, "task_train", step=step)
-    else:
-
-        if args.dataset == "adult":
-            task_data, task_train_data = get_data_tuples(data.task, data.task_train)
-            data = DatasetTriplet(
-                pretrain=None,
-                task=task_data,
-                task_train=task_train_data,
-                s_dim=data.s_dim,
-                y_dim=data.y_dim,
-            )
-
-        # ===========================================================================
-
-        evaluate(args, step, task_train_repr["zy"], task_repr["zy"], name="zy")
-        evaluate(args, step, task_train_repr["zs"], task_repr["zs"], name="zs")
-        evaluate(args, step, task_train_repr["xy"], task_repr["xy"], name="xy")
-        evaluate(args, step, task_train_repr["xs"], task_repr["xs"], name="xs")
+    print("Encoding training dataset (random y)...")
+    train_rand_y = encode_dataset(
+        args, data.train, model, recons=args.eval_on_recon, invariant_to="y"
+    )
+    evaluate(
+        args,
+        step,
+        train_rand_y,
+        test_repr,
+        name="x_rand_y",
+        eval_on_recon=args.eval_on_recon,
+        pred_s=False,
+        save_to_csv=save_to_csv,
+    )
 
 
 def compute_metrics(
@@ -238,11 +193,11 @@ def evaluate(
     train_data,
     test_data,
     name: str,
-    train_on_recon: bool = True,
+    eval_on_recon: bool = True,
     pred_s: bool = False,
     save_to_csv: Optional[Path] = None,
 ):
-    input_dim = next(iter(train_data))[0].shape[0]
+    input_shape = next(iter(train_data))[0].shape
 
     if args.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
 
@@ -255,9 +210,9 @@ def evaluate(
 
         clf: Classifier = fit_classifier(
             args,
-            input_dim,
+            input_shape,
             train_data=train_data,
-            train_on_recon=train_on_recon,
+            train_on_recon=eval_on_recon,
             pred_s=pred_s,
             test_data=test_data,
         )
@@ -279,7 +234,7 @@ def evaluate(
 
     full_name = f"{args.dataset}_{name}"
     full_name += "_s" if pred_s else "_y"
-    full_name += "_on_recons" if train_on_recon else "_on_encodings"
+    full_name += "_on_recons" if eval_on_recon else "_on_encodings"
     metrics = compute_metrics(args, preds, actual, full_name, run_all=args.y_dim == 1, step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
@@ -309,53 +264,51 @@ def evaluate(
 def encode_dataset(
     args: SharedArgs,
     data: Dataset,
-    model: BipartiteInn,
-    recon: bool,
-    subdir: str,
-    get_zy: bool = False,
+    model: PartitionedAeInn,
+    recons: bool,
+    invariant_to: Literal["s", "y"] = "s",
 ) -> Dict[str, torch.utils.data.Dataset]:
 
-    encodings: Dict[str, List[torch.Tensor]] = {"xy": []}
-    if get_zy:
-        encodings["zy"] = []
+    all_x_m = []
     all_s = []
     all_y = []
 
-    data = DataLoader(
+    data_loader = DataLoader(
         data, batch_size=args.encode_batch_size, pin_memory=True, shuffle=False, num_workers=4
     )
 
     with torch.set_grad_enabled(False):
-        for _, (x, s, y) in enumerate(tqdm(data)):
+        for x, s, y in tqdm(data_loader):
 
             x = x.to(args.device, non_blocking=True)
             all_s.append(s)
             all_y.append(y)
 
-            _, zy, zs = model.encode(x, partials=True)
+            enc = model.encode(x)
+            if recons:
+                zs_m, zy_m = model.mask(enc, random=True)
+                z_m = zs_m if invariant_to == "s" else zy_m
+                x_m = model.decode(z_m, discretize=True)
 
-            zs_m = torch.cat([zy, torch.randn_like(zs)], dim=1)
-            xy = model.invert(zs_m)
+                if args.dataset in ("celeba", "ssrp", "genfaces"):
+                    x_m = 0.5 * x_m + 0.5
+                if x.dim() > 2:
+                    x_m = x_m.clamp(min=0, max=1)
+            else:
+                zs_m, zy_m = model.mask(enc)
+                # `zs_m` has zs zeroed out
+                x_m = zs_m if invariant_to == "s" else zy_m
 
-            if args.dataset in ("celeba", "ssrp", "genfaces"):
-                xy = 0.5 * xy + 0.5
+            all_x_m.append(x_m.detach().cpu())
 
-            if x.dim() > 2:
-                xy = xy.clamp(min=0, max=1)
-
-            encodings["xy"].append(xy.detach().cpu())
-            if get_zy:
-                encodings["zy"].append(zy.detach().cpu())
-
+    all_x_m = torch.cat(all_x_m, dim=0)
     all_s = torch.cat(all_s, dim=0)
     all_y = torch.cat(all_y, dim=0)
 
-    encodings_dt: Dict[str, torch.utils.data.Dataset] = {}
-    encodings_dt["xy"] = TensorDataset(torch.cat(encodings["xy"], dim=0), all_s, all_y)
-    if get_zy:
-        encodings_dt["zy"] = TensorDataset(torch.cat(encodings["zy"], dim=0), all_s, all_y)
+    encoded_dataset = TensorDataset(all_x_m, all_s, all_y)
+    print("Done.")
 
-    return encodings_dt
+    return encoded_dataset
 
     # path = Path("data", "encodings", subdir)
     # if os.path.exists(path):
