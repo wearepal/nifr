@@ -404,7 +404,7 @@ def train(
                 f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
             )
 
-        else:
+        if disc_conf_counter >= ARGS.disc_conf_iters:
             LOGGER.info(
                 f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
                 f"{disc_inner_iters} iteration(s). Now updating the INN."
