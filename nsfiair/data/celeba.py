@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List
+from typing import List, Sequence
 
 import pandas as pd
 import torch
@@ -9,7 +9,14 @@ from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import check_integrity, download_file_from_google_drive
 from torchvision.transforms import ToTensor
 
-from ethicml.preprocessing import SequentialSplit, get_biased_subset, train_test_split
+from ethicml.preprocessing import (
+    SequentialSplit,
+    get_biased_subset,
+    train_test_split,
+    ProportionalSplit,
+    query_dt,
+)
+from ethicml.preprocessing.domain_adaptation import make_valid_variable_name
 from ethicml.utility import DataTuple
 from nsfiair.configs import CELEBATTRS
 
@@ -99,6 +106,13 @@ class CelebA(VisionDataset):
             gender = (all_data["Male"] + 1) // 2  # map from {-1, 1} to {0, 1}
             age = (all_data["Young"] + 1) // 2  # map from {-1, 1} to {0, 1}
             sens_attr = (gender * 2 + age).to_frame(name="agender")
+            print(
+                "\n".join(
+                    f"agender: {gender * 2 + age}, gender: {gender}, age: {age}"
+                    for age in (0, 1)
+                    for gender in (0, 1)
+                )
+            )
         elif len(sens_attrs) > 1:
             if any(sens_attr_name not in attr_names for sens_attr_name in sens_attrs):
                 raise ValueError(f"at least one of {sens_attrs} does not exist as an attribute.")
@@ -133,11 +147,14 @@ class CelebA(VisionDataset):
             unbiased_dt, biased_dt = train_test_split(all_dt, unbiased_pcnt, random_seed=seed)
 
         if biased:
-            if self.s_dim > 1 and mixing_factor not in (0, 1):
-                raise ValueError("multi-valued s can't be used with mixing")
-            biased_dt, _ = get_biased_subset(
-                data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
-            )
+            if self.s_dim > 1:
+                if mixing_factor not in (0, 1):
+                    raise ValueError("multi-valued s can't be used with mixing")
+                biased_dt = select_biased_subset(biased_dt, (1, 2), (0, 3))
+            else:
+                biased_dt, _ = get_biased_subset(
+                    data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
+                )
             filename, sens_attr, target_attr = biased_dt
         else:
             filename, sens_attr, target_attr = unbiased_dt
@@ -198,6 +215,23 @@ class CelebA(VisionDataset):
     def extra_repr(self):
         lines = ["Target type: {target_type}", "Split: {split}"]
         return "\n".join(lines).format(**self.__dict__)
+
+
+def select_biased_subset(
+    data: DataTuple, s_for_y0: Sequence[int], s_for_y1: Sequence[int]
+) -> DataTuple:
+    """Get the subset where s and y are equal to the given pairs."""
+    s_name = data.s.columns[0]
+    y_name = data.y.columns[0]
+
+    s_name = make_valid_variable_name(s_name)
+    y_name = make_valid_variable_name(y_name)
+    query_str = f"({y_name} == 0 & (" + " | ".join(f"{s_name} == {s}" for s in s_for_y0) + "))"
+    query_str += f" | ({y_name} == 1 & (" + " | ".join(f"{s_name} == {s}" for s in s_for_y1) + "))"
+    print(query_str)
+    biased = query_dt(data, query_str)
+    # antibiased = query_dt(data, f"~({query_str})")
+    return biased  # , antibiased
 
 
 if __name__ == "__main__":
