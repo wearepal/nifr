@@ -1,13 +1,13 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="NoSINN",
+    name="NSFIAIR",
     version="0.2.0",
     author="T. Kehrenberg, M. Bartlett, O. Thomas",
     packages=find_packages(),
-    description="Invertible Networks for Learning Fair Representations",
+    description="Null-sampling for Invariant and Interpretable Representations",
     python_requires=">=3.6",
-    package_data={"nosinn": ["py.typed"]},
+    package_data={"nsfiair": ["py.typed"]},
     install_requires=[
         "captum",
         "numpy >= 1.15",

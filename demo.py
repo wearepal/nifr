@@ -1,4 +1,4 @@
-"""Script to demo the NoSiNN-trained INN's debiasing of face images.
+"""Script to demo the INN's debiasing of face images.
 """
 import argparse
 from pathlib import Path
@@ -9,7 +9,7 @@ from PIL import Image
 from torchvision.transforms import CenterCrop, Resize, ToTensor
 from torchvision.utils import save_image
 
-from nosinn.models import PartitionedInn, build_conv_inn
+from nsfiair.models import PartitionedInn, build_conv_inn
 
 _INPUT_SHAPE = (3, 64, 64)
 
@@ -21,7 +21,7 @@ def main():
     parser.add_argument("--image-path", help="File path of the data sample to be transformed.")
     parser.add_argument(
         "--save-path",
-        default="nosinned-image.png",
+        default="null-sampled-image.png",
         help="Where to save the transformed data sample to.",
     )
     demo_args = parser.parse_args()

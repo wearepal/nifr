@@ -5,7 +5,7 @@ topic="adult_ae"
 for mix_fact in "0.0" "0.1" "0.2" "0.3" "0.4" "0.5" "0.6" "0.7" "0.8" "0.9" "1.0"
 do
 
-python start_nosinn.py \
+python start_nsfiair.py \
 --ae-channels 61 \
 --ae-enc-dim 35 \
 --ae-epochs 60 \
