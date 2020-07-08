@@ -17,8 +17,15 @@ from nsfiair.configs import InnArgs
 from nsfiair.data import DatasetTriplet, load_dataset
 from nsfiair.models import PartitionedInn, build_conv_inn, build_discriminator, build_fc_inn
 from nsfiair.models.configs import ModelFn, fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
-from nsfiair.utils import (AverageMeter, count_parameters, get_logger, iter_forever, random_seed,
-                           readable_duration, wandb_log)
+from nsfiair.utils import (
+    AverageMeter,
+    count_parameters,
+    get_logger,
+    iter_forever,
+    random_seed,
+    readable_duration,
+    wandb_log,
+)
 
 from .evaluation import log_metrics
 from .utils import get_data_dim, log_images, restore_model, save_model
