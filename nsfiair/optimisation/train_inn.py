@@ -402,7 +402,7 @@ def train(
 
             LOGGER.info(
                 f"Current error-rate: {error_rate}."
-                f"\nN new best error-rate achieved for "
+                f"\nNo new best error-rate achieved for "
                 f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
             )
 
