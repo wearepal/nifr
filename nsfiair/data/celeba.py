@@ -94,7 +94,12 @@ class CelebA(VisionDataset):
 
         attr_names = list(attrs.columns)
 
-        if len(sens_attrs) > 1:
+        if len(sens_attrs) == 2 and ("Male" in sens_attrs) and ("Young" in sens_attrs):
+            self.s_dim = 4
+            gender = (all_data["Male"] + 1) // 2  # map from {-1, 1} to {0, 1}
+            age = (all_data["Young"] + 1) // 2  # map from {-1, 1} to {0, 1}
+            sens_attr = (gender * 2 + age).to_frame(name="agender")
+        elif len(sens_attrs) > 1:
             if any(sens_attr_name not in attr_names for sens_attr_name in sens_attrs):
                 raise ValueError(f"at least one of {sens_attrs} does not exist as an attribute.")
             # only use those samples where exactly one of the specified attributes is true
@@ -128,10 +133,11 @@ class CelebA(VisionDataset):
             unbiased_dt, biased_dt = train_test_split(all_dt, unbiased_pcnt, random_seed=seed)
 
         if biased:
-            if self.s_dim == 1:  # FIXME: biasing the dataset only works with binary s right now
-                biased_dt, _ = get_biased_subset(
-                    data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
-                )
+            if self.s_dim > 1 and mixing_factor not in (0, 1):
+                raise ValueError("multi-valued s can't be used with mixing")
+            biased_dt, _ = get_biased_subset(
+                data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
+            )
             filename, sens_attr, target_attr = biased_dt
         else:
             filename, sens_attr, target_attr = unbiased_dt
