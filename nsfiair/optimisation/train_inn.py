@@ -409,6 +409,7 @@ def train(
             )
             disc_conf_counter = 0
             inn_iters += 1
+            disc_inner_iters = 0
         else:
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = logging_dict["Accuracy (Disc.)"]
@@ -429,7 +430,7 @@ def train(
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
-        if (inn_iters > 0) and (inn_iters % ARGS.val_freq == 0):
+        if (disc_inner_iters == 0) and (inn_iters % ARGS.val_freq == 0):
             time_for_epoch = time.time() - start_epoch_time
             start_epoch_time = time.time()
             assert loss_meters is not None
