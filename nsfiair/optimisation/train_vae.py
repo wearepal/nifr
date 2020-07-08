@@ -272,7 +272,7 @@ def main_vae(raw_args=None) -> None:
     args_dict = args.as_dict()
 
     if ARGS.use_wandb:
-        wandb.init(project="nsfiair", config=args_dict)
+        wandb.init(project="nosinn", config=args_dict)
 
     save_dir = Path(ARGS.save_dir) / str(time.time())
     save_dir.mkdir(parents=True, exist_ok=True)
