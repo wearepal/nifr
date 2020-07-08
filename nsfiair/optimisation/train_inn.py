@@ -377,7 +377,7 @@ def train(
 
     inn_iters = 0
     disc_inner_iters = 0
-    disc_conf_counter = 0
+    disc_conf_counter = -1
 
     start_epoch_time = time.time()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -387,82 +387,85 @@ def train(
 
         x, s = to_device(x, s)
 
-        if disc_conf_counter == ARGS.disc_conf_iters:
-            LOGGER.info(
-                f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
-                f"{disc_inner_iters} iterations. Now updating the INN."
-            )
-            logging_dict = update_inn(
-                inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=disc_inner_iters
-            )
-            disc_conf_counter = 0
-            inn_iters += 1
-            disc_inner_iters = 0
-        else:
+        if disc_conf_counter < ARGS.disc_conf_iters:
+            LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = logging_dict["Accuracy (Disc.)"]
-            LOGGER.info(
-                f"Confirming discriminator(s). \nCurrent error-rate: {error_rate}."
-                f"\n0 error-rate achieved for "
-                f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
-            )
-
+    
             if error_rate == 0:
                 disc_conf_counter += 1
             else:
                 disc_conf_counter = 0
             disc_inner_iters += 1
 
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
-
-        if (disc_inner_iters == 0) and (inn_iters % ARGS.val_freq == 0):
-            time_for_epoch = time.time() - start_epoch_time
-            start_epoch_time = time.time()
-            assert loss_meters is not None
             LOGGER.info(
-                "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
-                inn_iters,
-                readable_duration(time_for_epoch),
-                ARGS.val_freq / time_for_epoch,
-                " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
+                "Current error-rate: {error_rate}."
+                f"\n0 error-rate achieved for "
+                f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
             )
 
-            val_loss = validate(
-                inn,
-                disc_ensemble,
-                train_loader if ARGS.dataset == "ssrp" else val_loader,
-                inn_iters,
-            )
-
-            if val_loss < best_loss:
-                best_loss = val_loss
-                save_model(ARGS, save_dir, inn, disc_ensemble, itr=inn_iters, sha=sha, best=True)
-                n_vals_without_improvement = 0
-            else:
-                n_vals_without_improvement += 1
-
-            if n_vals_without_improvement > ARGS.early_stopping > 0:
-                break
-
+        else:
             LOGGER.info(
-                "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
-                inn_iters,
-                val_loss,
-                n_vals_without_improvement,
+                f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
+                f"{disc_inner_iters} iteration(s). Now updating the INN."
             )
-        if ARGS.super_val and inn_iters % super_val_freq == 0:
-            log_metrics(ARGS, model=inn, data=datasets, step=inn_iters)
-            save_model(
-                ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha
+            logging_dict = update_inn(
+                inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=disc_inner_iters
             )
+            disc_conf_counter = -1
+            inn_iters += 1
+            disc_inner_iters = 0
 
-        for k, disc in enumerate(disc_ensemble):
-            if np.random.uniform() < ARGS.disc_reset_prob:
-                LOGGER.info("Reinitializing discriminator {}", k)
-                disc.reset_parameters()
+            if loss_meters is None:
+                loss_meters = {name: AverageMeter() for name in logging_dict}
+            for name, value in logging_dict.items():
+                loss_meters[name].update(value)
+
+            if (disc_inner_iters == 0) and (inn_iters % ARGS.val_freq == 0):
+                time_for_epoch = time.time() - start_epoch_time
+                start_epoch_time = time.time()
+                assert loss_meters is not None
+                LOGGER.info(
+                    "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
+                    inn_iters,
+                    readable_duration(time_for_epoch),
+                    ARGS.val_freq / time_for_epoch,
+                    " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
+                )
+
+                val_loss = validate(
+                    inn,
+                    disc_ensemble,
+                    train_loader if ARGS.dataset == "ssrp" else val_loader,
+                    inn_iters,
+                )
+
+                if val_loss < best_loss:
+                    best_loss = val_loss
+                    save_model(ARGS, save_dir, inn, disc_ensemble, itr=inn_iters, sha=sha, best=True)
+                    n_vals_without_improvement = 0
+                else:
+                    n_vals_without_improvement += 1
+
+                if n_vals_without_improvement > ARGS.early_stopping > 0:
+                    break
+
+                LOGGER.info(
+                    "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
+                    inn_iters,
+                    val_loss,
+                    n_vals_without_improvement,
+                )
+            if ARGS.super_val and inn_iters % super_val_freq == 0:
+                log_metrics(ARGS, model=inn, data=datasets, step=inn_iters)
+                save_model(
+                    ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha
+                )
+
+            for k, disc in enumerate(disc_ensemble):
+                if np.random.uniform() < ARGS.disc_reset_prob:
+                    LOGGER.info("Reinitializing discriminator {}", k)
+                    disc.reset_parameters()
 
     LOGGER.info("Training has finished.")
     path = save_model(
