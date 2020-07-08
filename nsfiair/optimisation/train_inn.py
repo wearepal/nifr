@@ -412,7 +412,7 @@ def train(
                 f"{disc_inner_iters} iteration(s). Now updating the INN."
             )
             logging_dict = update_inn(
-                inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=disc_inner_iters
+                inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters
             )
             disc_conf_counter = -1
             inn_iters += 1
