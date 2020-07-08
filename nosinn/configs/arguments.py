@@ -126,7 +126,7 @@ class SharedArgs(Tap):
     super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
     val_freq: int = 5
     log_freq: int = 50
-    root: str = "data"
+    root: str = ""
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False

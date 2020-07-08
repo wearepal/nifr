@@ -1,3 +1,4 @@
+import platform
 from typing import NamedTuple, Optional
 
 from torch.utils.data import Dataset, random_split
@@ -32,6 +33,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
     pretrain_data: Dataset
     test_data: Dataset
     train_data: Dataset
+    data_root = args.root or find_data_dir()
 
     # =============== get whole dataset ===================
     if args.dataset == "cmnist":
@@ -47,13 +49,13 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
             base_aug.append(Quantize(int(args.quant_level)))
         if args.input_noise:
             base_aug.append(NoisyDequantize(int(args.quant_level)))
-        train_data = MNIST(root=args.root, download=True, train=True)
+        train_data = MNIST(root=data_root, download=True, train=True)
 
         pretrain_len = round(args.pretrain_pcnt * len(train_data))
         train_len = len(train_data) - pretrain_len
         pretrain_data, train_data = random_split(train_data, lengths=(pretrain_len, train_len))
 
-        test_data = MNIST(root=args.root, download=True, train=False)
+        test_data = MNIST(root=data_root, download=True, train=False)
 
         colorizer = LdColorizer(
             scale=args.scale,
@@ -101,8 +103,8 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         transform.append(transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)))
         transform = transforms.Compose(transform)
 
-        pretrain_data = SSRP(args.root, pretrain=True, download=True, transform=transform)
-        train_test_data = SSRP(args.root, pretrain=False, download=True, transform=transform)
+        pretrain_data = SSRP(data_root, pretrain=True, download=True, transform=transform)
+        train_test_data = SSRP(data_root, pretrain=False, download=True, transform=transform)
 
         train_data, test_data = train_test_split(train_test_data, train_pcnt=(1 - args.test_pcnt))
 
@@ -126,7 +128,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
 
         unbiased_pcnt = args.test_pcnt + args.pretrain_pcnt
         unbiased_data = CelebA(
-            root=args.root,
+            root=data_root,
             sens_attrs=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
             biased=False,
@@ -142,7 +144,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
 
         train_data = CelebA(
-            root=args.root,
+            root=data_root,
             sens_attrs=args.celeba_sens_attr,
             target_attr_name=args.celeba_target_attr,
             biased=True,
@@ -173,7 +175,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
 
         unbiased_pcnt = args.test_pcnt + args.pretrain_pcnt
         unbiased_data = create_genfaces_dataset(
-            root=args.root,
+            root=data_root,
             sens_attr_name=args.genfaces_sens_attr,
             target_attr_name=args.genfaces_target_attr,
             biased=False,
@@ -189,7 +191,7 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         pretrain_data, test_data = random_split(unbiased_data, lengths=(pretrain_len, test_len))
 
         train_data = create_genfaces_dataset(
-            root=args.root,
+            root=data_root,
             sens_attr_name=args.genfaces_sens_attr,
             target_attr_name=args.genfaces_target_attr,
             biased=True,
@@ -226,3 +228,15 @@ def load_dataset(args: SharedArgs) -> DatasetTriplet:
         s_dim=args.s_dim,
         y_dim=args.y_dim,
     )
+
+
+def find_data_dir() -> str:
+    """Find data directory for the current machine based on predefined mappings."""
+    data_dirs = {
+        "fear": "/mnt/data0/data",
+        "hydra": "/mnt/archive/shared/data",
+        "m900382.inf.susx.ac.uk": "/Users/tk324/PycharmProjects/NoSINN/data",
+        "turing": "/srv/galene0/shared/data",
+    }
+    name_of_machine = platform.node()  # name of machine as reported by operating system
+    return data_dirs.get(name_of_machine, "data")
