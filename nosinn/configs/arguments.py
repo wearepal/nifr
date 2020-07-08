@@ -124,7 +124,7 @@ class SharedArgs(Tap):
     evaluate: bool = False
     super_val: bool = False  # Train classifier on encodings as part of validation step.
     super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
-    val_freq: int = 5
+    val_freq: int = 1000
     log_freq: int = 50
     root: str = ""
     use_wandb: bool = True

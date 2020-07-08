@@ -38,6 +38,7 @@ from nosinn.utils import (
     AverageMeter,
     count_parameters,
     get_logger,
+    iter_forever,
     random_seed,
     readable_duration,
     wandb_log,
@@ -126,74 +127,43 @@ def compute_loss(
     return loss, logging_dict
 
 
-def train(
+def update_model(
     inn: Union[PartitionedInn, PartitionedAeInn],
     disc_ensemble: nn.ModuleList,
-    dataloader: DataLoader,
-    epoch: int,
-) -> int:
+    x: Tensor,
+    s: Tensor,
+    y: Tensor,
+    itr: int,
+) -> Dict[str, float]:
     inn.train()
     disc_ensemble.train()
 
-    total_loss_meter = AverageMeter()
-    loss_meters: Optional[Dict[str, AverageMeter]] = None
+    # total_loss_meter = AverageMeter()
 
-    time_meter = AverageMeter()
-    start_epoch_time = time.time()
-    end = start_epoch_time
-    itr = start_itr = (epoch - 1) * len(dataloader)
+    x, s, y = to_device(x, s, y)
 
-    for itr, (x, s, y) in enumerate(dataloader, start=start_itr):
+    loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
 
-        x, s, y = to_device(x, s, y)
+    inn.zero_grad()
 
-        loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
+    for disc in disc_ensemble:
+        disc.zero_grad()
 
-        inn.zero_grad()
+    loss.backward()
+    inn.step()
 
-        for disc in disc_ensemble:
-            disc.zero_grad()
+    for disc in disc_ensemble:
+        disc.step()
 
-        loss.backward()
-        inn.step()
+    # Log losses
+    # total_loss_meter.update(loss.item())
+    wandb_log(ARGS, logging_dict, step=itr)
 
-        for disc in disc_ensemble:
-            disc.step()
-
-        # Log losses
-        total_loss_meter.update(loss.item())
-        if loss_meters is None:
-            loss_meters = {name: AverageMeter() for name in logging_dict}
-        for name, value in logging_dict.items():
-            loss_meters[name].update(value)
-
-        time_for_batch = time.time() - end
-        time_meter.update(time_for_batch)
-
-        wandb_log(ARGS, logging_dict, step=itr)
-        end = time.time()
-
-        # Log images
-        if itr % ARGS.log_freq == 0:
-            with torch.set_grad_enabled(False):
-                log_recons(inn, x, itr)
-        if itr == 0 and ARGS.jit:
-            LOGGER.info(
-                "JIT compilation (for training) completed in {}", readable_duration(time_for_batch)
-            )
-
-    time_for_epoch = time.time() - start_epoch_time
-    assert loss_meters is not None
-    log_string = " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items())
-    LOGGER.info(
-        "[TRN] Epoch {:04d} | Duration: {} | Batches/s: {:.4g} | {} ({:.5g})",
-        epoch,
-        readable_duration(time_for_epoch),
-        1 / time_meter.avg,
-        log_string,
-        total_loss_meter.avg,
-    )
-    return itr
+    # Log images
+    if itr % ARGS.log_freq == 0:
+        with torch.set_grad_enabled(False):
+            log_recons(inn, x, itr)
+    return logging_dict
 
 
 def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr: int):
@@ -474,51 +444,103 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     # Logging
     # wandb.set_model_graph(str(inn))
     LOGGER.info("Number of trainable parameters: {}", count_parameters(inn))
+    train(
+        inn=inn,
+        disc_ensemble=disc_ensemble,
+        datasets=datasets,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        save_dir=save_dir,
+        sha=sha,
+    )
 
+
+def train(
+    inn,
+    disc_ensemble,
+    datasets: DatasetTriplet,
+    train_loader: DataLoader,
+    val_loader: DataLoader,
+    save_dir: Path,
+    sha: str,
+):
     best_loss = float("inf")
     n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
-    itr = 0
     start_epoch = 1  # start at 1 so that the val_freq works correctly
     # Train INN for N epochs
-    for epoch in range(start_epoch, start_epoch + ARGS.epochs):
-        if n_vals_without_improvement > ARGS.early_stopping > 0:
+    itr = (start_epoch - 1) * len(train_loader)
+    stop_itr = ARGS.epochs * len(train_loader)
+    start_epoch_time = time.time()
+    loss_meters: Optional[Dict[str, AverageMeter]] = None
+    time_meter = AverageMeter()
+    for x, s, y in iter_forever(train_loader):
+        if itr > stop_itr:
             break
 
-        itr = train(inn, disc_ensemble, train_loader, epoch)
+        iter_start = time.time()
+        logging_dict = update_model(inn, disc_ensemble, x, s, y, itr)
+        if loss_meters is None:
+            loss_meters = {name: AverageMeter() for name in logging_dict}
+        for name, value in logging_dict.items():
+            loss_meters[name].update(value)
 
-        if epoch % ARGS.val_freq == 0:
+        itr += 1
+
+        time_for_iter = time.time() - iter_start
+        time_meter.update(time_for_iter)
+
+        if itr == 0 and ARGS.jit:
+            LOGGER.info(
+                "JIT compilation (for training) completed in {}", readable_duration(time_for_iter)
+            )
+
+        if itr % ARGS.val_freq == 0:
+            if n_vals_without_improvement > ARGS.early_stopping > 0:
+                break
+
+            time_for_epoch = time.time() - start_epoch_time
+            start_epoch_time = time.time()
+            assert loss_meters is not None
+            LOGGER.info(
+                "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
+                itr,
+                readable_duration(time_for_epoch),
+                1 / time_meter.avg,
+                " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
+            )
+
             val_loss = validate(
                 inn, disc_ensemble, train_loader if ARGS.dataset == "ssrp" else val_loader, itr
             )
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                save_model(args, save_dir, inn, disc_ensemble, epoch=epoch, sha=sha, best=True)
+                save_model(ARGS, save_dir, inn, disc_ensemble, itr=itr, sha=sha, best=True)
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
 
             LOGGER.info(
-                "[VAL] Epoch {:04d} | Val Loss {:.6f} | "
+                "[VAL] Step {:04d} | Val Loss {:.6f} | "
                 "No improvement during validation: {:02d}",
-                epoch,
+                itr,
                 val_loss,
                 n_vals_without_improvement,
             )
-        if ARGS.super_val and epoch % super_val_freq == 0:
+        if ARGS.super_val and itr % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=itr)
-            save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
+            save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=itr, sha=sha)
 
         for k, disc in enumerate(disc_ensemble):
-            if np.random.uniform() < args.disc_reset_prob:
+            if np.random.uniform() < ARGS.disc_reset_prob:
                 LOGGER.info("Reinitializing discriminator {}", k)
                 disc.reset_parameters()
 
     LOGGER.info("Training has finished.")
-    path = save_model(args, save_dir, model=inn, disc_ensemble=disc_ensemble, epoch=epoch, sha=sha)
-    inn, disc_ensemble = restore_model(args, path, inn=inn, disc_ensemble=disc_ensemble)
+    path = save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=itr, sha=sha)
+    inn, disc_ensemble = restore_model(ARGS, path, inn=inn, disc_ensemble=disc_ensemble)
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
