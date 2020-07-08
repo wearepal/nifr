@@ -378,6 +378,7 @@ def train(
     inn_iters = 0
     disc_inner_iters = 0
     disc_conf_counter = -1
+    best_disc_er = 100.0
 
     start_epoch_time = time.time()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
@@ -390,11 +391,12 @@ def train(
         if disc_conf_counter < ARGS.disc_conf_iters:
             LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
-            error_rate = logging_dict["Accuracy (Disc.)"]
+            error_rate = 100 - logging_dict["Accuracy (Disc.)"]
 
-            if error_rate <= ARGS.disc_er_threshold:
+            if error_rate >= best_disc_er:
                 disc_conf_counter += 1
             else:
+                best_disc_er = error_rate
                 disc_conf_counter = 0
             disc_inner_iters += 1
 
@@ -415,6 +417,7 @@ def train(
             disc_conf_counter = -1
             inn_iters += 1
             disc_inner_iters = 0
+            best_disc_er = 100.0
 
             if loss_meters is None:
                 loss_meters = {name: AverageMeter() for name in logging_dict}

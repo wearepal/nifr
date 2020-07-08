@@ -171,7 +171,6 @@ class InnArgs(SharedArgs):
     disc_reset_prob: float = 1 / 500
     mask_disc: bool = True
     disc_conf_iters: int = 5
-    disc_er_threshold: float = 20
 
     # Training settings
     lr: float = 3e-4
