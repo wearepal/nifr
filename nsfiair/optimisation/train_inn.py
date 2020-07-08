@@ -143,11 +143,6 @@ def update_inn(
     # Log losses
     wandb_log(ARGS, logging_dict, step=itr)
 
-    # Log images
-    if itr % ARGS.log_freq == 0:
-        with torch.set_grad_enabled(False):
-            log_recons(inn, x, itr)
-
     return logging_dict
 
 
@@ -418,9 +413,13 @@ def train(
         for name, value in logging_dict.items():
             loss_meters[name].update(value)
 
-        if (disc_inner_iters == 0) and (inn_iters % ARGS.val_freq == 0):
+        if (disc_inner_iters == 0) and (inn_iters % ARGS.log_freq == 0):
             time_for_epoch = time.time() - start_epoch_time
             start_epoch_time = time.time()
+            # Log images
+            with torch.set_grad_enabled(False):
+                log_recons(inn, x, inn_iters)
+
             assert loss_meters is not None
             LOGGER.info(
                 "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
@@ -430,12 +429,15 @@ def train(
                 " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
             )
 
+        if (disc_inner_iters == 0) and (inn_iters % ARGS.val_freq == 0):
+            start_val_time = time.time()
             val_loss = validate(
                 inn,
                 disc_ensemble,
                 train_loader if ARGS.dataset == "ssrp" else val_loader,
                 inn_iters,
             )
+            val_time = time.time() - start_val_time
 
             if val_loss < best_loss:
                 best_loss = val_loss
@@ -448,16 +450,23 @@ def train(
                 break
 
             LOGGER.info(
-                "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
+                "[VAL] Step {:04d} | Duration: {} | Val Loss {:.6f}"
+                " | No improvement during validation: {:02d}",
                 inn_iters,
+                readable_duration(val_time),
                 val_loss,
                 n_vals_without_improvement,
             )
+            # reset the "epoch" time, because we're nice people
+            start_epoch_time = time.time()
+
         if ARGS.super_val and inn_iters % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=inn_iters)
             save_model(
                 ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha
             )
+            # reset the "epoch" time, because we're nice people
+            start_epoch_time = time.time()
 
         for k, disc in enumerate(disc_ensemble):
             if np.random.uniform() < ARGS.disc_reset_prob:
