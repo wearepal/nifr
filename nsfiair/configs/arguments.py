@@ -142,9 +142,7 @@ class SharedArgs(Tap):
         self.add_argument(
             "-i", "--iters", type=int, default=10_000, help="Number of iterations to train for"
         )
-        self.add_argument(
-            "-d", "--device", type=lambda x: torch.device(x), default="cpu"
-        )
+        self.add_argument("-d", "--device", type=lambda x: torch.device(x), default="cpu")
 
 
 class InnArgs(SharedArgs):

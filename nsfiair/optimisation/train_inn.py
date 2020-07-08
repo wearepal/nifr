@@ -48,7 +48,9 @@ ARGS: InnArgs
 LOGGER: Logger
 
 
-def compute_disc_loss(enc_y: Tensor, s: Tensor, disc_ensemble: nn.ModuleList) -> Tuple[Tensor, Dict[str, float]]:
+def compute_disc_loss(
+    enc_y: Tensor, s: Tensor, disc_ensemble: nn.ModuleList
+) -> Tuple[Tensor, Dict[str, float]]:
     loss = enc_y.new_zeros(())
     acc = 0.0
     for disc in disc_ensemble:
@@ -58,7 +60,7 @@ def compute_disc_loss(enc_y: Tensor, s: Tensor, disc_ensemble: nn.ModuleList) ->
 
     loss /= ARGS.num_discs
     acc /= ARGS.num_discs
-    
+
     logging_dict = {"Loss (Disc.)": loss.item(), "Accuracy (Disc.)": acc}
 
     return loss, logging_dict
@@ -78,11 +80,7 @@ def get_enc_y(enc: Tensor, inn: PartitionedInn) -> Tensor:
 
 
 def compute_inn_loss(
-    x: Tensor,
-    s: Tensor,
-    inn: PartitionedInn,
-    disc_ensemble: nn.ModuleList,
-    itr: int,
+    x: Tensor, s: Tensor, inn: PartitionedInn, disc_ensemble: nn.ModuleList, itr: int,
 ) -> Tuple[Tensor, Dict[str, float]]:
     logging_dict = {}
 
@@ -94,7 +92,7 @@ def compute_inn_loss(
     enc_y = get_enc_y(enc=enc, inn=inn)
 
     disc_loss, _ = compute_disc_loss(enc_y=enc_y, s=s, disc_ensemble=disc_ensemble)
-    
+
     if itr < ARGS.warmup_steps:
         pred_s_weight = ARGS.pred_s_weight * np.exp(-7 + 7 * itr / ARGS.warmup_steps)
     else:
@@ -116,10 +114,7 @@ def compute_inn_loss(
 
 
 def update_discriminator(
-    inn: PartitionedInn,
-    disc_ensemble: nn.ModuleList,
-    x: Tensor,
-    s: Tensor,
+    inn: PartitionedInn, disc_ensemble: nn.ModuleList, x: Tensor, s: Tensor,
 ) -> Dict[str, float]:
 
     disc_ensemble.train()
@@ -141,11 +136,7 @@ def update_discriminator(
 
 
 def update_inn(
-    inn: PartitionedInn,
-    disc_ensemble: nn.ModuleList,
-    x: Tensor,
-    s: Tensor,
-    itr: int,
+    inn: PartitionedInn, disc_ensemble: nn.ModuleList, x: Tensor, s: Tensor, itr: int,
 ) -> Dict[str, float]:
 
     inn.train()
@@ -308,7 +299,7 @@ def main_inn(raw_args: Optional[List[str]] = None) -> PartitionedInn:
             disc_kwargs = {
                 "hidden_channels": ARGS.disc_channels,
                 "num_blocks": ARGS.disc_depth,
-                "use_bn": False
+                "use_bn": False,
             }
     else:
         inn_fn = build_fc_inn
@@ -413,7 +404,9 @@ def train(
                 f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
                 f"{disc_inner_iters} iterations. Now updating the INN."
             )
-            logging_dict = update_inn(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=disc_inner_iters)
+            logging_dict = update_inn(
+                inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=disc_inner_iters
+            )
             disc_conf_counter = 0
             inn_iters += 1
         else:
@@ -422,7 +415,8 @@ def train(
             LOGGER.info(
                 f"Confirming discriminator(s). \nCurrent error-rate: {error_rate}."
                 f"\n0 error-rate achieved for "
-                f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches.")
+                f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
+            )
 
             if error_rate == 0:
                 disc_conf_counter += 1
@@ -448,7 +442,10 @@ def train(
             )
 
             val_loss = validate(
-                inn, disc_ensemble, train_loader if ARGS.dataset == "ssrp" else val_loader, inn_iters
+                inn,
+                disc_ensemble,
+                train_loader if ARGS.dataset == "ssrp" else val_loader,
+                inn_iters,
             )
 
             if val_loss < best_loss:
@@ -469,7 +466,9 @@ def train(
             )
         if ARGS.super_val and inn_iters % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=inn_iters)
-            save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha)
+            save_model(
+                ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha
+            )
 
         for k, disc in enumerate(disc_ensemble):
             if np.random.uniform() < ARGS.disc_reset_prob:
@@ -477,10 +476,17 @@ def train(
                 disc.reset_parameters()
 
     LOGGER.info("Training has finished.")
-    path = save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha)
+    path = save_model(
+        ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha
+    )
     inn, disc_ensemble = restore_model(ARGS, path, inn=inn, disc_ensemble=disc_ensemble)
     log_metrics(
-        ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=inn_iters, feat_attr=True
+        ARGS,
+        model=inn,
+        data=datasets,
+        save_to_csv=Path(ARGS.save_dir),
+        step=inn_iters,
+        feat_attr=True,
     )
     return inn
 
