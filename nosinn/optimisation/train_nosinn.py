@@ -444,7 +444,7 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
     # Logging
     # wandb.set_model_graph(str(inn))
     LOGGER.info("Number of trainable parameters: {}", count_parameters(inn))
-    train(
+    return train(
         inn=inn,
         disc_ensemble=disc_ensemble,
         datasets=datasets,
@@ -456,14 +456,14 @@ def main_nosinn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, P
 
 
 def train(
-    inn,
+    inn: Union[PartitionedInn, PartitionedAeInn],
     disc_ensemble,
     datasets: DatasetTriplet,
     train_loader: DataLoader,
     val_loader: DataLoader,
     save_dir: Path,
     sha: str,
-):
+) -> Union[PartitionedInn, PartitionedAeInn]:
     best_loss = float("inf")
     n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
@@ -474,12 +474,10 @@ def train(
     stop_itr = ARGS.epochs * len(train_loader)
     start_epoch_time = time.time()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
-    time_meter = AverageMeter()
     for x, s, y in iter_forever(train_loader):
         if itr > stop_itr:
             break
 
-        iter_start = time.time()
         logging_dict = update_model(inn, disc_ensemble, x, s, y, itr)
         if loss_meters is None:
             loss_meters = {name: AverageMeter() for name in logging_dict}
@@ -488,12 +486,10 @@ def train(
 
         itr += 1
 
-        time_for_iter = time.time() - iter_start
-        time_meter.update(time_for_iter)
-
         if itr == 0 and ARGS.jit:
+            time_for_jit = time.time() - start_epoch_time
             LOGGER.info(
-                "JIT compilation (for training) completed in {}", readable_duration(time_for_iter)
+                "JIT compilation (for training) completed in {}", readable_duration(time_for_jit)
             )
 
         if itr % ARGS.val_freq == 0:
@@ -507,7 +503,7 @@ def train(
                 "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
                 itr,
                 readable_duration(time_for_epoch),
-                1 / time_meter.avg,
+                ARGS.val_freq / time_for_epoch,
                 " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
             )
 

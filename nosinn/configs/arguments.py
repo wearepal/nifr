@@ -124,7 +124,7 @@ class SharedArgs(Tap):
     evaluate: bool = False
     super_val: bool = False  # Train classifier on encodings as part of validation step.
     super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
-    val_freq: int = 1000
+    val_freq: int = 500
     log_freq: int = 50
     root: str = ""
     use_wandb: bool = True
@@ -174,7 +174,7 @@ class NosinnArgs(SharedArgs):
     disc_channels: int = 256
     disc_hidden_dims: List[int] = []
     num_discs: int = 1
-    disc_reset_prob: float = 1 / 3
+    disc_reset_prob: float = 1 / 500
     mask_disc: bool = True
 
     # Training settings
