@@ -1,6 +1,8 @@
 """Main training file"""
+from logging import Logger
 import time
 from pathlib import Path
+from typing import Tuple
 
 import pandas as pd
 import torch
@@ -19,10 +21,10 @@ from nsfiair.utils import random_seed, utils
 
 __all__ = ["main"]
 
-NDECS = 0
-ARGS: Ln2lArgs = None
-LOGGER = None
-INPUT_SHAPE = ()
+
+ARGS: Ln2lArgs
+LOGGER: Logger
+INPUT_SHAPE: Tuple[int, ...]
 
 
 def train(encoder, classifier, adversary, dataloader, epoch: int) -> int:

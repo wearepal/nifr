@@ -7,9 +7,9 @@ from typing import Callable, Dict, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
 from torch.utils.data import DataLoader, TensorDataset
 
-import wandb
 from nsfiair import utils
 from nsfiair.configs import VaeArgs
 from nsfiair.data import DatasetTriplet, load_dataset
@@ -23,7 +23,7 @@ from .utils import get_data_dim, log_images
 
 __all__ = ["main_vae"]
 
-NDECS: int
+
 ARGS: VaeArgs
 LOGGER: Logger
 INPUT_SHAPE: Tuple[int, ...]
