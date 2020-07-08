@@ -399,7 +399,7 @@ def train(
             disc_inner_iters += 1
 
             LOGGER.info(
-                "Current error-rate: {error_rate}."
+                f"Current error-rate: {error_rate}."
                 f"\n0 error-rate achieved for "
                 f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
             )
