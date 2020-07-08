@@ -392,7 +392,7 @@ def train(
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = logging_dict["Accuracy (Disc.)"]
 
-            if error_rate == 0:
+            if error_rate <= ARGS.disc_er_threshold:
                 disc_conf_counter += 1
             else:
                 disc_conf_counter = 0
