@@ -519,8 +519,7 @@ def train(
                 n_vals_without_improvement += 1
 
             LOGGER.info(
-                "[VAL] Step {:04d} | Val Loss {:.6f} | "
-                "No improvement during validation: {:02d}",
+                "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
                 itr,
                 val_loss,
                 n_vals_without_improvement,
