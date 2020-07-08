@@ -468,14 +468,11 @@ def train(
     n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
-    start_epoch = 1  # start at 1 so that the val_freq works correctly
-    # Train INN for N epochs
-    itr = (start_epoch - 1) * len(train_loader)
-    stop_itr = ARGS.epochs * len(train_loader)
+    itr = 0
     start_epoch_time = time.time()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
     for x, s, y in iter_forever(train_loader):
-        if itr > stop_itr:
+        if itr > ARGS.iters:
             break
 
         logging_dict = update_model(inn, disc_ensemble, x, s, y, itr)
@@ -486,16 +483,7 @@ def train(
 
         itr += 1
 
-        if itr == 0 and ARGS.jit:
-            time_for_jit = time.time() - start_epoch_time
-            LOGGER.info(
-                "JIT compilation (for training) completed in {}", readable_duration(time_for_jit)
-            )
-
         if itr % ARGS.val_freq == 0:
-            if n_vals_without_improvement > ARGS.early_stopping > 0:
-                break
-
             time_for_epoch = time.time() - start_epoch_time
             start_epoch_time = time.time()
             assert loss_meters is not None
@@ -517,6 +505,9 @@ def train(
                 n_vals_without_improvement = 0
             else:
                 n_vals_without_improvement += 1
+
+            if n_vals_without_improvement > ARGS.early_stopping > 0:
+                break
 
             LOGGER.info(
                 "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
