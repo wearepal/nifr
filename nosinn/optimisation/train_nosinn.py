@@ -156,7 +156,6 @@ def update_model(
         disc.step()
 
     # Log losses
-    # total_loss_meter.update(loss.item())
     wandb_log(ARGS, logging_dict, step=itr)
 
     # Log images
