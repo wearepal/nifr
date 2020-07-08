@@ -45,20 +45,20 @@ def save_model(
     save_dir: Path,
     model: nn.Module,
     disc_ensemble: nn.ModuleList,
-    epoch: int,
+    itr: int,
     sha: str,
     best: bool = False,
 ) -> Path:
     if best:
         filename = save_dir / "checkpt_best.pth"
     else:
-        filename = save_dir / f"checkpt_epoch{epoch}.pth"
+        filename = save_dir / f"checkpt_step{itr}.pth"
     save_dict = {
         "args": args.as_dict(),
         "sha": sha,
         "model": model.state_dict(),
         "disc_ensemble": disc_ensemble.state_dict(),
-        "epoch": epoch,
+        "itr": itr,
     }
 
     torch.save(save_dict, filename)

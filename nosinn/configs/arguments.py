@@ -1,7 +1,6 @@
 import argparse
 
 from typing import Dict, List, Optional
-from typing_extensions import Literal
 from ethicml.data import GenfacesAttributes
 
 
@@ -100,7 +99,7 @@ class SharedArgs(Tap):
 
     # Optimization settings
     early_stopping: int = 30
-    epochs: int = 250
+    iters: int = 10_000
     batch_size: int = 128
     test_batch_size: Optional[int] = None
     num_workers: int = 4
@@ -124,7 +123,7 @@ class SharedArgs(Tap):
     evaluate: bool = False
     super_val: bool = False  # Train classifier on encodings as part of validation step.
     super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
-    val_freq: int = 5
+    val_freq: int = 500
     log_freq: int = 50
     root: str = ""
     use_wandb: bool = True
@@ -136,6 +135,12 @@ class SharedArgs(Tap):
             raise ValueError("data_pcnt has to be between 0 and 1")
         if self.super_val_freq < 0:
             raise ValueError("frequency cannot be negative")
+
+    def add_arguments(self):
+        # argument with a short hand
+        self.add_argument(
+            "-i", "--iters", type=int, default=10_000, help="Number of iterations to train for"
+        )
 
 
 class NosinnArgs(SharedArgs):
@@ -174,7 +179,7 @@ class NosinnArgs(SharedArgs):
     disc_channels: int = 256
     disc_hidden_dims: List[int] = []
     num_discs: int = 1
-    disc_reset_prob: float = 1 / 3
+    disc_reset_prob: float = 1 / 500
     mask_disc: bool = True
 
     # Training settings
@@ -187,6 +192,7 @@ class NosinnArgs(SharedArgs):
     path_to_ae: str = ""
 
     def add_arguments(self):
+        super().add_arguments()
         # this is a very complicated argument that has to be specified manually
         self.add_argument(
             "--factor-splits", action=StoreDictKeyPair, nargs="+", default={}, type=str
