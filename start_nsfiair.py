@@ -1,5 +1,5 @@
 """Simply call the main function"""
-from nsfiair.optimisation import main_vae
+from nsfiair.optimisation import main_inn
 
 if __name__ == "__main__":
-    main_vae()
+    main_inn()
