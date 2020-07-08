@@ -391,7 +391,7 @@ def train(
             LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = logging_dict["Accuracy (Disc.)"]
-    
+
             if error_rate == 0:
                 disc_conf_counter += 1
             else:
@@ -442,7 +442,9 @@ def train(
 
                 if val_loss < best_loss:
                     best_loss = val_loss
-                    save_model(ARGS, save_dir, inn, disc_ensemble, itr=inn_iters, sha=sha, best=True)
+                    save_model(
+                        ARGS, save_dir, inn, disc_ensemble, itr=inn_iters, sha=sha, best=True
+                    )
                     n_vals_without_improvement = 0
                 else:
                     n_vals_without_improvement += 1
