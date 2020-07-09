@@ -150,7 +150,13 @@ class CelebA(VisionDataset):
             if self.s_dim > 1:
                 if mixing_factor not in (0, 1):
                     raise ValueError("multi-valued s can't be used with mixing")
-                biased_dt = select_biased_subset(biased_dt, (1, 2), (0, 3))
+                if mixing_factor == 0:
+                    s_for_y0 = (1, 2)
+                    s_for_y1 = (0, 3)
+                else:
+                    s_for_y0 = (0, 3)
+                    s_for_y1 = (1, 2)
+                biased_dt = select_biased_subset(biased_dt, s_for_y0=s_for_y0, s_for_y1=s_for_y1)
             else:
                 biased_dt, _ = get_biased_subset(
                     data=biased_dt, mixing_factor=mixing_factor, unbiased_pcnt=0, seed=seed
