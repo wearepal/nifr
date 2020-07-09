@@ -386,7 +386,7 @@ def train(
         x, s = to_device(x, s)
 
         if disc_conf_counter < ARGS.disc_conf_iters:
-            LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
+            # LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = 100 - logging_dict["Accuracy (Disc.)"]
 
@@ -397,16 +397,16 @@ def train(
                 disc_conf_counter = 0
             disc_inner_iters += 1
 
-            LOGGER.info(
-                f"Current error-rate: {error_rate}.\nNo new best error-rate achieved for "
-                f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
-            )
+            # LOGGER.info(
+            #     f"Current error-rate: {error_rate}.\nNo new best error-rate achieved for "
+            #     f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
+            # )
 
         if disc_conf_counter >= ARGS.disc_conf_iters:
-            LOGGER.info(
-                f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
-                f"{disc_inner_iters} iteration(s). \nNow updating the INN."
-            )
+            # LOGGER.info(
+            #     f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
+            #     f"{disc_inner_iters} iteration(s). \nNow updating the INN."
+            # )
             logging_dict = update_inn(
                 inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters
             )
