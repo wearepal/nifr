@@ -429,11 +429,11 @@ def train(
 
                 assert loss_meters is not None
                 LOGGER.info(
-                    "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.3g}"
+                    "[TRN] Step {:06d} | Time since last: {} | Iterations/s: {:.3g}"
                     " | Avg convergence steps: {:.3g} | {}",
                     inn_iters,
                     readable_duration(time_for_epoch),
-                    ARGS.val_freq / time_for_epoch,
+                    ARGS.log_freq / time_for_epoch,
                     confirmation_meter.avg,
                     " | ".join(f"{name}: {meter.avg:.3g}" for name, meter in loss_meters.items()),
                 )
@@ -463,7 +463,7 @@ def train(
                     break
 
                 LOGGER.info(
-                    "[VAL] Step {:04d} | Duration: {} | Val Loss {:.6f}"
+                    "[VAL] Step {:06d} | Duration: {} | Val Loss {:.6f}"
                     " | No improvement during validation: {:02d}",
                     inn_iters,
                     readable_duration(val_time),
