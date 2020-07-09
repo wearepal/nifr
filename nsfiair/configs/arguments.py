@@ -170,7 +170,7 @@ class InnArgs(SharedArgs):
     num_discs: int = 1
     disc_reset_prob: float = 1 / 5000
     mask_disc: bool = True
-    disc_conf_iters: int = 5
+    disc_conf_iters: int = 0  # number of confirmations needed (set to 0 until it has proven itself)
 
     # Training settings
     lr: float = 3e-4

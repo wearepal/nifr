@@ -386,7 +386,7 @@ def train(
         x, s = to_device(x, s)
 
         if disc_conf_counter < ARGS.disc_conf_iters:
-            # LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
+            LOGGER.info(f"Iteration {disc_inner_iters} of discriminator(s) confirmation.")
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = 100 - logging_dict["Accuracy (Disc.)"]
 
@@ -397,16 +397,16 @@ def train(
                 disc_conf_counter = 0
             disc_inner_iters += 1
 
-            # LOGGER.info(
-            #     f"Current error-rate: {error_rate}.\nNo new best error-rate achieved for "
-            #     f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
-            # )
+            LOGGER.info(
+                f"Current error-rate: {error_rate}.\nNo new best error-rate achieved for "
+                f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
+            )
 
         if disc_conf_counter >= ARGS.disc_conf_iters:
-            # LOGGER.info(
-            #     f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
-            #     f"{disc_inner_iters} iteration(s). \nNow updating the INN."
-            # )
+            LOGGER.info(
+                f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
+                f"{disc_inner_iters} iteration(s). \nNow updating the INN."
+            )
             logging_dict = update_inn(
                 inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters
             )
@@ -431,13 +431,13 @@ def train(
 
                 assert loss_meters is not None
                 LOGGER.info(
-                    "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g}"
-                    " | Avg convergence steps: {} | {}",
+                    "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.3g}"
+                    " | Avg convergence steps: {:.3g} | {}",
                     inn_iters,
                     readable_duration(time_for_epoch),
-                    convergence_meter.avg,
                     ARGS.val_freq / time_for_epoch,
-                    " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
+                    convergence_meter.avg,
+                    " | ".join(f"{name}: {meter.avg:.3g}" for name, meter in loss_meters.items()),
                 )
                 # reset loss meters
                 loss_meters = None
