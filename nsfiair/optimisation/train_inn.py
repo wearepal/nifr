@@ -377,7 +377,7 @@ def train(
 
     start_epoch_time = time.time()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
-    convergence_meter = AverageMeter()
+    confirmation_meter = AverageMeter()
 
     for x, s, _ in iter_forever(train_loader):
         if inn_iters > ARGS.iters:
@@ -409,7 +409,7 @@ def train(
             )
             logging_dict = update_inn(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters)
 
-            convergence_meter.update(disc_inner_iters - disc_conf_counter)
+            confirmation_meter.update(disc_inner_iters - disc_conf_counter)
             disc_conf_counter = -1
             inn_iters += 1
             disc_inner_iters = 0
@@ -434,7 +434,7 @@ def train(
                     inn_iters,
                     readable_duration(time_for_epoch),
                     ARGS.val_freq / time_for_epoch,
-                    convergence_meter.avg,
+                    confirmation_meter.avg,
                     " | ".join(f"{name}: {meter.avg:.3g}" for name, meter in loss_meters.items()),
                 )
                 # reset loss meters
