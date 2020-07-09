@@ -407,9 +407,7 @@ def train(
                 f"Discriminator(s) confirmed for {ARGS.disc_conf_iters} iters after "
                 f"{disc_inner_iters} iteration(s). \nNow updating the INN."
             )
-            logging_dict = update_inn(
-                inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters
-            )
+            logging_dict = update_inn(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters)
 
             convergence_meter.update(disc_inner_iters - disc_conf_counter)
             disc_conf_counter = -1
