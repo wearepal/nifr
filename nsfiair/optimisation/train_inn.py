@@ -143,11 +143,6 @@ def update_inn(
     # Log losses
     wandb_log(ARGS, logging_dict, step=itr)
 
-    # Log images
-    if itr % ARGS.log_freq == 0:
-        with torch.set_grad_enabled(False):
-            log_recons(inn, x, itr)
-
     return logging_dict
 
 
@@ -375,14 +370,16 @@ def train(
     n_vals_without_improvement = 0
     super_val_freq = ARGS.super_val_freq or ARGS.val_freq
 
-    inn_iters = 0
-    disc_inner_iters = 0
-    disc_conf_counter = -1
+    inn_iters = 0  # number of training iterations done by the INN
+    disc_inner_iters = 0  # number of iterations done by the discriminator; this gets reset
+    disc_conf_counter = -1  # confirmation counter: how many times has error rate not improved
     best_disc_er = 100.0
 
     start_epoch_time = time.time()
     loss_meters: Optional[Dict[str, AverageMeter]] = None
-    for x, s, y in iter_forever(train_loader):
+    convergence_meter = AverageMeter()
+
+    for x, s, _ in iter_forever(train_loader):
         if inn_iters > ARGS.iters:
             break
 
@@ -393,16 +390,15 @@ def train(
             logging_dict = update_discriminator(inn=inn, disc_ensemble=disc_ensemble, x=x, s=s)
             error_rate = 100 - logging_dict["Accuracy (Disc.)"]
 
-            if error_rate >= best_disc_er:
+            if error_rate >= best_disc_er:  # no improvement -> increase confirmation counter
                 disc_conf_counter += 1
-            else:
+            else:  # new error rate is better
                 best_disc_er = error_rate
                 disc_conf_counter = 0
             disc_inner_iters += 1
 
             LOGGER.info(
-                f"Current error-rate: {error_rate}."
-                f"\nNo new best error-rate achieved for "
+                f"Current error-rate: {error_rate}.\nNo new best error-rate achieved for "
                 f"{disc_conf_counter}/{ARGS.disc_conf_iters} consecuctive batches."
             )
 
@@ -414,6 +410,8 @@ def train(
             logging_dict = update_inn(
                 inn=inn, disc_ensemble=disc_ensemble, x=x, s=s, itr=inn_iters
             )
+
+            convergence_meter.update(disc_inner_iters - disc_conf_counter)
             disc_conf_counter = -1
             inn_iters += 1
             disc_inner_iters = 0
@@ -424,24 +422,35 @@ def train(
             for name, value in logging_dict.items():
                 loss_meters[name].update(value)
 
-            if (disc_inner_iters == 0) and (inn_iters % ARGS.val_freq == 0):
+            if inn_iters % ARGS.log_freq == 0:
                 time_for_epoch = time.time() - start_epoch_time
                 start_epoch_time = time.time()
+                # Log images
+                with torch.set_grad_enabled(False):
+                    log_recons(inn, x, inn_iters)
+
                 assert loss_meters is not None
                 LOGGER.info(
-                    "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
+                    "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g}"
+                    " | Avg convergence steps: {} | {}",
                     inn_iters,
                     readable_duration(time_for_epoch),
+                    convergence_meter.avg,
                     ARGS.val_freq / time_for_epoch,
                     " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
                 )
+                # reset loss meters
+                loss_meters = None
 
+            if inn_iters % ARGS.val_freq == 0:
+                start_val_time = time.time()
                 val_loss = validate(
                     inn,
                     disc_ensemble,
                     train_loader if ARGS.dataset == "ssrp" else val_loader,
                     inn_iters,
                 )
+                val_time = time.time() - start_val_time
 
                 if val_loss < best_loss:
                     best_loss = val_loss
@@ -456,16 +465,23 @@ def train(
                     break
 
                 LOGGER.info(
-                    "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
+                    "[VAL] Step {:04d} | Duration: {} | Val Loss {:.6f}"
+                    " | No improvement during validation: {:02d}",
                     inn_iters,
+                    readable_duration(val_time),
                     val_loss,
                     n_vals_without_improvement,
                 )
+                # reset the "epoch" time, because we're nice people
+                start_epoch_time = time.time()
+
             if ARGS.super_val and inn_iters % super_val_freq == 0:
                 log_metrics(ARGS, model=inn, data=datasets, step=inn_iters)
                 save_model(
                     ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=inn_iters, sha=sha
                 )
+                # reset the "epoch" time, because we're nice people
+                start_epoch_time = time.time()
 
             for k, disc in enumerate(disc_ensemble):
                 if np.random.uniform() < ARGS.disc_reset_prob:
