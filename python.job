@@ -26,9 +26,10 @@ nvidia-smi
 echo "-------------------"
 echo "Starting job script"
 echo "-------------------"
-python_exe=/shared/scratch/miniconda3/bin/python
+python_exe=/mnt/data/tk324/miniconda3/envs/pytorch/bin/python
 export WANDB_API_KEY="73446d9c90d14d0603dbefef971c2cd923ad7f4e"
 
+$python_exe -V
 $python_exe -u "$@"
 
 echo "-------------------"

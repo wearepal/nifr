@@ -131,7 +131,6 @@ def update_model(
     disc_ensemble: nn.ModuleList,
     x: Tensor,
     s: Tensor,
-    y: Tensor,
     itr: int,
 ) -> Dict[str, float]:
     inn.train()
@@ -139,7 +138,7 @@ def update_model(
 
     # total_loss_meter = AverageMeter()
 
-    x, s, y = to_device(x, s, y)
+    x, s = to_device(x, s)
 
     loss, logging_dict = compute_loss(x, s, inn, disc_ensemble, itr)
 
@@ -156,11 +155,6 @@ def update_model(
 
     # Log losses
     wandb_log(ARGS, logging_dict, step=itr)
-
-    # Log images
-    if itr % ARGS.log_freq == 0:
-        with torch.set_grad_enabled(False):
-            log_recons(inn, x, itr)
     return logging_dict
 
 
@@ -473,7 +467,7 @@ def train(
         if itr > ARGS.iters:
             break
 
-        logging_dict = update_model(inn, disc_ensemble, x, s, y, itr)
+        logging_dict = update_model(inn, disc_ensemble, x=x, s=s, itr=itr)
         if loss_meters is None:
             loss_meters = {name: AverageMeter() for name in logging_dict}
         for name, value in logging_dict.items():
@@ -481,21 +475,30 @@ def train(
 
         itr += 1
 
-        if itr % ARGS.val_freq == 0:
+        if itr % ARGS.log_freq == 0:
             time_for_epoch = time.time() - start_epoch_time
             start_epoch_time = time.time()
+            # Log images
+            with torch.set_grad_enabled(False):
+                log_recons(inn, x, itr)
+
             assert loss_meters is not None
             LOGGER.info(
-                "[TRN] Step {:04d} | Time since last: {} | Iterations/s: {:.4g} | {}",
+                "[TRN] Step {:06d} | Time since last: {} | Iterations/s: {:.3g} | {}",
                 itr,
                 readable_duration(time_for_epoch),
-                ARGS.val_freq / time_for_epoch,
-                " | ".join(f"{name}: {meter.avg:.5g}" for name, meter in loss_meters.items()),
+                ARGS.log_freq / time_for_epoch,
+                " | ".join(f"{name}: {meter.avg:.3g}" for name, meter in loss_meters.items()),
             )
+            # reset loss meters
+            loss_meters = None
 
+        if itr % ARGS.val_freq == 0:
+            start_val_time = time.time()
             val_loss = validate(
                 inn, disc_ensemble, train_loader if ARGS.dataset == "ssrp" else val_loader, itr
             )
+            val_time = time.time() - start_val_time
 
             if val_loss < best_loss:
                 best_loss = val_loss
@@ -508,14 +511,21 @@ def train(
                 break
 
             LOGGER.info(
-                "[VAL] Step {:04d} | Val Loss {:.6f} | No improvement during validation: {:02d}",
+                "[VAL] Step {:06d} | Duration: {} | Val Loss {:.6f}"
+                " | No improvement during validation: {:02d}",
                 itr,
+                readable_duration(val_time),
                 val_loss,
                 n_vals_without_improvement,
             )
+            # reset the "epoch" time, because we're nice people
+            start_epoch_time = time.time()
+
         if ARGS.super_val and itr % super_val_freq == 0:
             log_metrics(ARGS, model=inn, data=datasets, step=itr)
             save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=itr, sha=sha)
+            # reset the "epoch" time, because we're nice people
+            start_epoch_time = time.time()
 
         for k, disc in enumerate(disc_ensemble):
             if np.random.uniform() < ARGS.disc_reset_prob:
