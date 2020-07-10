@@ -131,7 +131,7 @@ def compute_metrics(
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
-    if args.s_dim <= 3:
+    if args.s_dim <= 4:
         metrics = run_metrics(
             predictions,
             actual,
