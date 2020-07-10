@@ -116,11 +116,12 @@ def compute_loss(
 
     logging_dict.update(
         {
-            "Loss NLL": nll.item(),
-            "Loss Adversarial": disc_loss.item(),
-            "Accuracy Discriminators": disc_acc,
-            "Loss Recon": recon_loss.item(),
-            "Loss Validation": (nll - disc_loss + recon_loss).item(),
+            "NLL Loss (INN)": nll.item(),
+            "Loss (Disc.)": disc_loss.item(),
+            "Adversarial Loss (INN)": disc_loss.item(),
+            "Accuracy (Disc.)": disc_acc,
+            "Recon Loss (INN)": recon_loss.item(),
+            "Total Loss (INN)": (nll - disc_loss + recon_loss).item(),
         }
     )
     return loss, logging_dict
@@ -170,7 +171,7 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
 
             _, logging_dict = compute_loss(x_val, s_val, inn, disc_ensemble, itr)
 
-            loss_meter.update(logging_dict["Loss Validation"], n=x_val.size(0))
+            loss_meter.update(logging_dict["Total Loss (INN)"], n=x_val.size(0))
 
             if val_itr == 0:
                 if ARGS.dataset in ("cmnist", "celeba", "ssrp", "genfaces"):
@@ -186,7 +187,7 @@ def validate(inn: PartitionedInn, disc_ensemble: nn.ModuleList, val_loader, itr:
                     print(f"MAE of x and reconstructed x: {x_diff}")
                     wandb_log(ARGS, {"reconstruction MAE": x_diff}, step=itr)
 
-        wandb_log(ARGS, {"Loss": loss_meter.avg}, step=itr)
+        wandb_log(ARGS, {"Validation Loss (INN)": loss_meter.avg}, step=itr)
 
     return loss_meter.avg
 
