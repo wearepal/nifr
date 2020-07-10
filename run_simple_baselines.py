@@ -12,12 +12,12 @@ from ethicml.algorithms.inprocess import compute_instance_weights
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
-from nosinn.configs import SharedArgs
-from nosinn.data import load_dataset
-from nosinn.models import Classifier
-from nosinn.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from nosinn.optimisation import get_data_dim
-from nosinn.utils import random_seed
+from nsfiair.configs import SharedArgs
+from nsfiair.data import load_dataset
+from nsfiair.models import Classifier
+from nsfiair.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from nsfiair.optimisation import get_data_dim
+from nsfiair.utils import random_seed
 
 BASELINE_METHODS = Literal["naive", "kamiran"]
 

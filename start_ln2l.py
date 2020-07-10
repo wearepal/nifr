@@ -1,3 +1,3 @@
-from nosinn.baselines import main
+from nsfiair.baselines import main
 
 main()
