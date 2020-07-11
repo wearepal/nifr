@@ -12,7 +12,7 @@ slots=6
 function run_nosinn() {
     for seed in $(seq $MAX_SEED); do
         echo $seed
-        qsub -pe smpslots $slots python-ot.job start_nosinn.py \
+        qsub -pe smpslots $slots python.job start_nosinn.py \
         --dataset celeba \
         --levels 3 \
         --level-depth 32 \
