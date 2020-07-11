@@ -15,7 +15,7 @@
 # -- Job output to stderr will be merged into standard out. Remove this line if
 # -- you want to have separate stderr and stdout log files
 #$ -j y
-#$ -o ../output/
+#$ -o ../../output/
 ######################################################################
 nvidia-smi
 echo "-------------------"
