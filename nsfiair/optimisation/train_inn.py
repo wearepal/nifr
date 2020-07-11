@@ -76,7 +76,7 @@ def compute_inn_loss(
     # zero = x.new_zeros(x.size(0), 1)
     enc = inn.forward(x, reverse=False)
     # nll = inn.nll(enc, sum_ldj)
-    l2 = enc.square().flatten(start_dim=1).sum().sqrt().mean()
+    l2 = enc.square().flatten(start_dim=1).sum(1).sqrt() / enc.nelement()
     enc_y = get_enc_y(enc=enc, inn=inn)
 
     disc_loss, _ = compute_disc_loss(enc_y=enc_y, s=s, disc_ensemble=disc_ensemble)
