@@ -36,7 +36,8 @@ function run_nosinn() {
         --gpu 0 \
         --num-discs 10 \
         --disc-channels 512 \
-        --data-split-seed 42 "$@"
+        --data-split-seed 42 \
+        --save-dir experiments/ablation/zs/$seed "$@"
     done
 }
 
