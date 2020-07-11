@@ -41,7 +41,12 @@ def nice_plot(
                 marker += 1
             else:
                 plot.plot(
-                    result[x_key], result[y_key], label=key, marker=markerstyles[marker], linestyle="")
+                    result[x_key],
+                    result[y_key],
+                    label=key,
+                    marker=markerstyles[marker],
+                    linestyle="",
+                )
                 marker += 1
         except:
             pass
