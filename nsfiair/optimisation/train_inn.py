@@ -76,7 +76,7 @@ def compute_inn_loss(
     # zero = x.new_zeros(x.size(0), 1)
     enc = inn.forward(x, reverse=False)
     # nll = inn.nll(enc, sum_ldj)
-    norm = enc.norm()
+    l2 = enc.square().sum()
     enc_y = get_enc_y(enc=enc, inn=inn)
 
     disc_loss, _ = compute_disc_loss(enc_y=enc_y, s=s, disc_ensemble=disc_ensemble)
@@ -86,15 +86,15 @@ def compute_inn_loss(
     else:
         pred_s_weight = ARGS.pred_s_weight
 
-    norm *= ARGS.nll_weight
+    l2 *= ARGS.nll_weight
     disc_loss *= pred_s_weight
 
-    loss = norm - disc_loss
+    loss = l2 - disc_loss
 
     logging_dict.update(
         {
             "Total Loss (INN)": loss.item(),
-            "Norm Loss (INN)": norm.item(),
+            "NLL Loss (INN)": l2.item(),
             "Adversarial Loss (INN)": disc_loss.item(),
         }
     )
