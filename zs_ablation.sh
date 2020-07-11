@@ -41,5 +41,5 @@ function run_nosinn() {
 }
 
 for zs_frac in "${frac_size[@]}"; do
-    run_nosinn --zs-frac zs_frac "$@"
+    run_nosinn --zs-frac $zs_frac "$@"
 done
