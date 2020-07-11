@@ -73,10 +73,10 @@ def compute_inn_loss(
     logging_dict = {}
 
     # the following code is also in inn.routine() but we need to access ae_enc directly
-    zero = x.new_zeros(x.size(0), 1)
-    enc, sum_ldj = inn.forward(x, logdet=zero, reverse=False)
-    nll = inn.nll(enc, sum_ldj)
-
+    # zero = x.new_zeros(x.size(0), 1)
+    enc = inn.forward(x, reverse=False)
+    # nll = inn.nll(enc, sum_ldj)
+    norm = enc.norm()
     enc_y = get_enc_y(enc=enc, inn=inn)
 
     disc_loss, _ = compute_disc_loss(enc_y=enc_y, s=s, disc_ensemble=disc_ensemble)
@@ -86,15 +86,15 @@ def compute_inn_loss(
     else:
         pred_s_weight = ARGS.pred_s_weight
 
-    nll *= ARGS.nll_weight
+    norm *= ARGS.nll_weight
     disc_loss *= pred_s_weight
 
-    loss = nll - disc_loss
+    loss = norm - disc_loss
 
     logging_dict.update(
         {
             "Total Loss (INN)": loss.item(),
-            "NLL Loss (INN)": nll.item(),
+            "Norm Loss (INN)": norm.item(),
             "Adversarial Loss (INN)": disc_loss.item(),
         }
     )
