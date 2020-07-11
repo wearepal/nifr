@@ -28,12 +28,11 @@ function run_nosinn() {
         --batch-size 32 \
         --nll-weight 1 \
         --pred-s-weight 1e-2 \
-        --zs-frac 0.001 \
         --coupling-channels 512 \
         --super-val True \
         --super-val-freq 10 \
         --val-freq 1 \
-        --task-mixing 0.5 \
+        --task-mixing 0. \
         --gpu 0 \
         --num-discs 10 \
         --disc-channels 512 \
@@ -41,6 +40,6 @@ function run_nosinn() {
     done
 }
 
-for eta in "${frac_size[@]}"; do
-    run_nosinn "$@"
+for zs_frac in "${frac_size[@]}"; do
+    run_nosinn --zs-frac zs_frac "$@"
 done

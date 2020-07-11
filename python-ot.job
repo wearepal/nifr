@@ -21,7 +21,7 @@ nvidia-smi
 echo "-------------------"
 echo "Starting job script"
 echo "-------------------"
-python_exe=/mnt/data/ot44/miniconda3/envs/fdm/bin/python
+python_exe=/mnt/data/ot44/miniconda3/envs/nsfiair/bin/python
 export WANDB_API_KEY="17a933ea9f383eb7b34cb3c466ffc88913fd3063"
 
 $python_exe -V
