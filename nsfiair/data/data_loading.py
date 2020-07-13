@@ -1,13 +1,14 @@
+from __future__ import annotations
+
 import platform
-from typing import NamedTuple, Optional
+from typing import TYPE_CHECKING, NamedTuple, Optional
 
 from torch.utils.data import Dataset, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
+
 from ethicml.data import create_genfaces_dataset
 from ethicml.vision.data import LdColorizer
-
-from nsfiair.configs import SharedArgs
 
 from .adult import load_adult_data
 from .celeba import CelebA
@@ -16,6 +17,10 @@ from .misc import shrink_dataset, train_test_split
 from .perturbed_adult import load_perturbed_adult
 from .ssrp import SSRP
 from .transforms import NoisyDequantize, Quantize
+
+if TYPE_CHECKING:
+    from nsfiair.configs import SharedArgs
+
 
 __all__ = ["DatasetTriplet", "load_dataset"]
 

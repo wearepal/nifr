@@ -193,7 +193,7 @@ def fit_classifier(
     input_dim: Union[int, Tuple[int, ...]],
     target_dim: int,
     train_data: Union[Dataset, DataLoader],
-    test_data: Optional[Dataset, DataLoader] = None,
+    test_data: Optional[Union[Dataset, DataLoader]] = None,
 ) -> Classifier:
 
     if args.dataset == "cmnist":
