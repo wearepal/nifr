@@ -1,5 +1,5 @@
 """Definition of the Adult dataset"""
-from typing import List, NamedTuple, Optional, Tuple
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -7,17 +7,16 @@ from sklearn.preprocessing import StandardScaler
 from torch.utils.data import DataLoader
 
 from ethicml.data import Adult, load_data
-from ethicml.preprocessing import (
-    domain_split,
-    get_biased_and_debiased_subsets,
-    get_biased_subset,
-    train_test_split,
-)
+from ethicml.preprocessing import (domain_split, get_biased_and_debiased_subsets, get_biased_subset,
+                                   train_test_split)
 from ethicml.utility import DataTuple
 from ethicml.utility.data_helpers import shuffle_df
-from nsfiair.configs import SharedArgs
 
 from .dataset_wrappers import DataTupleDataset
+
+if TYPE_CHECKING:
+    from nsfiair.configs import SharedArgs
+
 
 
 class Triplet(NamedTuple):
