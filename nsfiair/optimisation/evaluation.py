@@ -193,24 +193,27 @@ def evaluate_celeba_all_attrs(
     for name, feats in feat_groups_filtered.items():
         print(f"Fitting classifier with {name} as the target.")
         #  As before, we need to go down an additional level if the dataset is a subset
-        if isinstance(train_data, Subset):
-            #  We take the argmax to cover multinomial attributes
-            train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(
-                1
-            )
-        else:
-            train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(1)
+        try:
+            if isinstance(train_data, Subset):
+                #  We take the argmax to cover multinomial attributes
+                train_data.dataset.target_attr = torch.as_tensor(
+                    other_attrs[feats].to_numpy()
+                ).argmax(1)
+            else:
+                train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(1)
 
-        # Train a specialised classifier on the training data
-        clf = fit_classifier(args, input_dim, target_dim=len(feats), train_data=train_data)
-        #  Generate predictions for the original test data
-        preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
-        #  Generate predictions for the transformed test data
-        preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
-        # Compute how often the predictions agree
-        agreement = (preds_te == preds_te_xy).float().mean().item()
-        print(f"Prediction agreement for target {name}: {agreement}")
-        res[name] = agreement
+            # Train a specialised classifier on the training data
+            clf = fit_classifier(args, input_dim, target_dim=len(feats), train_data=train_data)
+            #  Generate predictions for the original test data
+            preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
+            #  Generate predictions for the transformed test data
+            preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
+            # Compute how often the predictions agree
+            agreement = (preds_te == preds_te_xy).float().mean().item()
+            print(f"Prediction agreement for target {name}: {agreement}")
+            res[name] = agreement
+        except KeyError:
+            continue
 
     res = pd.DataFrame(res, index=[0])
     res.to_csv(Path(args.save_dir) / "agreement_attrs_not_s_or_y.csv")
