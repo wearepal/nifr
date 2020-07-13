@@ -170,9 +170,11 @@ def evaluate_celeba_all_attrs(
     for name, feats in CelebA.disc_feature_groups.items():
         print(f"Fitting classifier with {name} as the target.")
         if isinstance(train_data, Subset):
-            train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy())
+            train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(
+                1
+            )
         else:
-            train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy())
+            train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(1)
 
         clf = fit_classifier(args, input_dim, target_dim=len(feats), train_data=train_data,)
         preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
