@@ -431,12 +431,10 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
                 save_to_csv=Path(ARGS.save_dir),
                 step=0,
                 feat_attr=ARGS.feat_attr,
+                all_attrs_celeba=True
             )
-            if ARGS.dataset == "celeba":
-                evaluate_celeba_all_attrs(
-                    args=args, train_data=datasets.task_train, test_data=datasets.task, model=inn
-                )
-                return inn
+
+            return inn
 
     # Logging
     # wandb.set_model_graph(str(inn))
@@ -541,12 +539,8 @@ def train(
     path = save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=itr, sha=sha)
     inn, disc_ensemble = restore_model(ARGS, path, inn=inn, disc_ensemble=disc_ensemble)
     log_metrics(
-        ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
+        ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True, all_attrs_celeba=True
     )
-    if ARGS.dataset == "celeba":
-        evaluate_celeba_all_attrs(
-            args=ARGS, train_data=datasets.task_train, test_data=datasets.task, model=inn
-        )
     return inn
 
 
