@@ -153,6 +153,7 @@ def evaluate_celeba_all_attrs(
     args: SharedArgs, train_data: Union[Subset, Dataset], test_data: Dataset, model: BipartiteInn
 ) -> None:
     assert args.dataset == "celeba"
+    print("Comparing predictions before and after encoding for all CelebA attributes not s or y.")
     if isinstance(train_data, Subset):
         assert isinstance(train_data.dataset, CelebA)
         orig_target_attr_tr = train_data.dataset.target_attr.clone()
@@ -167,6 +168,7 @@ def evaluate_celeba_all_attrs(
 
     res = {}
     for name, feats in CelebA.disc_feature_groups.values():
+        print(f"Fitting classifier with {name} as the target.")
         if isinstance(train_data, Subset):
             train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy())
         else:
@@ -176,7 +178,8 @@ def evaluate_celeba_all_attrs(
         preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
         preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
 
-        avg_acc = (preds_te == preds_te_xy).float().mean()
+        avg_acc = (preds_te == preds_te_xy).float().mean().item()
+        print(f"Prediction accuracy for target {name}: {avg_acc}")
         res[name] = avg_acc
 
     res = pd.DataFrame(res, index=[0])
@@ -209,7 +212,7 @@ def fit_classifier(
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
     clf.to(args.device)
     clf.fit(
-        train_data, test_data=test_data, epochs=args.eval_epochs, device=args.device, pred_s=pred_s
+        train_data, test_data=test_data, epochs=args.eval_epochs, device=args.device, pred_s=False
     )
 
     return clf
