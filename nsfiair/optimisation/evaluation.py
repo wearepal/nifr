@@ -167,7 +167,7 @@ def evaluate_celeba_all_attrs(
     test_data_xy = encode_dataset(args, test_data, model, recon=True, subdir="")
 
     res = {}
-    for name, feats in CelebA.disc_feature_groups.values():
+    for name, feats in CelebA.disc_feature_groups.items():
         print(f"Fitting classifier with {name} as the target.")
         if isinstance(train_data, Subset):
             train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy())
