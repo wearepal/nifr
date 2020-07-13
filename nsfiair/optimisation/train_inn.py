@@ -481,6 +481,7 @@ def train(
             start_epoch_time = time.time()
             # Log images
             with torch.set_grad_enabled(False):
+                x = to_device(x)
                 log_recons(inn, x, itr)
 
             assert loss_meters is not None
