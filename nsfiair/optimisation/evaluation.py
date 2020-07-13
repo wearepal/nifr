@@ -176,9 +176,7 @@ def evaluate_celeba_all_attrs(
         else:
             train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(1)
 
-        clf = fit_classifier(
-            args, input_dim, target_dim=len(feats), train_data=train_data
-        )
+        clf = fit_classifier(args, input_dim, target_dim=len(feats), train_data=train_data)
         preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
         preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
 
