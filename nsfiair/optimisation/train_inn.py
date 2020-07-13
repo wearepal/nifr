@@ -432,7 +432,7 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
                 step=0,
                 feat_attr=ARGS.feat_attr,
             )
-            if args.dataset == "celeba":
+            if ARGS.dataset == "celeba":
                 evaluate_celeba_all_attrs(
                     args=args, train_data=datasets.task_train, test_data=datasets.task, model=inn
                 )
@@ -543,6 +543,10 @@ def train(
     log_metrics(
         ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
     )
+    if ARGS.dataset == "celeba":
+        evaluate_celeba_all_attrs(
+            args=ARGS, train_data=datasets.task_train, test_data=datasets.task, model=inn
+        )
     return inn
 
 
