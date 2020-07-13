@@ -15,7 +15,7 @@ from tqdm import tqdm
 import wandb
 from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
-from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos
+from ethicml.metrics import NMI, PPV, TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
 from nosinn.configs import NosinnArgs, SharedArgs
 from nosinn.data import DatasetTriplet, get_data_tuples
@@ -135,8 +135,8 @@ def compute_metrics(
         metrics = run_metrics(
             predictions,
             actual,
-            metrics=[Accuracy(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
-            per_sens_metrics=[ProbPos(), TPR(), TNR(), PPV(), NMI(base="y"), NMI(base="s")],
+            metrics=[Accuracy(), ProbPos(), TPR(), TNR(), PPV(), RenyiCorrelation()],
+            per_sens_metrics=[Accuracy(), ProbPos(), TPR(), TNR(), PPV()],
         )
         logging_dict = {
             f"{name} Accuracy": metrics["Accuracy"],
