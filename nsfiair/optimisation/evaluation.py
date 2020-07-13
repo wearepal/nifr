@@ -190,7 +190,7 @@ def evaluate_celeba_all_attrs(
     }
 
     # Iterate over each feature group that is not s or y
-    for name, feats in feat_groups_filtered:
+    for name, feats in feat_groups_filtered.items():
         print(f"Fitting classifier with {name} as the target.")
         #  As before, we need to go down an additional level if the dataset is a subset
         if isinstance(train_data, Subset):
