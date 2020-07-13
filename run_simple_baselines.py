@@ -9,14 +9,12 @@ from tqdm import trange
 from typing_extensions import Literal
 
 from ethicml.algorithms.inprocess import compute_instance_weights
-from ethicml.evaluators import run_metrics
-from ethicml.metrics import TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
 from nsfiair.configs import SharedArgs
 from nsfiair.data import load_dataset
 from nsfiair.models import Classifier
 from nsfiair.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from nsfiair.optimisation import get_data_dim
+from nsfiair.optimisation import get_data_dim, compute_metrics
 from nsfiair.utils import random_seed
 
 BASELINE_METHODS = Literal["naive", "kamiran"]
@@ -217,7 +215,7 @@ def run_baseline(args):
 
     ground_truths = DataTuple(
         x=pd.DataFrame(sens, columns=["sens"]),
-        s=pd.DataFrame(sens, columns=["sens"]),
+        s=pd.DataFrame(sens.numpy().astype(np.float32), columns=["sens"]),
         y=pd.DataFrame(ground_truths, columns=["labels"]),
     )
 
@@ -225,16 +223,14 @@ def run_baseline(args):
     if args.dataset == "cmnist":
         full_name += "_greyscale" if args.greyscale else "_color"
     elif args.dataset == "celeba":
-        full_name += f"_{str(args.celeba_sens_attr)}"
+        if len(args.celeba_sens_attr) > 1:
+            full_name += "_" + " ".join(str(v) for v in args.celeba_sens_attr)
+        else:
+            full_name += f"_{args.celeba_sens_attr[0]}"
         full_name += f"_{args.celeba_target_attr}"
-    full_name += f"_{str(args.epochs)}epochs.csv"
+    full_name += f"_{args.epochs}epochs.csv"
 
-    metrics = run_metrics(
-        preds,
-        ground_truths,
-        metrics=[Accuracy()],
-        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else [],
-    )
+    metrics = compute_metrics(args, preds, ground_truths, "baselines", 0, use_wandb=False)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()

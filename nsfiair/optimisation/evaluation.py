@@ -25,6 +25,8 @@ from nsfiair.utils import wandb_log
 
 from .utils import log_images
 
+__all__ = ["compute_metrics", "log_metrics"]
+
 
 def log_sample_images(args, data, name, step):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
@@ -130,7 +132,7 @@ def log_metrics(
 
 
 def compute_metrics(
-    args: SharedArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
+    args: SharedArgs, predictions: Prediction, actual, name: str, step: int, use_wandb: bool = True
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
@@ -148,7 +150,8 @@ def compute_metrics(
             metrics=[Accuracy(), ProbPos(), TPR(), TNR(), PPV(), RenyiCorrelation()],
             per_sens_metrics=[],
         )
-    wandb_log(args, {f"{name} {k}": v for k, v in metrics.items()}, step=step)
+    if use_wandb:
+        wandb_log(args, {f"{name} {k}": v for k, v in metrics.items()}, step=step)
     return metrics
 
 
@@ -255,7 +258,7 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
         preds = Prediction(hard=pd.Series(preds))
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sens"])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
 
@@ -271,7 +274,7 @@ def evaluate(
     full_name = f"{args.dataset}_{name}"
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
-    metrics = compute_metrics(args, preds, actual, full_name, run_all=args.y_dim == 1, step=step)
+    metrics = compute_metrics(args, preds, actual, full_name, step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
