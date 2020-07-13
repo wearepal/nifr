@@ -168,6 +168,9 @@ def evaluate_celeba_all_attrs(
 ) -> None:
     assert args.dataset == "celeba"
     print("Comparing predictions before and after encoding for all CelebA attributes not s or y.")
+    # We want to be able to handle both the original dataset and its subsets.
+    #  For subsets, we're required to go down an additional level to access
+    #  the class attributes.
     if isinstance(train_data, Subset):
         assert isinstance(train_data.dataset, CelebA)
         orig_target_attr_tr = train_data.dataset.target_attr.clone()
@@ -179,22 +182,35 @@ def evaluate_celeba_all_attrs(
     input_dim = next(iter(train_data))[0].shape[0]
 
     res = {}
-    for name, feats in CelebA.disc_feature_groups.items():
+    #  Exclude s and y from the comparisons
+    feat_groups_filtered = {
+        k: v
+        for k, v in CelebA.disc_feature_groups.items()
+        if k not in args.celeba_sens_attr and k != args.celeba_target_attr
+    }
+
+    # Iterate over each feature group that is not s or y
+    for name, feats in feat_groups_filtered:
         print(f"Fitting classifier with {name} as the target.")
+        #  As before, we need to go down an additional level if the dataset is a subset
         if isinstance(train_data, Subset):
+            #  We take the argmax to cover multinomial attributes
             train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(
                 1
             )
         else:
             train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy()).argmax(1)
 
+        # Train a specialised classifier on the training data
         clf = fit_classifier(args, input_dim, target_dim=len(feats), train_data=train_data)
+        #  Generate predictions for the original test data
         preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
+        #  Generate predictions for the transformed test data
         preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
-
-        avg_acc = (preds_te == preds_te_xy).float().mean().item()
-        print(f"Prediction agreement for target {name}: {avg_acc}")
-        res[name] = avg_acc
+        # Compute how often the predictions agree
+        agreement = (preds_te == preds_te_xy).float().mean().item()
+        print(f"Prediction agreement for target {name}: {agreement}")
+        res[name] = agreement
 
     res = pd.DataFrame(res, index=[0])
     res.to_csv(Path(args.save_dir) / "agreement_attrs_not_s_or_y.csv")
