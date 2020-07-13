@@ -246,6 +246,7 @@ class CelebA(VisionDataset):
         else:
             filename, sens_attr, target_attr = unbiased_dt
 
+        import pdb; pdb.set_trace()
         self.filename = filename.to_numpy()[:, 0]
         self.other_attrs = filename.drop(0, axis=1)
         self.sens_attr = torch.as_tensor(sens_attr.to_numpy())
