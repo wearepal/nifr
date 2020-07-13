@@ -39,8 +39,7 @@ def log_metrics(
     step: int,
     quick_eval: bool = True,
     save_to_csv: Optional[Path] = None,
-    check_originals: bool = False,
-    feat_attr=False,
+    feat_attr: Optional[Path] = None,
 ):
     """Compute and log a variety of metrics"""
     model.eval()
@@ -61,9 +60,9 @@ def log_metrics(
         save_to_csv=save_to_csv,
     )
 
-    if feat_attr and args.dataset != "adult":
+    if feat_attr is not None and args.dataset != "adult":
         print("Creating feature attribution maps...")
-        save_dir = Path(args.save_dir) / "feat_attr_maps"
+        save_dir = feat_attr / "feat_attr_maps"
         save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
         pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
         pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
@@ -89,6 +88,10 @@ def log_metrics(
         for k, _ in enumerate(inds):
             image_orig, _, target_orig = data.task[k]
             image_deb, _, target_deb = task_repr["xy"][k]
+
+            if args.dataset in ("celeba", "ssrp", "genfaces"):
+                # for `image_deb` this is already done in `encode_dataset()`
+                image_orig = 0.5 * image_orig + 0.5
 
             if image_orig.dim() == 3:
                 feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
