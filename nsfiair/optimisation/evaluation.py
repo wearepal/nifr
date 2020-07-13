@@ -183,11 +183,11 @@ def evaluate_celeba_all_attrs(
         preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
 
         avg_acc = (preds_te == preds_te_xy).float().mean().item()
-        print(f"Prediction accuracy for target {name}: {avg_acc}")
+        print(f"Prediction agreement for target {name}: {avg_acc}")
         res[name] = avg_acc
 
     res = pd.DataFrame(res, index=[0])
-    res.to_csv(Path(args.save_dir) / "acc_attrs_not_s_or_y.csv")
+    res.to_csv(Path(args.save_dir) / "agreement_attrs_not_s_or_y.csv")
 
     if isinstance(train_data, Subset):
         train_data.dataset = orig_target_attr_tr
