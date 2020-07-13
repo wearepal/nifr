@@ -164,7 +164,7 @@ def evaluate_celeba_all_attrs(
         other_attrs = train_data.other_attrs
     input_dim = next(iter(train_data))[0].shape[0]
 
-    test_data_xy = encode_dataset(args, test_data, model, recon=True, subdir="")
+    test_data_xy = encode_dataset(args, test_data, model, recon=True, subdir="")["xy"]
 
     res = {}
     for name, feats in CelebA.disc_feature_groups.items():
