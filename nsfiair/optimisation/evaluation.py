@@ -41,7 +41,7 @@ def log_metrics(
     save_to_csv: Optional[Path] = None,
     check_originals: bool = False,
     feat_attr: bool = False,
-    all_attrs_celeba: bool = False
+    all_attrs_celeba: bool = False,
 ):
     """Compute and log a variety of metrics"""
     model.eval()
@@ -61,9 +61,15 @@ def log_metrics(
         pred_s=False,
         save_to_csv=save_to_csv,
     )
-    
-    if all_attrs_celeba:
-        evaluate_celeba_all_attrs(args=args, train_data=data.task_train, test_data=data.task, test_data_xy=task_repr["xy"], model=model)
+
+    if args.dataset == "celeba" and all_attrs_celeba:
+        evaluate_celeba_all_attrs(
+            args=args,
+            train_data=data.task_train,
+            test_data=data.task,
+            test_data_xy=task_repr["xy"],
+            model=model,
+        )
 
     if feat_attr and args.dataset != "adult":
         print("Creating feature attribution maps...")
@@ -154,7 +160,11 @@ def compute_metrics(
 
 
 def evaluate_celeba_all_attrs(
-    args: SharedArgs, train_data: Union[Subset, Dataset], test_data: Dataset, test_data_xy: Dataset, model: BipartiteInn
+    args: SharedArgs,
+    train_data: Union[Subset, Dataset],
+    test_data: Dataset,
+    test_data_xy: Dataset,
+    model: BipartiteInn,
 ) -> None:
     assert args.dataset == "celeba"
     print("Comparing predictions before and after encoding for all CelebA attributes not s or y.")
