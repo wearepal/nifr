@@ -1,7 +1,7 @@
 import random
 import types
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -9,7 +9,7 @@ import torch
 from captum.attr import IntegratedGradients, NoiseTunnel
 from captum.attr import visualization as viz
 from matplotlib import cm
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset, Subset
 from tqdm import tqdm
 
 import wandb
@@ -18,7 +18,7 @@ from ethicml.evaluators import run_metrics
 from ethicml.metrics import PPV, TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
 from nsfiair.configs import InnArgs, SharedArgs
-from nsfiair.data import DatasetTriplet, get_data_tuples
+from nsfiair.data import DatasetTriplet, get_data_tuples, CelebA
 from nsfiair.models import BipartiteInn, Classifier
 from nsfiair.models.configs import fc_net, mp_32x32_net, mp_64x64_net
 from nsfiair.utils import wandb_log
@@ -44,12 +44,12 @@ def log_metrics(
 ):
     """Compute and log a variety of metrics"""
     model.eval()
+    print("\nComputing metrics...")
     print("Encoding task dataset...")
     task_repr = encode_dataset(args, data.task, model, recon=True, subdir="task")
     print("Encoding task train dataset...")
     task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
 
-    print("\nComputing metrics...")
     _, clf = evaluate(
         args,
         step,
@@ -149,7 +149,52 @@ def compute_metrics(
     return metrics
 
 
-def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_data=None):
+def evaluate_celeba_all_attrs(
+    args: SharedArgs, train_data: Union[Subset, Dataset], test_data: Dataset, model: BipartiteInn
+) -> None:
+    assert args.dataset == "celeba"
+    if isinstance(train_data, Subset):
+        assert isinstance(train_data.dataset, CelebA)
+        orig_target_attr_tr = train_data.dataset.target_attr.clone()
+        other_attrs = train_data.dataset.other_attrs
+    else:
+        assert isinstance(train_data, CelebA)
+        orig_target_attr_tr = train_data.target_attr.clone()
+        other_attrs = train_data.other_attrs
+    input_dim = next(iter(train_data))[0].shape[0]
+
+    test_data_xy = encode_dataset(args, test_data, model, recon=True, subdir="")
+
+    res = {}
+    for name, feats in CelebA.disc_feature_groups.values():
+        if isinstance(train_data, Subset):
+            train_data.dataset.target_attr = torch.as_tensor(other_attrs[feats].to_numpy())
+        else:
+            train_data.target_attr = torch.as_tensor(other_attrs[feats].to_numpy())
+
+        clf = fit_classifier(args, input_dim, target_dim=len(feats), train_data=train_data,)
+        preds_te, _, _ = clf.predict_dataset(test_data, device=args.device)
+        preds_te_xy, _, _ = clf.predict_dataset(test_data_xy, device=args.device)
+
+        avg_acc = (preds_te == preds_te_xy).float().mean()
+        res[name] = avg_acc
+
+    res = pd.DataFrame(res, index=[0])
+    res.to_csv(Path(args.save_dir) / "acc_attrs_not_s_or_y.csv")
+
+    if isinstance(train_data, Subset):
+        train_data.dataset = orig_target_attr_tr
+    else:
+        train_data.target_attr = orig_target_attr_tr
+
+
+def fit_classifier(
+    args: SharedArgs,
+    input_dim: Union[int, Tuple[int, ...]],
+    target_dim: int,
+    train_data: Union[Dataset, DataLoader],
+    test_data: Optional[Dataset, DataLoader] = None,
+) -> Classifier:
 
     if args.dataset == "cmnist":
         clf_fn = mp_32x32_net
@@ -157,10 +202,10 @@ def fit_classifier(args, input_dim, train_data, train_on_recon, pred_s, test_dat
         clf_fn = mp_64x64_net
     else:
         clf_fn = fc_net
+        assert isinstance(input_dim, int)
         input_dim = (input_dim,)
-    clf = clf_fn(input_dim=input_dim, target_dim=args.y_dim)
-
-    n_classes = args.y_dim if args.y_dim > 1 else 2
+    clf = clf_fn(input_dim=input_dim, target_dim=target_dim)
+    n_classes = target_dim if target_dim > 1 else 2
     clf: Classifier = Classifier(clf, num_classes=n_classes, optimizer_kwargs={"lr": args.eval_lr})
     clf.to(args.device)
     clf.fit(
@@ -223,8 +268,8 @@ def get_image_attribution(input, target, model):
 def evaluate(
     args: SharedArgs,
     step: int,
-    train_data,
-    test_data,
+    train_data: Dataset,
+    test_data: Dataset,
     name: str,
     train_on_recon: bool = True,
     pred_s: bool = False,
@@ -242,12 +287,7 @@ def evaluate(
         )
 
         clf: Classifier = fit_classifier(
-            args,
-            input_dim,
-            train_data=train_data,
-            train_on_recon=train_on_recon,
-            pred_s=pred_s,
-            test_data=test_data,
+            args, input_dim, target_dim=args.y_dim, train_data=train_data, test_data=test_data,
         )
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)

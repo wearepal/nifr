@@ -44,7 +44,7 @@ from nsfiair.utils import (
     wandb_log,
 )
 
-from .evaluation import log_metrics
+from .evaluation import log_metrics, evaluate_celeba_all_attrs
 from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
 from .utils import get_data_dim, log_images, restore_model, save_model
 
@@ -432,7 +432,11 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
                 step=0,
                 feat_attr=ARGS.feat_attr,
             )
-            return inn
+            if args.dataset == "celeba":
+                evaluate_celeba_all_attrs(
+                    args=args, train_data=datasets.task_train, test_data=datasets.task, model=inn
+                )
+                return inn
 
     # Logging
     # wandb.set_model_graph(str(inn))

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 import wandb
 from nsfiair import utils
 from nsfiair.configs import VaeArgs
-from nsfiair.data import DatasetTriplet, load_dataset
+from nsfiair.data import DatasetTriplet, load_dataset, CelebA
 from nsfiair.models import VAE, VaeResults, build_discriminator
 from nsfiair.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
 from nsfiair.utils import random_seed, wandb_log
@@ -251,7 +251,7 @@ def encode_dataset(args, vae, data_loader):
 def evaluate_vae(args, vae, train_loader, test_loader, step, save_to_csv: Optional[Path] = None):
     train_data = encode_dataset(args, vae, train_loader)
     test_data = encode_dataset(args, vae, test_loader)
-    evaluate(ARGS, step, train_data, test_data, "xy", pred_s=False, save_to_csv=save_to_csv)
+    evaluate(ARGS, step, train_data, test_data, name="xy", pred_s=False, save_to_csv=save_to_csv)
 
 
 def main_vae(raw_args=None) -> None:
