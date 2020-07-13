@@ -539,10 +539,10 @@ def train(
 
     LOGGER.info("Training has finished.")
     path = save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=itr, sha=sha)
-    # inn, disc_ensemble = restore_model(ARGS, path, inn=inn, disc_ensemble=disc_ensemble)
-    # log_metrics(
-    #     ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
-    # )
+    inn, disc_ensemble = restore_model(ARGS, path, inn=inn, disc_ensemble=disc_ensemble)
+    log_metrics(
+        ARGS, model=inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=True
+    )
     if ARGS.dataset == "celeba":
         evaluate_celeba_all_attrs(
             args=ARGS, train_data=datasets.task_train, test_data=datasets.task, model=inn
