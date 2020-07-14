@@ -170,8 +170,8 @@ def evaluate_celeba_all_attrs(
     assert args.dataset == "celeba"
     print("Comparing predictions before and after encoding for all CelebA attributes not s or y.")
     # We want to be able to handle both the original dataset and its subsets.
-    #  For subsets, we're required to go down an additional level to access
-    #  the class attributes.
+    # For subsets, we're required to go down an additional level to access
+    # the class attributes.
     if isinstance(train_data, Subset):
         assert isinstance(train_data.dataset, CelebA)
         orig_target_attr_tr = train_data.dataset.target_attr.clone()
