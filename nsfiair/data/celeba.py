@@ -215,7 +215,6 @@ class CelebA(VisionDataset):
         target_attr = all_data[[target_attr_name]]
         target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
-        
         not_s_or_y = [target_attr_name] + sens_attrs
         filename = all_data.drop(not_s_or_y, axis=1)
 
