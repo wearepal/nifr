@@ -430,8 +430,8 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
                 data=datasets,
                 save_to_csv=Path(ARGS.save_dir),
                 step=0,
-                feat_attr=ARGS.feat_attr,
-                all_attrs_celeba=True,
+                feat_attr=save_dir if ARGS.feat_attr else None,
+                all_attrs_celeba=True
             )
 
             return inn
@@ -483,6 +483,7 @@ def train(
             start_epoch_time = time.time()
             # Log images
             with torch.set_grad_enabled(False):
+                x = to_device(x)
                 log_recons(inn, x, itr)
 
             assert loss_meters is not None
@@ -544,7 +545,7 @@ def train(
         data=datasets,
         save_to_csv=Path(ARGS.save_dir),
         step=itr,
-        feat_attr=True,
+        feat_attr=save_dir,
         all_attrs_celeba=True,
     )
     return inn

@@ -23,6 +23,7 @@ class EvalArgs(tap.Tap):
     eval_id: Optional[int] = None  # ID of the evaluation to run; if not specified, run all.
     test_batch_size: int = 1000  # test batch size
     checkout_commit: bool = False  # if True, checkout the commit for the checkpoint
+    minimal: bool = False  # if True, only do minimal evaluation
 
     def add_arguments(self):
         self.add_argument("checkpoint_path")  # make the first argument positional
@@ -62,7 +63,10 @@ def main():
         parameter_values = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05]
     else:
         parameter_name = "task_mixing_factor"
-        parameter_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        if eval_args.minimal:
+            parameter_values = [0.0, 1.0]
+        else:
+            parameter_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
     if eval_args.eval_id is not None:
         parameter_values = [parameter_values[eval_args.eval_id]]

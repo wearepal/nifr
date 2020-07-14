@@ -25,6 +25,8 @@ from nsfiair.utils import wandb_log
 
 from .utils import log_images
 
+__all__ = ["compute_metrics", "log_metrics"]
+
 
 def log_sample_images(args, data, name, step):
     data_loader = DataLoader(data, shuffle=False, batch_size=64)
@@ -39,8 +41,7 @@ def log_metrics(
     step: int,
     quick_eval: bool = True,
     save_to_csv: Optional[Path] = None,
-    check_originals: bool = False,
-    feat_attr: bool = False,
+    feat_attr: Optional[Path] = None,
     all_attrs_celeba: bool = False,
 ):
     """Compute and log a variety of metrics"""
@@ -71,9 +72,9 @@ def log_metrics(
             model=model,
         )
 
-    if feat_attr and args.dataset != "adult":
+    if feat_attr is not None and args.dataset != "adult":
         print("Creating feature attribution maps...")
-        save_dir = Path(args.save_dir) / "feat_attr_maps"
+        save_dir = feat_attr / "feat_attr_maps"
         save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
         pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
         pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
@@ -99,6 +100,10 @@ def log_metrics(
         for k, _ in enumerate(inds):
             image_orig, _, target_orig = data.task[k]
             image_deb, _, target_deb = task_repr["xy"][k]
+
+            if args.dataset in ("celeba", "ssrp", "genfaces"):
+                # for `image_deb` this is already done in `encode_dataset()`
+                image_orig = 0.5 * image_orig + 0.5
 
             if image_orig.dim() == 3:
                 feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
@@ -137,7 +142,7 @@ def log_metrics(
 
 
 def compute_metrics(
-    args: SharedArgs, predictions: Prediction, actual, name: str, step: int, run_all=False
+    args: SharedArgs, predictions: Prediction, actual, name: str, step: int, use_wandb: bool = True
 ) -> Dict[str, float]:
     """Compute accuracy and fairness metrics and log them"""
 
@@ -155,7 +160,8 @@ def compute_metrics(
             metrics=[Accuracy(), ProbPos(), TPR(), TNR(), PPV(), RenyiCorrelation()],
             per_sens_metrics=[],
         )
-    wandb_log(args, {f"{name} {k}": v for k, v in metrics.items()}, step=step)
+    if use_wandb:
+        wandb_log(args, {f"{name} {k}": v for k, v in metrics.items()}, step=step)
     return metrics
 
 
@@ -328,7 +334,7 @@ def evaluate(
 
         preds, actual, sens = clf.predict_dataset(test_data, device=args.device)
         preds = Prediction(hard=pd.Series(preds))
-        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sex_Male"])
+        sens_pd = pd.DataFrame(sens.numpy().astype(np.float32), columns=["sens"])
         labels = pd.DataFrame(actual, columns=["labels"])
         actual = DataTuple(x=sens_pd, s=sens_pd, y=sens_pd if pred_s else labels)
 
@@ -344,7 +350,7 @@ def evaluate(
     full_name = f"{args.dataset}_{name}"
     full_name += "_s" if pred_s else "_y"
     full_name += "_on_recons" if train_on_recon else "_on_encodings"
-    metrics = compute_metrics(args, preds, actual, full_name, run_all=args.y_dim == 1, step=step)
+    metrics = compute_metrics(args, preds, actual, full_name, step=step)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()  # empty line
