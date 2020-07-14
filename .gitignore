@@ -109,9 +109,16 @@ venv.bak/
 
 # project-specific
 !experiments/finn
+!experiments/cnf
+!experiments/ln2l
+!experiments/vae
 experiments/finn/*
 experiments/cnf/*
 experiments/ln2l/*
+experiments/vae/*
 !experiments/finn/*.csv
+!experiments/cnf/*.csv
+!experiments/ln2l/*.csv
+!experiments/vae/*.csv
 /data/
 /wandb/

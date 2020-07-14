@@ -77,7 +77,6 @@ class SharedArgs(Tap):
     # Misc
     gpu: int = 0  # which GPU to use (if available)
     resume: Optional[str] = None
-    save_dir: str = "experiments/finn"
     evaluate: bool = False
     super_val: bool = False  # Train classifier on encodings as part of validation step.
     super_val_freq: int = 0  # how often to do super val, if 0, do it together with the normal val
@@ -139,6 +138,7 @@ class InnArgs(SharedArgs):
     mask_disc: bool = True
 
     # Training settings
+    save_dir: str = "experiments/finn"
     iters: int = 10_000
     lr: float = 3e-4
     nll_weight: float = 1e-2
@@ -185,6 +185,7 @@ class VaeArgs(SharedArgs):
     disc_enc_s_channels: int = 128
 
     # Training settings
+    save_dir: str = "experiments/vae"
     epochs: int = 100
     lr: float = 1e-3
     disc_lr: float = 1e-3
@@ -203,5 +204,6 @@ class Ln2lArgs(SharedArgs):
     disc_hidden_dims: List[int] = []
 
     # Training settings
+    save_dir: str = "experiments/ln2l"
     epochs: int = 100
     lr: float = 1e-3

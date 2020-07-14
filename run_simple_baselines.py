@@ -53,6 +53,7 @@ class BaselineArgs(SharedArgs):
     # Misc settings
     method: BASELINE_METHODS = "naive"
     pred_s: bool = False
+    save_dir: str = "experiments/baseline"
 
     def process_args(self):
         if self.method == "kamiran":
