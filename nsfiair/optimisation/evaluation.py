@@ -69,7 +69,6 @@ def log_metrics(
             train_data=data.task_train,
             test_data=data.task,
             test_data_xy=task_repr["xy"],
-            model=model,
         )
 
     if feat_attr is not None and args.dataset != "adult":
@@ -166,11 +165,7 @@ def compute_metrics(
 
 
 def evaluate_celeba_all_attrs(
-    args: SharedArgs,
-    train_data: Union[Subset, Dataset],
-    test_data: Dataset,
-    test_data_xy: Dataset,
-    model: BipartiteInn,
+    args: SharedArgs, train_data: Union[Subset, Dataset], test_data: Dataset, test_data_xy: Dataset,
 ) -> None:
     assert args.dataset == "celeba"
     print("Comparing predictions before and after encoding for all CelebA attributes not s or y.")
