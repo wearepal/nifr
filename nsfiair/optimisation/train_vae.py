@@ -255,17 +255,18 @@ def evaluate_vae(
     test_loader,
     step,
     save_to_csv: Optional[Path] = None,
-    all_attrs_celeba=False,
+    all_attrs_celeba: Optional[Path] = None,
 ):
     train_data = encode_dataset(args, vae, train_loader)
     test_data = encode_dataset(args, vae, test_loader)
     evaluate(ARGS, step, train_data, test_data, name="xy", pred_s=False, save_to_csv=save_to_csv)
-    if all_attrs_celeba and args.dataset == "celeba":
+    if all_attrs_celeba is not None and args.dataset == "celeba":
         evaluate_celeba_all_attrs(
             args=args,
             train_data=train_loader.dataset,
             test_data=test_loader.dataset,
             test_data_xy=test_data,
+            save_dir=all_attrs_celeba,
         )
 
 
@@ -480,7 +481,7 @@ def main_vae(raw_args=None) -> None:
         test_loader=test_loader,
         step=itr,
         save_to_csv=Path(ARGS.save_dir),
-        all_attrs_celeba=True,
+        all_attrs_celeba=save_dir if ARGS.all_attrs else None,
     )
 
 
