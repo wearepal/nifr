@@ -20,10 +20,9 @@ class EvalArgs(tap.Tap):
 
     checkpoint_path: str  # Path to the checkpoint file
     csv_file: Optional[str] = None  # Where to store the results
-    eval_id: Optional[int] = None  # ID of the evaluation to run; if not specified, run all.
+    eval_id: List[int] = []  # ID of the evaluation to run; if not specified, run all.
     test_batch_size: int = 1000  # test batch size
     checkout_commit: bool = False  # if True, checkout the commit for the checkpoint
-    minimal: bool = False  # if True, only do minimal evaluation
 
     def add_arguments(self):
         self.add_argument("checkpoint_path")  # make the first argument positional
@@ -31,7 +30,14 @@ class EvalArgs(tap.Tap):
 
 def main():
     # ========================== get checkpoint path and CSV file name ============================
-    eval_args = EvalArgs(underscores_to_dashes=True, explicit_bool=True).parse_args(known_only=True)
+    eval_args = EvalArgs(
+        description="""Automatically run evalution for a given checkpoint.
+
+        All unrecognized arguments are simply passed on to the evaluation.""",
+        underscores_to_dashes=True,
+        explicit_bool=True,
+    )
+    eval_args.parse_args(known_only=True)
     remaining_args = eval_args.extra_args
     chkpt_path = Path(eval_args.checkpoint_path)
     csv_file = eval_args.csv_file if eval_args.csv_file is not None else f"{round(time.time())}.csv"
@@ -63,13 +69,10 @@ def main():
         parameter_values = [0.0, 0.01, 0.02, 0.03, 0.04, 0.05]
     else:
         parameter_name = "task_mixing_factor"
-        if eval_args.minimal:
-            parameter_values = [0.0, 1.0]
-        else:
-            parameter_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+        parameter_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
-    if eval_args.eval_id is not None:
-        parameter_values = [parameter_values[eval_args.eval_id]]
+    if eval_args.eval_id:
+        parameter_values = [parameter_values[i] for i in eval_args.eval_id]
 
     # ============================== construct commandline arguments ==============================
     base_args: List[str] = []
