@@ -58,7 +58,6 @@ class SharedArgs(Tap):
 
     # Optimization settings
     early_stopping: int = 30
-    iters: int = 10_000
     batch_size: int = 128
     test_batch_size: Optional[int] = None
     num_workers: int = 4
@@ -97,10 +96,6 @@ class SharedArgs(Tap):
             raise ValueError("frequency cannot be negative")
 
     def add_arguments(self):
-        # argument with a short hand
-        self.add_argument(
-            "-i", "--iters", type=int, default=10_000, help="Number of iterations to train for"
-        )
         self.add_argument("-d", "--device", type=lambda x: torch.device(x), default="cpu")
 
 
@@ -144,6 +139,7 @@ class InnArgs(SharedArgs):
     mask_disc: bool = True
 
     # Training settings
+    iters: int = 10_000
     lr: float = 3e-4
     nll_weight: float = 1e-2
     pred_s_weight: float = 1
@@ -154,6 +150,8 @@ class InnArgs(SharedArgs):
 
     def add_arguments(self):
         super().add_arguments()
+        # argument with a short hand
+        self.add_argument("-i", "--iters", help="Number of iterations to train for")
         # this is a very complicated argument that has to be specified manually
         self.add_argument(
             "--factor-splits", action=StoreDictKeyPair, nargs="+", default={}, type=str
@@ -187,6 +185,7 @@ class VaeArgs(SharedArgs):
     disc_enc_s_channels: int = 128
 
     # Training settings
+    epochs: int = 100
     lr: float = 1e-3
     disc_lr: float = 1e-3
     kl_weight: float = 0.1
@@ -204,4 +203,5 @@ class Ln2lArgs(SharedArgs):
     disc_hidden_dims: List[int] = []
 
     # Training settings
+    epochs: int = 100
     lr: float = 1e-3
