@@ -14,5 +14,6 @@ python start_vae.py \
     --dataset celeba \
     --eval-epochs 40 \
     --task-mixing-factor $mix_fact \
+    --use-wandb False \
     "$@"
 done
