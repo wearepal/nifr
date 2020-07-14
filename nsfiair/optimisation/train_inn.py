@@ -44,7 +44,7 @@ from nsfiair.utils import (
     wandb_log,
 )
 
-from .evaluation import log_metrics, evaluate_celeba_all_attrs
+from .evaluation import log_metrics
 from .loss import MixedLoss, PixelCrossEntropy, grad_reverse
 from .utils import get_data_dim, log_images, restore_model, save_model
 
