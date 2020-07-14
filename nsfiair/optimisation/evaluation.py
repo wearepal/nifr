@@ -183,7 +183,7 @@ def evaluate_celeba_all_attrs(
     input_dim = next(iter(train_data))[0].shape[0]
 
     res = {}
-    #  Exclude s and y from the comparisons
+    # Exclude s and y from the comparisons
     feat_groups_filtered = {
         k: v
         for k, v in CelebA.disc_feature_groups.items()
