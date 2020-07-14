@@ -431,7 +431,7 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
                 save_to_csv=Path(ARGS.save_dir),
                 step=0,
                 feat_attr=save_dir if ARGS.feat_attr else None,
-                all_attrs_celeba=True,
+                all_attrs_celeba=save_dir if ARGS.all_attrs else None,
             )
 
             return inn
@@ -546,7 +546,7 @@ def train(
         save_to_csv=Path(ARGS.save_dir),
         step=itr,
         feat_attr=save_dir,
-        all_attrs_celeba=True,
+        all_attrs_celeba=save_dir,
     )
     return inn
 

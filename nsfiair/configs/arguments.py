@@ -88,6 +88,7 @@ class SharedArgs(Tap):
     use_wandb: bool = True
     results_csv: str = ""  # name of CSV file to save results to
     feat_attr: bool = False
+    all_attrs: bool = False
 
     def process_args(self):
         if not 0 < self.data_pcnt <= 1:

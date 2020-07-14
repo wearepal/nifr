@@ -42,7 +42,7 @@ def log_metrics(
     quick_eval: bool = True,
     save_to_csv: Optional[Path] = None,
     feat_attr: Optional[Path] = None,
-    all_attrs_celeba: bool = False,
+    all_attrs_celeba: Optional[Path] = None,
 ):
     """Compute and log a variety of metrics"""
     model.eval()
@@ -63,12 +63,13 @@ def log_metrics(
         save_to_csv=save_to_csv,
     )
 
-    if args.dataset == "celeba" and all_attrs_celeba:
+    if args.dataset == "celeba" and all_attrs_celeba is not None:
         evaluate_celeba_all_attrs(
             args=args,
             train_data=data.task_train,
             test_data=data.task,
             test_data_xy=task_repr["xy"],
+            save_dir=all_attrs_celeba,
         )
 
     if feat_attr is not None and args.dataset != "adult":
@@ -165,7 +166,11 @@ def compute_metrics(
 
 
 def evaluate_celeba_all_attrs(
-    args: SharedArgs, train_data: Union[Subset, Dataset], test_data: Dataset, test_data_xy: Dataset,
+    args: SharedArgs,
+    train_data: Union[Subset, Dataset],
+    test_data: Dataset,
+    test_data_xy: Dataset,
+    save_dir: Path,
 ) -> None:
     assert args.dataset == "celeba"
     print("Comparing predictions before and after encoding for all CelebA attributes not s or y.")
@@ -217,7 +222,9 @@ def evaluate_celeba_all_attrs(
             continue
 
     res = pd.DataFrame(res, index=[0])
-    res.to_csv(Path(args.save_dir) / "agreement_attrs_not_s_or_y.csv")
+    save_path = save_dir / "agreement_attrs_not_s_or_y.csv"
+    res.to_csv(save_path)
+    print(f"results from evaluating all celeba attributes have been written to {save_path}")
 
     if isinstance(train_data, Subset):
         train_data.dataset = orig_target_attr_tr
