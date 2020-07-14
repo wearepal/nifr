@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Sequence
+from typing import List, Literal, Sequence
 
 import pandas as pd
 import torch
@@ -10,15 +10,58 @@ from torchvision.datasets.utils import check_integrity, download_file_from_googl
 from torchvision.transforms import ToTensor
 
 from ethicml.preprocessing import (
+    ProportionalSplit,
     SequentialSplit,
     get_biased_subset,
-    train_test_split,
-    ProportionalSplit,
     query_dt,
+    train_test_split,
 )
 from ethicml.preprocessing.domain_adaptation import make_valid_variable_name
 from ethicml.utility import DataTuple
-from nsfiair.configs import CELEBATTRS
+
+
+CelebAttrs = Literal[
+    "5_o_Clock_Shadow",
+    "Arched_Eyebrows",
+    "Attractive",
+    "Bags_Under_Eyes",
+    "Bald",
+    "Bangs",
+    "Big_Lips",
+    "Big_Nose",
+    "Black_Hair",
+    "Blond_Hair",
+    "Blurry",
+    "Brown_Hair",
+    "Bushy_Eyebrows",
+    "Chubby",
+    "Double_Chin",
+    "Eyeglasses",
+    "Goatee",
+    "Gray_Hair",
+    "Heavy_Makeup",
+    "High_Cheekbones",
+    "Male",
+    "Mouth_Slightly_Open",
+    "Mustache",
+    "Narrow_Eyes",
+    "No_Beard",
+    "Oval_Face",
+    "Pale_Skin",
+    "Pointy_Nose",
+    "Receding_Hairline",
+    "Rosy_Cheeks",
+    "Sideburns",
+    "Smiling",
+    "Straight_Hair",
+    "Wavy_Hair",
+    "Wearing_Earrings",
+    "Wearing_Hat",
+    "Wearing_Lipstick",
+    "Wearing_Necklace",
+    "Wearing_Necktie",
+    "Young",
+]
 
 
 class CelebA(VisionDataset):
@@ -64,14 +107,50 @@ class CelebA(VisionDataset):
         ),
     ]
 
+    disc_feature_groups = {
+        "beard": ["5_o_Clock_Shadow", "Goatee", "Mustache", "No_Beard"],
+        "hair_color": ["Bald", "Black_Hair", "Blond_Hair", "Brown_Hair", "Gray_Hair"],
+        # not yet sorted into categories:
+        "Arched_Eyebrows": ["Arched_Eyebrows"],
+        "Attractive": ["Attractive"],
+        "Bags_Under_Eyes": ["Bags_Under_Eyes"],
+        "Bangs": ["Bangs"],
+        "Big_Lips": ["Big_Lips"],
+        "Big_Nose": ["Big_Nose"],
+        "Blurry": ["Blurry"],
+        "Bushy_Eyebrows": ["Bushy_Eyebrows"],
+        "Chubby": ["Chubby"],
+        "Double_Chin": ["Double_Chin"],
+        "Eyeglasses": ["Eyeglasses"],
+        "Heavy_Makeup": ["Heavy_Makeup"],
+        "High_Cheekbones": ["High_Cheekbones"],
+        "Male": ["Male"],
+        "Mouth_Slightly_Open": ["Mouth_Slightly_Open"],
+        "Narrow_Eyes": ["Narrow_Eyes"],
+        "Oval_Face": ["Oval_Face"],
+        "Pale_Skin": ["Pale_Skin"],
+        "Pointy_Nose": ["Pointy_Nose"],
+        "Receding_Hairline": ["Receding_Hairline"],
+        "Rosy_Cheeks": ["Rosy_Cheeks"],
+        "Sideburns": ["Sideburns"],
+        "Smiling": ["Smiling"],
+        "hair_type": ["Straight_Hair", "Wavy_Hair"],
+        "Wearing_Earrings": ["Wearing_Earrings"],
+        "Wearing_Hat": ["Wearing_Hat"],
+        "Wearing_Lipstick": ["Wearing_Lipstick"],
+        "Wearing_Necklace": ["Wearing_Necklace"],
+        "Wearing_Necktie": ["Wearing_Necktie"],
+        "Young": ["Young"],
+    }
+
     def __init__(
         self,
         root: str,
         biased: bool,
         mixing_factor: float,
         unbiased_pcnt: float,
-        sens_attrs: List[CELEBATTRS],
-        target_attr_name: CELEBATTRS,
+        sens_attrs: List[CelebAttrs],
+        target_attr_name: CelebAttrs,
         transform=None,
         target_transform=None,
         download: bool = False,
@@ -136,7 +215,8 @@ class CelebA(VisionDataset):
         target_attr = all_data[[target_attr_name]]
         target_attr = (target_attr + 1) // 2  # map from {-1, 1} to {0, 1}
 
-        filename = all_data[["filenames"]]
+        s_and_y = [target_attr_name] + sens_attrs
+        filename = all_data.drop(s_and_y, axis="columns")
 
         all_dt = DataTuple(x=filename, s=sens_attr, y=target_attr)
 
@@ -165,9 +245,9 @@ class CelebA(VisionDataset):
         else:
             filename, sens_attr, target_attr = unbiased_dt
 
-        self.filename = filename.to_numpy()[:, 0]
+        self.filename = filename["filenames"].to_numpy()
+        self.other_attrs = filename.drop("filenames", axis=1)
         self.sens_attr = torch.as_tensor(sens_attr.to_numpy())
-
         self.target_attr = torch.as_tensor(target_attr.to_numpy())
 
     def _check_integrity(self):

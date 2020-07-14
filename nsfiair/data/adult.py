@@ -1,5 +1,7 @@
 """Definition of the Adult dataset"""
-from typing import List, NamedTuple, Optional, Tuple
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, List, NamedTuple, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,9 +17,11 @@ from ethicml.preprocessing import (
 )
 from ethicml.utility import DataTuple
 from ethicml.utility.data_helpers import shuffle_df
-from nsfiair.configs import SharedArgs
 
 from .dataset_wrappers import DataTupleDataset
+
+if TYPE_CHECKING:
+    from nsfair.configs import SharedArgs
 
 
 class Triplet(NamedTuple):

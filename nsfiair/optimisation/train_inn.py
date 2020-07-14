@@ -431,7 +431,9 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
                 save_to_csv=Path(ARGS.save_dir),
                 step=0,
                 feat_attr=save_dir if ARGS.feat_attr else None,
+                all_attrs_celeba=True,
             )
+
             return inn
 
     # Logging
@@ -538,7 +540,13 @@ def train(
     path = save_model(ARGS, save_dir, model=inn, disc_ensemble=disc_ensemble, itr=itr, sha=sha)
     inn, disc_ensemble = restore_model(ARGS, path, inn=inn, disc_ensemble=disc_ensemble)
     log_metrics(
-        ARGS, inn, data=datasets, save_to_csv=Path(ARGS.save_dir), step=itr, feat_attr=save_dir
+        ARGS,
+        model=inn,
+        data=datasets,
+        save_to_csv=Path(ARGS.save_dir),
+        step=itr,
+        feat_attr=save_dir,
+        all_attrs_celeba=True,
     )
     return inn
 

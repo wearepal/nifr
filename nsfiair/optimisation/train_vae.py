@@ -17,7 +17,7 @@ from nsfiair.models import VAE, VaeResults, build_discriminator
 from nsfiair.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
 from nsfiair.utils import random_seed, wandb_log
 
-from .evaluation import evaluate
+from .evaluation import evaluate, evaluate_celeba_all_attrs
 from .loss import PixelCrossEntropy, VGGLoss, grad_reverse
 from .utils import get_data_dim, log_images
 
@@ -248,10 +248,25 @@ def encode_dataset(args, vae, data_loader):
     return encoded_dataset
 
 
-def evaluate_vae(args, vae, train_loader, test_loader, step, save_to_csv: Optional[Path] = None):
+def evaluate_vae(
+    args,
+    vae,
+    train_loader,
+    test_loader,
+    step,
+    save_to_csv: Optional[Path] = None,
+    all_attrs_celeba=False,
+):
     train_data = encode_dataset(args, vae, train_loader)
     test_data = encode_dataset(args, vae, test_loader)
-    evaluate(ARGS, step, train_data, test_data, "xy", pred_s=False, save_to_csv=save_to_csv)
+    evaluate(ARGS, step, train_data, test_data, name="xy", pred_s=False, save_to_csv=save_to_csv)
+    if all_attrs_celeba and args.dataset == "celeba":
+        evaluate_celeba_all_attrs(
+            args=args,
+            train_data=train_loader.dataset,
+            test_data=test_loader.dataset,
+            test_data_xy=test_data,
+        )
 
 
 def main_vae(raw_args=None) -> None:
@@ -465,6 +480,7 @@ def main_vae(raw_args=None) -> None:
         test_loader=test_loader,
         step=itr,
         save_to_csv=Path(ARGS.save_dir),
+        all_attrs_celeba=True,
     )
 
 
