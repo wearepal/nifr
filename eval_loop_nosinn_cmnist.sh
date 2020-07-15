@@ -3,7 +3,7 @@
 scales=( 0 0.01 0.02 0.03 0.04 0.05 )
 
 function run_cmnist() {
-	for scale in "${frac_size[@]}"; do
+	for scale in "${scales[@]}"; do
 		qsub -pe smpslots 6 python.job start_nosinn.py \
 		--dataset cmnist \
 		--levels 3 \
