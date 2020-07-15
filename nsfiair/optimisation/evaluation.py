@@ -219,6 +219,7 @@ def evaluate_celeba_all_attrs(
             print(f"Prediction agreement for target {name}: {agreement}")
             res[name] = agreement
         except KeyError:
+            print("Skipped because it corresponds to s or y.")
             continue
 
     res = pd.DataFrame(res, index=[0])
@@ -227,7 +228,7 @@ def evaluate_celeba_all_attrs(
     print(f"results from evaluating all celeba attributes have been written to {save_path}")
 
     if isinstance(train_data, Subset):
-        train_data.dataset = orig_target_attr_tr
+        train_data.dataset.target_attr = orig_target_attr_tr
     else:
         train_data.target_attr = orig_target_attr_tr
 
