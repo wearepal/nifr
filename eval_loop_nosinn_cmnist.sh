@@ -4,6 +4,7 @@ scales=( 0 0.01 0.02 0.03 0.04 0.05 )
 
 function run_cmnist() {
 	for scale in "${scales[@]}"; do
+		echo "scale=${scale}"
 		qsub -pe smpslots 6 python.job start_inn.py \
 		--dataset cmnist \
 		--levels 3 \
@@ -30,7 +31,9 @@ function run_cmnist() {
 		--disc-channels 512 \
 		--level-depth 24 \
 		--num-discs 3 \
+		--iter 26000 \
 		--scale $scale "$@"
+		sleep 1
 	done
 }
 
