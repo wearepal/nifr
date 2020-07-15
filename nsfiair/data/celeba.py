@@ -109,7 +109,7 @@ class CelebA(VisionDataset):
 
     disc_feature_groups = {
         "beard": ["5_o_Clock_Shadow", "Goatee", "Mustache", "No_Beard"],
-        "hair_color": ["Bald", "Black_Hair", "Blond_Hair", "Brown_Hair", "Gray_Hair"],
+        "hair_color": ["Black_Hair", "Blond_Hair", "Brown_Hair", "Gray_Hair"],
         # not yet sorted into categories:
         "Arched_Eyebrows": ["Arched_Eyebrows"],
         "Attractive": ["Attractive"],
@@ -134,7 +134,7 @@ class CelebA(VisionDataset):
         "Rosy_Cheeks": ["Rosy_Cheeks"],
         "Sideburns": ["Sideburns"],
         "Smiling": ["Smiling"],
-        "hair_type": ["Straight_Hair", "Wavy_Hair"],
+        "hair_type": ["Bald", "Straight_Hair", "Wavy_Hair"],
         "Wearing_Earrings": ["Wearing_Earrings"],
         "Wearing_Hat": ["Wearing_Hat"],
         "Wearing_Lipstick": ["Wearing_Lipstick"],
