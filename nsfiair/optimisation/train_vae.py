@@ -387,9 +387,10 @@ def main_vae(raw_args=None) -> None:
         decode_with_s=True,
     )
 
-    def spectral_norm(m):
-        if hasattr(m, "weight"):
-            return torch.nn.utils.spectral_norm(m)
+    if ARGS.spectral_norm:
+        def spectral_norm(m):
+            if hasattr(m, "weight"):
+                return torch.nn.utils.spectral_norm(m)
     vae.apply(spectral_norm)
     vae.to(args.device)
 

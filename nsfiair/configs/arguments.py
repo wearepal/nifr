@@ -95,7 +95,7 @@ class SharedArgs(Tap):
             raise ValueError("frequency cannot be negative")
 
     def add_arguments(self):
-        self.add_argument("-d", "--device", type=lambda x: torch.device(x), default="cpu")
+        self.add_argument("-d", "--device", type=torch.device)
 
 
 class InnArgs(SharedArgs):
@@ -177,6 +177,7 @@ class VaeArgs(SharedArgs):
     stochastic: bool = True
     vgg_weight: float = 0
     vae: bool = True
+    spectral_norm: bool = False
 
     # Discriminator settings
     disc_enc_y_depth: int = 1
