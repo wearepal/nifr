@@ -9,5 +9,6 @@ for i in ${paths[@]}; do
     set $i;
     for epoch in ${epochs[@]}; do
         qsub -pe smpslots 6 python.job do_evaluation.py "/mnt/data/tk324/NoSINN/experiments/ablation/1/"$1"/checkpt_epoch"$epoch".pth --results-csv zsdim"$2"_epoch"$epoch".csv";
+        sleep 1;
     done
 done
