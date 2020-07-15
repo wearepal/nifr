@@ -77,6 +77,8 @@ def main():
     # ============================== construct commandline arguments ==============================
     base_args: List[str] = []
     for key, value in model_args.items():
+        if key == "epochs":  # this argument was removed
+            continue
         key_arg = f"--{key.replace('_', '-')}"
         if isinstance(value, list):
             value_args = [str(item) for item in value]
