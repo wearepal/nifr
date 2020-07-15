@@ -8,7 +8,10 @@ for epoch in ${epochs[@]}; do
     for i in ${paths[@]}; do
         IFS=",";
         set $i;
+        echo ----
+        echo $1 $2 $epoch;
         qsub -pe smpslots $slots python.job do_evaluation.py "/mnt/data/tk324/NoSINN/experiments/ablation/zs/1/${1}/checkpt_epoch${epoch}.pth" --results-csv "zsdim${2}_epoch${epoch}.csv";
+        echo ----
         sleep 1;
     done
 done
