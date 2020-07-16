@@ -52,7 +52,7 @@ def log_metrics(
     print("Encoding task train dataset...")
     task_train_repr = encode_dataset(args, data.task_train, model, recon=True, subdir="task_train")
 
-    _, clf = evaluate(
+    _, clf_recons = evaluate(
         args,
         step,
         task_train_repr["xy"],
@@ -73,11 +73,23 @@ def log_metrics(
         )
 
     if feat_attr is not None and args.dataset != "adult":
+
+        print("Training a classifier on the original image.")
+        _, clf_orig = evaluate(
+            args,
+            step,
+            data.task_train,
+            data.task,
+            name="originals",
+            train_on_recon=True,
+            pred_s=False,
+        )
+
         print("Creating feature attribution maps...")
         save_dir = feat_attr / "feat_attr_maps"
         save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
-        pred_orig, actual, _ = clf.predict_dataset(data.task, device=args.device)
-        pred_deb, _, _ = clf.predict_dataset(task_repr["xy"], device=args.device)
+        pred_orig, actual, _ = clf_orig.predict_dataset(data.task, device=args.device)
+        pred_deb, _, _ = clf_recons.predict_dataset(task_repr["xy"], device=args.device)
 
         orig_correct = pred_orig == actual
         deb_correct = pred_deb == actual
@@ -93,9 +105,11 @@ def log_metrics(
                 out = self.model(_input).sigmoid()
                 return torch.cat([1 - out, out], dim=-1)
 
-            clf.forward = types.MethodType(_binary_clf_fn, clf)
+            clf_recons.forward = types.MethodType(_binary_clf_fn, clf_recons)
+            clf_orig.forward = types.MethodType(_binary_clf_fn, clf_orig)
 
-        clf.cpu()
+        clf_recons.cpu()
+        clf_orig.cpu()
 
         for k, _ in enumerate(inds):
             image_orig, _, target_orig = data.task[k]
@@ -106,13 +120,14 @@ def log_metrics(
                 image_orig = 0.5 * image_orig + 0.5
 
             if image_orig.dim() == 3:
-                feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf)
-                feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_orig_{k}.png")
+                feat_attr_map_orig = get_image_attribution(image_orig, target_orig, clf_orig)
+                feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_{k}_orig.png")
 
-                feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf)
-                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_deb{k}.png")
+                feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf_recons)
+                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_{k}_deb.png")
 
-        clf.to(args.device)
+        clf_recons.to(args.device)
+        clf_orig.to(args.device)
 
     # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
