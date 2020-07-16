@@ -177,7 +177,7 @@ def main(raw_args=None) -> None:
     encoder = ModelBase(encoder, optimizer_kwargs=optimizer_kwargs)
     classifier = Classifier(
         classifier,
-        num_classes=ARGS.s_dim if ARGS.s_dim > 1 else 2,
+        num_classes=ARGS.y_dim if ARGS.y_dim > 1 else 2,
         optimizer_kwargs=optimizer_kwargs,
     )
     # Initialise Discriminator
