@@ -98,6 +98,7 @@ def log_metrics(
                 return torch.cat([1 - out, out], dim=-1)
 
             clf_recons.forward = types.MethodType(_binary_clf_fn, clf_recons)
+            clf_orig.forward = types.MethodType(_binary_clf_fn, clf_orig)
 
         clf_recons.cpu()
         clf_orig.cpu()
