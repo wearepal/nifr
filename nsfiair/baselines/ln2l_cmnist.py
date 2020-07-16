@@ -16,6 +16,8 @@ from torch.utils.data import Dataset
 from nsfiair.data import load_dataset
 from nsfiair.utils import random_seed
 
+__all__ = ["main"]
+
 
 def restricted_float(x):
     x = float(x)
@@ -41,6 +43,9 @@ def parse_arguments(raw_args=None):
         default=0.0,
         help="How much of meta train should be mixed into task train?",
     )
+    parser.add_argument("--pretrain", type=eval, default=True, choices=[True, False])
+    parser.add_argument("--pretrain-pcnt", type=float, default=0.4)
+    parser.add_argument("--test-pcnt", type=float, default=0.2)
 
     # Colored MNIST settings
     parser.add_argument("--scale", type=float, default=0.02)
@@ -49,6 +54,9 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--binarize", type=eval, default=True, choices=[True, False])
     parser.add_argument("--rotate-data", type=eval, default=False, choices=[True, False])
     parser.add_argument("--shift-data", type=eval, default=False, choices=[True, False])
+    parser.add_argument("--padding", type=int, default=2)
+    parser.add_argument("--quant-level", type=int, default=8)
+    parser.add_argument("--input-noise", type=eval, default=True, choices=[True, False])
 
     parser.add_argument("--prior-dist", type=str, default="normal", choices=["logistic", "normal"])
     parser.add_argument("--root", type=str, default="data")
@@ -70,6 +78,7 @@ def parse_arguments(raw_args=None):
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--data-split-seed", type=int, default=888)
 
+    parser.add_argument("--results-csv", default="")
     parser.add_argument("--resume", type=str, default=None)
     parser.add_argument("--save", type=str, default="experiments/finn")
     parser.add_argument("--evaluate", action="store_true")
