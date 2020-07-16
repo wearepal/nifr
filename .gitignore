@@ -120,5 +120,9 @@ experiments/vae/*
 !experiments/cnf/*.csv
 !experiments/ln2l/*.csv
 !experiments/vae/*.csv
+
+!experiments/ablation/zs/1
+experiments/ablation/zs/1/*
+!experiments/ablation/zs/1/*.csv
 /data/
 /wandb/
