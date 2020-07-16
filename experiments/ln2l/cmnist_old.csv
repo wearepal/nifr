@@ -1,0 +1,7 @@
+Scale,Accuracy,prob_pos,TPR,TNR,PPV,Renyi preds and s
+0,12.46,nan,nan,nan,nan,nan
+0.01,13.58,nan,nan,nan,nan,nan
+0.02,21.66,nan,nan,nan,nan,nan
+0.03,31.2,nan,nan,nan,nan,nan
+0.04,44.39,nan,nan,nan,nan,nan
+0.05,54.35,nan,nan,nan,nan,nan
