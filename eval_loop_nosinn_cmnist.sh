@@ -25,13 +25,13 @@ function run_cmnist() {
 		--zs-frac 0.002 \
 		--coupling-channels 512 \
 		--super-val True \
-		--super-val-freq 5000 \
-		--val-freq 1 \
+		--super-val-freq 5_000 \
 		--num-discs 1 \
+		--early-stop 10000 \
 		--disc-channels 512 \
 		--level-depth 24 \
 		--num-discs 3 \
-		--iter 26000 \
+		--iter 26_000 \
 		--scale $scale "$@"
 		sleep 1
 	done
