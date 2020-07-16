@@ -115,7 +115,7 @@ def log_metrics(
                 feat_attr_map_orig.savefig(save_dir / f"feat_attr_map_{k}_orig.png")
 
                 feat_attr_map_deb = get_image_attribution(image_deb, target_deb, clf_recons)
-                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_deb{k}.png")
+                feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_{k}_deb.png")
 
         clf_recons.to(args.device)
 
