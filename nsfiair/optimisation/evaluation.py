@@ -88,7 +88,7 @@ def log_metrics(
         print("Creating feature attribution maps...")
         save_dir = feat_attr / "feat_attr_maps"
         save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
-        pred_orig, actual, _ = clf_recons.predict_dataset(data.task, device=args.device)
+        pred_orig, actual, _ = clf_orig.predict_dataset(data.task, device=args.device)
         pred_deb, _, _ = clf_recons.predict_dataset(task_repr["xy"], device=args.device)
 
         orig_correct = pred_orig == actual
