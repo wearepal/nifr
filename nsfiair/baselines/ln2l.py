@@ -9,14 +9,13 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from ethicml.evaluators import run_metrics
 from ethicml.metrics import TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
 from nsfiair.configs import Ln2lArgs
 from nsfiair.data import DatasetTriplet, load_dataset
 from nsfiair.models import Classifier, ModelBase, build_discriminator
 from nsfiair.models.configs import fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
-from nsfiair.optimisation import get_data_dim, grad_reverse
+from nsfiair.optimisation import get_data_dim, grad_reverse, compute_metrics
 from nsfiair.utils import random_seed, utils
 
 __all__ = ["main"]
@@ -241,12 +240,7 @@ def main(raw_args=None) -> None:
         full_name += f"_{args.celeba_target_attr}"
     full_name += f"_{args.entropy_weight}ew"
     full_name += f"_{str(args.epochs)}epochs"
-    metrics = run_metrics(
-        preds,
-        ground_truths,
-        metrics=[Accuracy()],
-        per_sens_metrics=[ProbPos(), TPR()] if args.dataset != "cmnist" else [],
-    )
+    metrics = compute_metrics(args, preds, ground_truths, name="ln2l", step=0, use_wandb=False)
     print(f"Results for {full_name}:")
     print("\n".join(f"\t\t{key}: {value:.4f}" for key, value in metrics.items()))
     print()
