@@ -119,6 +119,7 @@ def log_metrics(
                 feat_attr_map_deb.savefig(save_dir / f"feat_attr_map_{k}_deb.png")
 
         clf_recons.to(args.device)
+        clf_orig.to(args.device)
 
     # print("===> Predict y from xy")
     # evaluate(args, experiment, repr.task_train['x'], repr.task['x'], name='xy', pred_s=False)
