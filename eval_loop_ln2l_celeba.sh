@@ -11,7 +11,7 @@ function run_ln2l() {
 			--lr 1e-3 \
 			--batch-size 128 \
 			--weight-decay 0 \
-			--epochs 25 \
+			--epochs 40 \
 			--entropy-weight 0.01 "$@"
 		sleep 1
 	done
