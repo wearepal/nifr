@@ -126,3 +126,4 @@ experiments/ablation/zs/1/*
 !experiments/ablation/zs/1/*.csv
 /data/
 /wandb/
+/notebooks/**/*.pdf
