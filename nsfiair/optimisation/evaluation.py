@@ -63,10 +63,6 @@ def log_metrics(
         save_to_csv=save_to_csv,
     )
 
-    _, clf_orig = evaluate(
-        args, step, data.task_train, data.task, name="originals", train_on_recon=True, pred_s=False,
-    )
-
     if args.dataset == "celeba" and all_attrs_celeba is not None:
         evaluate_celeba_all_attrs(
             args=args,
@@ -77,6 +73,18 @@ def log_metrics(
         )
 
     if feat_attr is not None and args.dataset != "adult":
+
+        print("Training a classifier on the original image.")
+        _, clf_orig = evaluate(
+            args,
+            step,
+            data.task_train,
+            data.task,
+            name="originals",
+            train_on_recon=True,
+            pred_s=False,
+        )
+
         print("Creating feature attribution maps...")
         save_dir = feat_attr / "feat_attr_maps"
         save_dir.mkdir(exist_ok=True, parents=True)  # create directory if it doesn't exist
