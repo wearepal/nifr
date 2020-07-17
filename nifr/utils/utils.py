@@ -7,7 +7,7 @@ import numpy as np
 import torch
 
 import wandb
-from nsfiair.configs import SharedArgs
+from nifr.configs import SharedArgs
 
 LOGGER = None
 

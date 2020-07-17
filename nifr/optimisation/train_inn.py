@@ -14,9 +14,9 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 import wandb
-from nsfiair.configs import InnArgs
-from nsfiair.data import DatasetTriplet, load_dataset
-from nsfiair.models import (
+from nifr.configs import InnArgs
+from nifr.data import DatasetTriplet, load_dataset
+from nifr.models import (
     VAE,
     AutoEncoder,
     PartitionedAeInn,
@@ -25,7 +25,7 @@ from nsfiair.models import (
     build_discriminator,
     build_fc_inn,
 )
-from nsfiair.models.configs import (
+from nifr.models.configs import (
     ModelFn,
     conv_autoencoder,
     fc_autoencoder,
@@ -34,7 +34,7 @@ from nsfiair.models.configs import (
     mp_32x32_net,
     mp_64x64_net,
 )
-from nsfiair.utils import (
+from nifr.utils import (
     AverageMeter,
     count_parameters,
     get_logger,

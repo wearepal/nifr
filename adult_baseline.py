@@ -5,7 +5,7 @@ from ethicml.algorithms.inprocess import LR, SVM, Agarwal, Kamiran, Majority
 from ethicml.evaluators.evaluate_models import run_metrics
 from ethicml.metrics import CV, NMI, PPV, TNR, TPR, Accuracy, ProbPos, Theil
 from ethicml.preprocessing.train_test_split import train_test_split
-from nsfiair.data.data_loading import load_adult_data_tuples
+from nifr.data.data_loading import load_adult_data_tuples
 
 
 def main():

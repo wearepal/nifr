@@ -3,8 +3,8 @@ from typing import Optional
 import torch
 from torch import Tensor
 
-from nsfiair.layers.inn import Bijector
-from nsfiair.utils import is_positive_int
+from nifr.layers.inn import Bijector
+from nifr.utils import is_positive_int
 
 __all__ = ["RandomPermutation", "ReversePermutation"]
 

@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from nsfiair.utils.optimizers import RAdam
+from nifr.utils.optimizers import RAdam
 
 __all__ = ["ModelBase"]
 

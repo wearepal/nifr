@@ -10,12 +10,12 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 import wandb
-from nsfiair import utils
-from nsfiair.configs import VaeArgs
-from nsfiair.data import DatasetTriplet, load_dataset
-from nsfiair.models import VAE, VaeResults, build_discriminator
-from nsfiair.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
-from nsfiair.utils import random_seed, wandb_log
+from nifr import utils
+from nifr.configs import VaeArgs
+from nifr.data import DatasetTriplet, load_dataset
+from nifr.models import VAE, VaeResults, build_discriminator
+from nifr.models.configs import conv_autoencoder, fc_autoencoder, linear_disciminator
+from nifr.utils import random_seed, wandb_log
 
 from .evaluation import evaluate, evaluate_celeba_all_attrs
 from .loss import PixelCrossEntropy, VGGLoss, grad_reverse

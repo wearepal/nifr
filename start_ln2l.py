@@ -1,3 +1,3 @@
-from nsfiair.baselines import main
+from nifr.baselines import main
 
 main()

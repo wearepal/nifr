@@ -19,7 +19,7 @@ from .ssrp import SSRP
 from .transforms import NoisyDequantize, Quantize
 
 if TYPE_CHECKING:
-    from nsfiair.configs import SharedArgs
+    from nifr.configs import SharedArgs
 
 
 __all__ = ["DatasetTriplet", "load_dataset"]

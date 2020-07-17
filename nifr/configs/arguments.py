@@ -5,7 +5,7 @@ import torch
 from tap import Tap
 from typing_extensions import Literal
 
-from nsfiair.data.celeba import CelebAttrs
+from nifr.data.celeba import CelebAttrs
 from ethicml.data import GenfacesAttributes
 
 __all__ = ["InnArgs", "VaeArgs", "Ln2lArgs", "SharedArgs", "CelebAttrs"]

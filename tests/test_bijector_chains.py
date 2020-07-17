@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from nsfiair.layers import OxbowNet
+from nifr.layers import OxbowNet
 
 
 class Adder(nn.Module):

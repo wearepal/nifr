@@ -6,8 +6,8 @@ import torchvision
 from torch import nn
 
 import wandb
-from nsfiair.configs import InnArgs, SharedArgs
-from nsfiair.utils import wandb_log
+from nifr.configs import InnArgs, SharedArgs
+from nifr.utils import wandb_log
 
 __all__ = ["get_data_dim", "log_images"]
 

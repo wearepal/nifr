@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torchvision.models import resnet50
 from typing_extensions import Protocol
 
-from nsfiair.layers.resnet import ResidualNet
+from nifr.layers.resnet import ResidualNet
 
 __all__ = [
     "linear_disciminator",
