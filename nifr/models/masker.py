@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 from torch.optim import SGD
 
-from nsfiair.utils import RoundSTE
-from nsfiair.utils.distributions import uniform_bernoulli
-from nsfiair.utils.torch_ops import logit
+from nifr.utils import RoundSTE
+from nifr.utils.distributions import uniform_bernoulli
+from nifr.utils.torch_ops import logit
 
 __all__ = ["Masker"]
 

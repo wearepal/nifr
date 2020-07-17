@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch import Tensor
 from torch.nn import Parameter
 
-from nsfiair.utils import is_positive_int, sum_except_batch
+from nifr.utils import is_positive_int, sum_except_batch
 
 from .misc import Bijector
 

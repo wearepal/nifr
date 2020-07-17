@@ -6,9 +6,9 @@ import torch.distributions as td
 from torch import Tensor
 from typing_extensions import Literal
 
-from nsfiair.configs import InnArgs
-from nsfiair.layers import Bijector
-from nsfiair.utils import DLogistic, MixtureDistribution, logistic_distribution, to_discrete
+from nifr.configs import InnArgs
+from nifr.layers import Bijector
+from nifr.utils import DLogistic, MixtureDistribution, logistic_distribution, to_discrete
 
 from .autoencoder import AutoEncoder
 from .base import ModelBase

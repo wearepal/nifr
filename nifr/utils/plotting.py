@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from nsfiair.configs import SharedArgs
+from nifr.configs import SharedArgs
 
 from .utils import wandb_log
 

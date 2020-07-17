@@ -17,11 +17,11 @@ from ethicml.algorithms.inprocess import LR
 from ethicml.evaluators import run_metrics
 from ethicml.metrics import PPV, TNR, TPR, Accuracy, ProbPos, RenyiCorrelation
 from ethicml.utility import DataTuple, Prediction
-from nsfiair.configs import InnArgs, SharedArgs
-from nsfiair.data import DatasetTriplet, get_data_tuples, CelebA
-from nsfiair.models import BipartiteInn, Classifier
-from nsfiair.models.configs import fc_net, mp_32x32_net, mp_64x64_net
-from nsfiair.utils import wandb_log
+from nifr.configs import InnArgs, SharedArgs
+from nifr.data import DatasetTriplet, get_data_tuples, CelebA
+from nifr.models import BipartiteInn, Classifier
+from nifr.models.configs import fc_net, mp_32x32_net, mp_64x64_net
+from nifr.utils import wandb_log
 
 from .utils import log_images
 

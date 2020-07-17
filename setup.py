@@ -1,19 +1,20 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="NSFIAIR",
+    name="NIFR",
     version="0.2.0",
     author="T. Kehrenberg, M. Bartlett, O. Thomas",
     packages=find_packages(),
-    description="Null-sampling for Invariant and Interpretable Representations",
+    description="Null-sampling for Interpretable and Fair Representations",
     python_requires=">=3.6",
-    package_data={"nsfiair": ["py.typed"]},
+    package_data={"nifr": ["py.typed"]},
     install_requires=[
         "captum",
+        "EthicML",
+        "gitpython",
         "numpy >= 1.15",
         "pandas >= 0.24",
         "pillow < 7.0",
-        "gitpython",
         "scikit-image >= 0.14",
         "scikit-learn >= 0.20",
         "scipy >= 1.2.1",
@@ -24,6 +25,5 @@ setup(
         "typing-extensions >= 3.7.4",
         "typing-inspect >= 0.5",
         "wandb == 0.8.27",
-        "EthicML @ git+https://github.com/predictive-analytics-lab/EthicML.git",
     ],
 )

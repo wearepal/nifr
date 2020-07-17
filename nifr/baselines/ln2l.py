@@ -11,12 +11,12 @@ from torch.utils.data import DataLoader
 
 from ethicml.metrics import TPR, Accuracy, ProbPos
 from ethicml.utility import DataTuple, Prediction
-from nsfiair.configs import Ln2lArgs
-from nsfiair.data import DatasetTriplet, load_dataset
-from nsfiair.models import Classifier, ModelBase, build_discriminator
-from nsfiair.models.configs import fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
-from nsfiair.optimisation import get_data_dim, grad_reverse, compute_metrics
-from nsfiair.utils import random_seed, utils
+from nifr.configs import Ln2lArgs
+from nifr.data import DatasetTriplet, load_dataset
+from nifr.models import Classifier, ModelBase, build_discriminator
+from nifr.models.configs import fc_net, linear_disciminator, mp_32x32_net, mp_64x64_net
+from nifr.optimisation import get_data_dim, grad_reverse, compute_metrics
+from nifr.utils import random_seed, utils
 
 __all__ = ["main"]
 

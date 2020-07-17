@@ -10,12 +10,12 @@ from typing_extensions import Literal
 
 from ethicml.algorithms.inprocess import compute_instance_weights
 from ethicml.utility import DataTuple, Prediction
-from nsfiair.configs import SharedArgs
-from nsfiair.data import load_dataset
-from nsfiair.models import Classifier
-from nsfiair.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
-from nsfiair.optimisation import get_data_dim, compute_metrics
-from nsfiair.utils import random_seed
+from nifr.configs import SharedArgs
+from nifr.data import load_dataset
+from nifr.models import Classifier
+from nifr.models.configs.classifiers import fc_net, mp_32x32_net, mp_64x64_net
+from nifr.optimisation import get_data_dim, compute_metrics
+from nifr.utils import random_seed
 
 BASELINE_METHODS = Literal["naive", "kamiran"]
 

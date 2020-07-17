@@ -6,7 +6,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import trange
 
-from nsfiair.models.base import ModelBase
+from nifr.models.base import ModelBase
 
 __all__ = ["Classifier"]
 

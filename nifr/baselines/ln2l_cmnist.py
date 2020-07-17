@@ -13,8 +13,8 @@ from torch import nn, optim
 from torch.autograd import Variable
 from torch.utils.data import Dataset
 
-from nsfiair.data import load_dataset
-from nsfiair.utils import random_seed
+from nifr.data import load_dataset
+from nifr.utils import random_seed
 
 __all__ = ["main"]
 

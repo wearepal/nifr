@@ -1,11 +1,11 @@
 from typing import Dict, List, Optional, Tuple, Union
 
 from torch import jit
-from nsfiair import layers
-from nsfiair.configs import InnArgs
-from nsfiair.models import Classifier
-from nsfiair.models.configs import ModelFn
-from nsfiair.utils import product
+from nifr import layers
+from nifr.configs import InnArgs
+from nifr.models import Classifier
+from nifr.models.configs import ModelFn
+from nifr.utils import product
 
 __all__ = ["build_fc_inn", "build_conv_inn", "build_discriminator"]
 

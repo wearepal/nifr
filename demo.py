@@ -9,7 +9,7 @@ from PIL import Image
 from torchvision.transforms import CenterCrop, Resize, ToTensor
 from torchvision.utils import save_image
 
-from nsfiair.models import PartitionedInn, build_conv_inn
+from nifr.models import PartitionedInn, build_conv_inn
 
 _INPUT_SHAPE = (3, 64, 64)
 
