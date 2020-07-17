@@ -6,7 +6,7 @@ setup(
     author="T. Kehrenberg, M. Bartlett, O. Thomas",
     packages=find_packages(),
     description="Null-sampling for Interpretable and Fair Representations",
-    python_requires=">=3.6",
+    python_requires=">=3.8",
     package_data={"nifr": ["py.typed"]},
     install_requires=[
         "captum",
