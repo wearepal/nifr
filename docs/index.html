@@ -1,1104 +1,1170 @@
 <!DOCTYPE html>
 <html lang="en">
     <head>
-        <meta charset="UTF-8" />
-        <title>AL</title>
+        <title>NIFR</title>
+        <script src="https://olliethomas.github.io/html-components/template.v2.js"></script>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta charset="utf8" />
     </head>
-    <body></body>
-</html>
-<!DOCTYPE html>
-<meta charset="utf-8" />
-<head>
-    <script src="https://olliethomas.github.io/html-components/template.v2.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta charset="utf8" />
-</head>
 
-<body>
-    <pal-header></pal-header>
-    <d-front-matter>
-        <script id="distill-front-matter" type="text/json">
-            {
-                "title": "Null-sampling for Interpretable and Fair Representations",
-                "description": "We propose to learn invariant representations, in the data domain, to achieve interpretability in algorithmic fairness.",
-                "published": "27 May, 2020",
-                "authors": [
-                    {
-                        "author": "Thomas Kehrenberg",
-                        "authorURL": "https://predictive-analytics-lab.github.io/",
-                        "affiliations": [
-                            {
-                                "name": "University of Sussex",
-                                "url": "https://predictive-analytics-lab.github.io/"
-                            }
-                        ]
-                    },
-                    {
-                        "author": "Myles Bartlett",
-                        "authorURL": "https://predictive-analytics-lab.github.io/",
-                        "affiliations": [
-                            {
-                                "name": "University of Sussex",
-                                "url": "https://predictive-analytics-lab.github.io/"
-                            }
-                        ]
-                    },
-                    {
-                        "author": "Oliver Thomas",
-                        "authorURL": "https://predictive-analytics-lab.github.io/",
-                        "affiliations": [
-                            {
-                                "name": "University of Sussex",
-                                "url": "https://predictive-analytics-lab.github.io/"
-                            }
-                        ]
-                    },
-                    {
-                        "author": "Novi Quadrianto",
-                        "authorURL": "https://predictive-analytics-lab.github.io/",
-                        "affiliations": [
-                            {
-                                "name": "University of Sussex",
-                                "url": "https://predictive-analytics-lab.github.io/"
-                            },
-                            {
-                                "name": "HSE - Moscow",
-                                "url": "https://predictive-analystics-lab.github.io/"
-                            }
+    <body>
+        <pal-header></pal-header>
+        <d-front-matter>
+            <script id="distill-front-matter" type="text/json">
+                {
+                    "title": "Null-sampling for Interpretable and Fair Representations",
+                    "description": "We propose to learn invariant representations, in the data domain, to achieve interpretability in algorithmic fairness.",
+                    "published": "27 May, 2020",
+                    "authors": [
+                        {
+                            "author": "Thomas Kehrenberg",
+                            "authorURL": "https://predictive-analytics-lab.github.io/",
+                            "affiliations": [
+                                {
+                                    "name": "University of Sussex",
+                                    "url": "https://predictive-analytics-lab.github.io/"
+                                }
+                            ]
+                        },
+                        {
+                            "author": "Myles Bartlett",
+                            "authorURL": "https://predictive-analytics-lab.github.io/",
+                            "affiliations": [
+                                {
+                                    "name": "University of Sussex",
+                                    "url": "https://predictive-analytics-lab.github.io/"
+                                }
+                            ]
+                        },
+                        {
+                            "author": "Oliver Thomas",
+                            "authorURL": "https://predictive-analytics-lab.github.io/",
+                            "affiliations": [
+                                {
+                                    "name": "University of Sussex",
+                                    "url": "https://predictive-analytics-lab.github.io/"
+                                }
+                            ]
+                        },
+                        {
+                            "author": "Novi Quadrianto",
+                            "authorURL": "https://predictive-analytics-lab.github.io/",
+                            "affiliations": [
+                                {
+                                    "name": "University of Sussex",
+                                    "url": "https://predictive-analytics-lab.github.io/"
+                                },
+                                {
+                                    "name": "HSE - Moscow",
+                                    "url": "https://predictive-analystics-lab.github.io/"
+                                }
+                            ]
+                        }
+                    ],
+                    "katex": {
+                        "delimiters": [
+                            { "left": "$$", "right": "$$", "display": false }
                         ]
                     }
-                ],
-                "katex": {
-                    "delimiters": [
-                        { "left": "$$", "right": "$$", "display": false }
-                    ]
                 }
-            }
-        </script>
-    </d-front-matter>
+            </script>
+        </d-front-matter>
 
-    <d-title>
-        <p>
-            We propose to learn invariant representations, in the data domain,
-            to achieve interpretability in algorithmic fairness.
-        </p>
-    </d-title>
-    <d-abstract>
-        <p>
-            We propose to learn invariant representations, in the data domain,
-            to achieve interpretability in algorithmic fairness. Invariance
-            implies a selectivity for high level, relevant correlations w.r.t.
-            class label annotations, and a robustness to irrelevant correlations
-            with protected characteristics such as race or gender. We introduce
-            a non-trivial setup in which the training set exhibits a strong bias
-            such that class label annotations are irrelevant and spurious
-            correlations cannot be distinguished. To address this problem, we
-            introduce an adversarially trained model with a
-            <em>null-sampling</em> procedure to produce invariant
-            representations in the data domain. To enable disentanglement, a
-            partially-labelled <em>representative</em> set is used. By placing
-            the representations into the data domain, the changes made by the
-            model are easily examinable by human auditors. We show the
-            effectiveness of our method on both image and tabular datasets:
-            Coloured MNIST, the CelebA and the Adult dataset.
-            <d-footnote
-                >The code can be found at
-                <a href="https://github.com/predictive-analytics-lab/nifr"
-                    >https://github.com/predictive-analytics-lab/nifr.</a
-                ></d-footnote
+        <d-title>
+            <p>
+                We propose to learn invariant representations, in the data
+                domain, to achieve interpretability in algorithmic fairness.
+            </p>
+        </d-title>
+        <d-abstract>
+            <p>
+                We propose to learn invariant representations, in the data
+                domain, to achieve interpretability in algorithmic fairness.
+                Invariance implies a selectivity for high level, relevant
+                correlations w.r.t. class label annotations, and a robustness to
+                irrelevant correlations with protected characteristics such as
+                race or gender. We introduce a non-trivial setup in which the
+                training set exhibits a strong bias such that class label
+                annotations are irrelevant and spurious correlations cannot be
+                distinguished. To address this problem, we introduce an
+                adversarially trained model with a
+                <em>null-sampling</em> procedure to produce invariant
+                representations in the data domain. To enable disentanglement, a
+                partially-labelled <em>representative</em> set is used. By
+                placing the representations into the data domain, the changes
+                made by the model are easily examinable by human auditors. We
+                show the effectiveness of our method on both image and tabular
+                datasets: Coloured MNIST, the CelebA and the Adult dataset.
+                <d-footnote
+                    >The code can be found at
+                    <a href="https://github.com/predictive-analytics-lab/nifr"
+                        >https://github.com/predictive-analytics-lab/nifr.</a
+                    ></d-footnote
+                >
+            </p>
+        </d-abstract>
+        <d-byline></d-byline>
+        <d-article>
+            <a class="marker" href="#1-introduction" id="1-introduction"
+                ><span>1</span></a
             >
-        </p>
-    </d-abstract>
-    <d-byline></d-byline>
-    <d-article>
-        <a class="marker" href="#1-introduction" id="1-introduction"
-            ><span>1</span></a
-        >
-        <h2>Introduction</h2>
-        <p>
-            Without due consideration for the data collection process, machine
-            learning algorithms can exacerbate biases, or even introduce new
-            ones if proper control is not exerted over their learning
-            <d-cite key="holstein2019improving"></d-cite>
-            . While most of these issues can be solved by controlling and
-            curating data collection in a fairness-conscious fashion, doing so
-            is not always an option, such as when working with historical data.
-            Efforts to address this problem algorithmically have been centred on
-            developing statistical definitions of fairness and learning models
-            that satisfy these definitions. One popular definition of fairness
-            used to guide the training of fair classifiers, for example, is
-            <em>demographic parity</em>, stating that positive outcome rates
-            should be equalised (or <em>invariant</em>) across protected groups.
-        </p>
-        <p>
-            In the typical setup, we have an input <d-math>\mathbf{x}</d-math> ,
-            a sensitive attribute <d-math>s</d-math> that represents some
-            non-admissible information like gender and a class label
-            <d-math>y</d-math> which is the prediction target. The idea of fair
-            <em>representation</em> learning
-            <d-cite key="ZemWuSwePitetal13,edwardsstorkey,madras2018learning">
-            </d-cite>
-            is then to transform the input <d-math>\mathbf{x}</d-math> to a
-            representation <d-math>\mathbf{z}</d-math> which is invariant to
-            <d-math>s</d-math>. Thus, learning from
-            <d-math>\mathbf{z}</d-math> will not introduce a forbidden
-            dependence on <d-math>s</d-math>. A good fair representation is one
-            that preserves most of the information from
-            <d-math>\mathbf{x}</d-math> while satisfying the aforementioned
-            constraints.
-        </p>
-        <p>
-            As unlabelled data is much more freely available than labelled data,
-            it is of interest to learn the representation in an unsupervised
-            manner. This will allow us to draw on a much more diverse pool of
-            data to learn from. While annotations for <d-math>y</d-math> are
-            often hard to come by (and often noisy
-            <d-cite key="'KehCheQua18"></d-cite>
-            ), annotations for the sensitive attribute <d-math>s</d-math> are
-            usually less so, as <d-math>s</d-math> can often be obtained from
-            demographic information provided by census data. We thus consider
-            the setting where the representation is learned from data that is
-            only labelled with <d-math>s</d-math> and not <d-math>y</d-math>.
-            This is in contrast to most other representation learning methods.
-            We call the set used to learn the representation the
-            <em>representative</em> set, because its distribution is meant to
-            match the distribution of the deployment setting (and is thus
-            representative).
-        </p>
-        <p>
-            Once we have learnt the mapping from <d-math>\mathbf{x}</d-math> to
-            <d-math>\mathbf{z}</d-math>, we can transform the
-            <em>training</em> set which, in contrast to the representative set,
-            has the <d-math>y</d-math> labels (and <d-math>s</d-math> labels).
-            In order to make our method more widely applicable, we allow the
-            case in which the training set contains a strong spurious
-            correlation between <d-math>s</d-math> and <d-math>y</d-math>, which
-            makes it impossible to learn from it a representation which is
-            invariant to <d-math>s</d-math> but not invariant to
-            <d-math>y</d-math>. Non-invariance to <d-math>y</d-math> is
-            important in order to be able to predict <d-math>y</d-math>. The
-            training set thus does <em>not</em> match the deployment setting,
-            thereby rendering the representative set essential for learning the
-            right invariance. From hereon, we will use the terms
-            <em>spurious</em> and <em>sensitive</em> interchangeably, depending
-            on the context, to refer to an attribute of the data we seek
-            invariance to. We can draw a connection between learning in the
-            presence of spurious correlations and what
-            <d-cite key="kallus2018residual"> </d-cite> call
-            <em>residual unfairness</em>. Consider the Stop, Question and Frisk
-            (SQF) dataset for example: the data was collected in New York City,
-            but the demographics of the recorded cases do not represent the true
-            demographics of NYC well. The demographic attributes of the recorded
-            individuals might correlate so strongly with the prediction target
-            that the two are nearly indistinguishable. This is the scenario that
-            we are investigating: <d-math>s</d-math> and <d-math>y</d-math> are
-            so closely correlated in the labelled dataset that they cannot be
-            distinguished, but the learning of <d-math>s</d-math> is favoured
-            due to being the “path of least resistance”. The deployment setting
-            (i.e. the test set) does not possess this strong correlation and
-            thus a naïve approach will lead to very unfair predictions. In this
-            case, a disentangled representation is insufficient; the
-            representation needs to be explicitly invariant solely with respect
-            to <d-math>s</d-math>. In our approach, we make use of the
-            (partially labelled) representative set to learn this invariant
-            representation.
-        </p>
-        <p>
-            While there is a substantial body of literature devoted to the
-            problems of fair representation-learning, exactly how the invariance
-            in question is achieved is often overlooked. When critical
-            decisions, such as who should receive bail or be released from jail,
-            are being deferred to an automated decision making system, it is
-            critical that people be able to trust the logic of the model
-            underlying it, whether it be via semantic or visual explanations. We
-            build on the work of <d-cite key="QuaShaTho19"></d-cite> and learn a
-            decomposition (
-            <d-math> f^{-1}: Z_s \times Z_{\neg s} \rightarrow X </d-math> ) of
-            the <em>data domain</em> ( <d-math>X</d-math> ) into independent
-            subspaces <em>invariant</em> to <d-math>s</d-math> (
-            <d-math>Z_{\neg s}</d-math> ) and <em>indicative</em> of
-            <d-math>s</d-math> ( <d-math>Z_{s}</d-math> ), which lends an
-            interpretability that is absent from most representation-learning
-            methods. While model interpretability has no strict definition
-            <d-cite key="zhang2018visual"></d-cite>, we follow the intuition of
-            <d-cite key="adel2018discovering"></d-cite> -
-            <em>a simple relationship to something we can understand</em>, a
-            definition which representations in the data domain naturally
-            fulfil.
-        </p>
-        <p>
-            Whether as a result of the aforementioned sampling bias or simply
-            because the features necessarily co-occur, it is not rare for
-            features to correlate with one another in real-world datasets.
-            Lipstick and gender for example, are two attributes that we expect
-            to be highly correlated and to enforce invariance to gender can
-            implicitly enforce invariance to makeup. This is arguably the
-            desired behaviour. However, unforeseen biases in the data may
-            engender cases which are less justifiable. By baking
-            interpretability into our model (by having representations in the
-            data domain), though we still have no better control over what is
-            learned, we can at least diagnose such pathologies.
-        </p>
-        <p>
-            To render our representations interpretable, we rely on a simple
-            transformation we call <em>null-sampling</em> to map invariant
-            representations in the data domain. Previous approaches to fair
-            representation learning
-            <d-cite
-                key="beutel,edwardsstorkey,madras2018learning,LouSweLi15"
-            ></d-cite>
-            predominantly rely upon autoencoder models to jointly minimise
-            reconstruction loss and invariance. We discuss first how this can be
-            done with such a model that we refer to as cVAE (conditional VAE),
-            before arguing that the bijectivity of invertible neural networks
-            (INNs)
-            <d-cite key="Dinh2014"></d-cite>
-            makes them better suited to this task. We refer to the variant of
-            our method based on these as cFlow (conditional Flow). INNs have
-            several properties that make them appealing for unsupervised
-            representation learning. The focus of our approach is on creating
-            invariant representations that preserve the non-sensitive
-            information maximally, with only knowledge of<d-math>s</d-math> and
-            not of the target <d-math>y</d-math>, while at the same time having
-            the ability to easily probe what has been learnt.
-        </p>
-        <p>
-            Our contribution is thus two-fold: 1) We propose a simple approach
-            to generating representations that are invariant to a feature
-            <d-math>s</d-math>, while having the benefit of interpretability
-            that comes with being in the data domain. 2) We explore a setting
-            where the labelled training set suffers from varying levels of
-            sampling bias, which we expect to be common not only in fairness
-            problems but machine learning problems more broadly, demonstrating
-            an approach based on transferring information from a more diverse
-            representative set, with guarantees of the non-spurious information
-            being preserved.
-        </p>
+            <h2>Introduction</h2>
+            <p>
+                Without due consideration for the data collection process,
+                machine learning algorithms can exacerbate biases, or even
+                introduce new ones if proper control is not exerted over their
+                learning
+                <d-cite key="holstein2019improving"></d-cite>
+                . While most of these issues can be solved by controlling and
+                curating data collection in a fairness-conscious fashion, doing
+                so is not always an option, such as when working with historical
+                data. Efforts to address this problem algorithmically have been
+                centred on developing statistical definitions of fairness and
+                learning models that satisfy these definitions. One popular
+                definition of fairness used to guide the training of fair
+                classifiers, for example, is
+                <em>demographic parity</em>, stating that positive outcome rates
+                should be equalised (or <em>invariant</em>) across protected
+                groups.
+            </p>
+            <p>
+                In the typical setup, we have an input
+                <d-math>\mathbf{x}</d-math> , a sensitive attribute
+                <d-math>s</d-math> that represents some non-admissible
+                information like gender and a class label
+                <d-math>y</d-math> which is the prediction target. The idea of
+                fair <em>representation</em> learning
+                <d-cite
+                    key="ZemWuSwePitetal13,edwardsstorkey,madras2018learning"
+                >
+                </d-cite>
+                is then to transform the input <d-math>\mathbf{x}</d-math> to a
+                representation <d-math>\mathbf{z}</d-math> which is invariant to
+                <d-math>s</d-math>. Thus, learning from
+                <d-math>\mathbf{z}</d-math> will not introduce a forbidden
+                dependence on <d-math>s</d-math>. A good fair representation is
+                one that preserves most of the information from
+                <d-math>\mathbf{x}</d-math> while satisfying the aforementioned
+                constraints.
+            </p>
+            <p>
+                As unlabelled data is much more freely available than labelled
+                data, it is of interest to learn the representation in an
+                unsupervised manner. This will allow us to draw on a much more
+                diverse pool of data to learn from. While annotations for
+                <d-math>y</d-math> are often hard to come by (and often noisy
+                <d-cite key="'KehCheQua18"></d-cite>
+                ), annotations for the sensitive attribute
+                <d-math>s</d-math> are usually less so, as
+                <d-math>s</d-math> can often be obtained from demographic
+                information provided by census data. We thus consider the
+                setting where the representation is learned from data that is
+                only labelled with <d-math>s</d-math> and not
+                <d-math>y</d-math>. This is in contrast to most other
+                representation learning methods. We call the set used to learn
+                the representation the <em>representative</em> set, because its
+                distribution is meant to match the distribution of the
+                deployment setting (and is thus representative).
+            </p>
+            <p>
+                Once we have learnt the mapping from
+                <d-math>\mathbf{x}</d-math> to <d-math>\mathbf{z}</d-math>, we
+                can transform the <em>training</em> set which, in contrast to
+                the representative set, has the <d-math>y</d-math> labels (and
+                <d-math>s</d-math> labels). In order to make our method more
+                widely applicable, we allow the case in which the training set
+                contains a strong spurious correlation between
+                <d-math>s</d-math> and <d-math>y</d-math>, which makes it
+                impossible to learn from it a representation which is invariant
+                to <d-math>s</d-math> but not invariant to <d-math>y</d-math>.
+                Non-invariance to <d-math>y</d-math> is important in order to be
+                able to predict <d-math>y</d-math>. The training set thus does
+                <em>not</em> match the deployment setting, thereby rendering the
+                representative set essential for learning the right invariance.
+                From hereon, we will use the terms <em>spurious</em> and
+                <em>sensitive</em> interchangeably, depending on the context, to
+                refer to an attribute of the data we seek invariance to. We can
+                draw a connection between learning in the presence of spurious
+                correlations and what
+                <d-cite key="kallus2018residual"> </d-cite> call
+                <em>residual unfairness</em>. Consider the Stop, Question and
+                Frisk (SQF) dataset for example: the data was collected in New
+                York City, but the demographics of the recorded cases do not
+                represent the true demographics of NYC well. The demographic
+                attributes of the recorded individuals might correlate so
+                strongly with the prediction target that the two are nearly
+                indistinguishable. This is the scenario that we are
+                investigating: <d-math>s</d-math> and <d-math>y</d-math> are so
+                closely correlated in the labelled dataset that they cannot be
+                distinguished, but the learning of <d-math>s</d-math> is
+                favoured due to being the “path of least resistance”. The
+                deployment setting (i.e. the test set) does not possess this
+                strong correlation and thus a naïve approach will lead to very
+                unfair predictions. In this case, a disentangled representation
+                is insufficient; the representation needs to be explicitly
+                invariant solely with respect to <d-math>s</d-math>. In our
+                approach, we make use of the (partially labelled) representative
+                set to learn this invariant representation.
+            </p>
+            <p>
+                While there is a substantial body of literature devoted to the
+                problems of fair representation-learning, exactly how the
+                invariance in question is achieved is often overlooked. When
+                critical decisions, such as who should receive bail or be
+                released from jail, are being deferred to an automated decision
+                making system, it is critical that people be able to trust the
+                logic of the model underlying it, whether it be via semantic or
+                visual explanations. We build on the work of
+                <d-cite key="QuaShaTho19"></d-cite> and learn a decomposition (
+                <d-math> f^{-1}: Z_s \times Z_{\neg s} \rightarrow X </d-math> )
+                of the <em>data domain</em> ( <d-math>X</d-math> ) into
+                independent subspaces <em>invariant</em> to <d-math>s</d-math> (
+                <d-math>Z_{\neg s}</d-math> ) and <em>indicative</em> of
+                <d-math>s</d-math> ( <d-math>Z_{s}</d-math> ), which lends an
+                interpretability that is absent from most
+                representation-learning methods. While model interpretability
+                has no strict definition
+                <d-cite key="zhang2018visual"></d-cite>, we follow the intuition
+                of <d-cite key="adel2018discovering"></d-cite> -
+                <em>a simple relationship to something we can understand</em>, a
+                definition which representations in the data domain naturally
+                fulfil.
+            </p>
+            <p>
+                Whether as a result of the aforementioned sampling bias or
+                simply because the features necessarily co-occur, it is not rare
+                for features to correlate with one another in real-world
+                datasets. Lipstick and gender for example, are two attributes
+                that we expect to be highly correlated and to enforce invariance
+                to gender can implicitly enforce invariance to makeup. This is
+                arguably the desired behaviour. However, unforeseen biases in
+                the data may engender cases which are less justifiable. By
+                baking interpretability into our model (by having
+                representations in the data domain), though we still have no
+                better control over what is learned, we can at least diagnose
+                such pathologies.
+            </p>
+            <p>
+                To render our representations interpretable, we rely on a simple
+                transformation we call <em>null-sampling</em> to map invariant
+                representations in the data domain. Previous approaches to fair
+                representation learning
+                <d-cite
+                    key="beutel,edwardsstorkey,madras2018learning,LouSweLi15"
+                ></d-cite>
+                predominantly rely upon autoencoder models to jointly minimise
+                reconstruction loss and invariance. We discuss first how this
+                can be done with such a model that we refer to as cVAE
+                (conditional VAE), before arguing that the bijectivity of
+                invertible neural networks (INNs)
+                <d-cite key="Dinh2014"></d-cite>
+                makes them better suited to this task. We refer to the variant
+                of our method based on these as cFlow (conditional Flow). INNs
+                have several properties that make them appealing for
+                unsupervised representation learning. The focus of our approach
+                is on creating invariant representations that preserve the
+                non-sensitive information maximally, with only knowledge
+                of<d-math>s</d-math> and not of the target <d-math>y</d-math>,
+                while at the same time having the ability to easily probe what
+                has been learnt.
+            </p>
+            <p>
+                Our contribution is thus two-fold: 1) We propose a simple
+                approach to generating representations that are invariant to a
+                feature
+                <d-math>s</d-math>, while having the benefit of interpretability
+                that comes with being in the data domain. 2) We explore a
+                setting where the labelled training set suffers from varying
+                levels of sampling bias, which we expect to be common not only
+                in fairness problems but machine learning problems more broadly,
+                demonstrating an approach based on transferring information from
+                a more diverse representative set, with guarantees of the
+                non-spurious information being preserved.
+            </p>
 
-        <d-figure href="#fig:celeba_cflow" id="fig:celeba_cflow" class="l-page">
-            <a
-                href="#fig:cflow_celeba_original_x"
-                id="fig:cflow_celeba_original_x"
+            <d-figure
+                href="#fig:celeba_cflow"
+                id="fig:celeba_cflow"
+                class="l-page"
             >
-                <img src="./images/celeba/train_original_x_2.png" />
-                <p class="figcaption">Original images.</p>
-            </a>
-            <a href="#fig:cflow_celeba_recon_y" id="fig:cflow_celeba_recon_y">
-                <img src="./images/celeba/train_reconstruction_y_2.png" />
+                <a
+                    href="#fig:cflow_celeba_original_x"
+                    id="fig:cflow_celeba_original_x"
+                >
+                    <img src="./images/celeba/train_original_x_2.png" />
+                    <p class="figcaption">Original images.</p>
+                </a>
+                <a
+                    href="#fig:cflow_celeba_recon_y"
+                    id="fig:cflow_celeba_recon_y"
+                >
+                    <img src="./images/celeba/train_reconstruction_y_2.png" />
+                    <p class="figcaption">
+                        <d-math>\mathbf{x}_u</d-math>
+                        null-samples from the cFlow model.
+                    </p>
+                </a>
+                <a
+                    href="#fig:cflow_celeba_recon_s"
+                    id="fig:cflow_celeba_recon_s"
+                >
+                    <img src="./images/celeba/train_reconstruction_s_2.png" />
+                    <p class="figcaption">
+                        <d-math>\mathbf{x}_b</d-math>
+                        null-samples from the cFlow model.
+                    </p>
+                </a>
+                <div class="figcaption">
+                    <p>
+                        CelebA null-samples learned by our cFlow model, with
+                        gender as the sensitive attribute. (a) The original,
+                        untransformed samples from the CelebA dataset (b)
+                        Reconstructions using only information unrelated to
+                        <d-math>s</d-math>. (c) Reconstruction using only
+                        information related to <d-math>\neg s</d-math>. The
+                        model learns to disentangle gender from the non-gender
+                        related information. Note that some attributes like skin
+                        tone seem to change along with gender due to the
+                        correlation between the attributes. This is especially
+                        visible in images (1,1) and (3,2). Only because our
+                        representations are produced in the data-domain can we
+                        easily spot such instances of entanglement.
+                    </p>
+                </div>
+            </d-figure>
+
+            <d-figure href="#fig:cmnist" id="fig:cmnist" class="l-page">
+                <img src="./images/cmnist/cflow_original_task_x_scale_0.png" />
                 <p class="figcaption">
-                    <d-math>\mathbf{x}_u</d-math>
-                    null-samples from the cFlow model.
+                    Samples from the cMNIST training set,
+                    <d-math>\sigma=0</d-math>.
                 </p>
-            </a>
-            <a href="#fig:cflow_celeba_recon_s" id="fig:cflow_celeba_recon_s">
-                <img src="./images/celeba/train_reconstruction_s_2.png" />
+
+                <img src="./images/cmnist/cflow_task_xy_scale_0.png" />
                 <p class="figcaption">
-                    <d-math>\mathbf{x}_b</d-math>
-                    null-samples from the cFlow model.
+                    <d-math>x_u</d-math> null-samples from the cFlow model.
                 </p>
-            </a>
-            <div class="figcaption">
-                <p>
-                    CelebA null-samples learned by our cFlow model, with gender
-                    as the sensitive attribute. (a) The original, untransformed
-                    samples from the CelebA dataset (b) Reconstructions using
-                    only information unrelated to <d-math>s</d-math>. (c)
-                    Reconstruction using only information related to
-                    <d-math>\neg s</d-math>. The model learns to disentangle
-                    gender from the non-gender related information. Note that
-                    some attributes like skin tone seem to change along with
-                    gender due to the correlation between the attributes. This
-                    is especially visible in images (1,1) and (3,2). Only
-                    because our representations are produced in the data-domain
-                    can we easily spot such instances of entanglement.
+
+                <img src="./images/cmnist/cflow_task_xs_scale_0.png" />
+                <p class="figcaption">
+                    <d-math>x_b</d-math> null-samples from the cFlow model.
                 </p>
-            </div>
-        </d-figure>
 
-        <d-figure href="#fig:cmnist" id="fig:cmnist" class="l-page">
-            <img src="./images/cmnist/cflow_original_task_x_scale_0.png" />
-            <p class="figcaption">
-                Samples from the cMNIST training set, <d-math>\sigma=0</d-math>.
+                <p class="figcaption">
+                    Sample images from the coloured MNIST dataset problem with
+                    $10$ predefined mean colours. (a): Images from the
+                    spuriously correlated subpopulation where colour is a
+                    reliable signal of the digit class-label. (b-c): Results of
+                    running our approach realised with cFlow on the cMNIST
+                    dataset. The model learns to retain the shape of the digit
+                    shape while removing the relationship with colour. A
+                    downstream classifier is now less prone to exploiting
+                    correlations between colour and the digit label class.
+                </p>
+            </d-figure>
+
+            <a class="marker" href="#2-background" id="2-background"
+                ><span>2</span></a
+            >
+            <h2>Background</h2>
+            <h3>Learning fair representations.</h3>
+            <p>
+                Given a sensitive attribute <d-math>s</d-math> (for example,
+                gender or race) and inputs <d-math>\mathbf{x}</d-math>, a fair
+                representation <d-math>\mathbf{z}</d-math> of
+                <d-math>\mathbf{x}</d-math> is then one for which
+                <d-math>\mathbf{z} \perp s</d-math> holds, while ideally also
+                being predictive of the class label <d-math>y</d-math>.
+                <d-cite key="ZemWuSwePitetal13"></d-cite> was the first to
+                propose the learning of fair representations which allow for
+                transfer to new classification tasks. More recent methods are
+                often based on variational autoencoders (VAEs)
+                <d-cite key="kingma2013auto,LouSweLi15,edwardsstorkey,beutel">
+                </d-cite
+                >. The achieved fairness of the representation can be measured
+                with various fairness metrics. These measure, however, usually
+                how fair the predictions of a classifier are and not how fair a
+                representation is.
+            </p>
+            <p>
+                The appropriate measure of fairness for a given task is
+                domain-specific <d-cite key="liu2018delayed"></d-cite> and there
+                is often not a universally accepted measure. However,
+                <em>Demographic Parity</em> is the most widely used
+                <d-cite key="LouSweLi15,edwardsstorkey,beutel"></d-cite>.
+                Demographic Parity demands
+                <d-math>\hat{y} \perp s</d-math> where
+                <d-math>\hat{y}</d-math> refers to the predictions of the
+                classifier. In the context of fair representations, we measure
+                the Demographic Parity of a downstream classifier,
+                <d-math>f(\cdot )</d-math>, which is trained on the
+                representation <d-math>z</d-math> i.e.
+                <d-math>f: Z \to \hat{Y}</d-math>.
+            </p>
+            <p>
+                A core principle of all fairness methods is the
+                <em>accuracy-fairness trade-off</em>. As previously stated, the
+                fair representation should be invariant to <d-math>s</d-math> (
+                <d-math>\to</d-math> fairness) but still be predictive of
+                <d-math>y</d-math> (<d-math>\to</d-math> accuracy). These
+                desiderata cannot, in general, be simultaneously satisfied if
+                <d-math>s</d-math> and <d-math>y</d-math> are correlated.
+            </p>
+            <p>
+                The majority of existing methods for fair representations also
+                make use of <d-math>y</d-math> labels during training, in order
+                to ensure that <d-math>\mathbf{z}</d-math> remains predictive of
+                <d-math>y</d-math>. This aspect can, in theory, be removed from
+                the methods, but then there is no guarantee that information
+                about <d-math>y</d-math> is preserved
+                <d-cite key="LouSweLi15"></d-cite>.
+            </p>
+            <h3>Learning fair, transferrable representations.</h3>
+            <p>
+                In addition to producing fair representations,
+                <d-cite key="madras2018learning"></d-cite> want to ensure the
+                representations are transferrable. Here, an adversary is used to
+                remove sensitive information from a representation
+                <d-math>z</d-math>. Auxiliary prediction and reconstruction
+                networks, to predict class label <d-math>y</d-math>. and
+                reconstruct the input <d-math>x</d-math> respectively, are
+                trained on top of <d-math>z</d-math>, with
+                <d-math>s</d-math> being ancillary input to the reconstruction.
+            </p>
+            <p>
+                Also related is <d-cite key="creager2019flexibly"></d-cite> who
+                employ a FactorVAE
+                <d-cite key="kim2018disentangling"></d-cite> regularised for
+                fairness. The idea is to learn a representation that is both
+                disentangled and invariant to multiple sensitive attributes.
+                This factorisation makes the latent space easily manipulable
+                such that the different subspaces can be freely removed and
+                composed at test time. Zeroing out the dimensions or replacing
+                them with independent noise imparts invariance to the
+                corresponding sensitive attribute. This method closely resembles
+                ours when we use an invertible encoder. However, the emphasis of
+                our approach is on interpretability, information-preservation,
+                and coping with sampling bias - especially extreme cases where
+                <d-math
+                    >|\, \textrm{supp}(S_{tr} \times Y_{tr}) | < |\,
+                    \textrm{supp}(S_{te} \times Y_{te}) |</d-math
+                >.
+            </p>
+            <p>
+                Attempts were made by <d-cite key="QuaShaTho19"></d-cite> prior
+                to this work to learn fair representations in the data domain in
+                order to make it interpretable and transferable. In their work,
+                the input is assumed to be additively decomposable in the
+                feature space into a <em>fair</em> and
+                <em>unfair</em> component, which together can be used by the
+                decoder to recover the original input. This allows us to examine
+                representations in a human-interpretable space and confirm that
+                the model is not learning a relationship reliant on a sensitive
+                attribute. Though a first step in this direction, we believe
+                such a linear decomposition is not sufficiently expressive to
+                fully capture the relationship between the sensitive and
+                non-sensitive attributes. Our approach allows for the modelling
+                of more complex relationships.
+            </p>
+            <h3>Learning in the presence of spurious correlations.</h3>
+            <p>
+                Strong spurious correlations make the task of learning a robust
+                classifier challenging: the classifier may learn to exploit
+                correlations unrelated to the true causal relationship between
+                the features and label, and thereby fail to generalise to novel
+                settings. This problem was recently tackled by
+                <d-cite key="ln2l"></d-cite> who apply a penalty based on the
+                mutual information between the feature embedding and the
+                spurious variable. While the method is effective under mild
+                biasing, we show experimentally that it is not robust to the
+                range of settings we consider.
+            </p>
+            <p>
+                Jacobsen et al. <d-cite key="JacBehZemBet19"></d-cite> explore
+                the vulnerability of traditional neural networks to spurious
+                variables - e.g., textures, in the case of ImageNet
+                <d-cite key="Geir18"></d-cite> - and propose a INN-based
+                solution akin to ours. The INN's encoding is split such that one
+                partition, <d-math>z_b</d-math> is encouraged to be predictive
+                of the spurious variable while the other serves as the logits
+                for classification of the semantic label. Information related to
+                the nuisance variable is “pulled out" of the logits as a result
+                of maximising <d-math>\log p(s|z_n)</d-math>. This specific
+                approach, however, is incompatible with the settings we
+                consider, due to its requirement that both
+                <d-math>s</d-math> and <d-math>y</d-math> be available at
+                training time.
+            </p>
+            <p>
+                Viewing the problem from a causal perspective,
+                <d-cite key="arjovsky2019invariant"></d-cite> develop a variant
+                of empirical risk minimisation called invariant risk
+                minimisation (IRM). The goal of IRM is to train a predictor that
+                generalises across a large set of unseen environments; because
+                variables with spurious correlations do not represent a stable
+                causal mechanism, the predictor learns to be invariant to them.
+                IRM assumes that the training data is not <em>iid</em> but is
+                partitioned into distinct environments,
+                <d-math>e \in E</d-math>. The optimal predictor is then defined
+                as the minimiser of the sum of the empirical risk
+                <d-math>R_e</d-math> over this set. In contrast, we assume
+                possession of only a single source of <em>labelled</em>, albeit
+                spuriously-correlated, data, but that we have a second source of
+                data that is free of spurious correlations, with the benefit
+                being that it only needs to be labelled
+                <em>with respect to <d-math>s</d-math></em> .
             </p>
 
-            <img src="./images/cmnist/cflow_task_xy_scale_0.png" />
-            <p class="figcaption">
-                <d-math>x_u</d-math> null-samples from the cFlow model.
+            <a class="marker" href="#3-method" id="3-method"><span>3</span></a>
+            <h2>Interpretable Invariances by Null-Sampling</h2>
+
+            <d-figure>
+                <a href="#fig:inn_diagram" id="fig:inn_diagram"
+                    ><img src="./figures/inn_diagram_u.pdf"
+                /></a>
+                <a href="#fig:cvae_diagram" id="fig:cvae_diagram"
+                    ><img src="./figures/cvae_diagram_u.pdf"
+                /></a>
+                <p class="figcaption">
+                    Training procedure for our models. <d-math>x</d-math>:
+                    input, <d-math>s</d-math>: sensitive attribute,
+                    <d-math>z_u</d-math>: de-biased representation,
+                    <d-math>x_u</d-math>: de-biased version of the input in the
+                    data domain. The red bar indicates a gradient reversal
+                    layer, and <d-math>\stackrel{\rightarrow}{0}</d-math> the
+                    null-sampling operation.
+                </p>
+            </d-figure>
+
+            <h3>Problem Statement</h3>
+            <p>
+                We assume we are given inputs
+                <d-math>\mathbf{x} \in \mathcal{X}</d-math> and corresponding
+                labels <d-math>y \in \mathcal{Y}</d-math>. Furthermore, there is
+                some spurious variable
+                <d-math>s \in \mathcal{S}</d-math> associated with each input
+                <d-math>\mathbf{x}</d-math> which we do <em>not</em> want to
+                predict. Let <d-math>X</d-math>, <d-math>S</d-math> and
+                <d-math>Y</d-math> be random variables that take on the values
+                <d-math>\mathbf{x}</d-math>, <d-math>s</d-math> and
+                <d-math>y</d-math>, respectively. The fact that both
+                <d-math>y</d-math> and <d-math>s</d-math> are predictive of
+                <d-math>\mathbf{x}</d-math> implies that
+                <d-math>\mathcal{I}(X;Y), \mathcal{I}(X;S) &gt; 0</d-math>,
+                where <d-math>\mathcal{I}(\cdot ;\cdot)</d-math> is the mutual
+                information. Note, however, that the conditional entropy is
+                non-zero: <d-math>H(S|X) \neq 0</d-math>, i.e.,
+                <d-math>S</d-math> is not completely determined by
+                <d-math>X</d-math>.
             </p>
-
-            <img src="./images/cmnist/cflow_task_xs_scale_0.png" />
-            <p class="figcaption">
-                <d-math>x_b</d-math> null-samples from the cFlow model.
+            <p>
+                The difficulty of this setup emerges in the training set: there
+                is a close correspondence between <d-math>S</d-math> and
+                <d-math>Y</d-math>, such that for a model that sees the data
+                through the lens of the loss function, the two are
+                indistinguishable. Furthermore, we assume that this is
+                <em>not</em> the case in the test set, meaning the model cannot
+                rely on shortcuts provided by <d-math>S</d-math> if it is to
+                generalise from the training set.
             </p>
-
-            <p class="figcaption">
-                Sample images from the coloured MNIST dataset problem with $10$
-                predefined mean colours. (a): Images from the spuriously
-                correlated subpopulation where colour is a reliable signal of
-                the digit class-label. (b-c): Results of running our approach
-                realised with cFlow on the cMNIST dataset. The model learns to
-                retain the shape of the digit shape while removing the
-                relationship with colour. A downstream classifier is now less
-                prone to exploiting correlations between colour and the digit
-                label class.
-            </p>
-        </d-figure>
-
-        <a class="marker" href="#2-background" id="2-background"
-            ><span>2</span></a
-        >
-        <h2>Background</h2>
-        <h3>Learning fair representations.</h3>
-        <p>
-            Given a sensitive attribute <d-math>s</d-math> (for example, gender
-            or race) and inputs <d-math>\mathbf{x}</d-math>, a fair
-            representation <d-math>\mathbf{z}</d-math> of
-            <d-math>\mathbf{x}</d-math> is then one for which
-            <d-math>\mathbf{z} \perp s</d-math> holds, while ideally also being
-            predictive of the class label <d-math>y</d-math>.
-            <d-cite key="ZemWuSwePitetal13"></d-cite> was the first to propose
-            the learning of fair representations which allow for transfer to new
-            classification tasks. More recent methods are often based on
-            variational autoencoders (VAEs)
-            <d-cite key="kingma2013auto,LouSweLi15,edwardsstorkey,beutel">
-            </d-cite
-            >. The achieved fairness of the representation can be measured with
-            various fairness metrics. These measure, however, usually how fair
-            the predictions of a classifier are and not how fair a
-            representation is.
-        </p>
-        <p>
-            The appropriate measure of fairness for a given task is
-            domain-specific <d-cite key="liu2018delayed"></d-cite> and there is
-            often not a universally accepted measure. However,
-            <em>Demographic Parity</em> is the most widely used
-            <d-cite key="LouSweLi15,edwardsstorkey,beutel"></d-cite>.
-            Demographic Parity demands <d-math>\hat{y} \perp s</d-math> where
-            <d-math>\hat{y}</d-math> refers to the predictions of the
-            classifier. In the context of fair representations, we measure the
-            Demographic Parity of a downstream classifier,
-            <d-math>f(\cdot )</d-math>, which is trained on the representation
-            <d-math>z</d-math> i.e. <d-math>f: Z \to \hat{Y}</d-math>.
-        </p>
-        <p>
-            A core principle of all fairness methods is the
-            <em>accuracy-fairness trade-off</em>. As previously stated, the fair
-            representation should be invariant to <d-math>s</d-math> (
-            <d-math>\to</d-math> fairness) but still be predictive of
-            <d-math>y</d-math> (<d-math>\to</d-math> accuracy). These desiderata
-            cannot, in general, be simultaneously satisfied if
-            <d-math>s</d-math> and <d-math>y</d-math> are correlated.
-        </p>
-        <p>
-            The majority of existing methods for fair representations also make
-            use of <d-math>y</d-math> labels during training, in order to ensure
-            that <d-math>\mathbf{z}</d-math> remains predictive of
-            <d-math>y</d-math>. This aspect can, in theory, be removed from the
-            methods, but then there is no guarantee that information about
-            <d-math>y</d-math> is preserved <d-cite key="LouSweLi15"></d-cite>.
-        </p>
-        <h3>Learning fair, transferrable representations.</h3>
-        <p>
-            In addition to producing fair representations,
-            <d-cite key="madras2018learning"></d-cite> want to ensure the
-            representations are transferrable. Here, an adversary is used to
-            remove sensitive information from a representation
-            <d-math>z</d-math>. Auxiliary prediction and reconstruction
-            networks, to predict class label <d-math>y</d-math>. and reconstruct
-            the input <d-math>x</d-math> respectively, are trained on top of
-            <d-math>z</d-math>, with <d-math>s</d-math> being ancillary input to
-            the reconstruction.
-        </p>
-        <p>
-            Also related is <d-cite key="creager2019flexibly"></d-cite> who
-            employ a FactorVAE
-            <d-cite key="kim2018disentangling"></d-cite> regularised for
-            fairness. The idea is to learn a representation that is both
-            disentangled and invariant to multiple sensitive attributes. This
-            factorisation makes the latent space easily manipulable such that
-            the different subspaces can be freely removed and composed at test
-            time. Zeroing out the dimensions or replacing them with independent
-            noise imparts invariance to the corresponding sensitive attribute.
-            This method closely resembles ours when we use an invertible
-            encoder. However, the emphasis of our approach is on
-            interpretability, information-preservation, and coping with sampling
-            bias - especially extreme cases where
-            <d-math
-                >|\, \textrm{supp}(S_{tr} \times Y_{tr}) | < |\,
-                \textrm{supp}(S_{te} \times Y_{te}) |</d-math
-            >.
-        </p>
-        <p>
-            Attempts were made by <d-cite key="QuaShaTho19"></d-cite> prior to
-            this work to learn fair representations in the data domain in order
-            to make it interpretable and transferable. In their work, the input
-            is assumed to be additively decomposable in the feature space into a
-            <em>fair</em> and <em>unfair</em> component, which together can be
-            used by the decoder to recover the original input. This allows us to
-            examine representations in a human-interpretable space and confirm
-            that the model is not learning a relationship reliant on a sensitive
-            attribute. Though a first step in this direction, we believe such a
-            linear decomposition is not sufficiently expressive to fully capture
-            the relationship between the sensitive and non-sensitive attributes.
-            Our approach allows for the modelling of more complex relationships.
-        </p>
-        <h3>Learning in the presence of spurious correlations.</h3>
-        <p>
-            Strong spurious correlations make the task of learning a robust
-            classifier challenging: the classifier may learn to exploit
-            correlations unrelated to the true causal relationship between the
-            features and label, and thereby fail to generalise to novel
-            settings. This problem was recently tackled by
-            <d-cite key="ln2l"></d-cite> who apply a penalty based on the mutual
-            information between the feature embedding and the spurious variable.
-            While the method is effective under mild biasing, we show
-            experimentally that it is not robust to the range of settings we
-            consider.
-        </p>
-        <p>
-            Jacobsen et al. <d-cite key="JacBehZemBet19"></d-cite> explore the
-            vulnerability of traditional neural networks to spurious variables -
-            e.g., textures, in the case of ImageNet
-            <d-cite key="Geir18"></d-cite> - and propose a INN-based solution
-            akin to ours. The INN's encoding is split such that one partition,
-            <d-math>z_b</d-math> is encouraged to be predictive of the spurious
-            variable while the other serves as the logits for classification of
-            the semantic label. Information related to the nuisance variable is
-            “pulled out" of the logits as a result of maximising
-            <d-math>\log p(s|z_n)</d-math>. This specific approach, however, is
-            incompatible with the settings we consider, due to its requirement
-            that both <d-math>s</d-math> and <d-math>y</d-math> be available at
-            training time.
-        </p>
-        <p>
-            Viewing the problem from a causal perspective,
-            <d-cite key="arjovsky2019invariant"></d-cite> develop a variant of
-            empirical risk minimisation called invariant risk minimisation
-            (IRM). The goal of IRM is to train a predictor that generalises
-            across a large set of unseen environments; because variables with
-            spurious correlations do not represent a stable causal mechanism,
-            the predictor learns to be invariant to them. IRM assumes that the
-            training data is not <em>iid</em> but is partitioned into distinct
-            environments, <d-math>e \in E</d-math>. The optimal predictor is
-            then defined as the minimiser of the sum of the empirical risk
-            <d-math>R_e</d-math> over this set. In contrast, we assume
-            possession of only a single source of <em>labelled</em>, albeit
-            spuriously-correlated, data, but that we have a second source of
-            data that is free of spurious correlations, with the benefit being
-            that it only needs to be labelled
-            <em>with respect to <d-math>s</d-math></em> .
-        </p>
-
-        <a class="marker" href="#3-method" id="3-method"><span>3</span></a>
-        <h2>Interpretable Invariances by Null-Sampling</h2>
-
-        <d-figure>
-            <a href="#fig:inn_diagram" id="fig:inn_diagram"
-                ><img src="./figures/inn_diagram_u.pdf"
-            /></a>
-            <a href="#fig:cvae_diagram" id="fig:cvae_diagram"
-                ><img src="./figures/cvae_diagram_u.pdf"
-            /></a>
-            <p class="figcaption">
-                Training procedure for our models. <d-math>x</d-math>: input,
-                <d-math>s</d-math>: sensitive attribute, <d-math>z_u</d-math>:
-                de-biased representation, <d-math>x_u</d-math>: de-biased
-                version of the input in the data domain. The red bar indicates a
-                gradient reversal layer, and
-                <d-math>\stackrel{\rightarrow}{0}</d-math> the null-sampling
-                operation.
-            </p>
-        </d-figure>
-
-        <h3>Problem Statement</h3>
-        <p>
-            We assume we are given inputs
-            <d-math>\mathbf{x} \in \mathcal{X}</d-math> and corresponding labels
-            <d-math>y \in \mathcal{Y}</d-math>. Furthermore, there is some
-            spurious variable <d-math>s \in \mathcal{S}</d-math> associated with
-            each input <d-math>\mathbf{x}</d-math> which we do <em>not</em> want
-            to predict. Let <d-math>X</d-math>, <d-math>S</d-math> and
-            <d-math>Y</d-math> be random variables that take on the values
-            <d-math>\mathbf{x}</d-math>, <d-math>s</d-math> and
-            <d-math>y</d-math>, respectively. The fact that both
-            <d-math>y</d-math> and <d-math>s</d-math> are predictive of
-            <d-math>\mathbf{x}</d-math> implies that
-            <d-math>\mathcal{I}(X;Y), \mathcal{I}(X;S) &gt; 0</d-math>, where
-            <d-math>\mathcal{I}(\cdot ;\cdot)</d-math> is the mutual
-            information. Note, however, that the conditional entropy is
-            non-zero: <d-math>H(S|X) \neq 0</d-math>, i.e.,
-            <d-math>S</d-math> is not completely determined by
-            <d-math>X</d-math>.
-        </p>
-        <p>
-            The difficulty of this setup emerges in the training set: there is a
-            close correspondence between <d-math>S</d-math> and
-            <d-math>Y</d-math>, such that for a model that sees the data through
-            the lens of the loss function, the two are indistinguishable.
-            Furthermore, we assume that this is <em>not</em> the case in the
-            test set, meaning the model cannot rely on shortcuts provided by
-            <d-math>S</d-math> if it is to generalise from the training set.
-        </p>
-        <p>
-            Such scenarios where we only have access to the labels of a
-            biasedly-sampled subpopulation are not uncommon in the real-world.
-            For instance, in long-feedback systems such as mortgage-approval
-            where the demographics of the subpopulation with observed outcomes
-            is <em>not</em> representative of the subpopulation on which the
-            model has been deployed. In this case, <d-math>s</d-math> has the
-            potential to act as a false (or <em>spurious</em>) indicator of the
-            class label and training a model with such a dataset would limit
-            generalisability. Let
-            <d-math>(X^\mathit{tr}, S^\mathit{tr}, Y^\mathit{tr})</d-math> then
-            be the random variables sampled for the training set and
-            <d-math>(X^\mathit{te}, S^\mathit{te}, Y^\mathit{te})</d-math> be
-            the random variables for the test set. The training and test sets
-            thus induce the following inequality for their mutual information:
-            <d-math>
-                \mathcal{I}(S^\mathit{tr}; Y^\mathit{tr}) \gg
-                \mathcal{I}(S^\mathit{te}; Y^\mathit{te}) \approx 0
-            </d-math>
-            .
-        </p>
-        <p>
-            Our goal is to learn a representation
-            <d-math>\mathbf{z}_u</d-math> that is independent of
-            <d-math>s</d-math> and transferable between downstream tasks.
-            Complementary to <d-math>\mathbf{z}_u</d-math>, we refer to some
-            abstract component of the model that absorbs the unwanted
-            information related to <d-math>s</d-math> as
-            <d-math>\mathcal{B}</d-math>, the realisation of which we define
-            with respect to each of the two models to be described. The
-            requirement for <d-math>\mathbf{z}_u</d-math> can be expressed via
-            mutual information:
-            <a href="#eq:migoal" id="eq:migoal">
-                <d-math block>
-                    I(\mathbf{z}_u;s) = 0
+            <p>
+                Such scenarios where we only have access to the labels of a
+                biasedly-sampled subpopulation are not uncommon in the
+                real-world. For instance, in long-feedback systems such as
+                mortgage-approval where the demographics of the subpopulation
+                with observed outcomes is <em>not</em> representative of the
+                subpopulation on which the model has been deployed. In this
+                case, <d-math>s</d-math> has the potential to act as a false (or
+                <em>spurious</em>) indicator of the class label and training a
+                model with such a dataset would limit generalisability. Let
+                <d-math>(X^\mathit{tr}, S^\mathit{tr}, Y^\mathit{tr})</d-math>
+                then be the random variables sampled for the training set and
+                <d-math>(X^\mathit{te}, S^\mathit{te}, Y^\mathit{te})</d-math>
+                be the random variables for the test set. The training and test
+                sets thus induce the following inequality for their mutual
+                information:
+                <d-math>
+                    \mathcal{I}(S^\mathit{tr}; Y^\mathit{tr}) \gg
+                    \mathcal{I}(S^\mathit{te}; Y^\mathit{te}) \approx 0
                 </d-math>
-            </a>
-            However, for the representation to be useful, we need to capture as
-            much relevant information in the data as possible. Thus, the
-            combined objective function:
-            <a href="#eq:objectivetheory" id="eq:objectivetheory">
-                <d-math block>
-                    \min_{\theta} \mathbb{E}_{x \sim X}[-\log
-                    p_\theta(\mathbf{x})] + \lambda I(f_\theta(x);s)
+                .
+            </p>
+            <p>
+                Our goal is to learn a representation
+                <d-math>\mathbf{z}_u</d-math> that is independent of
+                <d-math>s</d-math> and transferable between downstream tasks.
+                Complementary to <d-math>\mathbf{z}_u</d-math>, we refer to some
+                abstract component of the model that absorbs the unwanted
+                information related to <d-math>s</d-math> as
+                <d-math>\mathcal{B}</d-math>, the realisation of which we define
+                with respect to each of the two models to be described. The
+                requirement for <d-math>\mathbf{z}_u</d-math> can be expressed
+                via mutual information:
+                <a href="#eq:migoal" id="eq:migoal">
+                    <d-math block>
+                        I(\mathbf{z}_u;s) = 0
+                    </d-math>
+                </a>
+                However, for the representation to be useful, we need to capture
+                as much relevant information in the data as possible. Thus, the
+                combined objective function:
+                <a href="#eq:objectivetheory" id="eq:objectivetheory">
+                    <d-math block>
+                        \min_{\theta} \mathbb{E}_{x \sim X}[-\log
+                        p_\theta(\mathbf{x})] + \lambda I(f_\theta(x);s)
+                    </d-math>
+                </a>
+                where <d-math>\theta</d-math> refers to the trainable parameters
+                of our model <d-math>f_\theta</d-math> and
+                <d-math>p_\theta(\mathbf{x})</d-math> is the likelihood it
+                assigns to the data.
+            </p>
+            <p>
+                We optimise this loss in an adversarial fashion by playing a
+                min-max game, in which our encoder acts as the generative
+                component. The adversary is an auxiliary classifier
+                <d-math>g</d-math>, which receives
+                <d-math>\mathbf{z}_u</d-math> as input and attempts to predict
+                the spurious variable <d-math>s</d-math>. We denote the
+                parameters of the adversary as <d-math>\phi</d-math>; for the
+                parameters of the encoder we use <d-math>\theta</d-math>, as
+                before. The objective from `Eq~\eqref{eq:objectivetheory}` is
+                then realised as
+                <a href="#eq:objectivepractical" id="eq:objectivepractical">
+                    <d-math block>
+                        \min_{\theta \in \Theta} \max_{\phi \in \Phi}
+                        \mathbb{E}_{x \sim X} [\log p_\theta(x)
+                        -\lambda\mathcal{L}_c(g_\phi(f_\theta(x))); s)]
+                    </d-math>
+                </a>
+                where <d-math>\mathcal{L}_c</d-math> is the cross-entropy
+                between the predictions for <d-math>s</d-math> and the provided
+                labels. In practice, this adversarial term is realised with a
+                gradient reversal layer (GRL)
+                <d-cite key="ganin2016domain"></d-cite> between
+                <d-math>\mathbf{z}_u</d-math> and <d-math>g</d-math> as is
+                common in adversarial approaches to fair representation learning
+                <d-cite key="edwardsstorkey"></d-cite>.
+            </p>
+            <h3>The Disentanglement Dilemma</h3>
+            <p>
+                The objective in Eq~\eqref{eq:objectivepractical} balances the
+                two desiderata: predicting <d-math>y</d-math> and being
+                invariant to <d-math>s</d-math>. However, in the training set
+                <d-math>(X^\mathit{tr}, S^\mathit{tr}, Y^\mathit{tr})</d-math>,
+                <d-math>y</d-math> and <d-math>s</d-math> are so strongly
+                correlated that removing information about
+                <d-math>s</d-math> inevitably removes information about
+                <d-math>y</d-math>. This strong correlation makes existing
+                methods fail under this setting. In order to even define the
+                right learning goal, we require another source of information
+                that allows us to disentangle <d-math>s</d-math> and
+                <d-math>y</d-math>. For this, we assume the existence of another
+                set of samples that follow a similar distribution to the test
+                set, but whilst the sensitive attribute is available, the class
+                labels are not. In reality, this is not an unreasonable
+                assumption, as, while properly annotated data is scarce,
+                unlabelled data can be obtained in abundance (with demographic
+                information from census data, electoral rolls, etc.). Previous
+                work has also considered treated “unlabelled data" as still
+                having <d-math>s</d-math> labels
+                <d-cite key="wick2019unlocking"></d-cite>. We are restricted
+                only in the sense that the spurious correlations we want to
+                sever are indicated in the features. We call this the
+                <em>representative set</em>, consisting of
+                <d-math>X^\mathit{rep}</d-math> and
+                <d-math>S^\mathit{rep}</d-math>. It fulfils
+                <d-math>
+                    \mathcal{I}(S^\mathit{rep}; Y^\mathit{rep}) \approx 0
                 </d-math>
-            </a>
-            where <d-math>\theta</d-math> refers to the trainable parameters of
-            our model <d-math>f_\theta</d-math> and
-            <d-math>p_\theta(\mathbf{x})</d-math> is the likelihood it assigns
-            to the data.
-        </p>
-        <p>
-            We optimise this loss in an adversarial fashion by playing a min-max
-            game, in which our encoder acts as the generative component. The
-            adversary is an auxiliary classifier <d-math>g</d-math>, which
-            receives <d-math>\mathbf{z}_u</d-math> as input and attempts to
-            predict the spurious variable <d-math>s</d-math>. We denote the
-            parameters of the adversary as <d-math>\phi</d-math>; for the
-            parameters of the encoder we use <d-math>\theta</d-math>, as before.
-            The objective from `Eq~\eqref{eq:objectivetheory}` is then realised
-            as
-            <a href="#eq:objectivepractical" id="eq:objectivepractical">
+                (or rather, it would, if the class labels
+                <d-math>Y^\mathit{rep}</d-math> were available).
+            </p>
+            <p>
+                We now summarise the training procedure; an outline for the
+                invertible network model (cFlow) can be seen in
+                Fig.~\ref{fig:inn_diagram}. First, the encoder network
+                <d-math>f</d-math> is trained on (
+                <d-math> X^\mathit{rep}, S^\mathit{rep} </d-math> ), during the
+                first phase. The trained network is then used to encode the
+                training set, taking in <d-math>\mathbf{x}</d-math> and
+                producing the representation, <d-math>\mathbf{z}_u</d-math>,
+                decorrelated from the spurious variable. The encoded dataset can
+                then be used to train any off-the-shelf classifier safely, with
+                information about the spurious variable having been absorbed by
+                some auxiliary component <d-math>\mathcal{B}</d-math>. In the
+                case of the conditional VAE (cVAE) model,
+                <d-math>\mathcal{B}</d-math> takes the form of the decoder
+                subnetwork, which reconstructs the data conditional on a one-hot
+                encoding of <d-math>s</d-math>, while for the invertible network
+                <d-math>\mathcal{B}</d-math> is realised as a partition of the
+                feature map <d-math>\mathbf{z}</d-math> (such that
+                <d-math> \mathbf{z} = [\mathbf{z}_u, \mathbf{z}_b] </d-math> ),
+                given the bijective constraint. Thus, the classifier cannot take
+                the shortcut of learning <d-math>s</d-math> and instead must
+                learn how to predict <d-math>y</d-math> directly. Obtaining the
+                <d-math>s</d-math>-invariant representations,
+                <d-math>\mathbf{x}_u</d-math>, in the data domain is simply a
+                matter of replacing the <d-math>\mathcal{B}</d-math> component
+                of the decoder's input for the cVAE, and
+                <d-math>\mathbf{z}_b</d-math> for cFlow, with a zero vector of
+                equivalent size. We refer to this procedure used to generate
+                <d-math>\mathbf{x}_u</d-math> as <em>null-sampling</em> (here,
+                with respect to <d-math>\mathbf{z}_b)</d-math>.
+            </p>
+            <p>
+                Null-sampling resembles the <em>annihilation</em> operation
+                described in <d-cite key="xiao2017dna"></d-cite>, however we
+                note that the two serve very different roles. Whereas the
+                annihilation operation serves as a regulariser to prevent
+                trivial solutions (similar to
+                <d-cite key="jaiswal2018unsupervised"></d-cite>), null-sampling
+                is used to generate the invariant representations post-training.
+            </p>
+            <h3>Conditional Decoding</h3>
+            <p>
+                We first describe a VAE-based model similar to that proposed in
+                <d-cite key="madras2018learning"></d-cite>, before highlighting
+                some of its shortcomings that motivate the choice of an
+                invertible representation learner.
+            </p>
+            <p>
+                The model takes the form of a class conditional
+                <d-math>\beta</d-math>-VAE
+                <d-cite key="higgins2017beta"></d-cite>, in which the decoder is
+                conditioned on the spurious attribute. We use
+                <d-math>\theta_{enc}, \theta_{dec} \in \theta</d-math>
+                to denote the parameters of the encoder and decoder
+                sub-networks, respectively. Concretely, the encoder component
+                performs the mapping
+                <d-math>x \rightarrow{\mathbf{z}_u}</d-math>, while
+                <d-math>\mathcal{B}</d-math> is instantiated as the decoder,
+                <d-math>\mathcal{B} \coloneqq p_{\theta_{dec}}(x|z_u, s)</d-math
+                >, which takes in a concatenation of the learned non-spurious
+                latent vector <d-math>\mathbf{z}_u</d-math> and a one-hot
+                encoding of the spurious label <d-math>s</d-math> to produce a
+                reconstruction of the input <d-math>\hat{x}</d-math>.
+                Conditioning on a one-hot encoding of <d-math>s</d-math>, rather
+                than a single value, as done in
+                <d-cite key="madras2018learning"></d-cite> is the key to
+                visualising invariant representations in the data domain. If
+                <d-math>\mathcal{I}(z_u; s)</d-math> is properly minimised, the
+                decoder can only derive its information about
+                <d-math>s</d-math> from the label, thereby freeing up
+                <d-math>\mathbf{z}_u</d-math> from encoding the unwanted
+                information while still allowing for reconstruction of the
+                input. Thus, by feeding a zero-vector to the decoder we achieve
+                <d-math>\hat{x} \perp s</d-math>. The full learning objective
+                for the cVAE is given as
                 <d-math block>
-                    \min_{\theta \in \Theta} \max_{\phi \in \Phi} \mathbb{E}_{x
-                    \sim X} [\log p_\theta(x)
-                    -\lambda\mathcal{L}_c(g_\phi(f_\theta(x))); s)]
+                    \mathcal{L}_{\mathrm{cVAE}} =
                 </d-math>
-            </a>
-            where <d-math>\mathcal{L}_c</d-math> is the cross-entropy between
-            the predictions for <d-math>s</d-math> and the provided labels. In
-            practice, this adversarial term is realised with a gradient reversal
-            layer (GRL) <d-cite key="ganin2016domain"></d-cite> between
-            <d-math>\mathbf{z}_u</d-math> and <d-math>g</d-math> as is common in
-            adversarial approaches to fair representation learning
-            <d-cite key="edwardsstorkey"></d-cite>.
-        </p>
-        <h3>The Disentanglement Dilemma</h3>
-        <p>
-            The objective in Eq~\eqref{eq:objectivepractical} balances the two
-            desiderata: predicting <d-math>y</d-math> and being invariant to
-            <d-math>s</d-math>. However, in the training set
-            <d-math>(X^\mathit{tr}, S^\mathit{tr}, Y^\mathit{tr})</d-math>,
-            <d-math>y</d-math> and <d-math>s</d-math> are so strongly correlated
-            that removing information about <d-math>s</d-math> inevitably
-            removes information about <d-math>y</d-math>. This strong
-            correlation makes existing methods fail under this setting. In order
-            to even define the right learning goal, we require another source of
-            information that allows us to disentangle <d-math>s</d-math> and
-            <d-math>y</d-math>. For this, we assume the existence of another set
-            of samples that follow a similar distribution to the test set, but
-            whilst the sensitive attribute is available, the class labels are
-            not. In reality, this is not an unreasonable assumption, as, while
-            properly annotated data is scarce, unlabelled data can be obtained
-            in abundance (with demographic information from census data,
-            electoral rolls, etc.). Previous work has also considered treated
-            “unlabelled data" as still having <d-math>s</d-math> labels
-            <d-cite key="wick2019unlocking"></d-cite>. We are restricted only in
-            the sense that the spurious correlations we want to sever are
-            indicated in the features. We call this the
-            <em>representative set</em>, consisting of
-            <d-math>X^\mathit{rep}</d-math> and <d-math>S^\mathit{rep}</d-math>.
-            It fulfils
-            <d-math>
-                \mathcal{I}(S^\mathit{rep}; Y^\mathit{rep}) \approx 0
-            </d-math>
-            (or rather, it would, if the class labels
-            <d-math>Y^\mathit{rep}</d-math> were available).
-        </p>
-        <p>
-            We now summarise the training procedure; an outline for the
-            invertible network model (cFlow) can be seen in
-            Fig.~\ref{fig:inn_diagram}. First, the encoder network
-            <d-math>f</d-math> is trained on (
-            <d-math> X^\mathit{rep}, S^\mathit{rep} </d-math> ), during the
-            first phase. The trained network is then used to encode the training
-            set, taking in <d-math>\mathbf{x}</d-math> and producing the
-            representation, <d-math>\mathbf{z}_u</d-math>, decorrelated from the
-            spurious variable. The encoded dataset can then be used to train any
-            off-the-shelf classifier safely, with information about the spurious
-            variable having been absorbed by some auxiliary component
-            <d-math>\mathcal{B}</d-math>. In the case of the conditional VAE
-            (cVAE) model, <d-math>\mathcal{B}</d-math> takes the form of the
-            decoder subnetwork, which reconstructs the data conditional on a
-            one-hot encoding of <d-math>s</d-math>, while for the invertible
-            network <d-math>\mathcal{B}</d-math> is realised as a partition of
-            the feature map <d-math>\mathbf{z}</d-math> (such that
-            <d-math> \mathbf{z} = [\mathbf{z}_u, \mathbf{z}_b] </d-math> ),
-            given the bijective constraint. Thus, the classifier cannot take the
-            shortcut of learning <d-math>s</d-math> and instead must learn how
-            to predict <d-math>y</d-math> directly. Obtaining the
-            <d-math>s</d-math>-invariant representations,
-            <d-math>\mathbf{x}_u</d-math>, in the data domain is simply a matter
-            of replacing the <d-math>\mathcal{B}</d-math> component of the
-            decoder's input for the cVAE, and <d-math>\mathbf{z}_b</d-math> for
-            cFlow, with a zero vector of equivalent size. We refer to this
-            procedure used to generate <d-math>\mathbf{x}_u</d-math> as
-            <em>null-sampling</em> (here, with respect to
-            <d-math>\mathbf{z}_b)</d-math>.
-        </p>
-        <p>
-            Null-sampling resembles the <em>annihilation</em> operation
-            described in <d-cite key="xiao2017dna"></d-cite>, however we note
-            that the two serve very different roles. Whereas the annihilation
-            operation serves as a regulariser to prevent trivial solutions
-            (similar to <d-cite key="jaiswal2018unsupervised"></d-cite>),
-            null-sampling is used to generate the invariant representations
-            post-training.
-        </p>
-        <h3>Conditional Decoding</h3>
-        <p>
-            We first describe a VAE-based model similar to that proposed in
-            <d-cite key="madras2018learning"></d-cite>, before highlighting some
-            of its shortcomings that motivate the choice of an invertible
-            representation learner.
-        </p>
-        <p>
-            The model takes the form of a class conditional
-            <d-math>\beta</d-math>-VAE <d-cite key="higgins2017beta"></d-cite>,
-            in which the decoder is conditioned on the spurious attribute. We
-            use <d-math>\theta_{enc}, \theta_{dec} \in \theta</d-math>
-            to denote the parameters of the encoder and decoder sub-networks,
-            respectively. Concretely, the encoder component performs the mapping
-            <d-math>x \rightarrow{\mathbf{z}_u}</d-math>, while
-            <d-math>\mathcal{B}</d-math> is instantiated as the decoder,
-            <d-math>\mathcal{B} \coloneqq p_{\theta_{dec}}(x|z_u, s)</d-math>,
-            which takes in a concatenation of the learned non-spurious latent
-            vector <d-math>\mathbf{z}_u</d-math> and a one-hot encoding of the
-            spurious label <d-math>s</d-math> to produce a reconstruction of the
-            input <d-math>\hat{x}</d-math>. Conditioning on a one-hot encoding
-            of <d-math>s</d-math>, rather than a single value, as done in
-            <d-cite key="madras2018learning"></d-cite> is the key to visualising
-            invariant representations in the data domain. If
-            <d-math>\mathcal{I}(z_u; s)</d-math> is properly minimised, the
-            decoder can only derive its information about
-            <d-math>s</d-math> from the label, thereby freeing up
-            <d-math>\mathbf{z}_u</d-math> from encoding the unwanted information
-            while still allowing for reconstruction of the input. Thus, by
-            feeding a zero-vector to the decoder we achieve
-            <d-math>\hat{x} \perp s</d-math>. The full learning objective for
-            the cVAE is given as
-            <d-math block>
-                \mathcal{L}_{\mathrm{cVAE}} =
-            </d-math>
-            <d-math block>
-                \mathbb{E}_{q_{\theta_{enc}}(z_u, b|x)}[\log
-                p_{\theta_{dec}}(x|z, b) - \log p_{\theta_{dec}}(s|z_u)]
-            </d-math>
-            <d-math block>
-                \beta D_{KL}(q_{\theta_{enc}}(z_u |x) \| p(z_u))
-            </d-math>
-            <!--            TODO: THIS should be aligned-->
-            where <d-math>\beta</d-math> is a hyperparameter that determines the
-            trade-off between reconstruction accuracy and independence
-            constraints, and <d-math>p(\mathbf{z}_u)</d-math> is the prior
-            imposed on the variational posterior. For all our experiments,
-            <d-math>p(\mathbf{z}_u)</d-math> is realised as an Isotropic
-            Gaussian. Fig.~\ref{fig:cvae_diagram} summarises the procedure as a
-            diagram.
-        </p>
-        <p>
-            While we show this setup can indeed work for simple problems, as
-            <d-cite key="madras2018learning"></d-cite> before us have, we show
-            that it lacks scalability due to disagreement between the components
-            of the loss. Since information about <d-math>s</d-math> is only
-            available to the decoder as a binary encoding, if the relationship
-            between <d-math>s</d-math> and <d-math>x</d-math> is highly
-            non-linear and cannot be summarised by a simple on/off mechanism, as
-            is the case if <d-math>s</d-math> is an attribute such as gender,
-            off-loading information to the decoder by conditioning is no longer
-            possible. As a result, <d-math>\mathbf{z}_u</d-math> is forced to
-            carry information about <d-math>s</d-math> in order to minimise the
-            reconstruction error.
-        </p>
-        <p>
-            The obvious solution to this is to allow the encoder to store
-            information about <d-math>s</d-math> in a partition of the latent
-            space as in <d-cite key="creager2019flexibly"></d-cite>. However, we
-            question whether an autoencoder is the best choice for this setup,
-            with the view that an invertible model is the better tool for the
-            task. Using an invertible model has several guarantees, namely
-            complete information-preservation and freedom from a reconstruction
-            loss, the importance of which we elaborate on below.
-        </p>
-        <h3>Conditional Flow</h3>
-        <h4>Invertible Neural Networks</h4>
-        <p>
-            Invertible neural networks are a class of neural network
-            architecture characterised by a bijective mapping between their
-            inputs and output <d-cite key="Dinh2014"></d-cite>. The
-            transformations are designed such that their inverses and Jacobians
-            are efficiently computable. These flow-based models permit
-            <em>exact</em> likelihood estimation
-            <d-cite key="normflows2015"></d-cite> through the warping of a base
-            density with a series of invertible transformations and computing
-            the resulting, highly multi-modal, but still normalised, density,
-            using the change of variable theorem:
-            <d-math block>
-                \log p(x) = \log p(z) + \sum \log | \det (
-                \frac{\textrm{d}h_i}{h_{i-1}} ) |
-            </d-math>
-            <d-math block>\quad p(z) = \mathcal{N}(z; 0, \mathbb{I})</d-math>
-            \label{eq:changeofvariables} where <d-math>h_i</d-math> refers to
-            the outputs of the layers of the network and
-            <d-math>p(z)</d-math> is the base density, specifically an Isotropic
-            Gaussian in our case. Training of the invertible neural network is
-            then reduced to maximising <d-math>\log p(x)</d-math>
-            over the training set, i.e. maximising the probability the network
-            assigns to samples in the training set.
-        </p>
-        <h4>The Benefits of Bijectivity.</h4>
-        <p>
-            Using an invertible network to generate our encoding,
-            <d-math>\mathbf{z}_u</d-math>, carries a number of advantages over
-            other approaches. Ordinarily, the main benefit of flow-based models
-            is that they permit exact density estimation. However, since we are
-            not interested in sampling from the model's distribution, in our
-            case the likelihood term serves as a regulariser, as it does for
-            <d-cite key="JacSmeOya18"></d-cite>. Critically, this forces the
-            mean of each latent dimension to zero enabling null-sampling. The
-            invertible property of the network guarantees the preservation of
-            all information relevant to <d-math>y</d-math> which is independent
-            of <d-math>s</d-math>, regardless of how it is allocated in the
-            output space. Secondly, we conjecture that the encodings are more
-            robust to out-of-distribution data. Whereas an autoencoder could map
-            a previously seen input and a previously unseen input to the same
-            representation, an invertible network sidesteps this due to the
-            network's bijective property, ensuring all relevant information is
-            stored somewhere. This opens up the possibility of transfer learning
-            between datasets with a similar manifestation of <d-math>s</d-math>,
-            as we demonstrate in the Appendix G.
-        </p>
-        <p>
-            Under our framework, the invertible network <d-math>f</d-math> maps
-            the inputs <d-math>\mathbf{x}</d-math> to a representation
-            <d-math>\mathbf{z}_u</d-math>:
-            <d-math>f(\mathbf{x}) = \mathbf{z}</d-math>. We interpret the
-            embedding <d-math>\mathbf{z}</d-math> as being the concatenation of
-            two smaller embeddings:
-            <d-math>\mathbf{z} = [\mathbf{z}_u, \mathbf{z}_b]</d-math>. The
-            dimensionality of <d-math>\mathbf{z}_b</d-math>, and
-            <d-math>\mathbf{z}_u</d-math>, by complement, is a free parameter
-            (see Appendix C for tuning strategies). As <d-math>f</d-math> is
-            invertible, <d-math>\mathbf{x}</d-math> can be recovered like so:
-            <d-math block>
-                \mathbf{x} = f^{-1}([\mathbf{z}_u, \mathbf{z}_b])
-                <!--                \label{eq:zreconstruct} -->
-            </d-math>
-            where <d-math>\mathbf{z}_b</d-math> is required for equality of the
-            output dimension and input dimension to satisfy the bijectivity of
-            the network - we cannot output <d-math>\mathbf{z}_u</d-math> alone,
-            but have to output <d-math>\mathbf{z}_b</d-math> as well. In order
-            to generate the pre-image of <d-math>\mathbf{z}_u</d-math>, we
-            perform null-sampling with respect to
-            <d-math>\mathbf{z}_b</d-math> by zeroing-out the elements of
-            <d-math>\mathbf{z}_b</d-math> (such that
-            <d-math
-                >\mathbf{x}_{u} = f^{-1}([\mathbf{z}_{u},
-                \stackrel{\rightarrow}{0}])</d-math
-            >), i.e. setting them to the mean of the prior density,
-            <d-math>\mathcal{N}(z;0, I)</d-math>.
-        </p>
-        <p>
-            How can we be sure that <d-math>\mathbf{z}_u</d-math> contains
-            enough information about <d-math>y</d-math>? The importance of the
-            invertible architecture bears out from this consideration. As long
-            as <d-math>\mathbf{z}_b</d-math> does not contain the information
-            about <d-math>y</d-math>, <d-math>\mathbf{z}_u</d-math> necessarily
-            must. We can raise or lower the information capacity of
-            <d-math>\mathbf{z}_b</d-math> by adjusting its size; this should be
-            set to the smallest size sufficient to capture all information about
-            <d-math>s</d-math>, so as not to sacrifice class-relevant
-            information.
-        </p>
-        <h2>Experiments</h2>
-        <p>
-            We present experiments to demonstrate that the null-sampled
-            representations are in fact invariant to <d-math>s</d-math> while
-            still allowing a classifier to predict <d-math>y</d-math> from them.
-            We run our cVAE and cFlow models on the coloured MNIST (cMNIST) and
-            CelebA dataset, which we artificially bias, first describing the
-            sampling procedure we follow to do so for non-synthetic datasets. As
-            baselines we have the model of <d-cite key="ln2l"></d-cite> (Ln2L)
-            and the same CNN used to evaluate the cFlow and cVAE models but with
-            the unmodified images as input (CNN). For the cFlow model we adopt a
-            Glow-like architecture <d-cite key="KinDha1"></d-cite>, while both
-            subnetworks of the cVAE model comprise gated convolutions
-            <d-cite key="van2016conditional"></d-cite>, where the encoding size
-            is $$256$$. For cMNIST, we construct the Ln2L baseline according to
-            its original description, for CelebA, we treat it as an augmentation
-            of the baseline CNN's objective function. Detailed information
-            regarding model architectures and the code can be found in Appendix
-            A.
-        </p>
-        <d-figure>
-            <img src="./figures/nosinn_celeba.pdf" />
-            <p class="figcaption">
-                Performance of our model for different targets (mixing factor
-                <d-math>\eta=0</d-math>). Left: <em>Smiling</em> as target,
-                right: <em>high cheekbones</em>. <em>DP diff</em> measures
-                fairness with respect to demographic parity. A perfectly fair
-                model has a <em>DP diff</em> of 0.
+                <d-math block>
+                    \mathbb{E}_{q_{\theta_{enc}}(z_u, b|x)}[\log
+                    p_{\theta_{dec}}(x|z, b) - \log p_{\theta_{dec}}(s|z_u)]
+                </d-math>
+                <d-math block>
+                    \beta D_{KL}(q_{\theta_{enc}}(z_u |x) \| p(z_u))
+                </d-math>
+                <!--            TODO: THIS should be aligned-->
+                where <d-math>\beta</d-math> is a hyperparameter that determines
+                the trade-off between reconstruction accuracy and independence
+                constraints, and <d-math>p(\mathbf{z}_u)</d-math> is the prior
+                imposed on the variational posterior. For all our experiments,
+                <d-math>p(\mathbf{z}_u)</d-math> is realised as an Isotropic
+                Gaussian. Fig.~\ref{fig:cvae_diagram} summarises the procedure
+                as a diagram.
             </p>
-        </d-figure>
-        <d-figure>
-            <img
-                src="./figures/nosinn_celeba_multiplot_all_landscape_Smiling.pdf"
-            />
-            <p class="figcaption">
-                Performance of our model for the target “smiling” for different
-                mixing factors <d-math>\eta</d-math>. <em>DP diff</em> measures
-                fairness with respect to demographic parity. A perfectly fair
-                model has a <em>DP diff</em> of $$0$$, thus the closer to
-                top-left the better it is in terms of we accuracy-fairness
-                trade-off. Only values <d-math>\eta=0</d-math> and
-                <d-math>\eta=1</d-math> correspond to the scenario of a strongly
-                biased training set. The results for
-                <d-math>0.1 \leq \eta \leq 0.9</d-math> are to confirm that our
-                model does not harm performance for non-biased training sets.
+            <p>
+                While we show this setup can indeed work for simple problems, as
+                <d-cite key="madras2018learning"></d-cite> before us have, we
+                show that it lacks scalability due to disagreement between the
+                components of the loss. Since information about
+                <d-math>s</d-math> is only available to the decoder as a binary
+                encoding, if the relationship between <d-math>s</d-math> and
+                <d-math>x</d-math> is highly non-linear and cannot be summarised
+                by a simple on/off mechanism, as is the case if
+                <d-math>s</d-math> is an attribute such as gender, off-loading
+                information to the decoder by conditioning is no longer
+                possible. As a result, <d-math>\mathbf{z}_u</d-math> is forced
+                to carry information about <d-math>s</d-math> in order to
+                minimise the reconstruction error.
             </p>
-        </d-figure>
+            <p>
+                The obvious solution to this is to allow the encoder to store
+                information about <d-math>s</d-math> in a partition of the
+                latent space as in <d-cite key="creager2019flexibly"></d-cite>.
+                However, we question whether an autoencoder is the best choice
+                for this setup, with the view that an invertible model is the
+                better tool for the task. Using an invertible model has several
+                guarantees, namely complete information-preservation and freedom
+                from a reconstruction loss, the importance of which we elaborate
+                on below.
+            </p>
+            <h3>Conditional Flow</h3>
+            <h4>Invertible Neural Networks</h4>
+            <p>
+                Invertible neural networks are a class of neural network
+                architecture characterised by a bijective mapping between their
+                inputs and output <d-cite key="Dinh2014"></d-cite>. The
+                transformations are designed such that their inverses and
+                Jacobians are efficiently computable. These flow-based models
+                permit <em>exact</em> likelihood estimation
+                <d-cite key="normflows2015"></d-cite> through the warping of a
+                base density with a series of invertible transformations and
+                computing the resulting, highly multi-modal, but still
+                normalised, density, using the change of variable theorem:
+                <d-math block>
+                    \log p(x) = \log p(z) + \sum \log | \det (
+                    \frac{\textrm{d}h_i}{h_{i-1}} ) |
+                </d-math>
+                <d-math block
+                    >\quad p(z) = \mathcal{N}(z; 0, \mathbb{I})</d-math
+                >
+                \label{eq:changeofvariables} where <d-math>h_i</d-math> refers
+                to the outputs of the layers of the network and
+                <d-math>p(z)</d-math> is the base density, specifically an
+                Isotropic Gaussian in our case. Training of the invertible
+                neural network is then reduced to maximising
+                <d-math>\log p(x)</d-math>
+                over the training set, i.e. maximising the probability the
+                network assigns to samples in the training set.
+            </p>
+            <h4>The Benefits of Bijectivity.</h4>
+            <p>
+                Using an invertible network to generate our encoding,
+                <d-math>\mathbf{z}_u</d-math>, carries a number of advantages
+                over other approaches. Ordinarily, the main benefit of
+                flow-based models is that they permit exact density estimation.
+                However, since we are not interested in sampling from the
+                model's distribution, in our case the likelihood term serves as
+                a regulariser, as it does for
+                <d-cite key="JacSmeOya18"></d-cite>. Critically, this forces the
+                mean of each latent dimension to zero enabling null-sampling.
+                The invertible property of the network guarantees the
+                preservation of all information relevant to
+                <d-math>y</d-math> which is independent of <d-math>s</d-math>,
+                regardless of how it is allocated in the output space. Secondly,
+                we conjecture that the encodings are more robust to
+                out-of-distribution data. Whereas an autoencoder could map a
+                previously seen input and a previously unseen input to the same
+                representation, an invertible network sidesteps this due to the
+                network's bijective property, ensuring all relevant information
+                is stored somewhere. This opens up the possibility of transfer
+                learning between datasets with a similar manifestation of
+                <d-math>s</d-math>, as we demonstrate in the Appendix G.
+            </p>
+            <p>
+                Under our framework, the invertible network
+                <d-math>f</d-math> maps the inputs
+                <d-math>\mathbf{x}</d-math> to a representation
+                <d-math>\mathbf{z}_u</d-math>:
+                <d-math>f(\mathbf{x}) = \mathbf{z}</d-math>. We interpret the
+                embedding <d-math>\mathbf{z}</d-math> as being the concatenation
+                of two smaller embeddings:
+                <d-math>\mathbf{z} = [\mathbf{z}_u, \mathbf{z}_b]</d-math>. The
+                dimensionality of <d-math>\mathbf{z}_b</d-math>, and
+                <d-math>\mathbf{z}_u</d-math>, by complement, is a free
+                parameter (see Appendix C for tuning strategies). As
+                <d-math>f</d-math> is invertible,
+                <d-math>\mathbf{x}</d-math> can be recovered like so:
+                <d-math block>
+                    \mathbf{x} = f^{-1}([\mathbf{z}_u, \mathbf{z}_b])
+                    <!--                \label{eq:zreconstruct} -->
+                </d-math>
+                where <d-math>\mathbf{z}_b</d-math> is required for equality of
+                the output dimension and input dimension to satisfy the
+                bijectivity of the network - we cannot output
+                <d-math>\mathbf{z}_u</d-math> alone, but have to output
+                <d-math>\mathbf{z}_b</d-math> as well. In order to generate the
+                pre-image of <d-math>\mathbf{z}_u</d-math>, we perform
+                null-sampling with respect to <d-math>\mathbf{z}_b</d-math> by
+                zeroing-out the elements of <d-math>\mathbf{z}_b</d-math> (such
+                that
+                <d-math
+                    >\mathbf{x}_{u} = f^{-1}([\mathbf{z}_{u},
+                    \stackrel{\rightarrow}{0}])</d-math
+                >), i.e. setting them to the mean of the prior density,
+                <d-math>\mathcal{N}(z;0, I)</d-math>.
+            </p>
+            <p>
+                How can we be sure that <d-math>\mathbf{z}_u</d-math> contains
+                enough information about <d-math>y</d-math>? The importance of
+                the invertible architecture bears out from this consideration.
+                As long as <d-math>\mathbf{z}_b</d-math> does not contain the
+                information about <d-math>y</d-math>,
+                <d-math>\mathbf{z}_u</d-math> necessarily must. We can raise or
+                lower the information capacity of
+                <d-math>\mathbf{z}_b</d-math> by adjusting its size; this should
+                be set to the smallest size sufficient to capture all
+                information about <d-math>s</d-math>, so as not to sacrifice
+                class-relevant information.
+            </p>
+            <h2>Experiments</h2>
+            <p>
+                We present experiments to demonstrate that the null-sampled
+                representations are in fact invariant to
+                <d-math>s</d-math> while still allowing a classifier to predict
+                <d-math>y</d-math> from them. We run our cVAE and cFlow models
+                on the coloured MNIST (cMNIST) and CelebA dataset, which we
+                artificially bias, first describing the sampling procedure we
+                follow to do so for non-synthetic datasets. As baselines we have
+                the model of <d-cite key="ln2l"></d-cite> (Ln2L) and the same
+                CNN used to evaluate the cFlow and cVAE models but with the
+                unmodified images as input (CNN). For the cFlow model we adopt a
+                Glow-like architecture <d-cite key="KinDha1"></d-cite>, while
+                both subnetworks of the cVAE model comprise gated convolutions
+                <d-cite key="van2016conditional"></d-cite>, where the encoding
+                size is $$256$$. For cMNIST, we construct the Ln2L baseline
+                according to its original description, for CelebA, we treat it
+                as an augmentation of the baseline CNN's objective function.
+                Detailed information regarding model architectures and the code
+                can be found in Appendix A.
+            </p>
+            <d-figure>
+                <img src="./figures/nosinn_celeba.pdf" />
+                <p class="figcaption">
+                    Performance of our model for different targets (mixing
+                    factor
+                    <d-math>\eta=0</d-math>). Left: <em>Smiling</em> as target,
+                    right: <em>high cheekbones</em>. <em>DP diff</em> measures
+                    fairness with respect to demographic parity. A perfectly
+                    fair model has a <em>DP diff</em> of 0.
+                </p>
+            </d-figure>
+            <d-figure>
+                <img
+                    src="./figures/nosinn_celeba_multiplot_all_landscape_Smiling.pdf"
+                />
+                <p class="figcaption">
+                    Performance of our model for the target “smiling” for
+                    different mixing factors <d-math>\eta</d-math>.
+                    <em>DP diff</em> measures fairness with respect to
+                    demographic parity. A perfectly fair model has a
+                    <em>DP diff</em> of $$0$$, thus the closer to top-left the
+                    better it is in terms of we accuracy-fairness trade-off.
+                    Only values <d-math>\eta=0</d-math> and
+                    <d-math>\eta=1</d-math> correspond to the scenario of a
+                    strongly biased training set. The results for
+                    <d-math>0.1 \leq \eta \leq 0.9</d-math> are to confirm that
+                    our model does not harm performance for non-biased training
+                    sets.
+                </p>
+            </d-figure>
 
-        <h3>Synthesising Dataset Bias.</h3>
-        <p>
-            For our experiments, we require a training set that exhibits a
-            strong spurious correlation, together with a test set that does not.
-            For cMNIST, this is easily satisfied as we have complete control
-            over the data generation process. For CelebA and UCI Adult, on the
-            other hand, we have to generate the split from the existing data. To
-            this end, we first set aside a randomly selected portion of the
-            dataset from which to sample the biased dataset The portion itself
-            is then split further into two parts: one in which
-            <d-math>(s=-1 \land y=-1) \lor (s=+1 \land y=+1)</d-math> holds true
-            for all samples, call this part <d-math>\mathcal{D}_{eq}</d-math>,
-            and the other part, call it <d-math>\mathcal{D}_{opp}</d-math>,
-            which contains the remaining samples. To investigate the behaviour
-            at different levels of correlation, we mix these two subsets
-            according to a mixing factor <d-math>\eta</d-math>. For
-            <d-math>\eta \leq \tfrac{1}{2}</d-math>, we combine (all of)
-            <d-math>\mathcal{D}_{eq}</d-math> with a fraction of
-            <d-math>2\eta</d-math> from <d-math>\mathcal{D}_{opp}</d-math>. For
-            <d-math>\eta &gt; \tfrac{1}{2}</d-math>, we combine (all of)
-            <d-math>\mathcal{D}_{opp}</d-math> and a fraction of
-            <d-math>2(1 -\eta)</d-math> from <d-math>\mathcal{D}_{eq}</d-math>.
-            Thus, for <d-math>\eta=0</d-math>, the biased dataset is just
-            <d-math>\mathcal{D}_{eq}</d-math>, for <d-math>\eta=1</d-math> it is
-            just <d-math>\mathcal{D}_{opp}</d-math> and for
-            <d-math>\eta=\tfrac{1}{2}</d-math> the biased dataset is an ordinary
-            subset of the whole data. The test set is simply the data remaining
-            from the initial split.
-        </p>
-        <h4>Evaluation protocol.</h4>
-        <p>
-            We evaluate our results in terms of accuracy and fairness. A model
-            that perfectly decouples its predictions from
-            <d-math>s</d-math> will achieve near-uniform accuracy across all
-            biasing-levels. For binary $$s$$/$$y$$ we quantify the fairness of a
-            classifier's predictions using <em>demographic parity</em> (DP): the
-            absolute difference in the probability of a positive prediction for
-            each sensitive group.
-        </p>
-        <d-figure>
-            <img src="./figures/cmnist_new_no_hgr.pdf" />
-            <p class="figcaption">
-                Accuracy of our approach in comparison with other baseline
-                models on the cMNIST dataset, for different standard deviations
-                (<d-math>\sigma</d-math>) for the colour sampling.
+            <h3>Synthesising Dataset Bias.</h3>
+            <p>
+                For our experiments, we require a training set that exhibits a
+                strong spurious correlation, together with a test set that does
+                not. For cMNIST, this is easily satisfied as we have complete
+                control over the data generation process. For CelebA and UCI
+                Adult, on the other hand, we have to generate the split from the
+                existing data. To this end, we first set aside a randomly
+                selected portion of the dataset from which to sample the biased
+                dataset The portion itself is then split further into two parts:
+                one in which
+                <d-math>(s=-1 \land y=-1) \lor (s=+1 \land y=+1)</d-math> holds
+                true for all samples, call this part
+                <d-math>\mathcal{D}_{eq}</d-math>, and the other part, call it
+                <d-math>\mathcal{D}_{opp}</d-math>, which contains the remaining
+                samples. To investigate the behaviour at different levels of
+                correlation, we mix these two subsets according to a mixing
+                factor <d-math>\eta</d-math>. For
+                <d-math>\eta \leq \tfrac{1}{2}</d-math>, we combine (all of)
+                <d-math>\mathcal{D}_{eq}</d-math> with a fraction of
+                <d-math>2\eta</d-math> from <d-math>\mathcal{D}_{opp}</d-math>.
+                For <d-math>\eta &gt; \tfrac{1}{2}</d-math>, we combine (all of)
+                <d-math>\mathcal{D}_{opp}</d-math> and a fraction of
+                <d-math>2(1 -\eta)</d-math> from
+                <d-math>\mathcal{D}_{eq}</d-math>. Thus, for
+                <d-math>\eta=0</d-math>, the biased dataset is just
+                <d-math>\mathcal{D}_{eq}</d-math>, for
+                <d-math>\eta=1</d-math> it is just
+                <d-math>\mathcal{D}_{opp}</d-math> and for
+                <d-math>\eta=\tfrac{1}{2}</d-math> the biased dataset is an
+                ordinary subset of the whole data. The test set is simply the
+                data remaining from the initial split.
             </p>
-        </d-figure>
-        <h3>Experimental results</h3>
-        <p>
-            In this section, we report the results from two image datasets:
-            cMNIST, as a synthetic dataset, provides a good starting point for
-            characterising our model due to the direct control it affords us
-            over the biasing. CelebA, on the other hand, offers a more practical
-            and challenging example. We also test our method on a tabular
-            dataset, the UCI Adult dataset.
-        </p>
-        <h4>cMNIST.</h4>
-        <p>
-            The coloured MNIST (cMNIST) dataset is a variant of the MNIST
-            dataset in which the digits are coloured. In the training set, the
-            colours have a one-to-one correspondence with the digit class. In
-            the test set (and the representative set), colours are assigned
-            randomly. The colours are drawn from Gaussians with 10 different
-            means. We follow the colourisation procedure outlined by
-            <d-cite key="ln2l"></d-cite>, with the mean colour values selected
-            so as to be maximally dispersed. The full list of such values can be
-            found in Appendix D. We produce multiple variants of the cMNIST
-            dataset corresponding to different standard deviations
-            <d-math>\sigma</d-math> for the colour sampling:
-            <d-math>\sigma \in \{0.00, 0.01, ..., 0.05 \}</d-math>.
-        </p>
-        <p>
-            Since the data-generation process is known, we can establish a
-            baseline an additional by following the simple heuristic of
-            grey-scaling the dataset which only leaves the luminosity as
-            spurious information. We also evaluate the model, with all the
-            associated hyperparameters, from <d-cite key="ln2l"></d-cite>. The
-            only difference between the setups is on the side of dataset
-            creation, including the range of <d-math>\sigma</d-math> values we
-            consider. Our versions of the dataset, on the whole, exhibit much
-            stronger colour bias, to the point of the mapping the digit's colour
-            and class being bijective. Figure ref{fig:cmnist_chart} shows that
-            the model significantly underperforms even the naïve baseline, aside
-            from at <d-math>\sigma = 0</d-math>, where they are on par.
-        </p>
-        <p>
-            Inspection of the null-samples shows that both the cVAE and cFlow
-            model succeed in removing almost all colour information, which is
-            supported quantitatively by Fig. ref{fig:cmnist_chart}. While the
-            cVAE outperforms cFlow marginally at low
-            <d-math>\sigma</d-math> values, performance degrades as this
-            increases. This highlights the problems with the conditional decoder
-            we anticipated in Section ref{conddec}. The lower
-            <d-math>\sigma</d-math>, and therefore the variation in sampled
-            colour, is, the more reliably the $$s$$ label, corresponding to the
-            mean of RGB distribution, encodes information about the colour. For
-            higher <d-math>\sigma</d-math> values, the sampled colours can
-            deviate far from the mean and so the encoder must incorporate
-            information about $$s$$ into its representation if it is to minimise
-            the reconstruction loss. cFlow, on the other hand, is consistent
-            across $$\sigma$$ values.
-        </p>
-        <h4>CelebA.</h4>
-        <p>
-            To evaluate the effectiveness of our framework on real-world image
-            data we use the CelebA dataset
-            <d-cite key="liu2015faceattributes"></d-cite>, consisting of
-            $$202,599$$ celebrity images. These images are annotated with
-            various binary physical attributes, including “gender”, “hair
-            color”, “young”, etc, from which we select our sensitive and target
-            attributes. The images are centre cropped and resized to
-            <d-math>64\times64</d-math>, as is standard practice. For our
-            experiments, we designate “gender” as the sensitive attribute, and
-            “smiling” and “high cheekbones” as target attributes. We chose
-            gender as the sensitive attribute as it a common sensitive attribute
-            in the fairness literature. For the target attributes, we chose
-            attributes that are harder to learn than gender and which do not
-            correlate too strongly with gender in the dataset (“wearing
-            lipstick” for example being an attribute too closely correlated with
-            gender). The model is trained on the representative set (normal
-            subset of CelebA) and is then used to encode the artificially biased
-            training set and the test set. The results for the most strongly
-            biased training set (<d-math>\eta=0</d-math>) can be found in Fig.
-            ref{fig:celeba-targets}. Our method outperforms the baselines in
-            accuracy and fairness.
-        </p>
-        <p>
-            We also assess performance for different mixing factors
-            (<d-math>\eta</d-math>) which correspond to varying degrees of bias
-            in the training set (see Fig. ref{fig:celeba-multiplot}). This is to
-            verify that the model does not <em>harm</em> performance when there
-            is not much bias in the training set. For these experiments, the
-            model is trained once on the representative set and is then used to
-            encode different training sets. The results show that for the
-            intermediate values of <d-math>\eta</d-math>, our model incurs a
-            small penalty in terms of accuracy, but at the same time makes the
-            results <em>fairer</em> (corresponding to an accuracy-fairness
-            trade-off). Qualitative results can be found in Fig.
-            ref{fig:celeba_cflow} (images from cVAE can be found in Appendix F).
-        </p>
-        <p>
-            To show that our method can handle multinomial, as well as binary,
-            sensitive attributes, we also conduct experiments with
-            <d-math>s=\textrm{hair color}</d-math> as a ternary attribute
-            (“Blonde”, "Black", “Brown”), excluding “Red” because of the paucity
-            of samples and the noisiness of their labels. The results for these
-            experiments can be found in Appendix B.
-        </p>
-        <d-figure>
-            <img src="./figures/nosinn_adult_multiplot_mini_diff.pdf" />
-            <p class="figcaption">
-                Results for the <b>Adult</b> dataset. The $$x$$-axis corresponds
-                to the difference in positive rates. An ideal result would
-                occupy the <b>top-left</b>.
+            <h4>Evaluation protocol.</h4>
+            <p>
+                We evaluate our results in terms of accuracy and fairness. A
+                model that perfectly decouples its predictions from
+                <d-math>s</d-math> will achieve near-uniform accuracy across all
+                biasing-levels. For binary $$s$$/$$y$$ we quantify the fairness
+                of a classifier's predictions using
+                <em>demographic parity</em> (DP): the absolute difference in the
+                probability of a positive prediction for each sensitive group.
             </p>
-        </d-figure>
-        <h4>Results for the UCI Adult dataset.</h4>
-        <p>
-            The UCI Adult dataset consists of census data and is commonly used
-            to evaluate models focused on algorithmic fairness. Following
-            convention, we designate “gender” as the sensitive attribute $$s$$
-            and whether an individual's salary is $50,000 or greater as $$y$$.
-            We show the performance of our approach in comparison to baseline
-            approaches in Fig. ref{fig:adult-chart}. We evaluate the performance
-            of all models for mixing factors (<d-math>\eta</d-math>) $$0$$ and
-            $$1$$. Results shown in Fig. ref{fig:adult-chart} show that we match
-            or exceed the baseline. In terms of fairness metrics, our approach
-            generally outperforms the baseline models for both of
-            <d-math>\eta</d-math>. Detailed results can be found in the Appendix
-            B.
-        </p>
-        <h2>Conclusion</h2>
-        <p>
-            We have proposed a general and straightforward framework for
-            producing invariant representations, under the assumption that a
-            representative but partially-labelled <em>representative</em> set is
-            available. Training consists of two stages: an encoder is first
-            trained on the representative set to produce a representation that
-            is invariant to a designated spurious feature. This is then used as
-            input for a downstream task-classifier, the training data for which
-            might exhibit extreme bias with respect to that feature. We train
-            both a VAE- and INN-based model according to this procedure, and
-            show that the latter is particularly well-suited to this setting due
-            to its losslessness. The design of the models allows for
-            representations that are in the data domain and therefore exhibit
-            meaningful invariances. We characterise this for synthetic as well
-            as real-world datasets for which we develop a method for simulating
-            sampling bias.
-        </p>
-    </d-article>
-    <d-appendix>
-        <h3>Acknowledgements</h3>
-        <p>
-            This work was in part funded by the European Research Council under
-            the ERC grant agreement no. 851538. We are grateful to NVIDIA for
-            donating GPUs.
-        </p>
-        <d-bibliography src="bibliography.bib"></d-bibliography>
-    </d-appendix>
+            <d-figure>
+                <img src="./figures/cmnist_new_no_hgr.pdf" />
+                <p class="figcaption">
+                    Accuracy of our approach in comparison with other baseline
+                    models on the cMNIST dataset, for different standard
+                    deviations (<d-math>\sigma</d-math>) for the colour
+                    sampling.
+                </p>
+            </d-figure>
+            <h3>Experimental results</h3>
+            <p>
+                In this section, we report the results from two image datasets:
+                cMNIST, as a synthetic dataset, provides a good starting point
+                for characterising our model due to the direct control it
+                affords us over the biasing. CelebA, on the other hand, offers a
+                more practical and challenging example. We also test our method
+                on a tabular dataset, the UCI Adult dataset.
+            </p>
+            <h4>cMNIST.</h4>
+            <p>
+                The coloured MNIST (cMNIST) dataset is a variant of the MNIST
+                dataset in which the digits are coloured. In the training set,
+                the colours have a one-to-one correspondence with the digit
+                class. In the test set (and the representative set), colours are
+                assigned randomly. The colours are drawn from Gaussians with 10
+                different means. We follow the colourisation procedure outlined
+                by
+                <d-cite key="ln2l"></d-cite>, with the mean colour values
+                selected so as to be maximally dispersed. The full list of such
+                values can be found in Appendix D. We produce multiple variants
+                of the cMNIST dataset corresponding to different standard
+                deviations <d-math>\sigma</d-math> for the colour sampling:
+                <d-math>\sigma \in \{0.00, 0.01, ..., 0.05 \}</d-math>.
+            </p>
+            <p>
+                Since the data-generation process is known, we can establish a
+                baseline an additional by following the simple heuristic of
+                grey-scaling the dataset which only leaves the luminosity as
+                spurious information. We also evaluate the model, with all the
+                associated hyperparameters, from <d-cite key="ln2l"></d-cite>.
+                The only difference between the setups is on the side of dataset
+                creation, including the range of <d-math>\sigma</d-math> values
+                we consider. Our versions of the dataset, on the whole, exhibit
+                much stronger colour bias, to the point of the mapping the
+                digit's colour and class being bijective. Figure
+                ref{fig:cmnist_chart} shows that the model significantly
+                underperforms even the naïve baseline, aside from at
+                <d-math>\sigma = 0</d-math>, where they are on par.
+            </p>
+            <p>
+                Inspection of the null-samples shows that both the cVAE and
+                cFlow model succeed in removing almost all colour information,
+                which is supported quantitatively by Fig. ref{fig:cmnist_chart}.
+                While the cVAE outperforms cFlow marginally at low
+                <d-math>\sigma</d-math> values, performance degrades as this
+                increases. This highlights the problems with the conditional
+                decoder we anticipated in Section ref{conddec}. The lower
+                <d-math>\sigma</d-math>, and therefore the variation in sampled
+                colour, is, the more reliably the $$s$$ label, corresponding to
+                the mean of RGB distribution, encodes information about the
+                colour. For higher <d-math>\sigma</d-math> values, the sampled
+                colours can deviate far from the mean and so the encoder must
+                incorporate information about $$s$$ into its representation if
+                it is to minimise the reconstruction loss. cFlow, on the other
+                hand, is consistent across $$\sigma$$ values.
+            </p>
+            <h4>CelebA.</h4>
+            <p>
+                To evaluate the effectiveness of our framework on real-world
+                image data we use the CelebA dataset
+                <d-cite key="liu2015faceattributes"></d-cite>, consisting of
+                $$202,599$$ celebrity images. These images are annotated with
+                various binary physical attributes, including “gender”, “hair
+                color”, “young”, etc, from which we select our sensitive and
+                target attributes. The images are centre cropped and resized to
+                <d-math>64\times64</d-math>, as is standard practice. For our
+                experiments, we designate “gender” as the sensitive attribute,
+                and “smiling” and “high cheekbones” as target attributes. We
+                chose gender as the sensitive attribute as it a common sensitive
+                attribute in the fairness literature. For the target attributes,
+                we chose attributes that are harder to learn than gender and
+                which do not correlate too strongly with gender in the dataset
+                (“wearing lipstick” for example being an attribute too closely
+                correlated with gender). The model is trained on the
+                representative set (normal subset of CelebA) and is then used to
+                encode the artificially biased training set and the test set.
+                The results for the most strongly biased training set
+                (<d-math>\eta=0</d-math>) can be found in Fig.
+                ref{fig:celeba-targets}. Our method outperforms the baselines in
+                accuracy and fairness.
+            </p>
+            <p>
+                We also assess performance for different mixing factors
+                (<d-math>\eta</d-math>) which correspond to varying degrees of
+                bias in the training set (see Fig. ref{fig:celeba-multiplot}).
+                This is to verify that the model does not
+                <em>harm</em> performance when there is not much bias in the
+                training set. For these experiments, the model is trained once
+                on the representative set and is then used to encode different
+                training sets. The results show that for the intermediate values
+                of <d-math>\eta</d-math>, our model incurs a small penalty in
+                terms of accuracy, but at the same time makes the results
+                <em>fairer</em> (corresponding to an accuracy-fairness
+                trade-off). Qualitative results can be found in Fig.
+                ref{fig:celeba_cflow} (images from cVAE can be found in Appendix
+                F).
+            </p>
+            <p>
+                To show that our method can handle multinomial, as well as
+                binary, sensitive attributes, we also conduct experiments with
+                <d-math>s=\textrm{hair color}</d-math> as a ternary attribute
+                (“Blonde”, "Black", “Brown”), excluding “Red” because of the
+                paucity of samples and the noisiness of their labels. The
+                results for these experiments can be found in Appendix B.
+            </p>
+            <d-figure>
+                <img src="./figures/nosinn_adult_multiplot_mini_diff.pdf" />
+                <p class="figcaption">
+                    Results for the <b>Adult</b> dataset. The
+                    <d-math>x</d-math>-axis corresponds to the difference in
+                    positive rates. An ideal result would occupy the
+                    <b>top-left</b>.
+                </p>
+            </d-figure>
+            <h4>Results for the UCI Adult dataset.</h4>
+            <p>
+                The UCI Adult dataset consists of census data and is commonly
+                used to evaluate models focused on algorithmic fairness.
+                Following convention, we designate “gender” as the sensitive
+                attribute $$s$$ and whether an individual's salary is $50,000 or
+                greater as $$y$$. We show the performance of our approach in
+                comparison to baseline approaches in Fig. ref{fig:adult-chart}.
+                We evaluate the performance of all models for mixing factors
+                (<d-math>\eta</d-math>) $$0$$ and $$1$$. Results shown in Fig.
+                ref{fig:adult-chart} show that we match or exceed the baseline.
+                In terms of fairness metrics, our approach generally outperforms
+                the baseline models for both of
+                <d-math>\eta</d-math>. Detailed results can be found in the
+                Appendix B.
+            </p>
+            <h2>Conclusion</h2>
+            <p>
+                We have proposed a general and straightforward framework for
+                producing invariant representations, under the assumption that a
+                representative but partially-labelled
+                <em>representative</em> set is available. Training consists of
+                two stages: an encoder is first trained on the representative
+                set to produce a representation that is invariant to a
+                designated spurious feature. This is then used as input for a
+                downstream task-classifier, the training data for which might
+                exhibit extreme bias with respect to that feature. We train both
+                a VAE- and INN-based model according to this procedure, and show
+                that the latter is particularly well-suited to this setting due
+                to its losslessness. The design of the models allows for
+                representations that are in the data domain and therefore
+                exhibit meaningful invariances. We characterise this for
+                synthetic as well as real-world datasets for which we develop a
+                method for simulating sampling bias.
+            </p>
+        </d-article>
+        <d-appendix>
+            <h3>Acknowledgements</h3>
+            <p>
+                This work was in part funded by the European Research Council
+                under the ERC grant agreement no. 851538. We are grateful to
+                NVIDIA for donating GPUs.
+            </p>
+            <d-bibliography src="bibliography.bib"></d-bibliography>
+        </d-appendix>
 
-    <pal-footer></pal-footer>
-</body>
+        <pal-footer></pal-footer>
+    </body>
+</html>
