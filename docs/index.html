@@ -153,7 +153,7 @@
                 unsupervised manner. This will allow us to draw on a much more
                 diverse pool of data to learn from. While annotations for
                 <d-math>y</d-math> are often hard to come by (and often noisy
-                <d-cite key="'KehCheQua18"></d-cite>
+                <d-cite key="KehCheQua18"></d-cite>
                 ), annotations for the sensitive attribute
                 <d-math>s</d-math> are usually less so, as
                 <d-math>s</d-math> can often be obtained from demographic
@@ -285,71 +285,107 @@
             <d-figure
                 href="#fig:celeba_cflow"
                 id="fig:celeba_cflow"
-                class="l-page"
+                class="l-body"
             >
-                <a
-                    href="#fig:cflow_celeba_original_x"
-                    id="fig:cflow_celeba_original_x"
-                >
-                    <img src="./images/celeba/train_original_x_2.png" />
-                    <p class="figcaption">Original images.</p>
-                </a>
-                <a
-                    href="#fig:cflow_celeba_recon_y"
-                    id="fig:cflow_celeba_recon_y"
-                >
-                    <img src="./images/celeba/train_reconstruction_y_2.png" />
-                    <p class="figcaption">
-                        <d-math>\mathbf{x}_u</d-math>
-                        null-samples from the cFlow model.
-                    </p>
-                </a>
-                <a
-                    href="#fig:cflow_celeba_recon_s"
-                    id="fig:cflow_celeba_recon_s"
-                >
-                    <img src="./images/celeba/train_reconstruction_s_2.png" />
-                    <p class="figcaption">
-                        <d-math>\mathbf{x}_b</d-math>
-                        null-samples from the cFlow model.
-                    </p>
-                </a>
-                <div class="figcaption">
-                    <p>
-                        CelebA null-samples learned by our cFlow model, with
-                        gender as the sensitive attribute. (a) The original,
-                        untransformed samples from the CelebA dataset (b)
-                        Reconstructions using only information unrelated to
-                        <d-math>s</d-math>. (c) Reconstruction using only
-                        information related to <d-math>\neg s</d-math>. The
-                        model learns to disentangle gender from the non-gender
-                        related information. Note that some attributes like skin
-                        tone seem to change along with gender due to the
-                        correlation between the attributes. This is especially
-                        visible in images (1,1) and (3,2). Only because our
-                        representations are produced in the data-domain can we
-                        easily spot such instances of entanglement.
-                    </p>
+                <div style="display: flex; margin: auto;">
+                    <div style="flex: 1;">
+                        <a
+                            href="#fig:cflow_celeba_original_x"
+                            id="fig:cflow_celeba_original_x"
+                        >
+                            <img
+                                src="./images/celeba/train_original_x_2.png"
+                                style="max-width: 100%;"
+                            />
+                            <p class="figcaption">Original images.</p>
+                        </a>
+                    </div>
+                    <div style="flex: 0.2;"></div>
+                    <div style="flex: 1;">
+                        <a
+                            href="#fig:cflow_celeba_recon_y"
+                            id="fig:cflow_celeba_recon_y"
+                        >
+                            <img
+                                src="./images/celeba/train_reconstruction_y_2.png"
+                                style="max-width: 100%;"
+                            />
+                            <p class="figcaption">
+                                <d-math>\mathbf{x}_u</d-math>
+                                null-samples from the cFlow model.
+                            </p>
+                        </a>
+                    </div>
+                    <div style="flex: 0.2;"></div>
+                    <div style="flex: 1;">
+                        <a
+                            href="#fig:cflow_celeba_recon_s"
+                            id="fig:cflow_celeba_recon_s"
+                        >
+                            <img
+                                src="./images/celeba/train_reconstruction_s_2.png"
+                                style="max-width: 100%;"
+                            />
+                            <p class="figcaption">
+                                <d-math>\mathbf{x}_b</d-math>
+                                null-samples from the cFlow model.
+                            </p>
+                        </a>
+                    </div>
                 </div>
+
+                <p class="figcaption">
+                    CelebA null-samples learned by our cFlow model, with gender
+                    as the sensitive attribute. (a) The original, untransformed
+                    samples from the CelebA dataset (b) Reconstructions using
+                    only information unrelated to
+                    <d-math>s</d-math>. (c) Reconstruction using only
+                    information related to <d-math>\neg s</d-math>. The model
+                    learns to disentangle gender from the non-gender related
+                    information. Note that some attributes like skin tone seem
+                    to change along with gender due to the correlation between
+                    the attributes. This is especially visible in images (1,1)
+                    and (3,2). Only because our representations are produced in
+                    the data-domain can we easily spot such instances of
+                    entanglement.
+                </p>
             </d-figure>
 
-            <d-figure href="#fig:cmnist" id="fig:cmnist" class="l-page">
-                <img src="./images/cmnist/cflow_original_task_x_scale_0.png" />
-                <p class="figcaption">
-                    Samples from the cMNIST training set,
-                    <d-math>\sigma=0</d-math>.
-                </p>
-
-                <img src="./images/cmnist/cflow_task_xy_scale_0.png" />
-                <p class="figcaption">
-                    <d-math>x_u</d-math> null-samples from the cFlow model.
-                </p>
-
-                <img src="./images/cmnist/cflow_task_xs_scale_0.png" />
-                <p class="figcaption">
-                    <d-math>x_b</d-math> null-samples from the cFlow model.
-                </p>
-
+            <d-figure href="#fig:cmnist" id="fig:cmnist" class="l-body">
+                <div style="display: flex; margin: auto;">
+                    <div style="flex: 1;">
+                        <img
+                            src="./images/cmnist/cflow_original_task_x_scale_0.png"
+                            style="max-width: 100%;"
+                        />
+                        <p class="figcaption">
+                            Samples from the cMNIST training set,
+                            <d-math>\sigma=0</d-math>.
+                        </p>
+                    </div>
+                    <div style="flex: 0.2;"></div>
+                    <div style="flex: 1;">
+                        <img
+                            src="./images/cmnist/cflow_task_xy_scale_0.png"
+                            style="max-width: 100%;"
+                        />
+                        <p class="figcaption">
+                            <d-math>x_u</d-math> null-samples from the cFlow
+                            model.
+                        </p>
+                    </div>
+                    <div style="flex: 0.2;"></div>
+                    <div style="flex: 1;">
+                        <img
+                            src="./images/cmnist/cflow_task_xs_scale_0.png"
+                            style="max-width: 100%;"
+                        />
+                        <p class="figcaption">
+                            <d-math>x_b</d-math> null-samples from the cFlow
+                            model.
+                        </p>
+                    </div>
+                </div>
                 <p class="figcaption">
                     Sample images from the coloured MNIST dataset problem with
                     $10$ predefined mean colours. (a): Images from the
@@ -518,13 +554,26 @@
             <a class="marker" href="#3-method" id="3-method"><span>3</span></a>
             <h2>Interpretable Invariances by Null-Sampling</h2>
 
-            <d-figure>
-                <a href="#fig:inn_diagram" id="fig:inn_diagram"
-                    ><img src="./figures/inn_diagram_u.pdf"
-                /></a>
-                <a href="#fig:cvae_diagram" id="fig:cvae_diagram"
-                    ><img src="./figures/cvae_diagram_u.pdf"
-                /></a>
+            <d-figure class="l-body">
+                <div style="display: flex; align-items: flex-end;">
+                    <div style="flex: 1;">
+                        <a href="#fig:inn_diagram" id="fig:inn_diagram"
+                            ><img
+                                src="./figures/nif-figures-png/inn_diagram_u-1.png"
+                                style="max-width: 100%;"
+                        /></a>
+                        <p class="figcaption">cVAE</p>
+                    </div>
+                    <div style="flex: 0.1;"></div>
+                    <div style="flex: 1;">
+                        <a href="#fig:cvae_diagram" id="fig:cvae_diagram"
+                            ><img
+                                src="./figures/nif-figures-png/cvae_diagram_u-1.png"
+                                style="max-width: 100%;"
+                        /></a>
+                        <p class="figcaption">cFlow</p>
+                    </div>
+                </div>
                 <p class="figcaption">
                     Training procedure for our models. <d-math>x</d-math>:
                     input, <d-math>s</d-math>: sensitive attribute,
@@ -912,7 +961,7 @@
                 the model of <d-cite key="ln2l"></d-cite> (Ln2L) and the same
                 CNN used to evaluate the cFlow and cVAE models but with the
                 unmodified images as input (CNN). For the cFlow model we adopt a
-                Glow-like architecture <d-cite key="KinDha1"></d-cite>, while
+                Glow-like architecture <d-cite key="KinDha18"></d-cite>, while
                 both subnetworks of the cVAE model comprise gated convolutions
                 <d-cite key="van2016conditional"></d-cite>, where the encoding
                 size is $$256$$. For cMNIST, we construct the Ln2L baseline
@@ -921,8 +970,11 @@
                 Detailed information regarding model architectures and the code
                 can be found in Appendix A.
             </p>
-            <d-figure>
-                <img src="./figures/nosinn_celeba.pdf" />
+            <d-figure class="l-body">
+                <img
+                    style="max-width: 100%;"
+                    src="./figures/nif-figures-png/nosinn_celeba-1.png"
+                />
                 <p class="figcaption">
                     Performance of our model for different targets (mixing
                     factor
@@ -932,9 +984,10 @@
                     fair model has a <em>DP diff</em> of 0.
                 </p>
             </d-figure>
-            <d-figure>
+            <d-figure class="l-body">
                 <img
-                    src="./figures/nosinn_celeba_multiplot_all_landscape_Smiling.pdf"
+                    style="max-width: 100%;"
+                    src="./figures/nif-figures-png/nosinn_celeba_multiplot_all_landscape_Smiling-1.png"
                 />
                 <p class="figcaption">
                     Performance of our model for the target “smiling” for
@@ -995,8 +1048,11 @@
                 <em>demographic parity</em> (DP): the absolute difference in the
                 probability of a positive prediction for each sensitive group.
             </p>
-            <d-figure>
-                <img src="./figures/cmnist_new_no_hgr.pdf" />
+            <d-figure class="l-body">
+                <img
+                    style="max-width: 100%;"
+                    src="./figures/nif-figures-png/cmnist_new_no_hgr-1.png"
+                />
                 <p class="figcaption">
                     Accuracy of our approach in comparison with other baseline
                     models on the cMNIST dataset, for different standard
@@ -1110,8 +1166,11 @@
                 paucity of samples and the noisiness of their labels. The
                 results for these experiments can be found in Appendix B.
             </p>
-            <d-figure>
-                <img src="./figures/nosinn_adult_multiplot_mini_diff.pdf" />
+            <d-figure class="l-body">
+                <img
+                    style="max-width: 100%;"
+                    src="./figures/nif-figures-png/nosinn_adult_multiplot_mini_diff-1.png"
+                />
                 <p class="figcaption">
                     Results for the <b>Adult</b> dataset. The
                     <d-math>x</d-math>-axis corresponds to the difference in
