@@ -1,5 +1,7 @@
 # Null-sampling for Invariant and Intepretable Representations
 
+Implementation of our paper [Null-sampling for Invariant and Intepretable Representations](https://arxiv.org/abs/2008.05248).
+
 ## Requirements
 
 Python 3.8 (or higher)
