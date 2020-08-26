@@ -14,7 +14,6 @@ setup(
         "gitpython",
         "numpy >= 1.15",
         "pandas >= 0.24",
-        "pillow < 7.0",
         "scikit-image >= 0.14",
         "scikit-learn >= 0.20",
         "scipy >= 1.2.1",
