@@ -2,9 +2,9 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2008.05248-b31b1b.svg)](https://arxiv.org/abs/2008.05248)
 
 
-# Null-sampling for Invariant and Intepretable Representations
+# Null-sampling for Interpretable and Fair Representations
 
-Implementation of our paper [Null-sampling for Invariant and Intepretable Representations](https://arxiv.org/abs/2008.05248).
+Implementation of our paper [Null-sampling for Interpretable and Fair Representations](https://arxiv.org/abs/2008.05248).
 
 ## Requirements
 
