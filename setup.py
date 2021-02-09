@@ -10,7 +10,7 @@ setup(
     package_data={"nifr": ["py.typed"]},
     install_requires=[
         "captum",
-        "EthicML",
+        "EthicML==0.1.0a8",
         "gitpython",
         "numpy >= 1.15",
         "pandas >= 0.24",
