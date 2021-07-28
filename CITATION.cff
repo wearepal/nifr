@@ -1,5 +1,6 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+title: "Null-sampling for Interpretable and Fair Representations"
 authors:
 - family-names: "Kehrenberg"
   given-names: "Thomas"
@@ -9,28 +10,39 @@ authors:
 - family-names: "Thomas"
   given-names: "Oliver"
   orcid: "https://orcid.org/0000-0001-8162-9633"
-- family-names: "Quadrianto"
-  given-names: "Novi"
-title: "Null-sampling for Interpretable and Fair Representations"
-version: 1.0.0
-doi: "10.1007/978-3-030-58574-7_34"
+version: 1.0.0  
 date-released: 2020-08-01
-type: "conference-paper"
 url: "https://github.com/predictive-analytics-lab/nifr"
-isbn: "978-3-030-58574-7"
-editors: 
-- family-names: "Vedaldi"
-  given-names: "Andrea"
-- family-names: "Bischof"
-  given-names: "Horst"
-- family-names: "Brox"
-  given-names: "Thomas"
-- family-names: "Frahm"
-  given-names: "Jan-Michael"
-collection-title: "Computer Vision -- ECCV 2020"
-collection-type: "conference"
-year: 2020
-publisher: 
-- name: "Springer International Publishing"
-  address: "Cham"
-pages: "565--580"
+references:
+  - type: "conference-paper"
+    authors:
+    - family-names: "Kehrenberg"
+      given-names: "Thomas"
+      orcid: "https://orcid.org/0000-0002-2347-7165"
+    - family-names: "Bartlett"
+      given-names: "Myles"
+    - family-names: "Thomas"
+      given-names: "Oliver"
+      orcid: "https://orcid.org/0000-0001-8162-9633"
+    - family-names: "Quadrianto"
+      given-names: "Novi"
+    title: "Null-sampling for Interpretable and Fair Representations"
+    doi: "10.1007/978-3-030-58574-7_34"
+    url: "https://github.com/predictive-analytics-lab/nifr"
+    isbn: "978-3-030-58574-7"
+    editors: 
+    - family-names: "Vedaldi"
+      given-names: "Andrea"
+    - family-names: "Bischof"
+      given-names: "Horst"
+    - family-names: "Brox"
+      given-names: "Thomas"
+    - family-names: "Frahm"
+      given-names: "Jan-Michael"
+    collection-title: "Computer Vision -- ECCV 2020"
+    collection-type: "conference"
+    year: 2020
+    publisher: 
+    - name: "Springer International Publishing"
+      address: "Cham"
+    pages: "565--580"
