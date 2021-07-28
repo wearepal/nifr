@@ -30,5 +30,22 @@ start_inn.py --dataset celeba --levels 3 --level-depth 32 --glow True --reshape-
 ```
 start_inn.py --dataset cmnist --levels 3 --level-depth 24 --glow True --reshape-method squeeze --autoencode False --input-noise True --quant-level 5 --use-wandb True --factor-splits 0=0.5 1=0.5 --train-on-recon False --recon-detach False --batch-size 256 --test-batch-size 512 --nll-weight 1 --pred-s-weight 1e-2 --zs-frac 0.002 --coupling-channels 512 --super-val True --super-val-freq 5 --val-freq 1 --task-mixing 0 --gpu 0 --num-discs 1 --disc-channels 512 --level-depth 24 --num-discs 3
 ```
+## Citing This Work
 
+```bibtex
+@InProceedings{KehBarThoQua20,
+  author    = {Kehrenberg, Thomas and 
+               Bartlett, Myles and 
+               Thomas, Oliver and 
+               Quadrianto, Novi},
+  editor    = {Vedaldi, Andrea and Bischof, Horst and Brox, Thomas and Frahm, Jan-Michael},
+  title     = {Null-Sampling for Interpretable and Fair Representations},
+  booktitle = {Computer Vision -- ECCV 2020},
+  year      = {2020},
+  publisher = {Springer International Publishing},
+  address   = {Cham},
+  pages     = {565--580},
+  isbn      = {978-3-030-58574-7}
+}
+```
 
