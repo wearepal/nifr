@@ -219,8 +219,11 @@ def main_inn(raw_args: Optional[List[str]] = None) -> Union[PartitionedInn, Part
     Returns:
         the trained model
     """
-    repo = git.Repo(search_parent_directories=True)
-    sha = repo.head.object.hexsha
+    try:
+        repo = git.Repo(search_parent_directories=True)
+        sha = repo.head.object.hexsha
+    except git.exc.InvalidGitRepositoryError:
+        sha = "dead"
 
     args = InnArgs(explicit_bool=True, underscores_to_dashes=True)
     args.parse_args(raw_args)
